@@ -497,8 +497,10 @@ pub fn build_pyramid_from_raster(
 fn drop_alpha(raster: Raster) -> Raster {
     let data = raster
         .data
-        .chunks_exact(4)
-        .flat_map(|pixel| [pixel[0], pixel[1], pixel[2]])
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .flat_map(|&[r, g, b, _]| [r, g, b])
         .collect();
     Raster::new(raster.width, raster.height, 3, data)
 }
