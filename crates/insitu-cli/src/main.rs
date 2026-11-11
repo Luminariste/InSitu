@@ -10,16 +10,21 @@
 //! - `insitu project new <dossier.insitu> [--name <nom>]` : crée un projet ;
 //! - `insitu project info <dossier.insitu>` : résumé d'un projet, en JSON ;
 //! - `insitu project validate <dossier.insitu>` : contrôle le JSON et la
-//!   présence des fichiers référencés.
+//!   présence des fichiers référencés ;
+//! - `insitu tiles <image> <dossier>` : pyramide de tuiles d'une image, pour
+//!   la visionneuse (descripteur en JSON, durée sur la sortie d'erreur).
 //!
 //! Code de sortie : 0 si tout va bien, 1 en cas d'échec ou de projet
 //! invalide, 2 si la commande est mal écrite.
 
 mod geometry;
 
+use std::path::Path;
 use std::process::ExitCode;
+use std::time::Instant;
 
 use insitu_core::project::{self, ProjectDir, ProjectError};
+use insitu_core::tiles::{self, TileFormat, TileOptions};
 use serde_json::json;
 
 /// Ce qui peut mal tourner dans une commande.
@@ -67,12 +72,65 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             Err(geometry::Problem::Failed(message)) => Err(Failure::Failed(message)),
         },
         ["project", rest @ ..] => run_project(rest),
+        ["tiles", rest @ ..] => run_tiles(rest),
         [] | ["--help"] | ["-h"] => {
             println!("{}", usage());
             Ok(ExitCode::SUCCESS)
         }
         [other, ..] => Err(Failure::Usage(format!("Commande inconnue : {other}"))),
     }
+}
+
+/// `insitu tiles <image> <dossier> [--tile-size N] [--format png|jpeg] [--quality Q]`
+fn run_tiles(args: &[&str]) -> Result<ExitCode, Failure> {
+    let usage = |message: &str| Failure::Usage(message.to_string());
+    let mut options = TileOptions::default();
+    let mut paths = Vec::new();
+    let mut rest = args.iter().copied();
+    while let Some(arg) = rest.next() {
+        match arg {
+            "--tile-size" => {
+                options.tile_size = rest
+                    .next()
+                    .and_then(|value| value.parse().ok())
+                    .ok_or_else(|| usage("--tile-size attend un nombre de pixels"))?;
+            }
+            "--format" => {
+                options.format = Some(match rest.next() {
+                    Some("png") => TileFormat::Png,
+                    Some("jpeg") | Some("jpg") => TileFormat::Jpeg,
+                    _ => return Err(usage("--format attend png ou jpeg")),
+                });
+            }
+            "--quality" => {
+                options.jpeg_quality = rest
+                    .next()
+                    .and_then(|value| value.parse().ok())
+                    .ok_or_else(|| usage("--quality attend un nombre de 1 à 100"))?;
+            }
+            other if other.starts_with("--") => {
+                return Err(Failure::Usage(format!("Option inconnue : {other}")));
+            }
+            path => paths.push(path),
+        }
+    }
+    let [image, out_dir] = paths[..] else {
+        return Err(usage(
+            "Usage : insitu tiles <image> <dossier> [--tile-size N] [--format png|jpeg] [--quality Q]",
+        ));
+    };
+
+    let start = Instant::now();
+    let pyramid = tiles::build_pyramid(Path::new(image), Path::new(out_dir), &options)
+        .map_err(|error| Failure::Failed(error.to_string()))?;
+    print_json(&pyramid)?;
+    eprintln!(
+        "{} tuiles sur {} niveaux, en {:.1} s",
+        pyramid.tile_count(),
+        pyramid.levels.len(),
+        start.elapsed().as_secs_f64()
+    );
+    Ok(ExitCode::SUCCESS)
 }
 
 fn run_project(args: &[&str]) -> Result<ExitCode, Failure> {
@@ -182,5 +240,9 @@ fn usage() -> &'static str {
      geometry --help                               Décrit le fichier attendu et le résultat\n  \
      project new <dossier.insitu> [--name <nom>]   Crée un projet vide\n  \
      project info <dossier.insitu>                 Affiche le résumé d'un projet (JSON)\n  \
-     project validate <dossier.insitu>             Contrôle le projet et ses fichiers"
+     project validate <dossier.insitu>             Contrôle le projet et ses fichiers\n  \
+     tiles <image> <dossier>                       Fabrique la pyramide de tuiles d'une image\n      \
+     --tile-size N                               côté des tuiles en pixels (512 par défaut)\n      \
+     --format png|jpeg                           format imposé (sinon choisi d'après l'image)\n      \
+     --quality Q                                 qualité JPEG de 1 à 100 (88 par défaut)"
 }

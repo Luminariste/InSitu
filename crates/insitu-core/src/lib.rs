@@ -14,6 +14,7 @@
 
 pub mod geometry;
 pub mod project;
+pub mod tiles;
 pub mod units;
 
 use serde::Serialize;
