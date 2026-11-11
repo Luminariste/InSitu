@@ -24,7 +24,7 @@ jobs:
       - run: cargo test
 
   interface:
-    name: Interface (types et construction)
+    name: Interface (types, tests et construction)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +33,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm test
       - run: npm run build
 
   coque:

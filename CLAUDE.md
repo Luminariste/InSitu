@@ -73,6 +73,7 @@ crates/insitu-cli/    Binaire `insitu` : le moteur en ligne de commande.
 src-tauri/            Coque de bureau (Tauri 2). Appelle le moteur, ne calcule rien.
 src/                  Interface (React + TypeScript).
 src/engine.ts         Seul fichier de l'interface qui appelle le moteur.
+src/viewer/           Visionneuse haute résolution (PixiJS), base des vues façade et diapositive.
 docs/                 Plan, décisions, notice d'installation, publication d'une version.
 jeu-essai/            Fichiers réels pour les tests (voir jeu-essai/LISEZMOI.md).
 ```
@@ -100,6 +101,7 @@ cargo test                    # tests du moteur (fonctionne en session cloud)
 cargo run -p insitu-cli -- info
 npm ci                        # dépendances de l'interface
 npm run check                 # vérification des types
+npm test                      # tests de l'interface (logique pure, sans écran)
 npm run build                 # construction de l'interface
 npm run dev                   # interface seule dans un navigateur (sans moteur)
 npm run tauri dev             # l'app complète — sur Mac uniquement

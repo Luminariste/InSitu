@@ -1,0 +1,59 @@
+.viewer {
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-width: 0;
+  min-height: 0;
+  background: #1d1d20;
+}
+
+.viewer-canvas {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.viewer-canvas canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.viewer-status {
+  display: flex;
+  gap: 24px;
+  align-items: baseline;
+  min-height: 28px;
+  padding: 5px 14px;
+  background: var(--surface, #151517);
+  border-top: 1px solid var(--filet, #2a2a2e);
+  color: var(--texte-discret, #9a9aa0);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.viewer-zoom {
+  min-width: 52px;
+  color: var(--texte, #f2f2f0);
+}
+
+.viewer-cursor {
+  min-width: 190px;
+}
+
+.viewer-stats {
+  margin-left: auto;
+}
+
+.viewer-failure {
+  position: absolute;
+  inset: 0 0 28px;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 32px;
+  color: var(--repere, #ed1c24);
+  text-align: center;
+}

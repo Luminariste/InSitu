@@ -4,6 +4,80 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-11 — Tâche 1.5
+
+**D-1.5-a. Affichage par PixiJS 8, en WebGL.**
+La visionneuse (`src/viewer/`) est une scène PixiJS (version 8.23), forcée en
+WebGL : c'est ce que la fenêtre Tauri (WebKit) sait faire sur toutes les
+versions de macOS visées. Raison du choix : la vue façade puis la composition
+auront besoin de dessins tournés et déformés par maillage, que PixiJS sait
+déjà afficher (`Mesh`) ; une simple visionneuse d'images aurait été à refaire.
+La scène ne redessine que lorsque quelque chose change.
+
+**D-1.5-b. Le repère de la scène est en millimètres.**
+Le conteneur `world` est gradué en mm (origine en haut à gauche, y vers le
+bas, comme D4). Chaque calque y est posé par un coin et la taille d'un de ses
+pixels (`Placement`). Un Verre de 15 433 px et une photo redressée de
+5 512 px, tous deux étalés sur 280 mm, se superposent donc sans calcul.
+
+**D-1.5-c. Tout nouvel objet affichable passe par `SceneNode`.**
+`src/viewer/nodes.ts` définit le contrat (`container`, `bounds`, `update`,
+`destroy`) et l'union `LayerSpec`. Un nouveau type (image non tuilée, dessin
+déformé, tracé, emprise) s'ajoute par une classe, une variante de `LayerSpec`
+et une ligne dans `createNode`. Seules les tuiles sont codées pour l'instant.
+
+**D-1.5-d. Format de pyramide : niveaux ÷ 2, tuiles de 512 px sans
+recouvrement, `pyramid.json`.**
+Niveau 0 = pleine résolution ; chaque niveau est la moitié du précédent,
+arrondie au pixel supérieur, jusqu'à tenir dans une tuile. Fichiers
+`niveau/colonne_ligne.png|jpg`. Les tuiles de bord sont plus petites, pas
+complétées. Pas de recouvrement entre tuiles : avec un calque semi-transparent
+il se verrait. Un changement de ce format augmente `PYRAMID_VERSION`.
+
+**D-1.5-e. Réduction par moyenne de la lumière, pas des valeurs.**
+Chaque niveau moyenne des carrés de 2 × 2 pixels en lumière linéaire (courbe
+sRGB défaite puis refaite). Un trait blanc d'un pixel réduit 16 fois reste à
+28 % de gris au lieu de 6 % : les traits fins restent lisibles en vue
+d'ensemble sans être épaissis (un filtre « maximum » les aurait empâtés et
+aurait bouché les hachures). Le même filtre sert aux photos.
+
+**D-1.5-f. Tuiles PNG pour le trait, JPEG pour les photos, choisi d'après
+l'image.**
+Une image dont au moins 92 % des pixels sont presque noirs ou presque blancs,
+ou qui a de la transparence, est tuilée en PNG (sans perte : le JPEG ferait
+baver les traits). Le reste part en JPEG qualité 88. `insitu tiles --format`
+permet d'imposer le format. Les tuiles gardent le nombre de canaux de l'image
+(un Verre reste en gris).
+
+**D-1.5-g. Dans l'app, les tuiles vivent dans le cache et sont servies par
+le schéma `tuiles://`.**
+`open_tiled_image` appelle `tiles::ensure_pyramid`, qui range la pyramide dans
+`~/Library/Caches/com.luminariste.insitu/tuiles/<clé>` ; la clé dépend du
+chemin, de la taille et de la date du fichier : une image inchangée n'est
+jamais retuilée, une image modifiée l'est. La coque sert ce dossier par
+`register_uri_scheme_protocol` (adresse `tuiles://localhost/<clé>/…`, forme
+propre à macOS). Le contrôle des chemins demandés est fait par le moteur. Le
+cache n'est pas encore nettoyé : à prévoir quand les projets existeront.
+
+**D-1.5-h. À 100 %, l'image est calée sur les pixels de l'écran.**
+« 100 % » veut dire un pixel d'image par pixel physique (sur Retina, un
+demi-point). La position de la scène est arrondie au pixel physique : à
+100 %, l'affichage est identique au fichier, sans flou d'interpolation.
+
+**D-1.5-i. Molette, trackpad : règle de tri.**
+Pincement, Cmd + défilement et molette à crans zooment sur le curseur ; le
+défilement à deux doigts déplace. Molette et défilement arrivent par le même
+événement : on reconnaît la molette à l'absence de composante horizontale et
+à un pas en multiples de 120 (`classifyWheel`). Règle à confirmer sur Mac
+avec une vraie souris ; Cmd + défilement zoome dans tous les cas.
+
+**D-1.5-j. Tests de l'interface avec vitest ; dossier `tuiles-demo/`.**
+`npm test` lance les tests de la logique pure de la visionneuse ; le workflow
+« Vérifications » l'exécute. En développement, Vite sert sous `/tuiles/` le
+dossier `tuiles-demo/` (ignoré par Git) rempli par `insitu tiles` : il sert à
+contrôler la visionneuse dans un navigateur, et de secours à l'écran de
+démonstration si le moteur ne répond pas.
+
 ## 2026-11-11 — Tâche 1.2
 
 **D12. Signature « ad hoc », sans compte développeur Apple.**

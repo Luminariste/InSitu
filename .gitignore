@@ -5,3 +5,6 @@ src-tauri/gen/
 .DS_Store
 *.log
 __pycache__/
+
+# Tuiles fabriquées à la main pour la démonstration de la visionneuse
+tuiles-demo/
