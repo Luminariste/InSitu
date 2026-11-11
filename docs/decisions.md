@@ -4,6 +4,26 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-11 — Tâche 1.2
+
+**D12. Signature « ad hoc », sans compte développeur Apple.**
+`bundle.macOS.signingIdentity` vaut `-`. Sans signature du tout, une app pour
+puce Apple ne se lance pas. Avec cette signature locale, elle se lance mais
+macOS la bloque au premier lancement après téléchargement ; la marche à
+suivre est dans `docs/installer.md`. Pas de notarisation, pas de mise à jour
+automatique.
+
+**D11. Le numéro de version n'est écrit qu'à un endroit.**
+`Cargo.toml` à la racine, rubrique `[workspace.package]`. `tauri.conf.json`
+n'a plus de champ `version` : Tauri reprend celui de Cargo. Numérotation
+`0.<jalon>.<ordre>`. La fabrication refuse une étiquette qui ne correspond pas.
+
+**D10. Une version se publie en posant une étiquette `vX.Y.Z` sur `main`.**
+`.github/workflows/fabrication.yml` fabrique alors `InSitu-X.Y.Z.dmg` (puce
+Apple uniquement) et crée la version dans l'onglet « Releases ». La même
+fabrication tourne, sans publier, sur les demandes de fusion qui touchent à
+la coque ou au workflow. Procédure : `docs/publier.md`.
+
 ## 2026-11-11 — Tâche 1.3
 
 **D9. Le manifeste est produit par un script Python, pas par le moteur.**

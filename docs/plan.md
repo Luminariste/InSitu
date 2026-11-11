@@ -230,8 +230,8 @@ les tâches « interface » demandent un essai sur Mac.
   moteur, ils comparent les résultats aux fichiers de référence. Une seconde
   session relit les tâches sensibles (géométrie, export).
 - **Essai sur Mac.** À la fin de chaque jalon, GitHub publie l'app. Sans
-  compte développeur Apple, le premier lancement demande un clic droit puis
-  « Ouvrir ».
+  compte développeur Apple, macOS bloque le premier lancement ; la marche à
+  suivre est dans `docs/installer.md`.
 - **Journal de décisions.** Chaque choix technique non prévu ici est noté dans
   `docs/decisions.md`.
 
