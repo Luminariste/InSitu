@@ -4,6 +4,9 @@
 //! puissent la vérifier sans interface. Sous-commandes disponibles :
 //!
 //! - `insitu info` : carte d'identité du moteur, en JSON ;
+//! - `insitu geometry fit <fichier.json>` : ajuste une déformation sur des
+//!   paires de points et affiche les écarts et les points aberrants, en JSON
+//!   (format du fichier : `insitu geometry --help`) ;
 //! - `insitu project new <dossier.insitu> [--name <nom>]` : crée un projet ;
 //! - `insitu project info <dossier.insitu>` : résumé d'un projet, en JSON ;
 //! - `insitu project validate <dossier.insitu>` : contrôle le JSON et la
@@ -11,6 +14,8 @@
 //!
 //! Code de sortie : 0 si tout va bien, 1 en cas d'échec ou de projet
 //! invalide, 2 si la commande est mal écrite.
+
+mod geometry;
 
 use std::process::ExitCode;
 
@@ -53,6 +58,14 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             print_json(&insitu_core::engine_info())?;
             Ok(ExitCode::SUCCESS)
         }
+        ["geometry", rest @ ..] => match geometry::run(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(geometry::Problem::Usage(message)) => Err(Failure::Usage(message)),
+            Err(geometry::Problem::Failed(message)) => Err(Failure::Failed(message)),
+        },
         ["project", rest @ ..] => run_project(rest),
         [] | ["--help"] | ["-h"] => {
             println!("{}", usage());
@@ -165,6 +178,8 @@ fn usage() -> &'static str {
     "Usage : insitu <commande>\n\n\
      Commandes :\n  \
      info                                          Affiche la carte d'identité du moteur (JSON)\n  \
+     geometry fit <fichier.json>                   Ajuste une déformation sur des paires de points\n  \
+     geometry --help                               Décrit le fichier attendu et le résultat\n  \
      project new <dossier.insitu> [--name <nom>]   Crée un projet vide\n  \
      project info <dossier.insitu>                 Affiche le résumé d'un projet (JSON)\n  \
      project validate <dossier.insitu>             Contrôle le projet et ses fichiers"
