@@ -4,109 +4,245 @@
 //! puissent la vérifier sans interface. Sous-commandes disponibles :
 //!
 //! - `insitu info` : carte d'identité du moteur, en JSON ;
-//! - `insitu tiles <image> <dossier>` : pyramide de tuiles d'une image.
+//! - `insitu geometry fit <fichier.json>` : ajuste une déformation sur des
+//!   paires de points et affiche les écarts et les points aberrants, en JSON
+//!   (format du fichier : `insitu geometry --help`) ;
+//! - `insitu project new <dossier.insitu> [--name <nom>]` : crée un projet ;
+//! - `insitu project info <dossier.insitu>` : résumé d'un projet, en JSON ;
+//! - `insitu project validate <dossier.insitu>` : contrôle le JSON et la
+//!   présence des fichiers référencés ;
+//! - `insitu tiles <image> <dossier>` : pyramide de tuiles d'une image, pour
+//!   la visionneuse (descripteur en JSON, durée sur la sortie d'erreur).
+//!
+//! Code de sortie : 0 si tout va bien, 1 en cas d'échec ou de projet
+//! invalide, 2 si la commande est mal écrite.
+
+mod geometry;
 
 use std::path::Path;
 use std::process::ExitCode;
 use std::time::Instant;
 
+use insitu_core::project::{self, ProjectDir, ProjectError};
 use insitu_core::tiles::{self, TileFormat, TileOptions};
+use serde_json::json;
+
+/// Ce qui peut mal tourner dans une commande.
+enum Failure {
+    /// Commande mal écrite : on rappelle l'usage.
+    Usage(String),
+    /// La commande a échoué ; le message a déjà été préparé.
+    Failed(String),
+}
+
+impl From<ProjectError> for Failure {
+    fn from(error: ProjectError) -> Self {
+        Failure::Failed(error.to_string())
+    }
+}
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    match args.first().map(String::as_str) {
-        Some("info") => {
-            let info = insitu_core::engine_info();
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&info).expect("EngineInfo est sérialisable")
-            );
-            ExitCode::SUCCESS
-        }
-        Some("tiles") => match run_tiles(&args[1..]) {
-            Ok(()) => ExitCode::SUCCESS,
-            Err(message) => {
-                eprintln!("{message}");
-                ExitCode::FAILURE
-            }
-        },
-        Some("--help") | Some("-h") | None => {
-            println!("{}", usage());
-            ExitCode::SUCCESS
-        }
-        Some(other) => {
-            eprintln!("Commande inconnue : {other}\n\n{}", usage());
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    match run(&args) {
+        Ok(code) => code,
+        Err(Failure::Usage(message)) => {
+            eprintln!("{message}\n\n{}", usage());
             ExitCode::from(2)
+        }
+        Err(Failure::Failed(message)) => {
+            eprintln!("{message}");
+            ExitCode::from(1)
         }
     }
 }
 
+fn run(args: &[&str]) -> Result<ExitCode, Failure> {
+    match args {
+        ["info"] => {
+            print_json(&insitu_core::engine_info())?;
+            Ok(ExitCode::SUCCESS)
+        }
+        ["geometry", rest @ ..] => match geometry::run(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(geometry::Problem::Usage(message)) => Err(Failure::Usage(message)),
+            Err(geometry::Problem::Failed(message)) => Err(Failure::Failed(message)),
+        },
+        ["project", rest @ ..] => run_project(rest),
+        ["tiles", rest @ ..] => run_tiles(rest),
+        [] | ["--help"] | ["-h"] => {
+            println!("{}", usage());
+            Ok(ExitCode::SUCCESS)
+        }
+        [other, ..] => Err(Failure::Usage(format!("Commande inconnue : {other}"))),
+    }
+}
+
 /// `insitu tiles <image> <dossier> [--tile-size N] [--format png|jpeg] [--quality Q]`
-///
-/// Le descripteur de la pyramide sort en JSON sur la sortie standard ; le
-/// temps de fabrication sort sur la sortie d'erreur.
-fn run_tiles(args: &[String]) -> Result<(), String> {
+fn run_tiles(args: &[&str]) -> Result<ExitCode, Failure> {
+    let usage = |message: &str| Failure::Usage(message.to_string());
     let mut options = TileOptions::default();
     let mut paths = Vec::new();
-    let mut rest = args.iter();
+    let mut rest = args.iter().copied();
     while let Some(arg) = rest.next() {
-        let mut value = |name: &str| {
-            rest.next()
-                .ok_or_else(|| format!("Il manque une valeur après {name}"))
-        };
-        match arg.as_str() {
+        match arg {
             "--tile-size" => {
-                options.tile_size = value("--tile-size")?
-                    .parse()
-                    .map_err(|_| "--tile-size attend un nombre de pixels".to_string())?;
+                options.tile_size = rest
+                    .next()
+                    .and_then(|value| value.parse().ok())
+                    .ok_or_else(|| usage("--tile-size attend un nombre de pixels"))?;
             }
             "--format" => {
-                options.format = Some(match value("--format")?.as_str() {
-                    "png" => TileFormat::Png,
-                    "jpeg" | "jpg" => TileFormat::Jpeg,
-                    other => return Err(format!("Format inconnu : {other} (png ou jpeg)")),
+                options.format = Some(match rest.next() {
+                    Some("png") => TileFormat::Png,
+                    Some("jpeg") | Some("jpg") => TileFormat::Jpeg,
+                    _ => return Err(usage("--format attend png ou jpeg")),
                 });
             }
             "--quality" => {
-                options.jpeg_quality = value("--quality")?
-                    .parse()
-                    .map_err(|_| "--quality attend un nombre de 1 à 100".to_string())?;
+                options.jpeg_quality = rest
+                    .next()
+                    .and_then(|value| value.parse().ok())
+                    .ok_or_else(|| usage("--quality attend un nombre de 1 à 100"))?;
             }
             other if other.starts_with("--") => {
-                return Err(format!("Option inconnue : {other}\n\n{}", usage()));
+                return Err(Failure::Usage(format!("Option inconnue : {other}")));
             }
             path => paths.push(path),
         }
     }
     let [image, out_dir] = paths[..] else {
-        return Err(format!(
-            "`tiles` attend une image et un dossier de sortie.\n\n{}",
-            usage()
+        return Err(usage(
+            "Usage : insitu tiles <image> <dossier> [--tile-size N] [--format png|jpeg] [--quality Q]",
         ));
     };
 
     let start = Instant::now();
     let pyramid = tiles::build_pyramid(Path::new(image), Path::new(out_dir), &options)
-        .map_err(|error| format!("Échec : {error}"))?;
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&pyramid).expect("Pyramid est sérialisable")
-    );
+        .map_err(|error| Failure::Failed(error.to_string()))?;
+    print_json(&pyramid)?;
     eprintln!(
         "{} tuiles sur {} niveaux, en {:.1} s",
         pyramid.tile_count(),
         pyramid.levels.len(),
         start.elapsed().as_secs_f64()
     );
+    Ok(ExitCode::SUCCESS)
+}
+
+fn run_project(args: &[&str]) -> Result<ExitCode, Failure> {
+    match args {
+        ["new", folder] => project_new(folder, None),
+        ["new", folder, "--name", name] | ["new", "--name", name, folder] => {
+            project_new(folder, Some(name))
+        }
+        ["info", folder] => project_info(folder),
+        ["validate", folder] => project_validate(folder),
+        ["new", ..] => Err(Failure::Usage(
+            "Usage : insitu project new <dossier.insitu> [--name <nom>]".to_string(),
+        )),
+        ["info", ..] | ["validate", ..] => Err(Failure::Usage(format!(
+            "Usage : insitu project {} <dossier.insitu>",
+            args[0]
+        ))),
+        [other, ..] => Err(Failure::Usage(format!(
+            "Commande de projet inconnue : {other}"
+        ))),
+        [] => Err(Failure::Usage(
+            "Il manque la commande de projet.".to_string(),
+        )),
+    }
+}
+
+fn project_new(folder: &str, name: Option<&str>) -> Result<ExitCode, Failure> {
+    let (dir, project) = ProjectDir::create(folder, name)?;
+    println!(
+        "Projet « {} » créé dans {}",
+        project.name,
+        dir.root().display()
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
+fn project_info(folder: &str) -> Result<ExitCode, Failure> {
+    let dir = ProjectDir::open(folder)?;
+    let loaded = dir.load()?;
+    let lock = project::read_lock(&dir)?;
+    let project = &loaded.project;
+    let summary = json!({
+        "folder": dir.root().display().to_string(),
+        "formatVersion": project.format_version,
+        "migratedFrom": loaded.migrated_from,
+        "id": project.id,
+        "name": project.name,
+        "createdAt": project.created_at,
+        "facade": project.facade.as_ref().map(|facade| json!({
+            "source": facade.source,
+            "scaled": facade.scale.is_some(),
+            "sizeMm": facade.size_mm().map(|(width, height)| json!({
+                "width": width,
+                "height": height,
+            })),
+        })),
+        "projectors": project.projectors.iter().map(|projector| json!({
+            "id": projector.id,
+            "label": projector.label,
+            "rawPhoto": projector.raw_photo,
+            "rectifiedPhoto": projector.rectified_photo,
+            "rectified": projector.rectification.is_some(),
+            "registrationPoints": projector.registration.len(),
+        })).collect::<Vec<_>>(),
+        "fresco": project.fresco.as_ref().map(|fresco| &fresco.source),
+        "export": {
+            "dpi": project.export.dpi,
+            "mirror": project.export.mirror,
+            "negative": project.export.negative,
+        },
+        "unknownFields": loaded.unknown_fields,
+        "lock": lock,
+    });
+    print_json(&summary)?;
+    Ok(ExitCode::SUCCESS)
+}
+
+fn project_validate(folder: &str) -> Result<ExitCode, Failure> {
+    let dir = ProjectDir::open(folder)?;
+    let report = project::validate(&dir);
+    for issue in &report.issues {
+        println!("{issue}");
+    }
+    let errors = report.errors().count();
+    let warnings = report.warnings().count();
+    if report.is_valid() {
+        println!("Projet valide ({warnings} avertissement(s)).");
+        Ok(ExitCode::SUCCESS)
+    } else {
+        println!("Projet invalide : {errors} erreur(s), {warnings} avertissement(s).");
+        Ok(ExitCode::from(1))
+    }
+}
+
+fn print_json(value: &impl serde::Serialize) -> Result<(), Failure> {
+    let text = serde_json::to_string_pretty(value)
+        .map_err(|e| Failure::Failed(format!("Impossible d'écrire le résultat en JSON : {e}")))?;
+    println!("{text}");
     Ok(())
 }
 
 fn usage() -> &'static str {
     "Usage : insitu <commande>\n\n\
      Commandes :\n  \
-     info                      Affiche la carte d'identité du moteur (JSON)\n  \
-     tiles <image> <dossier>   Fabrique la pyramide de tuiles d'une image\n      \
-     --tile-size N           côté des tuiles en pixels (512 par défaut)\n      \
-     --format png|jpeg       format imposé (choisi d'après le contenu par défaut)\n      \
-     --quality Q             qualité JPEG de 1 à 100 (88 par défaut)"
+     info                                          Affiche la carte d'identité du moteur (JSON)\n  \
+     geometry fit <fichier.json>                   Ajuste une déformation sur des paires de points\n  \
+     geometry --help                               Décrit le fichier attendu et le résultat\n  \
+     project new <dossier.insitu> [--name <nom>]   Crée un projet vide\n  \
+     project info <dossier.insitu>                 Affiche le résumé d'un projet (JSON)\n  \
+     project validate <dossier.insitu>             Contrôle le projet et ses fichiers\n  \
+     tiles <image> <dossier>                       Fabrique la pyramide de tuiles d'une image\n      \
+     --tile-size N                               côté des tuiles en pixels (512 par défaut)\n      \
+     --format png|jpeg                           format imposé (sinon choisi d'après l'image)\n      \
+     --quality Q                                 qualité JPEG de 1 à 100 (88 par défaut)"
 }

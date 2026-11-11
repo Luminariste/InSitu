@@ -1548,6 +1548,7 @@ name = "insitu-cli"
 version = "0.1.0"
 dependencies = [
  "insitu-core",
+ "serde",
  "serde_json",
 ]
 
