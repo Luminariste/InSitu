@@ -13,6 +13,7 @@
 //!   (exports), jamais dans le modèle.
 
 pub mod geometry;
+pub mod project;
 pub mod units;
 
 use serde::Serialize;

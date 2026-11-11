@@ -5,153 +5,182 @@
 //!
 //! - `insitu info` : carte d'identité du moteur, en JSON ;
 //! - `insitu geometry fit <fichier.json>` : ajuste une déformation sur des
-//!   paires de points et affiche les écarts et les points aberrants, en JSON.
+//!   paires de points et affiche les écarts et les points aberrants, en JSON
+//!   (format du fichier : `insitu geometry --help`) ;
+//! - `insitu project new <dossier.insitu> [--name <nom>]` : crée un projet ;
+//! - `insitu project info <dossier.insitu>` : résumé d'un projet, en JSON ;
+//! - `insitu project validate <dossier.insitu>` : contrôle le JSON et la
+//!   présence des fichiers référencés.
+//!
+//! Code de sortie : 0 si tout va bien, 1 en cas d'échec ou de projet
+//! invalide, 2 si la commande est mal écrite.
+
+mod geometry;
 
 use std::process::ExitCode;
 
-use insitu_core::geometry::{fit_with_report, FitOptions, Point};
-use serde::Deserialize;
+use insitu_core::project::{self, ProjectDir, ProjectError};
+use serde_json::json;
+
+/// Ce qui peut mal tourner dans une commande.
+enum Failure {
+    /// Commande mal écrite : on rappelle l'usage.
+    Usage(String),
+    /// La commande a échoué ; le message a déjà été préparé.
+    Failed(String),
+}
+
+impl From<ProjectError> for Failure {
+    fn from(error: ProjectError) -> Self {
+        Failure::Failed(error.to_string())
+    }
+}
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
-    match args.as_slice() {
-        ["info"] => {
-            let info = insitu_core::engine_info();
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&info).expect("EngineInfo est sérialisable")
-            );
-            ExitCode::SUCCESS
-        }
-        ["geometry", "fit", "--help" | "-h"] | ["geometry"] | ["geometry", "--help" | "-h"] => {
-            println!("{GEOMETRY_USAGE}");
-            ExitCode::SUCCESS
-        }
-        ["geometry", "fit", path] => match geometry_fit(path) {
-            Ok(json) => {
-                println!("{json}");
-                ExitCode::SUCCESS
-            }
-            Err(message) => {
-                eprintln!("Erreur : {message}");
-                ExitCode::FAILURE
-            }
-        },
-        ["geometry", ..] => {
-            eprintln!("Commande incomplète ou inconnue.\n\n{GEOMETRY_USAGE}");
+    match run(&args) {
+        Ok(code) => code,
+        Err(Failure::Usage(message)) => {
+            eprintln!("{message}\n\n{}", usage());
             ExitCode::from(2)
         }
-        ["--help" | "-h"] | [] => {
-            println!("{USAGE}");
-            ExitCode::SUCCESS
-        }
-        [other, ..] => {
-            eprintln!("Commande inconnue : {other}\n\n{USAGE}");
-            ExitCode::from(2)
+        Err(Failure::Failed(message)) => {
+            eprintln!("{message}");
+            ExitCode::from(1)
         }
     }
 }
 
-const USAGE: &str = "Usage : insitu <commande>
-
-Commandes :
-  info                          Affiche la carte d'identité du moteur (JSON)
-  geometry fit <fichier.json>   Ajuste une déformation sur des paires de points
-                                (détails : insitu geometry --help)";
-
-const GEOMETRY_USAGE: &str = r#"Usage : insitu geometry fit <fichier.json>
-
-Ajuste une déformation (trapèze + correction locale lisse) sur des paires de
-points, et affiche en JSON les écarts résiduels et les points aberrants.
-
-Fichier d'entrée :
-
-  {
-    "pairs": [
-      { "source": [12.5, 40.0], "target": [1031.2, 2210.7] },
-      { "source": [250.0, 38.0], "target": [5120.9, 2188.4] }
-    ],
-    "smoothing": 0,
-    "outlierFactor": 6,
-    "outlierFloor": 0
-  }
-
-  pairs          Au moins 4 paires. "source" et "target" sont des points
-                 [x, y], chacun dans son repère et son unité (par exemple la
-                 diapositive en mm et la façade en mm, ou la photo en pixels
-                 et la diapositive en mm). x vers la droite, y vers le bas.
-  smoothing      Facultatif, 0 par défaut. À 0 la déformation passe exactement
-                 par les points ; plus la valeur est grande, plus elle est
-                 raide (essayer 0.01 à 1).
-  outlierFactor  Facultatif, 6 par défaut. Un point est déclaré aberrant si
-                 son score dépasse ce nombre de fois le score médian des
-                 autres points.
-  outlierFloor   Facultatif. Score, dans l'unité de la cible, en dessous
-                 duquel un point n'est jamais déclaré aberrant : la précision
-                 attendue d'un bon point.
-
-Sortie (les indices de points commencent à 0, dans l'ordre du fichier ; les
-écarts sont dans l'unité de la cible, ceux en "...InSource" dans l'unité de la
-source) :
-
-  pointCount                   Nombre de paires.
-  homography                   Matrice 3 × 3 du trapèze.
-  homographyResiduals          Ce que le trapèze seul laisse comme écart :
-                               perPoint (un par point), rms (moyenne
-                               quadratique), max, worstIndex.
-  homographyResidualsInSource  Les mêmes, ramenés côté source.
-  warpResiduals                Écarts de la déformation complète (nuls quand
-                               smoothing vaut 0 : elle passe par les points).
-  leaveOneOut                  Validation croisée : écart de chaque point à la
-                               position que prédisent les autres points sans
-                               lui. C'est l'écart utile pour juger un point.
-  leaveOneOutInSource          Les mêmes, ramenés côté source.
-  outlierScores                Score de chaque point : son écart de validation
-                               croisée, corrigé de sa position (un point au
-                               bord est naturellement moins bien prédit).
-  outlierThreshold             Seuil de score appliqué.
-  outliers                     Indices des points aberrants, le plus net
-                               d'abord.
-
-Avec moins de 6 paires, il n'y a pas assez de points pour une validation
-croisée : leaveOneOut, outlierScores et outlierThreshold valent null.
-
-Code de sortie : 0 si l'ajustement a réussi (même avec des points aberrants),
-1 si le fichier est illisible ou les points inutilisables, 2 si la commande
-est mal écrite."#;
-
-/// Contenu du fichier lu par `insitu geometry fit`.
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct FitRequest {
-    pairs: Vec<PointPair>,
-    smoothing: Option<f64>,
-    outlier_factor: Option<f64>,
-    outlier_floor: Option<f64>,
+fn run(args: &[&str]) -> Result<ExitCode, Failure> {
+    match args {
+        ["info"] => {
+            print_json(&insitu_core::engine_info())?;
+            Ok(ExitCode::SUCCESS)
+        }
+        ["geometry", rest @ ..] => match geometry::run(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(geometry::Problem::Usage(message)) => Err(Failure::Usage(message)),
+            Err(geometry::Problem::Failed(message)) => Err(Failure::Failed(message)),
+        },
+        ["project", rest @ ..] => run_project(rest),
+        [] | ["--help"] | ["-h"] => {
+            println!("{}", usage());
+            Ok(ExitCode::SUCCESS)
+        }
+        [other, ..] => Err(Failure::Usage(format!("Commande inconnue : {other}"))),
+    }
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct PointPair {
-    source: Point,
-    target: Point,
+fn run_project(args: &[&str]) -> Result<ExitCode, Failure> {
+    match args {
+        ["new", folder] => project_new(folder, None),
+        ["new", folder, "--name", name] | ["new", "--name", name, folder] => {
+            project_new(folder, Some(name))
+        }
+        ["info", folder] => project_info(folder),
+        ["validate", folder] => project_validate(folder),
+        ["new", ..] => Err(Failure::Usage(
+            "Usage : insitu project new <dossier.insitu> [--name <nom>]".to_string(),
+        )),
+        ["info", ..] | ["validate", ..] => Err(Failure::Usage(format!(
+            "Usage : insitu project {} <dossier.insitu>",
+            args[0]
+        ))),
+        [other, ..] => Err(Failure::Usage(format!(
+            "Commande de projet inconnue : {other}"
+        ))),
+        [] => Err(Failure::Usage(
+            "Il manque la commande de projet.".to_string(),
+        )),
+    }
 }
 
-fn geometry_fit(path: &str) -> Result<String, String> {
-    let text = std::fs::read_to_string(path)
-        .map_err(|e| format!("impossible de lire « {path} » : {e}"))?;
-    let request: FitRequest = serde_json::from_str(&text).map_err(|e| {
-        format!("« {path} » n'a pas le format attendu ({e}). Voir : insitu geometry --help")
-    })?;
-    let defaults = FitOptions::default();
-    let options = FitOptions {
-        smoothing: request.smoothing.unwrap_or(defaults.smoothing),
-        outlier_factor: request.outlier_factor.unwrap_or(defaults.outlier_factor),
-        outlier_floor: request.outlier_floor.unwrap_or(defaults.outlier_floor),
-    };
-    let source: Vec<Point> = request.pairs.iter().map(|p| p.source).collect();
-    let target: Vec<Point> = request.pairs.iter().map(|p| p.target).collect();
-    let (_, report) = fit_with_report(&source, &target, &options).map_err(|e| e.to_string())?;
-    serde_json::to_string_pretty(&report).map_err(|e| e.to_string())
+fn project_new(folder: &str, name: Option<&str>) -> Result<ExitCode, Failure> {
+    let (dir, project) = ProjectDir::create(folder, name)?;
+    println!(
+        "Projet « {} » créé dans {}",
+        project.name,
+        dir.root().display()
+    );
+    Ok(ExitCode::SUCCESS)
+}
+
+fn project_info(folder: &str) -> Result<ExitCode, Failure> {
+    let dir = ProjectDir::open(folder)?;
+    let loaded = dir.load()?;
+    let lock = project::read_lock(&dir)?;
+    let project = &loaded.project;
+    let summary = json!({
+        "folder": dir.root().display().to_string(),
+        "formatVersion": project.format_version,
+        "migratedFrom": loaded.migrated_from,
+        "id": project.id,
+        "name": project.name,
+        "createdAt": project.created_at,
+        "facade": project.facade.as_ref().map(|facade| json!({
+            "source": facade.source,
+            "scaled": facade.scale.is_some(),
+            "sizeMm": facade.size_mm().map(|(width, height)| json!({
+                "width": width,
+                "height": height,
+            })),
+        })),
+        "projectors": project.projectors.iter().map(|projector| json!({
+            "id": projector.id,
+            "label": projector.label,
+            "rawPhoto": projector.raw_photo,
+            "rectifiedPhoto": projector.rectified_photo,
+            "rectified": projector.rectification.is_some(),
+            "registrationPoints": projector.registration.len(),
+        })).collect::<Vec<_>>(),
+        "fresco": project.fresco.as_ref().map(|fresco| &fresco.source),
+        "export": {
+            "dpi": project.export.dpi,
+            "mirror": project.export.mirror,
+            "negative": project.export.negative,
+        },
+        "unknownFields": loaded.unknown_fields,
+        "lock": lock,
+    });
+    print_json(&summary)?;
+    Ok(ExitCode::SUCCESS)
+}
+
+fn project_validate(folder: &str) -> Result<ExitCode, Failure> {
+    let dir = ProjectDir::open(folder)?;
+    let report = project::validate(&dir);
+    for issue in &report.issues {
+        println!("{issue}");
+    }
+    let errors = report.errors().count();
+    let warnings = report.warnings().count();
+    if report.is_valid() {
+        println!("Projet valide ({warnings} avertissement(s)).");
+        Ok(ExitCode::SUCCESS)
+    } else {
+        println!("Projet invalide : {errors} erreur(s), {warnings} avertissement(s).");
+        Ok(ExitCode::from(1))
+    }
+}
+
+fn print_json(value: &impl serde::Serialize) -> Result<(), Failure> {
+    let text = serde_json::to_string_pretty(value)
+        .map_err(|e| Failure::Failed(format!("Impossible d'écrire le résultat en JSON : {e}")))?;
+    println!("{text}");
+    Ok(())
+}
+
+fn usage() -> &'static str {
+    "Usage : insitu <commande>\n\n\
+     Commandes :\n  \
+     info                                          Affiche la carte d'identité du moteur (JSON)\n  \
+     geometry fit <fichier.json>                   Ajuste une déformation sur des paires de points\n  \
+     geometry --help                               Décrit le fichier attendu et le résultat\n  \
+     project new <dossier.insitu> [--name <nom>]   Crée un projet vide\n  \
+     project info <dossier.insitu>                 Affiche le résumé d'un projet (JSON)\n  \
+     project validate <dossier.insitu>             Contrôle le projet et ses fichiers"
 }
