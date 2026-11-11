@@ -1,0 +1,15 @@
+[package]
+name = "insitu-cli"
+description = "Outil en ligne de commande du moteur InSitu."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "insitu"
+path = "src/main.rs"
+
+[dependencies]
+insitu-core = { path = "../insitu-core" }
+serde_json = { workspace = true }

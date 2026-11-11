@@ -1,0 +1,48 @@
+//! Unités et dimensions de référence du workflow.
+
+/// Côté de l'image projetée par une diapositive (et de la mire), en mm.
+pub const SLIDE_SIZE_MM: f64 = 280.0;
+
+/// Côté de la plaque de verre gravée, en mm. La marge de 10 mm autour de
+/// l'image reçoit le nom de la diapositive et les repères de calage.
+pub const PLATE_SIZE_MM: f64 = 300.0;
+
+/// Résolution d'export par défaut (décision du 11 novembre 2026).
+pub const DEFAULT_EXPORT_DPI: f64 = 1400.0;
+
+/// Résolution des photos redressées produites jusqu'ici (A.tiff : 5512 px).
+pub const RECTIFIED_PHOTO_DPI: f64 = 500.0;
+
+pub const MM_PER_INCH: f64 = 25.4;
+
+/// Nombre de pixels couvrant `mm` millimètres à `dpi` points par pouce,
+/// arrondi au pixel le plus proche.
+pub fn mm_to_px(mm: f64, dpi: f64) -> u32 {
+    (mm / MM_PER_INCH * dpi).round() as u32
+}
+
+/// Taille d'un pixel en millimètres à `dpi` points par pouce.
+pub fn px_size_mm(dpi: f64) -> f64 {
+    MM_PER_INCH / dpi
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn slide_export_is_15433_px_at_1400_dpi() {
+        assert_eq!(mm_to_px(SLIDE_SIZE_MM, DEFAULT_EXPORT_DPI), 15_433);
+    }
+
+    #[test]
+    fn rectified_photo_is_5512_px_at_500_dpi() {
+        assert_eq!(mm_to_px(SLIDE_SIZE_MM, RECTIFIED_PHOTO_DPI), 5_512);
+    }
+
+    #[test]
+    fn pixel_is_about_18_microns_at_1400_dpi() {
+        let px = px_size_mm(DEFAULT_EXPORT_DPI);
+        assert!((px - 0.018_142_857).abs() < 1e-6);
+    }
+}

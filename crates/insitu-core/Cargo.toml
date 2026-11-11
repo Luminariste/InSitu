@@ -1,0 +1,10 @@
+[package]
+name = "insitu-core"
+description = "Moteur de calcul d'InSitu : géométrie, mire, déformation, vectorisation, exports."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde = { workspace = true }

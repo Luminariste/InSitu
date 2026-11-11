@@ -1,0 +1,99 @@
+:root {
+  /* L'atelier travaille en blanc sur noir : l'interface aussi. */
+  --fond: #0b0b0c;
+  --surface: #151517;
+  --filet: #2a2a2e;
+  --texte: #f2f2f0;
+  --texte-discret: #9a9aa0;
+  --repere: #ed1c24; /* le rouge du cercle de la mire */
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  font-size: 15px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--fond);
+  color: var(--texte);
+}
+
+.accueil {
+  height: 100%;
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  justify-items: center;
+  padding: 32px;
+  gap: 32px;
+}
+
+.accueil header {
+  align-self: end;
+  text-align: center;
+}
+
+.accueil h1 {
+  margin: 0;
+  font-size: 44px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.sous-titre {
+  margin: 8px 0 0;
+  color: var(--texte-discret);
+}
+
+.etat {
+  min-width: 360px;
+  padding: 20px 24px;
+  background: var(--surface);
+  border: 1px solid var(--filet);
+  border-radius: 10px;
+}
+
+.etat p {
+  margin: 0;
+  color: var(--texte-discret);
+  max-width: 44ch;
+}
+
+.etat .erreur {
+  color: var(--repere);
+}
+
+.etat dl {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.etat dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+.etat dt {
+  color: var(--texte-discret);
+}
+
+.etat dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.accueil footer {
+  align-self: end;
+  color: var(--texte-discret);
+  font-size: 13px;
+}
