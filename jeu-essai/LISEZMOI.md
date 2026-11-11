@@ -31,7 +31,7 @@ vérifier qu'on parle bien du même fichier.
 | `photos-redressees/x` | Photo brute redressée à la main dans Millumin | 5 512 × 5 512, TIFF | JPEG qualité 92 | ÷ 8 |
 | `verres/verre-x` | Fichier envoyé à LightBurn | 15 433 × 15 433, PNG couleur | PNG en niveaux de gris | ÷ 8 |
 | `facade/portail-deroule` | Le fond sur lequel la fresque est composée | 5 145 × 3 508 | copie exacte | ÷ 4 |
-| `mire/` | La mire actuelle (280 mm à 2 400 dpi) et sa source Illustrator | 26 458 × 26 458 | copie exacte | ÷ 16 |
+| `mire/` | La mire actuelle (page 2 du fichier Illustrator, rendue à 600 dpi) et sa source Illustrator | 6 615 × 6 615 | copie exacte | ÷ 4 |
 | `reglages/` | Projets Millumin et LightBurn du chantier | — | Millumin : copie exacte ; LightBurn : sans ses images incorporées | — |
 | `compositions/composition-a.ai` | Composition Illustrator de la diapositive A (154 Mo) | — | — | — |
 
@@ -45,10 +45,13 @@ sont pas faites pour comparer des valeurs de pixels au niveau près.
   enregistrée est couchée. `manifeste.json` donne `orientationExif` pour
   chaque photo. Les réduits gardent la disposition des pixels de l'original
   et n'ont plus d'EXIF.
-- **Les photos brutes font 12 Mpx.** La mire y occupe environ 2 300 px de
-  côté : les photos redressées à 5 512 px sont donc un agrandissement. La
-  résolution utile d'une photo redressée est de l'ordre de 0,12 mm par pixel,
-  pas 0,05 mm.
+- **Les photos brutes font 12 Mpx.** La mire y occupe 1 790 à 1 950 px de
+  côté (mesuré par l'étude 2.1) : les photos redressées à 5 512 px sont donc
+  un agrandissement d'un facteur 3 environ. La résolution utile d'une photo
+  redressée est de l'ordre de 0,15 mm par pixel, pas 0,05 mm.
+- **Les PNG du dossier « Mires » du Dropbox ne sont pas la mire** : ils
+  montrent une frise de fleurs. La mire du jeu d'essai est fabriquée à partir
+  de la page 2 de `mire-280.ai`, un carré de 280 mm.
 - **La façade est un déroulé, pas une vue de face.** Le portail a été mis à
   plat à partir d'un relevé d'architecte, pour que toutes les surfaces soient
   visibles, voussures comprises. La correspondance entre ce déroulé et ce que
