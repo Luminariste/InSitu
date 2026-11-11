@@ -14,6 +14,11 @@ Avant toute tâche, lire `docs/plan.md` (le quoi et l'ordre) et
   hors périmètre se note dans la demande de fusion, elle ne se code pas.
 - **Branche `tache-N.N`**, puis demande de fusion vers `main`. Jamais de
   poussée directe sur `main`.
+- **La session fusionne elle-même** sa demande une fois toutes les
+  vérifications GitHub au vert (fusion « squash »). Benjamin a délégué les
+  fusions le 11 novembre 2026. Ce qui demande son essai sur Mac lui est
+  signalé à part : la fusion ne l'attend pas, mais la tâche n'est pas dite
+  validée avant son retour.
 - **La demande de fusion est écrite en français simple** pour quelqu'un qui
   n'a jamais développé d'app : ce qui a été fait, comment le vérifier, ce qui
   reste incertain. Dire explicitement ce qui n'a pas pu être vérifié.
@@ -68,7 +73,7 @@ crates/insitu-cli/    Binaire `insitu` : le moteur en ligne de commande.
 src-tauri/            Coque de bureau (Tauri 2). Appelle le moteur, ne calcule rien.
 src/                  Interface (React + TypeScript).
 src/engine.ts         Seul fichier de l'interface qui appelle le moteur.
-docs/                 Plan, décisions.
+docs/                 Plan, décisions, notice d'installation, publication d'une version.
 jeu-essai/            Fichiers réels pour les tests (voir jeu-essai/LISEZMOI.md).
 ```
 

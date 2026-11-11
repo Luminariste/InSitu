@@ -8,17 +8,20 @@ déformations comprises, et l'exporte pour la gravure laser.
 - Les choix techniques : [`docs/decisions.md`](docs/decisions.md)
 - Les règles pour les sessions Claude Code : [`CLAUDE.md`](CLAUDE.md)
 
-## Essayer sur un Mac
+## Installer sur un Mac
 
-Il faut [Node.js](https://nodejs.org) et [Rust](https://rustup.rs), puis :
+Télécharger la dernière version dans l'onglet
+[Releases](https://github.com/Luminariste/InSitu/releases) et suivre
+[`docs/installer.md`](docs/installer.md).
+
+## Lancer depuis le code
+
+Pour qui veut essayer une modification avant qu'elle soit publiée. Il faut
+[Node.js](https://nodejs.org) et [Rust](https://rustup.rs), puis :
 
 ```
 npm ci
 npm run tauri dev
 ```
 
-La première compilation prend quelques minutes. Une fenêtre « InSitu »
-s'ouvre et affiche la version du moteur et la taille d'export (15 433 px).
-
-À partir de la tâche 1.2, il ne sera plus nécessaire de compiler : GitHub
-fournira l'app prête à installer.
+La première compilation prend quelques minutes.

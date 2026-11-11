@@ -1,0 +1,115 @@
+name: Fabrication de l'app Mac
+
+# Produit InSitu.dmg pour Mac Apple Silicon.
+# - À chaque étiquette de version (v0.1.0…) : fabrique l'app et publie une
+#   version téléchargeable dans l'onglet « Releases » du dépôt.
+# - Sur une demande de fusion qui touche à la fabrication : fabrique l'app
+#   sans la publier, pour vérifier que rien n'est cassé.
+# - À la main (bouton « Run workflow ») : fabrique sans publier.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/fabrication.yml"
+      - "src-tauri/tauri.conf.json"
+      - "src-tauri/Cargo.toml"
+      - "src-tauri/build.rs"
+      - "src-tauri/capabilities/**"
+      - "src-tauri/icons/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fabrication-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: InSitu.dmg (Apple Silicon)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: fabrication
+
+      - name: Lire le numéro de version
+        id: version
+        run: |
+          VERSION=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name == "insitu-app") | .version')
+          echo "Version du code : $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
+            echo "::error::L'étiquette $GITHUB_REF_NAME ne correspond pas à la version du code (v$VERSION). Voir docs/publier.md."
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Fabriquer l'app
+        run: npm run tauri build -- --target aarch64-apple-darwin --bundles app,dmg
+
+      - name: Contrôler l'app fabriquée
+        run: |
+          BUNDLE=target/aarch64-apple-darwin/release/bundle
+          APP="$BUNDLE/macos/InSitu.app"
+          test -d "$APP"
+          BIN=$(find "$APP/Contents/MacOS" -type f -perm +111 | head -n 1)
+          echo "Exécutable : $BIN"
+          test "$(lipo -archs "$BIN")" = "arm64"
+          codesign --verify --deep --strict "$APP"
+          codesign -dv "$APP" 2>&1 | grep -E "Identifier|Signature"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist" \
+            | grep -x "${{ steps.version.outputs.version }}"
+
+          # L'app démarre-t-elle ? On la lance dix secondes : si elle s'est
+          # arrêtée toute seule entre-temps, c'est qu'elle plante au lancement.
+          "$BIN" &
+          PID=$!
+          sleep 10
+          if ! kill -0 "$PID" 2>/dev/null; then
+            echo "::error::L'app s'est arrêtée toute seule dans les dix secondes suivant son lancement."
+            exit 1
+          fi
+          kill "$PID"
+          echo "L'app est restée ouverte dix secondes."
+
+      - name: Nommer le fichier
+        id: dmg
+        run: |
+          SOURCE=$(ls target/aarch64-apple-darwin/release/bundle/dmg/*.dmg | head -n 1)
+          DMG="InSitu-${{ steps.version.outputs.version }}.dmg"
+          cp "$SOURCE" "$DMG"
+          hdiutil verify "$DMG"
+          ls -lh "$DMG"
+          echo "path=$DMG" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InSitu-${{ steps.version.outputs.version }}
+          path: ${{ steps.dmg.outputs.path }}
+          retention-days: 14
+
+      - name: Publier la version
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "${{ steps.dmg.outputs.path }}" \
+            --title "InSitu ${{ steps.version.outputs.version }}" \
+            --notes-file docs/installer.md
