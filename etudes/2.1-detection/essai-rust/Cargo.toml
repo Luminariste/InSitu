@@ -1,0 +1,15 @@
+# Essai de faisabilité de l'étude 2.1 : un détecteur AprilTag en Rust pur,
+# sans OpenCV. Ce paquet est volontairement hors de l'espace de travail du
+# dépôt : il ne fait pas partie du moteur et n'est compilé par aucun test.
+[package]
+name = "essai-reperes"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+kornia-apriltag = "=0.2.0"
+kornia-image = "=0.2.0"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }

@@ -1,0 +1,8 @@
+{
+ "simule_niveau_1": {
+  "contraste_trait": 0.359,
+  "largeur_trait_px": 3.08,
+  "ecart_au_trapeze_moyen_mm": 0.558
+ },
+ "reel_epinal": "voir photos-reelles.json : contraste 0,40 à 0,46 ; largeur 2,4 à 2,7 px ; écart au trapèze 0,33 à 0,48 mm"
+}

@@ -1,0 +1,78 @@
+{
+ "1": {
+  "opencv": {
+   "reperes_moyens_sur_16": 16.0,
+   "photos_avec_au_moins_un": 10,
+   "photos": 10,
+   "coin_mediane_mm": 0.148,
+   "coin_p95_mm": 0.272,
+   "faux": 0
+  },
+  "rust": {
+   "reperes_moyens_sur_16": 16.0,
+   "photos_avec_au_moins_un": 10,
+   "photos": 10,
+   "coin_mediane_mm": 0.17,
+   "coin_p95_mm": 0.246,
+   "faux": 0,
+   "ms_median": 184.5
+  }
+ },
+ "2": {
+  "opencv": {
+   "reperes_moyens_sur_16": 13.6,
+   "photos_avec_au_moins_un": 10,
+   "photos": 10,
+   "coin_mediane_mm": 0.238,
+   "coin_p95_mm": 0.52,
+   "faux": 0
+  },
+  "rust": {
+   "reperes_moyens_sur_16": 15.9,
+   "photos_avec_au_moins_un": 10,
+   "photos": 10,
+   "coin_mediane_mm": 0.244,
+   "coin_p95_mm": 0.415,
+   "faux": 0,
+   "ms_median": 172.5
+  }
+ },
+ "3": {
+  "opencv": {
+   "reperes_moyens_sur_16": 11.9,
+   "photos_avec_au_moins_un": 10,
+   "photos": 10,
+   "coin_mediane_mm": 0.364,
+   "coin_p95_mm": 0.881,
+   "faux": 0
+  },
+  "rust": {
+   "reperes_moyens_sur_16": 14.5,
+   "photos_avec_au_moins_un": 10,
+   "photos": 10,
+   "coin_mediane_mm": 0.333,
+   "coin_p95_mm": 0.598,
+   "faux": 0,
+   "ms_median": 170.5
+  }
+ },
+ "4": {
+  "opencv": {
+   "reperes_moyens_sur_16": 5.6,
+   "photos_avec_au_moins_un": 10,
+   "photos": 10,
+   "coin_mediane_mm": 0.493,
+   "coin_p95_mm": 1.082,
+   "faux": 0
+  },
+  "rust": {
+   "reperes_moyens_sur_16": 7.7,
+   "photos_avec_au_moins_un": 10,
+   "photos": 10,
+   "coin_mediane_mm": 0.394,
+   "coin_p95_mm": 0.657,
+   "faux": 0,
+   "ms_median": 185.5
+  }
+ }
+}
