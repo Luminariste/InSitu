@@ -1,15 +1,16 @@
 name: Fabrication de l'app Mac
 
 # Produit InSitu.dmg pour Mac Apple Silicon.
-# - À chaque étiquette de version (v0.1.0…) : fabrique l'app et publie une
-#   version téléchargeable dans l'onglet « Releases » du dépôt.
+# - Quand le numéro de version change sur `main` : fabrique l'app et publie
+#   la version dans l'onglet « Releases » du dépôt. Il n'y a rien d'autre à
+#   faire : pas d'étiquette à poser à la main.
 # - Sur une demande de fusion qui touche à la fabrication : fabrique l'app
 #   sans la publier, pour vérifier que rien n'est cassé.
 # - À la main (bouton « Run workflow ») : fabrique sans publier.
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
   workflow_dispatch:
   pull_request:
     paths:
@@ -25,11 +26,49 @@ permissions:
 
 concurrency:
   group: fabrication-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
+  decider:
+    name: Faut-il fabriquer ?
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      fabriquer: ${{ steps.choix.outputs.fabriquer }}
+      publier: ${{ steps.choix.outputs.publier }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lire le numéro de version
+        id: version
+        run: |
+          VERSION=$(awk '/^\[workspace.package\]/{inside=1; next} /^\[/{inside=0} inside && /^version *=/{gsub(/[" ]/, "", $0); sub(/^version=/, "", $0); print; exit}' Cargo.toml)
+          test -n "$VERSION"
+          echo "Version du code : $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Décider
+        id: choix
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != "push" ]; then
+            echo "Fabrication d'essai, sans publication."
+            echo "fabriquer=true" >> "$GITHUB_OUTPUT"
+            echo "publier=false" >> "$GITHUB_OUTPUT"
+          elif gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "La version $VERSION est déjà publiée : rien à faire."
+            echo "fabriquer=false" >> "$GITHUB_OUTPUT"
+            echo "publier=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "La version $VERSION n'est pas encore publiée : fabrication et publication."
+            echo "fabriquer=true" >> "$GITHUB_OUTPUT"
+            echo "publier=true" >> "$GITHUB_OUTPUT"
+          fi
+
   app:
     name: InSitu.dmg (Apple Silicon)
+    needs: decider
+    if: needs.decider.outputs.fabriquer == 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,18 +86,6 @@ jobs:
         with:
           key: fabrication
 
-      - name: Lire le numéro de version
-        id: version
-        run: |
-          VERSION=$(cargo metadata --no-deps --format-version 1 \
-            | jq -r '.packages[] | select(.name == "insitu-app") | .version')
-          echo "Version du code : $VERSION"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
-            echo "::error::L'étiquette $GITHUB_REF_NAME ne correspond pas à la version du code (v$VERSION). Voir docs/publier.md."
-            exit 1
-          fi
-
       - run: npm ci
 
       - name: Fabriquer l'app
@@ -75,7 +102,7 @@ jobs:
           codesign --verify --deep --strict "$APP"
           codesign -dv "$APP" 2>&1 | grep -E "Identifier|Signature"
           /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist" \
-            | grep -x "${{ steps.version.outputs.version }}"
+            | grep -x "${{ needs.decider.outputs.version }}"
 
           # L'app démarre-t-elle ? On la lance dix secondes : si elle s'est
           # arrêtée toute seule entre-temps, c'est qu'elle plante au lancement.
@@ -93,7 +120,7 @@ jobs:
         id: dmg
         run: |
           SOURCE=$(ls target/aarch64-apple-darwin/release/bundle/dmg/*.dmg | head -n 1)
-          DMG="InSitu-${{ steps.version.outputs.version }}.dmg"
+          DMG="InSitu-${{ needs.decider.outputs.version }}.dmg"
           cp "$SOURCE" "$DMG"
           hdiutil verify "$DMG"
           ls -lh "$DMG"
@@ -101,15 +128,17 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: InSitu-${{ steps.version.outputs.version }}
+          name: InSitu-${{ needs.decider.outputs.version }}
           path: ${{ steps.dmg.outputs.path }}
           retention-days: 14
 
       - name: Publier la version
-        if: github.ref_type == 'tag'
+        if: needs.decider.outputs.publier == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.decider.outputs.version }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "${{ steps.dmg.outputs.path }}" \
-            --title "InSitu ${{ steps.version.outputs.version }}" \
+          gh release create "v$VERSION" "${{ steps.dmg.outputs.path }}" \
+            --target "$GITHUB_SHA" \
+            --title "InSitu $VERSION" \
             --notes-file docs/installer.md

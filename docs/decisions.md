@@ -16,11 +16,14 @@ automatique.
 **D11. Le numéro de version n'est écrit qu'à un endroit.**
 `Cargo.toml` à la racine, rubrique `[workspace.package]`. `tauri.conf.json`
 n'a plus de champ `version` : Tauri reprend celui de Cargo. Numérotation
-`0.<jalon>.<ordre>`. La fabrication refuse une étiquette qui ne correspond pas.
+`0.<jalon>.<ordre>`. 
 
-**D10. Une version se publie en posant une étiquette `vX.Y.Z` sur `main`.**
-`.github/workflows/fabrication.yml` fabrique alors `InSitu-X.Y.Z.dmg` (puce
-Apple uniquement) et crée la version dans l'onglet « Releases ». La même
+**D10. Une version se publie en changeant le numéro de version sur `main`.**
+`.github/workflows/fabrication.yml` tourne à chaque fusion : si la version
+écrite dans `Cargo.toml` n'a pas encore de publication, il fabrique
+`InSitu-X.Y.Z.dmg` (puce Apple uniquement) et crée la version, étiquette
+comprise, dans l'onglet « Releases ». Raison : une session cloud n'a pas le
+droit d'envoyer une étiquette ni de déclencher un workflow à la main. La même
 fabrication tourne, sans publier, sur les demandes de fusion qui touchent à
 la coque ou au workflow. Procédure : `docs/publier.md`.
 
