@@ -4,6 +4,87 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-11 — Tâche 2.3
+
+Les décisions de cette tâche portent un numéro local (D-2.3-a…), parce que
+plusieurs tâches écrivaient dans ce journal en même temps.
+
+**D-2.3-a. Une déformation = un trapèze + une correction lisse.**
+Le sens direct vaut `trapèze(source) + correction(source)`. Le trapèze
+(`Homography`) est exact avec 4 paires de points, ajusté aux moindres carrés
+au-delà (coordonnées normalisées, solution linéaire puis affinage sur l'écart
+mesuré côté cible). La correction (`PointWarp`) est une spline en plaque
+mince ajustée sur ce que le trapèze laisse comme écart. Raison : la plaque
+mince accepte des points placés n'importe où (clics comme grille de mire),
+passe exactement par eux, n'a aucun réglage obligatoire, et se réduit à zéro
+quand le trapèze suffit. Un réglage facultatif, le lissage (0 par défaut,
+sans unité), la laisse s'écarter de points bruités.
+
+**D-2.3-b. Pour les images, la correction est échantillonnée sur une grille.**
+Évaluer la plaque mince coûte un temps proportionnel au nombre de points de
+contrôle : acceptable pour des clics, pas pour 238 millions de pixels avec
+600 points de mire. `GridWarp` garde le trapèze exact et stocke la correction
+aux nœuds d'une grille régulière, interpolée par cubiques de Catmull-Rom :
+16 nœuds lus par point, quel que soit le nombre de points d'origine. Écart
+mesuré entre la grille et le modèle d'origine (225 points, papier gondolé de
+quelques mm) : 0,005 mm avec un pas de 2,5 mm, 0,02 mm avec un pas de 5 mm.
+La même structure, construite directement à partir des déplacements de ses
+nœuds, pourra porter la grille de déformation libre de la tâche 4.4.
+
+**D-2.3-c. Le sens inverse est calculé, pas ajusté une seconde fois.**
+Il n'existe pas de formule pour l'inverse. Plutôt que d'ajuster un second
+modèle dans l'autre sens (les deux ne seraient réciproques qu'à peu près), le
+sens inverse résout le sens direct par itérations de Newton, en partant du
+trapèze inverse. L'aller-retour est donc exact aux arrondis près : 3 × 10⁻¹⁰ mm
+mesuré sur tout le carré de 280 mm, pour un critère de 0,01 mm. Limite : si
+la déformation se replie (deux points source envoyés au même endroit),
+l'inverse n'est plus défini ; la fonction renvoie alors « pas de résultat » ou
+l'un des antécédents, jamais un point faux, et `has_fold` permet de le
+détecter avant. Une transformation renvoie aussi « pas de résultat » pour un
+point envoyé à l'infini par le trapèze.
+
+**D-2.3-d. Un point se juge par validation croisée, pas par son écart direct.**
+Une déformation qui passe par ses points laisse un écart nul en chacun : cet
+écart ne dit rien. Le compte rendu (`fit_with_report`) donne donc, par point,
+l'écart entre sa cible et ce que prédisent *les autres points sans lui*, en
+plus de l'écart laissé par le trapèze seul. Chaque écart existe côté cible et
+côté source (par exemple cm sur la façade et mm sur la diapositive). Le
+calcul utilise une formule exacte (Rippa) qui évite de refaire N ajustements :
+0,3 s pour 625 points.
+
+**D-2.3-e. Règle de signalement d'un point aberrant.**
+L'écart de validation croisée est d'abord divisé par ce que la position du
+point amplifie naturellement (un point au bord est prédit par extrapolation) :
+c'est son score. Parmi les 4 plus grands scores, on retire le point dont le
+retrait assainit le mieux les autres ; il est déclaré aberrant si son score
+dépasse 6 fois le score médian des points restants, recalculé sans lui. On
+recommence tant qu'on en trouve, sans jamais retirer plus d'un tiers des
+points. Le facteur 6 a été choisi par essai : sur 300 tirages de 12 bons
+points (± 0,3 mm) plus un point déplacé de 5 mm, les facteurs 5 à 8 désignent
+le bon point, et lui seul, 300 fois sur 300, sans fausse alerte sur les
+tirages sans point faux ; 4 donne des fausses alertes, 10 des oublis. Il faut
+au moins 6 points pour un diagnostic. Limites connues : un point faux de
+moins de quelques fois la précision des autres passe inaperçu ; au bord d'une
+mire, un bon point peut être signalé à tort (2 sur 222 dans le test), ce
+qu'on évite en donnant la précision attendue (`outlier_floor`).
+
+**D-2.3-f. La déformation rendue garde tous les points, aberrants compris.**
+Le moteur signale, il ne retire rien : c'est à l'utilisateur de corriger ou
+de supprimer un point signalé (tâche 3.2), ou à la détection de mire de
+décider (tâche 2.4).
+
+**D-2.3-g. Pas de bibliothèque d'algèbre linéaire.**
+Le module n'a besoin que de résoudre des systèmes denses et de trouver les
+vecteurs propres d'une matrice 9 × 9 : environ 150 lignes, testées, dans
+`geometry/linalg.rs`. `nalgebra` aurait ajouté une dépendance lourde à
+compiler pour le même résultat. À revoir si un besoin plus large apparaît.
+
+**D-2.3-h. Format d'entrée de `insitu geometry fit`.**
+Un fichier JSON `{ "pairs": [{ "source": [x, y], "target": [x, y] }, …] }`
+avec trois réglages facultatifs (`smoothing`, `outlierFactor`,
+`outlierFloor`). Un point s'écrit `[x, y]` en JSON partout dans le moteur.
+Les noms de champs sont en anglais, comme ceux de `insitu info`.
+
 ## 2026-11-11 — Tâche 1.2
 
 **D12. Signature « ad hoc », sans compte développeur Apple.**
