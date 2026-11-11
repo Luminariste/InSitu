@@ -12,4 +12,5 @@ path = "src/main.rs"
 
 [dependencies]
 insitu-core = { path = "../insitu-core" }
+serde = { workspace = true }
 serde_json = { workspace = true }
