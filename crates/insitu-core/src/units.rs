@@ -10,6 +10,14 @@ pub const PLATE_SIZE_MM: f64 = 300.0;
 /// Résolution d'export par défaut (décision du 11 novembre 2026).
 pub const DEFAULT_EXPORT_DPI: f64 = 1400.0;
 
+/// Miroir à l'export, par défaut : aucun (le projet d'Épinal a été gravé sans
+/// miroir, voir `jeu-essai/LISEZMOI.md`).
+pub const DEFAULT_EXPORT_MIRROR: bool = false;
+
+/// Négatif à l'export, par défaut : non. L'image exportée est le dessin blanc
+/// sur fond noir ; jusqu'ici c'est LightBurn qui applique le négatif.
+pub const DEFAULT_EXPORT_NEGATIVE: bool = false;
+
 /// Résolution des photos redressées produites jusqu'ici (A.tiff : 5512 px).
 pub const RECTIFIED_PHOTO_DPI: f64 = 500.0;
 
