@@ -164,7 +164,7 @@ les tâches « interface » demandent un essai sur Mac.
 | --- | --- | --- | --- | --- |
 | 1.1 | Squelette du dépôt | Projet Tauri + React + moteur Rust vide, `CLAUDE.md` décrivant règles et vocabulaire | L'app se lance en développement ; tests et vérifications passent | — |
 | 1.2 | Fabrication automatique | Workflow GitHub qui produit l'app Mac (Apple Silicon) à chaque version | Un fichier `.dmg` téléchargeable s'ouvre sur le M1 Max | 1.1 |
-| 1.3 | Jeu d'essai | Dossier de référence : photo brute, A.tiff, Verre-A, composition, plan de façade ; versions réduites pour les tests rapides | Les tests du moteur lisent ces fichiers ; les gros fichiers sont stockés hors historique (Git LFS) | 1.1 |
+| 1.3 | Jeu d'essai | Projet d'Épinal (4 projecteurs) : photos brutes, photos redressées, verres, façade, mire ; références pleine résolution allégées et versions réduites | Les tests du moteur lisent ces fichiers ; les fichiers d'origine lourds restent hors du dépôt (voir décision D7) | 1.1 |
 | 1.4 | Modèle de projet | Format du dossier `.insitu`, lecture, écriture, versions, verrou | Un projet enregistré puis rouvert est identique ; test automatique | 1.1 |
 | 1.5 | Visionneuse haute résolution | Composant d'affichage à tuiles : zoom, déplacement, superposition de calques avec opacité | Une image de 15 433 px se manipule sans saccade | 1.1 |
 

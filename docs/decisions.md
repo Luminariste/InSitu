@@ -4,6 +4,31 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-11 — Tâche 1.3
+
+**D9. Le manifeste est produit par un script Python, pas par le moteur.**
+`jeu-essai/construire.py` (Pillow) fabrique les références, les réduits et
+`manifeste.json` à partir de `sources.json` et d'un dossier d'originaux.
+Raison : c'est un outil d'atelier, lancé rarement ; il n'a pas à alourdir le
+moteur. Les images produites gardent la disposition des pixels de l'original
+(aucune rotation EXIF) et n'ont plus d'EXIF.
+
+**D8. Références allégées plutôt qu'originaux.**
+Photos brutes de chambre noire, façade, mire : copies exactes. Photos
+redressées : JPEG qualité 92 à la taille d'origine (au lieu de TIFF de
+116 Mo). Verres : PNG en niveaux de gris à la taille d'origine. Les photos
+« lum », « mur » et « grille » n'existent qu'en réduit (÷ 2). La composition
+Illustrator (154 Mo) n'est pas versée. Total : environ 100 Mo. Conséquence :
+ces références servent à comparer des géométries, pas des valeurs de pixels.
+
+**D7. Pas de Git LFS, contrairement au plan initial.**
+Le plan prévoyait de stocker les originaux hors historique par Git LFS.
+L'essai a échoué : le réseau des sessions cloud refuse l'accès au serveur de
+stockage LFS de GitHub (`github-cloud.s3.amazonaws.com`, refus de politique).
+Des originaux en LFS seraient donc invisibles pour les agents, ce qui
+annulerait l'intérêt du jeu d'essai. Les fichiers d'origine restent dans le
+Dropbox de Luminariste ; le manifeste garde leur empreinte.
+
 ## 2026-11-11 — Tâche 1.1
 
 **D6. Une vérification GitHub existe dès la tâche 1.1.**

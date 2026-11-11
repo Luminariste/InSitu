@@ -1,0 +1,348 @@
+{
+  "nom": "Épinal, novembre 2025",
+  "description": "Projet In Situ à Épinal : un portail éclairé par quatre rétroprojecteurs A à D. Prises de vue des 24 et 25 novembre 2025, iPhone 16 Pro.",
+  "projecteurs": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "fichiers": [
+    {
+      "id": "photo-brute-a",
+      "role": "raw_photo",
+      "projecteur": "A",
+      "fichier": "photos-brutes/a-brut.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/A Brut.JPG",
+      "reference": "identique",
+      "reduction": 4
+    },
+    {
+      "id": "photo-lum-a",
+      "role": "lit_photo",
+      "projecteur": "A",
+      "fichier": "photos-brutes/a-lum.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/A lum.JPG",
+      "note": "Façade photographiée de nuit, projecteur allumé avec la mire : donne des repères larges pour situer la diapositive sur la façade.",
+      "reference": null,
+      "reduction": 2
+    },
+    {
+      "id": "photo-mur-a",
+      "role": "wall_photo",
+      "projecteur": "A",
+      "fichier": "photos-brutes/a-mur.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/A mur.JPG",
+      "note": "Photo directe de la façade, de jour, prise à côté de la photo brute (rôle déduit de l'image, à confirmer).",
+      "reference": null,
+      "reduction": 2
+    },
+    {
+      "id": "photo-redressee-a",
+      "role": "rectified_photo",
+      "projecteur": "A",
+      "fichier": "photos-redressees/a.tiff",
+      "nomDorigine": "02 - Retroproj - Mires/A.tiff",
+      "note": "Redressée à la main dans Millumin : référence pour la tâche 2.4.",
+      "reference": "jpeg-92",
+      "reduction": 8
+    },
+    {
+      "id": "verre-a",
+      "role": "engraving_export",
+      "projecteur": "A",
+      "fichier": "verres/verre-a.png",
+      "nomDorigine": "04-ExportToLightBurn/Verre-A.png",
+      "note": "Fichier envoyé à LightBurn : référence pour les tâches 3.5 et 5.3.",
+      "reference": "gris-8-bits",
+      "reduction": 8
+    },
+    {
+      "id": "photo-brute-b",
+      "role": "raw_photo",
+      "projecteur": "B",
+      "fichier": "photos-brutes/b-brut.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/B Brut.JPG",
+      "reference": "identique",
+      "reduction": 4
+    },
+    {
+      "id": "photo-lum-b",
+      "role": "lit_photo",
+      "projecteur": "B",
+      "fichier": "photos-brutes/b-lum.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/B lum.JPG",
+      "note": "Façade photographiée de nuit, projecteur allumé avec la mire : donne des repères larges pour situer la diapositive sur la façade.",
+      "reference": null,
+      "reduction": 2
+    },
+    {
+      "id": "photo-mur-b",
+      "role": "wall_photo",
+      "projecteur": "B",
+      "fichier": "photos-brutes/b-mur.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/B Mur.JPG",
+      "note": "Photo directe de la façade, de jour, prise à côté de la photo brute (rôle déduit de l'image, à confirmer).",
+      "reference": null,
+      "reduction": 2
+    },
+    {
+      "id": "photo-redressee-b",
+      "role": "rectified_photo",
+      "projecteur": "B",
+      "fichier": "photos-redressees/b.tiff",
+      "nomDorigine": "02 - Retroproj - Mires/B.tiff",
+      "note": "Redressée à la main dans Millumin : référence pour la tâche 2.4.",
+      "reference": "jpeg-92",
+      "reduction": 8
+    },
+    {
+      "id": "verre-b",
+      "role": "engraving_export",
+      "projecteur": "B",
+      "fichier": "verres/verre-b.png",
+      "nomDorigine": "04-ExportToLightBurn/Verre-B.png",
+      "note": "Fichier envoyé à LightBurn : référence pour les tâches 3.5 et 5.3.",
+      "reference": "gris-8-bits",
+      "reduction": 8
+    },
+    {
+      "id": "photo-brute-c",
+      "role": "raw_photo",
+      "projecteur": "C",
+      "fichier": "photos-brutes/c-brut.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/C brut.JPG",
+      "reference": "identique",
+      "reduction": 4
+    },
+    {
+      "id": "photo-lum-c",
+      "role": "lit_photo",
+      "projecteur": "C",
+      "fichier": "photos-brutes/c-lum.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/C  lum.JPG",
+      "note": "Façade photographiée de nuit, projecteur allumé avec la mire : donne des repères larges pour situer la diapositive sur la façade.",
+      "reference": null,
+      "reduction": 2
+    },
+    {
+      "id": "photo-mur-c",
+      "role": "wall_photo",
+      "projecteur": "C",
+      "fichier": "photos-brutes/c-mur.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/C mur.JPG",
+      "note": "Photo directe de la façade, de jour, prise à côté de la photo brute (rôle déduit de l'image, à confirmer).",
+      "reference": null,
+      "reduction": 2
+    },
+    {
+      "id": "photo-redressee-c",
+      "role": "rectified_photo",
+      "projecteur": "C",
+      "fichier": "photos-redressees/c.tiff",
+      "nomDorigine": "02 - Retroproj - Mires/C.tiff",
+      "note": "Redressée à la main dans Millumin : référence pour la tâche 2.4.",
+      "reference": "jpeg-92",
+      "reduction": 8
+    },
+    {
+      "id": "verre-c",
+      "role": "engraving_export",
+      "projecteur": "C",
+      "fichier": "verres/verre-c.png",
+      "nomDorigine": "04-ExportToLightBurn/Verre-C.png",
+      "note": "Fichier envoyé à LightBurn : référence pour les tâches 3.5 et 5.3.",
+      "reference": "gris-8-bits",
+      "reduction": 8
+    },
+    {
+      "id": "photo-brute-d",
+      "role": "raw_photo",
+      "projecteur": "D",
+      "fichier": "photos-brutes/d-brut.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/D brut.JPG",
+      "reference": "identique",
+      "reduction": 4
+    },
+    {
+      "id": "photo-lum-d",
+      "role": "lit_photo",
+      "projecteur": "D",
+      "fichier": "photos-brutes/d-lum.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/D lum.JPG",
+      "note": "Façade photographiée de nuit, projecteur allumé avec la mire : donne des repères larges pour situer la diapositive sur la façade.",
+      "reference": null,
+      "reduction": 2
+    },
+    {
+      "id": "photo-mur-d",
+      "role": "wall_photo",
+      "projecteur": "D",
+      "fichier": "photos-brutes/d-mur.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/D Mur.JPG",
+      "note": "Photo directe de la façade, de jour, prise à côté de la photo brute (rôle déduit de l'image, à confirmer).",
+      "reference": null,
+      "reduction": 2
+    },
+    {
+      "id": "photo-redressee-d",
+      "role": "rectified_photo",
+      "projecteur": "D",
+      "fichier": "photos-redressees/d.tiff",
+      "nomDorigine": "02 - Retroproj - Mires/D.tiff",
+      "note": "Redressée à la main dans Millumin : référence pour la tâche 2.4.",
+      "reference": "jpeg-92",
+      "reduction": 8
+    },
+    {
+      "id": "verre-d",
+      "role": "engraving_export",
+      "projecteur": "D",
+      "fichier": "verres/verre-d.png",
+      "nomDorigine": "04-ExportToLightBurn/Verre-D.png",
+      "note": "Fichier envoyé à LightBurn : référence pour les tâches 3.5 et 5.3.",
+      "reference": "gris-8-bits",
+      "reduction": 8
+    },
+    {
+      "id": "photo-grille-b",
+      "role": "grid_photo",
+      "projecteur": "B",
+      "fichier": "photos-brutes/b-grille.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/B grille.JPG",
+      "note": "Façade avec la grille de la mire projetée (rôle déduit de l'image, à confirmer).",
+      "reference": null,
+      "reduction": 2
+    },
+    {
+      "id": "photo-grille-large",
+      "role": "grid_photo",
+      "projecteur": null,
+      "fichier": "photos-brutes/img_5286.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/IMG_5286.JPG",
+      "note": "Vue large de la façade avec une grille projetée (rôle déduit de l'image, à confirmer).",
+      "reference": null,
+      "reduction": 2
+    },
+    {
+      "id": "photo-brute-alt-5293",
+      "role": "raw_photo_alternate",
+      "projecteur": "D",
+      "fichier": "photos-brutes/img_5293.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/IMG_5293.JPG",
+      "note": "Autre prise en chambre noire, non retenue. Projecteur supposé d'après l'heure de prise de vue et l'image, à confirmer.",
+      "reference": "identique",
+      "reduction": 4
+    },
+    {
+      "id": "photo-brute-alt-5295",
+      "role": "raw_photo_alternate",
+      "projecteur": "D",
+      "fichier": "photos-brutes/img_5295.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/IMG_5295.JPG",
+      "note": "Autre prise en chambre noire, non retenue. Projecteur supposé d'après l'heure de prise de vue et l'image, à confirmer.",
+      "reference": "identique",
+      "reduction": 4
+    },
+    {
+      "id": "photo-brute-alt-5298",
+      "role": "raw_photo_alternate",
+      "projecteur": "C",
+      "fichier": "photos-brutes/img_5298.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/IMG_5298.JPG",
+      "note": "Autre prise en chambre noire, non retenue. Projecteur supposé d'après l'heure de prise de vue et l'image, à confirmer.",
+      "reference": "identique",
+      "reduction": 4
+    },
+    {
+      "id": "photo-brute-alt-5302",
+      "role": "raw_photo_alternate",
+      "projecteur": "A",
+      "fichier": "photos-brutes/img_5302.jpg",
+      "nomDorigine": "01 - Rétroproj Brut/IMG_5302.JPG",
+      "note": "Autre prise en chambre noire, non retenue. Projecteur supposé d'après l'heure de prise de vue et l'image, à confirmer.",
+      "reference": "identique",
+      "reduction": 4
+    },
+    {
+      "id": "facade",
+      "role": "facade",
+      "projecteur": null,
+      "fichier": "facade/portail-deroule.png",
+      "nomDorigine": "Portail-Déroulé.png",
+      "note": "Déroulé du portail : la façade mise à plat à partir d'un relevé d'architecte, pour que toutes les surfaces (voussures comprises) soient visibles. C'est le fond sur lequel la fresque est composée. Ce n'est pas une vue de face.",
+      "reference": "identique",
+      "reduction": 4
+    },
+    {
+      "id": "composition-a",
+      "role": "composition",
+      "projecteur": "A",
+      "fichier": "compositions/composition-a.ai",
+      "nomDorigine": "03-CreationAdaptée/Composition- A.ai",
+      "note": "Composition Illustrator adaptée à la diapositive A, images liées. Référence pour la tâche 6.3.",
+      "reference": null,
+      "reduction": null
+    },
+    {
+      "id": "mire",
+      "role": "target",
+      "projecteur": null,
+      "fichier": "mire/mire-280.png",
+      "nomDorigine": "Mires/InSitu-MireProjections280x280.png",
+      "note": "Mire actuelle, 280 mm à 2 400 dpi.",
+      "reference": "identique",
+      "reduction": 16
+    },
+    {
+      "id": "mire-variante",
+      "role": "target",
+      "projecteur": null,
+      "fichier": "mire/mire-280-dpi.png",
+      "nomDorigine": "Mires/InSitu-MireProjections280x280dpi.png",
+      "note": "Variante de la mire actuelle.",
+      "reference": null,
+      "reduction": 16
+    },
+    {
+      "id": "mire-ai",
+      "role": "target",
+      "projecteur": null,
+      "fichier": "mire/mire-280.ai",
+      "nomDorigine": "Mires/InSitu-MireProjections280x280.ai",
+      "note": "Source Illustrator de la mire.",
+      "reference": "identique",
+      "reduction": null
+    },
+    {
+      "id": "millumin-epinal",
+      "role": "settings",
+      "projecteur": null,
+      "fichier": "reglages/epinal-redressement.millumin",
+      "nomDorigine": "InSitu-RetroDeformator/InSitu-RetroDerformator.millumin",
+      "note": "Projet Millumin ayant servi au redressement (archive NSKeyedArchiver). Peut contenir les coins posés à la main.",
+      "reference": "identique",
+      "reduction": null
+    },
+    {
+      "id": "millumin-modele",
+      "role": "settings",
+      "projecteur": null,
+      "fichier": "reglages/mire-redressement-modele.millumin",
+      "nomDorigine": "InSitu-MireProjectionsMillumin.millumin",
+      "note": "Modèle Millumin de redressement.",
+      "reference": "identique",
+      "reduction": null
+    },
+    {
+      "id": "lightburn-epinal",
+      "role": "settings",
+      "projecteur": null,
+      "fichier": "reglages/epinal.lbrn2",
+      "nomDorigine": "Epinal-LightBurn.lbrn2",
+      "note": "Projet LightBurn de la gravure : réglages réels (voir LISEZMOI).",
+      "reference": "lightburn-allege",
+      "reduction": null
+    }
+  ]
+}

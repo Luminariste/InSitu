@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightBurnProject AppVersion="2.0.04" DeviceName="Laser Fibre Luminariste" FormatVersion="1" MaterialHeight="0" MirrorX="False" MirrorY="False">
+    <Thumbnail Source=""/>
+    <VariableText>
+        <Start Value="0"/>
+        <End Value="999"/>
+        <Current Value="0"/>
+        <Increment Value="1"/>
+        <AutoAdvance Value="0"/>
+    </VariableText>
+    <UIPrefs>
+        <Optimize_ByLayer Value="0"/>
+        <Optimize_ByGroup Value="-1"/>
+        <Optimize_ByPriority Value="1"/>
+        <Optimize_WhichDirection Value="0"/>
+        <Optimize_InnerToOuter Value="1"/>
+        <Optimize_ByDirection Value="0"/>
+        <Optimize_ReduceTravel Value="1"/>
+        <Optimize_HideBacklash Value="0"/>
+        <Optimize_ReduceDirChanges Value="0"/>
+        <Optimize_ChooseCorners Value="0"/>
+        <Optimize_AllowReverse Value="1"/>
+        <Optimize_RemoveOverlaps Value="0"/>
+        <Optimize_OptimalEntryPoint Value="1"/>
+        <Optimize_OverlapDist Value="0.025"/>
+    </UIPrefs>
+    <CutSetting_Img type="Image">
+        <index Value="0"/>
+        <name Value="Gravure Verre"/>
+        <maxPower Value="90"/>
+        <maxPower2 Value="20"/>
+        <speed Value="2000"/>
+        <frequency Value="100000"/>
+        <numPasses Value="2"/>
+        <scanOpt Value="individual"/>
+        <interval Value="0.0254"/>
+        <priority Value="0"/>
+        <tabCount Value="1"/>
+        <tabCountMax Value="1"/>
+        <negative Value="1"/>
+        <ditherMode Value="threshold"/>
+        <dpi Value="1000"/>
+    </CutSetting_Img>
+    <Shape Type="Bitmap" CutIndex="0" W="5445.6597" H="5445.6597" Gamma="1" Contrast="0" Brightness="0" EnhanceAmount="0" EnhanceRadius="0" EnhanceDenoise="0" File="/Users/benjaminnesme/Dropbox/Luminariste/05 - Festival Lumiere/PROJETS/IN SITU/03 - Diffusion/09 - 2025 - Epinal/05 - Projection/04-ExportToLightBurn/Verre-C.png" SourceHash="6" Data="">
+        <XForm>0.051417094 0 0 0.051417094 150 150</XForm>
+    </Shape>
+    <Notes ShowOnLoad="0" Notes=""/>
+</LightBurnProject>
