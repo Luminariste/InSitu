@@ -25,8 +25,11 @@ Avant toute tâche, lire `docs/plan.md` (le quoi et l'ordre) et
 - **Si le plan est ambigu ou semble faux, s'arrêter et poser la question.**
 - **Ce dépôt n'a aucun lien avec PRISMA** ni avec les autres dépôts de
   l'organisation : ne rien y lire, ne rien y écrire, ne rien en reprendre.
-- **Aucun gros fichier dans l'historique** (photos, TIFF, `.ai`, exports) :
-  voir la tâche 1.3 pour le jeu d'essai.
+- **Pas de stockage Git LFS** : les sessions cloud ne peuvent ni l'envoyer ni
+  le télécharger. Les fichiers d'origine lourds (TIFF, `.ai`, exports) restent
+  hors du dépôt ; seules des références allégées et des réduits y entrent, par
+  `jeu-essai/construire.py`. Le dépôt grossit définitivement de tout ce qu'on
+  y verse : n'ajouter que ce qu'un test utilise.
 
 ## Vocabulaire
 
@@ -42,6 +45,8 @@ Le métier se dit en français ; le code utilise toujours la même traduction.
 | plaque | `plate` | Le verre de 300 mm gravé ; marge de 10 mm autour de l'image |
 | mire | `target` | La feuille de 280 mm posée sur le projecteur pour la prise de vue |
 | photo brute | `raw_photo` | La photo iPhone de la mire en chambre noire |
+| photo « lum » | `lit_photo` | Photo de la façade, projecteur allumé avec la mire : repères larges pour situer la diapositive |
+| déroulé | `unrolled facade` | Façade mise à plat à partir d'un relevé, pour montrer toutes les surfaces ; ce n'est pas une vue de face |
 | photo redressée | `rectified_photo` | La photo brute ramenée au carré de la mire, en mm de diapositive |
 | redressement | `rectification` | Passage de la photo brute à la photo redressée |
 | recalage | `registration` | Mise en correspondance diapositive ↔ façade par points communs |
@@ -64,7 +69,12 @@ src-tauri/            Coque de bureau (Tauri 2). Appelle le moteur, ne calcule r
 src/                  Interface (React + TypeScript).
 src/engine.ts         Seul fichier de l'interface qui appelle le moteur.
 docs/                 Plan, décisions.
+jeu-essai/            Fichiers réels pour les tests (voir jeu-essai/LISEZMOI.md).
 ```
+
+Le jeu d'essai contient des références pleine résolution et des versions
+réduites de fichiers réels ; les fichiers d'origine restent dans le Dropbox de
+Luminariste. Un test rapide s'appuie sur les réduits.
 
 Règles d'architecture :
 

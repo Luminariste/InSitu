@@ -4,5 +4,4 @@ target/
 src-tauri/gen/
 .DS_Store
 *.log
-# Les gros fichiers d'essai n'entrent jamais dans l'historique (voir tâche 1.3)
-/jeu-essai/originaux/
+__pycache__/
