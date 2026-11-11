@@ -1,0 +1,346 @@
+{
+ "photos_brutes": {
+  "a-brut.jpg": {
+   "detectee": true,
+   "secteurs": 39,
+   "noeuds_bruts": 751,
+   "orientation_notes": [
+    0.0113,
+    0.0003,
+    0.0001,
+    0.2268
+   ],
+   "orientation_marge": 0.2155,
+   "papier_part_saturee": 0.0,
+   "papier_part_sombre": 0.0,
+   "papier_gris_p5_p50_p95": [
+    85,
+    130,
+    200
+   ],
+   "noeuds": 749,
+   "noeuds_possibles": 804,
+   "echelle_px_par_mm": 6.72,
+   "quarts_de_tour": 3,
+   "ecart_au_trapeze_mm": {
+    "moyenne": 0.4,
+    "p95": 0.823,
+    "max": 1.447
+   },
+   "ecart_validation_croisee_mm": {
+    "moyenne": 0.119,
+    "p95": 0.288,
+    "max": 0.517
+   },
+   "contraste_trait_median": 0.421,
+   "largeur_trait_px_mediane": 2.55
+  },
+  "b-brut.jpg": {
+   "detectee": true,
+   "secteurs": 38,
+   "noeuds_bruts": 784,
+   "orientation_notes": [
+    0.0352,
+    -0.0223,
+    0.0075,
+    0.2677
+   ],
+   "orientation_marge": 0.2325,
+   "papier_part_saturee": 0.004,
+   "papier_part_sombre": 0.005,
+   "papier_gris_p5_p50_p95": [
+    73,
+    124,
+    204
+   ],
+   "noeuds": 784,
+   "noeuds_possibles": 804,
+   "echelle_px_par_mm": 6.97,
+   "quarts_de_tour": 3,
+   "ecart_au_trapeze_mm": {
+    "moyenne": 0.448,
+    "p95": 0.944,
+    "max": 1.254
+   },
+   "ecart_validation_croisee_mm": {
+    "moyenne": 0.154,
+    "p95": 0.328,
+    "max": 0.522
+   },
+   "contraste_trait_median": 0.435,
+   "largeur_trait_px_mediane": 2.65
+  },
+  "c-brut.jpg": {
+   "detectee": true,
+   "secteurs": 39,
+   "noeuds_bruts": 759,
+   "orientation_notes": [
+    0.0057,
+    -0.0181,
+    0.022,
+    0.341
+   ],
+   "orientation_marge": 0.319,
+   "papier_part_saturee": 0.001,
+   "papier_part_sombre": 0.0,
+   "papier_gris_p5_p50_p95": [
+    79,
+    122,
+    188
+   ],
+   "noeuds": 759,
+   "noeuds_possibles": 804,
+   "echelle_px_par_mm": 6.4,
+   "quarts_de_tour": 3,
+   "ecart_au_trapeze_mm": {
+    "moyenne": 0.48,
+    "p95": 0.874,
+    "max": 2.055
+   },
+   "ecart_validation_croisee_mm": {
+    "moyenne": 0.106,
+    "p95": 0.239,
+    "max": 0.523
+   },
+   "contraste_trait_median": 0.439,
+   "largeur_trait_px_mediane": 2.43
+  },
+  "d-brut.jpg": {
+   "detectee": true,
+   "secteurs": 38,
+   "noeuds_bruts": 741,
+   "orientation_notes": [
+    0.3069,
+    -0.004,
+    -0.0065,
+    0.0293
+   ],
+   "orientation_marge": 0.2776,
+   "papier_part_saturee": 0.0,
+   "papier_part_sombre": 0.0,
+   "papier_gris_p5_p50_p95": [
+    87,
+    131,
+    189
+   ],
+   "noeuds": 736,
+   "noeuds_possibles": 804,
+   "echelle_px_par_mm": 6.8,
+   "quarts_de_tour": 0,
+   "ecart_au_trapeze_mm": {
+    "moyenne": 0.331,
+    "p95": 0.67,
+    "max": 1.998
+   },
+   "ecart_validation_croisee_mm": {
+    "moyenne": 0.088,
+    "p95": 0.213,
+    "max": 0.669
+   },
+   "contraste_trait_median": 0.4,
+   "largeur_trait_px_mediane": 2.86
+  },
+  "img_5293.jpg": {
+   "detectee": true,
+   "secteurs": 38,
+   "noeuds_bruts": 763,
+   "orientation_notes": [
+    -0.0224,
+    0.3049,
+    0.0088,
+    0.0074
+   ],
+   "orientation_marge": 0.2961,
+   "papier_part_saturee": 0.001,
+   "papier_part_sombre": 0.001,
+   "papier_gris_p5_p50_p95": [
+    83,
+    121,
+    192
+   ],
+   "noeuds": 754,
+   "noeuds_possibles": 804,
+   "echelle_px_par_mm": 6.4,
+   "quarts_de_tour": 1,
+   "ecart_au_trapeze_mm": {
+    "moyenne": 0.368,
+    "p95": 0.78,
+    "max": 2.032
+   },
+   "ecart_validation_croisee_mm": {
+    "moyenne": 0.082,
+    "p95": 0.195,
+    "max": 0.441
+   },
+   "contraste_trait_median": 0.449,
+   "largeur_trait_px_mediane": 2.43
+  },
+  "img_5295.jpg": {
+   "detectee": true,
+   "secteurs": 38,
+   "noeuds_bruts": 772,
+   "orientation_notes": [
+    -0.0004,
+    0.0032,
+    0.0086,
+    0.326
+   ],
+   "orientation_marge": 0.3174,
+   "papier_part_saturee": 0.001,
+   "papier_part_sombre": 0.0,
+   "papier_gris_p5_p50_p95": [
+    87,
+    126,
+    185
+   ],
+   "noeuds": 772,
+   "noeuds_possibles": 804,
+   "echelle_px_par_mm": 6.72,
+   "quarts_de_tour": 3,
+   "ecart_au_trapeze_mm": {
+    "moyenne": 0.342,
+    "p95": 0.722,
+    "max": 2.085
+   },
+   "ecart_validation_croisee_mm": {
+    "moyenne": 0.09,
+    "p95": 0.21,
+    "max": 0.639
+   },
+   "contraste_trait_median": 0.454,
+   "largeur_trait_px_mediane": 2.42
+  },
+  "img_5298.jpg": {
+   "detectee": true,
+   "secteurs": 39,
+   "noeuds_bruts": 752,
+   "orientation_notes": [
+    -0.0077,
+    -0.0046,
+    0.0126,
+    0.324
+   ],
+   "orientation_marge": 0.3113,
+   "papier_part_saturee": 0.003,
+   "papier_part_sombre": 0.0,
+   "papier_gris_p5_p50_p95": [
+    105,
+    150,
+    199
+   ],
+   "noeuds": 752,
+   "noeuds_possibles": 804,
+   "echelle_px_par_mm": 6.67,
+   "quarts_de_tour": 3,
+   "ecart_au_trapeze_mm": {
+    "moyenne": 0.343,
+    "p95": 0.702,
+    "max": 1.593
+   },
+   "ecart_validation_croisee_mm": {
+    "moyenne": 0.104,
+    "p95": 0.276,
+    "max": 0.584
+   },
+   "contraste_trait_median": 0.404,
+   "largeur_trait_px_mediane": 2.53
+  },
+  "img_5302.jpg": {
+   "detectee": true,
+   "secteurs": 38,
+   "noeuds_bruts": 780,
+   "orientation_notes": [
+    0.0035,
+    0.0014,
+    -0.0067,
+    0.274
+   ],
+   "orientation_marge": 0.2704,
+   "papier_part_saturee": 0.001,
+   "papier_part_sombre": 0.0,
+   "papier_gris_p5_p50_p95": [
+    82,
+    131,
+    202
+   ],
+   "noeuds": 772,
+   "noeuds_possibles": 804,
+   "echelle_px_par_mm": 6.94,
+   "quarts_de_tour": 3,
+   "ecart_au_trapeze_mm": {
+    "moyenne": 0.368,
+    "p95": 0.836,
+    "max": 1.402
+   },
+   "ecart_validation_croisee_mm": {
+    "moyenne": 0.114,
+    "p95": 0.299,
+    "max": 0.543
+   },
+   "contraste_trait_median": 0.462,
+   "largeur_trait_px_mediane": 2.5
+  }
+ },
+ "photos_redressees": {
+  "a.jpg": {
+   "detectee": true,
+   "noeuds_bruts": 704,
+   "noeuds": 699,
+   "ecart_a_la_grille_ideale_mm": {
+    "moyenne": 0.605,
+    "p95": 1.041,
+    "max": 1.312
+   },
+   "dont_non_rattrapable_par_4_coins_mm": {
+    "moyenne": 0.395,
+    "p95": 0.853,
+    "max": 1.43
+   }
+  },
+  "b.jpg": {
+   "detectee": true,
+   "noeuds_bruts": 711,
+   "noeuds": 711,
+   "ecart_a_la_grille_ideale_mm": {
+    "moyenne": 0.889,
+    "p95": 1.564,
+    "max": 1.916
+   },
+   "dont_non_rattrapable_par_4_coins_mm": {
+    "moyenne": 0.455,
+    "p95": 0.942,
+    "max": 1.286
+   }
+  },
+  "c.jpg": {
+   "detectee": true,
+   "noeuds_bruts": 724,
+   "noeuds": 722,
+   "ecart_a_la_grille_ideale_mm": {
+    "moyenne": 0.869,
+    "p95": 1.552,
+    "max": 1.737
+   },
+   "dont_non_rattrapable_par_4_coins_mm": {
+    "moyenne": 0.459,
+    "p95": 0.918,
+    "max": 1.869
+   }
+  },
+  "d.jpg": {
+   "detectee": true,
+   "noeuds_bruts": 702,
+   "noeuds": 700,
+   "ecart_a_la_grille_ideale_mm": {
+    "moyenne": 0.602,
+    "p95": 1.412,
+    "max": 1.549
+   },
+   "dont_non_rattrapable_par_4_coins_mm": {
+    "moyenne": 0.319,
+    "p95": 0.658,
+    "max": 1.872
+   }
+  }
+ }
+}

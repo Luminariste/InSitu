@@ -4,6 +4,55 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-11 — Tâche 2.1
+
+Étude de détection de la mire : `docs/etudes/2.1-detection-mire.md`. Les
+points D-2.1-a à D-2.1-d sont des **propositions** : ils ne deviennent des
+décisions qu'une fois validés par Benjamin, après l'essai d'une mire imprimée.
+
+**D-2.1-a (proposition). Nouvelle mire : la grille actuelle, plus 16 repères
+codés AprilTag.**
+On garde la grille de 10 mm, la croix et le cercle rouge. On épaissit les
+traits fins (0,35 mm) et on ajoute 16 repères codés de 16 mm (famille
+AprilTag 36h11, numéros 0 à 15), répartis sur toute la feuille, chacun dans
+un bloc de 2 × 2 cases. Raison : les repères disent où est la mire, dans quel
+sens, et laquelle, même si une partie de la feuille est sombre ou cachée ; la
+grille donne la précision. Une couronne de damier (ChArUco) tient moins bien
+au flou et cache le bord de l'image ; des repères aux seuls quatre coins ne
+corrigent pas le papier qui gondole.
+
+**D-2.1-b (proposition). La précision vient des croisements de la grille, pas
+des repères.**
+Le moteur mesure les croisements de proche en proche à partir des repères,
+puis ajuste un trapèze et une correction locale lissée. Les coins des repères
+ne servent qu'à amorcer : un coin de repère est mesuré à 0,15 à 0,5 mm près,
+un croisement à moins de 0,1 mm. Interdit : redresser une photo à partir des seuls repères.
+
+**D-2.1-c (proposition). L'ancienne mire reste exploitable automatiquement.**
+Sans repère codé, le moteur cherche le cercle rouge et la croix, puis mesure
+la grille de la même façon ; l'orientation vient des six petits cercles. En
+dernier recours, quatre coins cliqués à la main servent d'amorce. Conséquence
+pour la tâche 2.2 : la nouvelle mire garde le cercle rouge et la croix.
+
+**D-2.1-d (proposition). Repères codés en Rust : crate `kornia-apriltag`,
+sous réserve.**
+Elle est en Rust pur, sous licence Apache-2.0, et a relu les 16 repères sur
+les essais de l'étude. Réserves : crate jeune (0.2.0), environ 180
+dépendances, non vérifiée sur Mac. Si elle pose problème à la compilation de
+l'app, le repli est d'écrire un lecteur limité à nos 16 repères. Aucune
+dépendance à OpenCV.
+
+**D-2.1-e. Les scripts d'étude vivent dans `etudes/`, hors du moteur.**
+Python et OpenCV y sont admis ; rien dans `crates/` ni dans `src/` n'en
+dépend, et aucun test ne les lance. `etudes/2.1-detection/essai-rust` est un
+paquet Cargo isolé (il porte sa propre rubrique `[workspace]`).
+
+**D-2.1-f. Constat sur le jeu d'essai : `mire/mire-280.png` n'est pas la
+mire.**
+Ce fichier (et ses deux réduits) montre une frise de seize fleurs, sans
+grille. La vraie mire est la page 2 de `mire/mire-280.ai`. L'étude s'appuie
+sur cette page. Le jeu d'essai est à corriger dans une tâche à part.
+
 ## 2026-11-11 — Tâche 1.5
 
 **D-1.5-a. Affichage par PixiJS 8, en WebGL.**

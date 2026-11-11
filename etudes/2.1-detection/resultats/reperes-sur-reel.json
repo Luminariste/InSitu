@@ -1,0 +1,98 @@
+{
+ "a-brut.jpg": {
+  "opencv": {
+   "reperes_sur_16": 16,
+   "coin_mediane_mm": 0.204,
+   "coin_max_mm": 0.566
+  },
+  "rust": {
+   "reperes_sur_16": 16,
+   "coin_mediane_mm": 0.227,
+   "coin_max_mm": 1.233
+  }
+ },
+ "b-brut.jpg": {
+  "opencv": {
+   "reperes_sur_16": 16,
+   "coin_mediane_mm": 0.22,
+   "coin_max_mm": 0.663
+  },
+  "rust": {
+   "reperes_sur_16": 16,
+   "coin_mediane_mm": 0.224,
+   "coin_max_mm": 1.197
+  }
+ },
+ "c-brut.jpg": {
+  "opencv": {
+   "reperes_sur_16": 16,
+   "coin_mediane_mm": 0.25,
+   "coin_max_mm": 0.515
+  },
+  "rust": {
+   "reperes_sur_16": 16,
+   "coin_mediane_mm": 0.251,
+   "coin_max_mm": 0.378
+  }
+ },
+ "d-brut.jpg": {
+  "opencv": {
+   "reperes_sur_16": 16,
+   "coin_mediane_mm": 0.194,
+   "coin_max_mm": 0.387
+  },
+  "rust": {
+   "reperes_sur_16": 16,
+   "coin_mediane_mm": 0.234,
+   "coin_max_mm": 0.534
+  }
+ },
+ "img_5293.jpg": {
+  "opencv": {
+   "reperes_sur_16": 16,
+   "coin_mediane_mm": 0.226,
+   "coin_max_mm": 0.459
+  },
+  "rust": {
+   "reperes_sur_16": 16,
+   "coin_mediane_mm": 0.251,
+   "coin_max_mm": 0.389
+  }
+ },
+ "img_5295.jpg": {
+  "opencv": {
+   "reperes_sur_16": 16,
+   "coin_mediane_mm": 0.218,
+   "coin_max_mm": 0.452
+  },
+  "rust": {
+   "reperes_sur_16": 16,
+   "coin_mediane_mm": 0.241,
+   "coin_max_mm": 0.462
+  }
+ },
+ "img_5298.jpg": {
+  "opencv": {
+   "reperes_sur_16": 16,
+   "coin_mediane_mm": 0.223,
+   "coin_max_mm": 0.717
+  },
+  "rust": {
+   "reperes_sur_16": 16,
+   "coin_mediane_mm": 0.237,
+   "coin_max_mm": 1.574
+  }
+ },
+ "img_5302.jpg": {
+  "opencv": {
+   "reperes_sur_16": 16,
+   "coin_mediane_mm": 0.207,
+   "coin_max_mm": 0.566
+  },
+  "rust": {
+   "reperes_sur_16": 16,
+   "coin_mediane_mm": 0.234,
+   "coin_max_mm": 0.325
+  }
+ }
+}
