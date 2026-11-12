@@ -356,3 +356,225 @@ fn sixteen_bit_and_bitmap_photoshop_files_are_read() {
     bitmap.push(0b0100_0000); // 1 = noir
     assert_eq!(decode_psd(&bitmap).expect("bitmap").data, vec![255, 0, 255]);
 }
+
+// ---------------------------------------------------------------------------
+// Vecteurs en bibliothèque (tâche 5.2)
+// ---------------------------------------------------------------------------
+
+use crate::project::VectorSettings;
+use vectors::{drawing_vectors, set_vector_settings, vector_request_prefix, vectorize_drawings};
+
+#[test]
+fn every_imported_drawing_is_vectorized_within_half_a_pixel() {
+    let f = fixture();
+    let (project, report) = import(&f);
+    let calls = Mutex::new(Vec::new());
+    let done = vectorize_drawings(&f.dir, &report.added, &f.cache, 3, &|p| {
+        calls.lock().unwrap().push(p)
+    })
+    .expect("vectorisation");
+    assert_eq!(done.done, 6);
+    assert!(done.failures.is_empty(), "{:?}", done.failures);
+    assert_eq!(
+        calls.into_inner().unwrap().iter().map(|p| p.done).max(),
+        Some(6)
+    );
+    for drawing in &project.library {
+        let path = f.dir.resolve(&drawing.source);
+        // Vectorisé juste après l'import : le compte rendu est déjà en cache.
+        let prefix = vector_request_prefix(&path, &VectorSettings::default()).expect("clé");
+        assert!(
+            f.cache.join(format!("{prefix}.json")).is_file(),
+            "{} pas vectorisé après l'import",
+            drawing.name
+        );
+        let summary = drawing_vectors(&f.dir, &drawing.id, &f.cache).expect("vecteurs");
+        assert!(summary.default_settings);
+        assert!(
+            summary.stats.contours > 0,
+            "{} : aucun contour",
+            drawing.name
+        );
+        assert!(
+            summary.comparison.max_deviation_px < 0.5,
+            "{} : écart {} px",
+            drawing.name,
+            summary.comparison.max_deviation_px
+        );
+        let filled = fs::read_to_string(f.cache.join(&summary.filled_svg)).expect("trait");
+        let outline = fs::read_to_string(f.cache.join(&summary.outline_svg)).expect("contour");
+        let view_box = format!("viewBox=\"0 0 {} {}\"", summary.width, summary.height);
+        assert!(filled.contains(&view_box) && outline.contains(&view_box));
+        assert!(filled.contains("fill=\"white\"") && !filled.contains("<rect"));
+        assert!(outline.contains("fill=\"none\"") && outline.contains("stroke="));
+        assert!(
+            f.cache.join(&summary.image).is_file(),
+            "image de comparaison"
+        );
+    }
+    // Un SVG est vectorisé depuis son rendu à 4 096 px.
+    let aigle = project.library.iter().find(|d| d.name == "aigle").unwrap();
+    let summary = drawing_vectors(&f.dir, &aigle.id, &f.cache).unwrap();
+    assert_eq!((summary.width, summary.height), (4096, 2048));
+    // Une image, à sa taille.
+    let merle = project.library.iter().find(|d| d.name == "merle").unwrap();
+    let summary = drawing_vectors(&f.dir, &merle.id, &f.cache).unwrap();
+    assert_eq!((summary.width, summary.height), (96, 96));
+}
+
+#[test]
+fn settings_are_kept_per_drawing_and_change_the_vectors() {
+    let f = fixture();
+    let (project, _) = import(&f);
+    let merle = project
+        .library
+        .iter()
+        .find(|d| d.name == "merle")
+        .unwrap()
+        .id
+        .clone();
+    let pie = project
+        .library
+        .iter()
+        .find(|d| d.name == "pie")
+        .unwrap()
+        .id
+        .clone();
+    let before = drawing_vectors(&f.dir, &merle, &f.cache).unwrap();
+
+    let custom = VectorSettings {
+        threshold: 200,
+        tolerance_px: 1.5,
+        corner_angle_deg: 45.0,
+        min_area_px: 4.0,
+    };
+    let (saved, after) = set_vector_settings(&f.dir, &merle, Some(custom), &f.cache).unwrap();
+    assert_eq!(after.settings, custom);
+    assert!(!after.default_settings);
+    assert_ne!(
+        after.filled_svg, before.filled_svg,
+        "nouveau fichier en cache"
+    );
+    // Plus de tolérance : moins de morceaux.
+    let pieces = |s: &vectors::VectorSummary| s.stats.lines + s.stats.cubics;
+    assert!(
+        pieces(&after) < pieces(&before),
+        "{} ≥ {}",
+        pieces(&after),
+        pieces(&before)
+    );
+    // Enregistré dans le projet, pour ce dessin seulement.
+    let reread = f.dir.load().unwrap().project;
+    assert_eq!(reread, saved);
+    assert_eq!(reread.drawing(&merle).unwrap().vector, Some(custom));
+    assert_eq!(reread.drawing(&pie).unwrap().vector, None);
+    let text = fs::read_to_string(f.dir.root().join("projet.json")).unwrap();
+    assert_eq!(text.matches("\"vector\"").count(), 1);
+    assert!(text.contains("\"tolerancePx\": 1.5"));
+    let entries = list(&f.dir, Some(&f.cache), 2).unwrap();
+    assert_eq!(
+        entries.iter().find(|e| e.id == merle).unwrap().vector,
+        Some(custom)
+    );
+    assert!(validate(&f.dir).is_valid());
+    // Relu : les mêmes vecteurs, depuis le cache.
+    assert_eq!(drawing_vectors(&f.dir, &merle, &f.cache).unwrap(), after);
+
+    // Retour au défaut, explicite ou par des réglages égaux au défaut : rien
+    // n'est écrit dans le projet, et les premiers vecteurs reviennent.
+    let (_, back) = set_vector_settings(&f.dir, &merle, None, &f.cache).unwrap();
+    assert!(back.default_settings);
+    assert_eq!(back.filled_svg, before.filled_svg);
+    set_vector_settings(&f.dir, &merle, Some(custom), &f.cache).unwrap();
+    set_vector_settings(&f.dir, &merle, Some(VectorSettings::default()), &f.cache).unwrap();
+    assert_eq!(
+        f.dir
+            .load()
+            .unwrap()
+            .project
+            .drawing(&merle)
+            .unwrap()
+            .vector,
+        None
+    );
+    assert!(!fs::read_to_string(f.dir.root().join("projet.json"))
+        .unwrap()
+        .contains("\"vector\""));
+}
+
+#[test]
+fn refused_settings_leave_the_project_untouched() {
+    let f = fixture();
+    let (project, _) = import(&f);
+    let id = project.library[0].id.clone();
+    let before = fs::read(f.dir.root().join("projet.json")).unwrap();
+    for wrong in [
+        VectorSettings {
+            threshold: 0,
+            ..VectorSettings::default()
+        },
+        VectorSettings {
+            tolerance_px: 0.0,
+            ..VectorSettings::default()
+        },
+        VectorSettings {
+            corner_angle_deg: 180.0,
+            ..VectorSettings::default()
+        },
+        VectorSettings {
+            min_area_px: -1.0,
+            ..VectorSettings::default()
+        },
+    ] {
+        let refused = set_vector_settings(&f.dir, &id, Some(wrong), &f.cache);
+        assert!(
+            matches!(refused, Err(LibraryError::Settings(_))),
+            "{wrong:?}"
+        );
+    }
+    assert_eq!(fs::read(f.dir.root().join("projet.json")).unwrap(), before);
+    assert!(matches!(
+        drawing_vectors(&f.dir, "inconnu", &f.cache),
+        Err(LibraryError::UnknownDrawing(_))
+    ));
+}
+
+#[test]
+fn the_threshold_decides_whether_grey_strokes_are_kept() {
+    // Un trait blanc et un trait gris (100) : au seuil 128, seul le blanc
+    // reste ; au seuil 64, les deux.
+    let side = 120u32;
+    let mut data = vec![0u8; (side * side) as usize];
+    for y in 20..100 {
+        for x in 30..36 {
+            data[(y * side + x) as usize] = 255;
+        }
+        for x in 80..86 {
+            data[(y * side + x) as usize] = 100;
+        }
+    }
+    let temp = TempDir::new("vecteurs-seuil");
+    let (dir, _) = ProjectDir::create(temp.path().join("Essai.insitu"), Some("Essai")).unwrap();
+    let source = temp.path().join("Gris");
+    fs::create_dir_all(&source).unwrap();
+    save(
+        &Raster::new(side, side, 1, data),
+        &source.join("deux-traits.png"),
+    );
+    let cache = temp.path().join("cache");
+    let options = ImportOptions {
+        cache_root: Some(cache.clone()),
+        threads: 1,
+    };
+    let (project, _) = import_folder(&dir, &source, &options, &|_| {}).unwrap();
+    let id = project.library[0].id.clone();
+    let bright = drawing_vectors(&dir, &id, &cache).unwrap();
+    assert_eq!(bright.stats.contours, 1);
+    let low = VectorSettings {
+        threshold: 64,
+        ..VectorSettings::default()
+    };
+    let (_, both) = set_vector_settings(&dir, &id, Some(low), &cache).unwrap();
+    assert_eq!(both.stats.contours, 2);
+    assert!(both.comparison.max_deviation_px < 0.5);
+}

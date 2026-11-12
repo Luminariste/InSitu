@@ -4,6 +4,62 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 5.2
+
+Vecteurs en bibliothèque : `crates/insitu-core/src/library/vectors.rs`,
+commande `insitu library vectors`, fenêtre « Comparer image et vecteurs »
+de l'écran Bibliothèque (`src/library/VectorCompare.tsx`,
+`src/library/vectorLogic.ts`), mode d'emploi `docs/bibliotheque.md`.
+
+**D-5.2-a. Les vecteurs vont dans le cache de l'app, seuls les réglages
+vont dans le projet.** Comme les vignettes (D-4.1-d) : la vectorisation se
+refait à l'identique depuis le fichier et ses réglages, elle n'a pas à
+voyager par Dropbox. Clé du cache : chemin, taille et date du fichier, et
+les quatre réglages. Un dessin aux réglages par défaut n'a rien d'écrit
+dans `projet.json` (champ `vector` absent) ; il suivra le défaut s'il change
+un jour. Champ facultatif : `formatVersion` ne change pas.
+
+**D-5.2-b. Vectorisé juste après l'import, pas pendant.** Mesuré en
+session cloud (4 cœurs) sur les 200 dessins de 4 096 px du test de 4.1 :
+vectoriser pendant l'import le faisait passer de 4 s à 26 s, ce qui ruinait
+le critère « importés sans attente ». L'import reste donc tel quel ; dès
+qu'il est fini, l'app vectorise les nouveaux dessins (8 à la fois au plus,
+un fil chacun) pendant qu'on parcourt déjà la bibliothèque, avec une ligne
+d'avancement (26 s pour les 200 dessins de 4 096 px sur 4 cœurs, mesure
+comprise ; sans doute moins de la moitié sur le M1 Max, non mesuré). Sur
+l'autre Mac, ou après un changement de réglage, les
+vecteurs d'un dessin sont faits quand on le choisit. La liste de la
+bibliothèque ne vectorise jamais : elle doit rester instantanée.
+
+**D-5.2-c. L'écart est mesuré à chaque vectorisation.** Le compte rendu
+garde la mesure indépendante de 5.1 (`compare`) : écart maximal en pixels
+et pixels classés autrement. Il est affiché en vert sous un demi-pixel, en
+rouge au-delà. Cela double à peu près le temps de calcul ; c'est le chiffre
+qui permet de valider un dessin sans tout regarder à la loupe.
+
+**D-5.2-d. Un SVG de la bibliothèque est vectorisé depuis son rendu à
+4 096 px**, comme un dessin dessiné. Raison : un seul chemin pour le
+transport des courbes (5.3), quelle que soit l'origine du dessin. Reprendre
+directement les courbes du SVG serait plus fidèle mais demande de convertir
+les traits (épaisseur, extrémités) en contours : à voir si un SVG de Marc le
+justifie.
+
+**D-5.2-e. Comparaison dans une fenêtre à part, en HTML, pas dans la
+visionneuse.** L'image (4 096 px au plus, le noir rendu transparent) et deux
+SVG (courbes remplies de blanc ; courbes au trait rouge d'un pixel d'écran)
+sont superposés dans le même cadre. À partir de 200 %, l'image est agrandie
+sans lissage : on voit les pixels du fichier et le contour qui les longe.
+Quatre affichages : image, vecteurs, contour sur l'image, rideau. La
+visionneuse PixiJS n'a pas de calque vectoriel ; un SVG de quelques
+mégaoctets se dessine bien dans la page. Non vérifié : la fluidité du zoom
+sur un dessin très chargé (des dizaines de milliers de contours) sur le Mac.
+
+**D-5.2-f. Réglages par dessin : les quatre de 5.1, bornes du moteur.**
+Seuil, tolérance, angle des coins, aire minimale. « Appliquer » enregistre
+le projet et refait les vecteurs ; des réglages refusés ne touchent pas au
+projet. Pas d'aperçu en direct pendant la frappe : un calcul coûte de
+quelques dixièmes de seconde à quelques secondes.
+
 ## 2026-11-12 — Système de design
 
 Demande de Benjamin : une interface bien lisible, où l'on peut ajouter,
@@ -71,6 +127,7 @@ indisponible ; la choisir ne fait alors rien.
 **D15-e. L'écran de démonstration garde son ancien style.** Il est
 provisoire (D13) ; il profite des nouvelles couleurs par les anciens noms de
 variables, gardés comme alias dans `tokens.css`.
+
 ## 2026-11-12 — Tâche 3.6
 
 Vue diapositive : `crates/insitu-core/src/export/preview.rs`, commande

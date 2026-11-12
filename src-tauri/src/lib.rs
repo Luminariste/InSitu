@@ -10,10 +10,11 @@ use insitu_core::export::preview::{self as slide_preview, SlideView};
 use insitu_core::export::{self, ExportReport};
 use insitu_core::facade::{self, FacadeDisplay, SourceInfo};
 use insitu_core::geometry::Point;
+use insitu_core::library::vectors::{self, VectorSummary, VectorizeReport};
 use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
 use insitu_core::overview::{self, FacadeOverview};
 use insitu_core::project::{
-    ExportSettings, Mirror, Project, ProjectDir, RegistrationPair, SourcePoint,
+    ExportSettings, Mirror, Project, ProjectDir, RegistrationPair, SourcePoint, VectorSettings,
 };
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
@@ -262,6 +263,57 @@ fn library_preview(app: AppHandle, folder: String, drawing: String) -> Result<St
         .map_err(|e| e.to_string())
 }
 
+const VECTOR_PROGRESS_EVENT: &str = "vecteurs-progression";
+
+/// Vectorise les dessins `drawings` (tous si vide) qui ne le sont pas encore
+/// (tâche 5.2) ; l'avancement est envoyé à l'interface.
+#[tauri::command(async)]
+fn library_vectorize(
+    app: AppHandle,
+    folder: String,
+    drawings: Vec<String>,
+) -> Result<VectorizeReport, String> {
+    vectors::vectorize_drawings(
+        &project_dir(&folder)?,
+        &drawings,
+        &tile_cache_dir(&app)?,
+        0,
+        &|progress| {
+            let _ = app.emit(VECTOR_PROGRESS_EVENT, progress);
+        },
+    )
+    .map_err(|e| e.to_string())
+}
+
+/// Les vecteurs d'un dessin (tâche 5.2), calculés s'ils ne sont pas en
+/// cache, avec l'image de comparaison.
+#[tauri::command(async)]
+fn library_vectors(
+    app: AppHandle,
+    folder: String,
+    drawing: String,
+) -> Result<VectorSummary, String> {
+    vectors::drawing_vectors(&project_dir(&folder)?, &drawing, &tile_cache_dir(&app)?)
+        .map_err(|e| e.to_string())
+}
+
+/// Change les réglages de vectorisation d'un dessin (`None` : par défaut).
+#[tauri::command(async)]
+fn library_set_vector_settings(
+    app: AppHandle,
+    folder: String,
+    drawing: String,
+    settings: Option<VectorSettings>,
+) -> Result<(Project, VectorSummary), String> {
+    vectors::set_vector_settings(
+        &project_dir(&folder)?,
+        &drawing,
+        settings,
+        &tile_cache_dir(&app)?,
+    )
+    .map_err(|e| e.to_string())
+}
+
 // --- Vue façade (tâche 3.3) -------------------------------------------------------
 
 /// Emprises, maillages des photos, recouvrements de tous les projecteurs.
@@ -392,6 +444,9 @@ pub fn run() {
             library_import,
             library_list,
             library_preview,
+            library_vectorize,
+            library_vectors,
+            library_set_vector_settings,
             facade_overview,
             fresco_import,
             slides_export,

@@ -110,3 +110,165 @@
 .library-problem {
   color: var(--ui-danger);
 }
+
+/* --- Vecteurs (tâche 5.2) ------------------------------------------------- */
+
+.library-vectors {
+  margin: 0 0 var(--ui-space-2);
+  color: var(--ui-text-secondary);
+  font-size: var(--ui-text-sm);
+}
+
+/* Comparaison image / vecteurs : calque plein écran au-dessus de l'écran. */
+.vc {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+.vc-title {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ui-text-md);
+  font-weight: var(--ui-weight-bold);
+}
+
+.vc-scale {
+  min-width: 56px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-text-secondary);
+  font-size: var(--ui-text-sm);
+}
+
+.vc-body {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--ui-inspector-w);
+}
+
+.vc-body > .ui-panel {
+  border-left: 1px solid var(--ui-separator);
+}
+
+.vc-stage {
+  position: relative;
+  overflow: hidden;
+  background: var(--fond-dessin);
+  cursor: grab;
+  touch-action: none;
+}
+
+.vc-stage:active {
+  cursor: grabbing;
+}
+
+.vc-layer {
+  position: absolute;
+}
+
+.vc-layer img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  pointer-events: none;
+}
+
+.vc-layer img.vc-pixels {
+  image-rendering: pixelated;
+}
+
+.vc-curtain-right {
+  background: var(--fond-dessin);
+}
+
+.vc-curtain-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ui-accent);
+  pointer-events: none;
+}
+
+.vc-curtain-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-accent);
+  box-shadow: var(--ui-shadow);
+  cursor: ew-resize;
+  pointer-events: auto;
+}
+
+.vc-wait,
+.vc-busy {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: var(--ui-space-2) var(--ui-space-3);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface-raised);
+  color: var(--ui-text);
+  box-shadow: var(--ui-shadow);
+  font-size: var(--ui-text-sm);
+}
+
+.vc-wait {
+  top: 45%;
+}
+
+.vc-busy {
+  top: var(--ui-space-3);
+}
+
+.vc-bon {
+  color: var(--ui-success);
+}
+
+.vc-mauvais {
+  color: var(--ui-danger);
+}
+
+.vc-note {
+  margin: var(--ui-space-2) 0 0;
+  color: var(--ui-text-secondary);
+  font-size: var(--ui-text-sm);
+}
+
+.vc-erreur {
+  margin: var(--ui-space-2) 0 0;
+  color: var(--ui-danger);
+  font-size: var(--ui-text-sm);
+}
+
+.vc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ui-space-2);
+  margin-top: var(--ui-space-3);
+}
+
+.ui-property-value > .ui-input.vc-threshold {
+  flex: 0 0 64px;
+  min-width: 0;
+}
+
+.ui-property-value > input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
