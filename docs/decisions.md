@@ -4,6 +4,66 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 4.2
+
+Placement des dessins sur la façade : champ `placements` du projet, module
+`crates/insitu-core/src/placement/`, commande `insitu place`, calculs des
+gestes dans `src/compose/` (testés sans écran), branchés sur l'écran Façade.
+Mode d'emploi : `docs/composition.md`.
+
+**D-4.2-a. Un placement = centre, largeur, hauteur, rotation, miroir.**
+Le dessin est mis à la taille voulue (mm réels), retourné de gauche à droite
+si `mirrored`, tourné (degrés, sens des aiguilles d'une montre puisque y
+descend), puis posé par son centre. La symétrie de haut en bas s'écrit miroir
+plus demi-tour : un seul booléen suffit. Pas de cisaillement ni de
+déformation : ce sera la tâche 4.4 (quatre coins, grille). L'ordre de la
+liste est l'ordre d'empilement (le dernier est devant).
+
+**D-4.2-b. Groupes à un seul niveau.**
+Un champ `group` facultatif : les dessins qui portent le même se
+sélectionnent, s'alignent et se transforment ensemble. Grouper des groupes
+les fond en un seul ; Illustrator permet des groupes de groupes, rarement
+utiles ici. Ce que cela interdit : rien, un niveau de plus pourra s'ajouter
+sans changer le format (champ facultatif).
+
+**D-4.2-c. Agrandir garde toujours les proportions.**
+Les poignées de coin agrandissent depuis le coin opposé (⌥ : depuis le
+centre), sans déformer : un dessin de Marc ne s'étire pas. Dans Illustrator il
+faut tenir ⇧ pour cela ; ici c'est le seul comportement, la déformation
+viendra avec 4.4. Pas de poignées au milieu des côtés pour la même raison.
+
+**D-4.2-d. Un dessin lâché sur la façade fait le quart de la largeur visible.**
+Le fichier n'a pas de taille réelle (des pixels) ; on le pose donc à une
+taille lisible à l'écran, aux proportions du fichier, puis on l'ajuste.
+Flèches : 10 mm par appui, 100 mm avec ⇧ (un point d'Illustrator n'a pas de
+sens sur une façade de 20 m). Copier-coller : ⌘V colle au centre de la vue,
+⌘F devant à la même place, ⌘B derrière à la même place, comme Illustrator.
+
+**D-4.2-e. Gestes à la souris comme Illustrator.**
+Glisser dans le vide trace un cadre de sélection (et ne déplace plus la vue
+dès qu'au moins un dessin est posé) ; pour déplacer la vue : défiler à deux
+doigts, ou glisser avec la barre d'espace enfoncée (la main d'Illustrator).
+Tourner : juste au-delà d'un coin du cadre ; ⇧ par pas de 45°. ⌥-glisser
+copie ; ⌘D répète le dernier geste (avec sa copie s'il en faisait une), ce
+qui donne les séries régulières d'Illustrator ; sans geste précédent, ⌘D
+duplique avec un décalage de 10 cm. Crochets (⌘[ ⌘] et avec ⇧ : ordre
+d'empilement) lus par la position de la touche, pas par le caractère : sur
+un clavier français ce sont les deux touches à droite du P. À confirmer sur
+le Mac de Benjamin.
+
+**D-4.2-f. Affichage par l'aperçu de 1 024 px, enregistrement à la fin du geste.**
+Chaque dessin posé est l'aperçu de la bibliothèque (fond transparent, D-4.1-d)
+tendu sur ses quatre coins. De près, un dessin de 4 096 px est donc flou à
+l'écran ; la pleine résolution reste pour l'export. Pendant un geste, rien ne
+part au moteur ; à la fin, la liste entière lui est envoyée, il la contrôle
+(dessin connu, taille positive, identifiants uniques) et l'enregistre, ou la
+refuse sans rien écrire.
+
+**Limite.** L'export des diapositives part toujours de la fresque en une image
+(tâche 3.5) : les dessins posés dans l'app ne sont pas encore exportés. Le
+plan ne le range dans aucune tâche du jalon 4 explicitement (4.4 parle
+d'« export identique à l'aperçu ») : à décider avec Benjamin.
+
 ## 2026-11-12 — Système de design
 
 Demande de Benjamin : une interface bien lisible, où l'on peut ajouter,

@@ -8,6 +8,10 @@
 // contrôler l'ergonomie sans l'app ; rien n'y est enregistré.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
+import { DrawingsSection } from "../compose/DrawingsSection";
+import { PlacementInspector } from "../compose/PlacementInspector";
+import { useComposition } from "../compose/useComposition";
+import "../compose/compose.css";
 import {
   chooseNewProjectPath,
   choosePlanFile,
@@ -261,6 +265,25 @@ export function FacadeScreen() {
     return [...plan, ...overviewLayers(overview, display, engine ? cacheFileUrl : (request) => request)];
   }, [view, k, overview, display, engine, project?.fresco, frescoSource, showFresco]);
 
+  // Dessins posés sur la façade (tâche 4.2) : il faut une façade à l'échelle
+  // (dans le navigateur sans moteur, le plan d'essai suffit).
+  const composeBlocked = !view
+    ? "Importer d'abord un plan."
+    : engine && !k
+      ? "Mettre d'abord le plan à l'échelle (rubrique Échelle, à droite)."
+      : null;
+  const composition = useComposition({
+    engine,
+    folder,
+    project,
+    onProject: setProject,
+    viewer,
+    stage,
+    enabled: composeBlocked === null && picking === "off" && busy === null,
+    onError: setError,
+  });
+  const viewerLayers = useMemo(() => [...layers, ...composition.layers], [layers, composition.layers]);
+
   // --- Actions -------------------------------------------------------------
 
   const newProject = () =>
@@ -329,11 +352,13 @@ export function FacadeScreen() {
 
   // --- Clics sur le plan ------------------------------------------------------
 
-  const onPointerDown = (event: PointerEvent) => {
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (picking === "off" && composition.onPointerDown(event)) return;
     pointerDown.current = { x: event.clientX, y: event.clientY, t: event.timeStamp };
   };
 
-  const onPointerUp = (event: PointerEvent) => {
+  const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    if (composition.onPointerUp(event)) return;
     const down = pointerDown.current;
     pointerDown.current = null;
     if (picking === "off" || !down) return;
@@ -376,6 +401,7 @@ export function FacadeScreen() {
     { keys: "mod+0", run: () => viewer.current?.fitAll(), enabled: view !== null },
     { keys: "escape", run: () => setPicking("off"), enabled: picking !== "off" },
   ]);
+  useShortcuts(composition.shortcuts);
 
   const toolbar = (
     <Toolbar>
@@ -401,6 +427,7 @@ export function FacadeScreen() {
 
   const inspector = (
     <Panel side="right" title="Plan">
+      <PlacementInspector selected={composition.selected} frame={composition.frame} drawings={composition.drawings} actions={composition.actions} />
       <Section>
         {view ? (
           <dl className="ui-facts">
@@ -490,10 +517,16 @@ export function FacadeScreen() {
               {k ? ` = ${formatLength(span * k)}` : ""}
             </StatusText>
           )}
-          {picking !== "off" && (
+          {picking !== "off" ? (
             <StatusText tone="info" push>
               Cliquer le point {picking === "a" ? "A" : "B"} sur le plan (Échap : annuler)
             </StatusText>
+          ) : (
+            composition.hint && (
+              <StatusText tone="info" push>
+                {composition.hint}
+              </StatusText>
+            )
           )}
         </>
       ) : (
@@ -514,7 +547,9 @@ export function FacadeScreen() {
           onDisplay={setDisplay}
           onReload={engine && folder ? () => void loadOverview(folder) : null}
           busy={overviewBusy}
-        />
+        >
+          <DrawingsSection drawings={composition.drawings} blocked={composeBlocked} onPlace={composition.actions.place} />
+        </OverviewPanel>
       }
       inspector={inspector}
       status={status}
@@ -523,9 +558,12 @@ export function FacadeScreen() {
         className={`facade-stage${picking !== "off" ? " facade-picking" : ""}`}
         ref={stage}
         onPointerDownCapture={onPointerDown}
+        onPointerMoveCapture={composition.onPointerMove}
         onPointerUpCapture={onPointerUp}
+        onDragOver={composition.onDragOver}
+        onDrop={composition.onDrop}
       >
-        <Viewer ref={viewer} layers={layers} />
+        <Viewer ref={viewer} layers={viewerLayers} />
         {!view && !busy && (
           !engine ? (
             <EmptyState icon="document" title="Pas de moteur dans ce navigateur">
