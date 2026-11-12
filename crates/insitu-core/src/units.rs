@@ -18,10 +18,10 @@ pub const DEFAULT_EXPORT_MIRROR: bool = false;
 /// sur fond noir ; jusqu'ici c'est LightBurn qui applique le négatif.
 pub const DEFAULT_EXPORT_NEGATIVE: bool = false;
 
-/// Marge à l'export, par défaut : oui. Le PNG couvre la plaque de 300 mm ;
-/// le nom et les repères de calage sont gravés dans la marge (décision du
-/// 11 novembre 2026, tâche 3.5).
-pub const DEFAULT_EXPORT_MARGIN: bool = true;
+/// Marge à l'export, par défaut : non. Le PNG fait 280 mm, l'image seule
+/// (choix de Benjamin du 12 novembre 2026, D-3.5-a). Avec la marge, il
+/// couvre la plaque de 300 mm, nom et repères gravés dans la marge.
+pub const DEFAULT_EXPORT_MARGIN: bool = false;
 
 /// Seuil du noir et blanc à l'export (PNG 1 bit), par défaut : le milieu.
 pub const DEFAULT_EXPORT_THRESHOLD: u8 = 128;

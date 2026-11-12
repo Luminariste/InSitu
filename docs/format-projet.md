@@ -192,7 +192,7 @@ exactement ce que l'app écrit.
     "dpi": 1400.0,
     "mirror": false,
     "negative": false,
-    "margin": true,
+    "margin": false,
     "oneBit": false,
     "threshold": 128
   }
@@ -281,7 +281,7 @@ range dans son cache et les refait au besoin.
 | `dpi` | Résolution, en points par pouce | 1 400 |
 | `mirror` | Image retournée gauche-droite | non |
 | `negative` | Noir et blanc inversés | non |
-| `margin` | PNG de la plaque entière (300 mm), nom et repères gravés dans la marge de 10 mm ; sinon l'image de 280 mm seule (tâche 3.5) | oui |
+| `margin` | PNG de la plaque entière (300 mm), nom et repères gravés dans la marge de 10 mm ; sinon l'image de 280 mm seule (tâche 3.5) | non |
 | `oneBit` | PNG en noir et blanc pur (1 bit) ; sinon en niveaux de gris (tâche 3.5) | non |
 | `threshold` | Seuil du noir et blanc, de 1 à 255 : un pixel au moins aussi clair devient blanc | 128 |
 

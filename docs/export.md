@@ -23,9 +23,10 @@ la façade. Un PNG par projecteur, prêt pour LightBurn.
    le plan et dans les emprises des projecteurs.
 3. Section **Export des diapositives** : régler
    - **Résolution** (1 400 dpi par défaut ; Épinal a été gravé à 1 000) ;
-   - **Plaque de 300 mm** : le PNG couvre toute la plaque, l'image de
-     280 mm au centre, avec le nom et les repères gravés dans la marge de
-     10 mm. Décochée : l'image de 280 mm seule, comme les verres d'Épinal ;
+   - **Plaque de 300 mm** : décochée par défaut, le PNG fait 280 mm,
+     l'image seule, comme les verres d'Épinal. Cochée : il couvre toute la
+     plaque, l'image de 280 mm au centre, avec le nom et les repères gravés
+     dans la marge de 10 mm ;
    - **Miroir**, **Négatif** ;
    - **Noir et blanc pur (1 bit)** et son **seuil** ; sinon niveaux de gris.
    La taille du PNG s'affiche dessous.
@@ -37,7 +38,7 @@ Compter une quinzaine de secondes par diapositive à 1 400 dpi.
 
 ## Dans LightBurn
 
-Importer le PNG : il doit mesurer **300 mm** (ou **280 mm** sans marge)
+Importer le PNG : il doit mesurer **280 mm** (ou **300 mm** avec la plaque)
 sans rien régler, car la résolution est inscrite dans le fichier.
 
 ## Sans écran

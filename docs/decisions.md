@@ -11,13 +11,13 @@ Export des diapositives : module `crates/insitu-core/src/export/`, commandes
 l'écran Façade (`src/facade/ExportPanel.tsx`), mode d'emploi
 `docs/export.md`, critère prouvé par `crates/insitu-core/tests/export.rs`.
 
-**D-3.5-a. Le PNG couvre par défaut la plaque de 300 mm ; une case donne
-l'image de 280 mm seule.** Le plan demande à la fois des repères gravés
+**D-3.5-a. Le PNG fait 280 mm par défaut ; une case donne la plaque de
+300 mm avec nom et repères.** Le plan demandait à la fois des repères gravés
 « dans la marge de 10 mm de la plaque de 300 mm » (décision du 11 novembre)
 et un PNG qui « s'ouvre dans LightBurn à 280 mm ». Les deux ne tiennent pas
-dans un même fichier : par défaut, le PNG fait 300 mm (16 535 px à
-1 400 dpi), l'image de 280 mm au centre ; sans marge, il fait 280 mm,
-comme Verre-A. **Question posée à Benjamin le 12 novembre ; à confirmer.**
+dans un même fichier. Benjamin a tranché le 12 novembre : **export à
+280 mm** (15 433 px à 1 400 dpi), comme Verre-A. La plaque de 300 mm
+(16 535 px), avec nom et repères dans la marge, reste disponible en option.
 
 **D-3.5-b. La fresque est posée sur toute la largeur de la façade.**
 À l'import, la fresque couvre la façade de son bord gauche à son bord

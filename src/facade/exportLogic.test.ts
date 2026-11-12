@@ -11,8 +11,8 @@ import {
 
 describe("export des diapositives", () => {
   it("donne la taille du PNG, avec ou sans marge", () => {
-    expect(exportSizeLabel(DEFAULT_EXPORT)).toMatch(/^16\s535 px · plaque de 300 mm$/);
-    expect(exportSizeLabel({ ...DEFAULT_EXPORT, margin: false })).toMatch(/^15\s433 px · image de 280 mm$/);
+    expect(exportSizeLabel(DEFAULT_EXPORT)).toMatch(/^15\s433 px · image de 280 mm$/);
+    expect(exportSizeLabel({ ...DEFAULT_EXPORT, margin: true })).toMatch(/^16\s535 px · plaque de 300 mm$/);
   });
 
   it("complète les réglages enregistrés", () => {

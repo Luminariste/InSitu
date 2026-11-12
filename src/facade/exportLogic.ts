@@ -9,7 +9,7 @@ export const DEFAULT_EXPORT: ExportSettings = {
   dpi: 1400,
   mirror: false,
   negative: false,
-  margin: true,
+  margin: false,
   oneBit: false,
   threshold: 128,
 };
@@ -28,7 +28,7 @@ export function frescoPlacement(fresco: FrescoImage, width: number): Placement {
   return { x: fresco.frame.x, y: fresco.frame.y, mmPerPixel: fresco.frame.width / width };
 }
 
-/** Taille du PNG : « 16 535 px · plaque de 300 mm ». */
+/** Taille du PNG : « 15 433 px · image de 280 mm ». */
 export function exportSizeLabel(settings: ExportSettings): string {
   const slide = Math.round((SLIDE_MM / MM_PER_INCH) * settings.dpi);
   const margin = Math.round(((PLATE_MM - SLIDE_MM) / 2 / MM_PER_INCH) * settings.dpi);

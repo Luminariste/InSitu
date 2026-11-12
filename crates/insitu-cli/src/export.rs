@@ -26,7 +26,7 @@ projet, et ceux utilisés y sont enregistrés.
   --mirror          Image retournée gauche-droite      (--no-mirror)
   --negative        Noir et blanc inversés              (--no-negative)
   --margin          Plaque de 300 mm, nom et repères dans la marge de 10 mm
-  --no-margin       Image de 280 mm seule
+  --no-margin       Image de 280 mm seule (par défaut)
   --one-bit         Noir et blanc pur (PNG 1 bit)       (--gray : niveaux de gris)
   --threshold N     Seuil du noir et blanc, de 1 à 255 (128 par défaut)
   --only NOM        Ce projecteur seulement (répétable)

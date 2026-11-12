@@ -291,7 +291,7 @@ fn a_project_exports_its_registered_projectors() {
     assert!(report.skipped[0].reason.contains("3 paire"));
     let slide = &report.slides[0];
     assert_eq!(slide.path, out.join("Épinal-A.png"));
-    assert!((slide.size_mm - 300.0).abs() < 0.2, "{}", slide.size_mm);
+    assert!((slide.size_mm - 280.0).abs() < 0.2, "{}", slide.size_mm);
     let (w, h) = image::image_dimensions(&slide.path).unwrap();
     assert_eq!((w, h), (slide.size_px, slide.size_px));
     // Les réglages deviennent ceux du projet.

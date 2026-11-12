@@ -117,7 +117,7 @@ export function ExportPanel({ engine, folder, project, onProject, showFresco, on
         </label>
         <label>
           <input type="checkbox" checked={settings.margin} onChange={(e) => set({ margin: e.target.checked })} />
-          Plaque de 300 mm (nom et repères dans la marge)
+          Plaque de 300 mm avec nom et repères (sinon 280 mm)
         </label>
         <label>
           <input type="checkbox" checked={settings.mirror} onChange={(e) => set({ mirror: e.target.checked })} />
