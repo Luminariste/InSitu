@@ -16,6 +16,7 @@ export const STATUS_COLORS: Record<PairStatus, number> = {
 const PENDING = 0xffe14d;
 const SELECTED = 0xffffff;
 const FOOTPRINT = 0x4fb3ff;
+const HANDLE = 0xffffff;
 
 export interface MarkersContent {
   points: { x: number; y: number; status: PairStatus }[];
@@ -25,9 +26,11 @@ export interface MarkersContent {
   pending: Point | null;
   /** Contour de l'emprise du projecteur (façade seulement). */
   footprint: Point[] | null;
+  /** Poignée qui déplace toute la photo, au centre de la diapositive (façade seulement). */
+  handle?: Point | null;
 }
 
-export const EMPTY_MARKERS: MarkersContent = { points: [], selected: null, pending: null, footprint: null };
+export const EMPTY_MARKERS: MarkersContent = { points: [], selected: null, pending: null, footprint: null, handle: null };
 
 export class PairMarkersNode implements SceneNode {
   readonly container = new Container();
@@ -68,7 +71,7 @@ export class PairMarkersNode implements SceneNode {
     const zoom = frame.view.zoom;
     if (zoom === this.drawnZoom) return;
     this.drawnZoom = zoom;
-    const { points, selected, pending, footprint } = this.content;
+    const { points, selected, pending, footprint, handle } = this.content;
     const px = 1 / zoom; // un pixel d'écran, en unités de la scène
     const g = this.graphics;
     g.clear();
@@ -95,6 +98,27 @@ export class PairMarkersNode implements SceneNode {
       label.position.set(p.x + r + 3 * px, p.y + r - 2 * px);
     });
     for (let i = points.length; i < this.labels.length; i++) this.labels[i].visible = false;
+
+    if (handle) {
+      // Poignée de déplacement : un disque et quatre flèches.
+      const r = 12 * px;
+      g.circle(handle.x, handle.y, r).fill({ color: 0x000000, alpha: 0.45 }).stroke({ width: 2 * px, color: HANDLE });
+      const a = 7 * px;
+      const h = 3 * px;
+      for (const [dx, dy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ]) {
+        const tip = { x: handle.x + dx * a, y: handle.y + dy * a };
+        g.moveTo(handle.x, handle.y).lineTo(tip.x, tip.y).stroke({ width: 1.5 * px, color: HANDLE });
+        g.moveTo(tip.x - dy * h - dx * h, tip.y - dx * h - dy * h)
+          .lineTo(tip.x, tip.y)
+          .lineTo(tip.x + dy * h - dx * h, tip.y + dx * h - dy * h)
+          .stroke({ width: 1.5 * px, color: HANDLE });
+      }
+    }
 
     if (pending) {
       const r = 9 * px;

@@ -95,10 +95,11 @@ export function formatFacadeCm(value: number | null | undefined): string {
 
 /** Ce qu'il faut cliquer, en clair : des détails communs, pas les coins de la photo. */
 export const POINT_ADVICE =
-  "Choisir un détail d'architecture visible à la fois sur la photo et sur la façade (coin de fenêtre, pied de colonne, pointe d'un arc), pas les coins de la photo.";
+  "Choisir un détail d'architecture visible à la fois sur la photo et sur la façade : coin de fenêtre, pied de colonne, pointe d'un arc.";
 
 /** Phrase de résumé du recalage, sous la vue. */
 export function summary(report: RegistrationReport | null, count: number): string {
+  if (count === 0) return "Poser la photo sur la façade, puis glisser ses coins jusqu'à ce que les fenêtres tombent sur celles du plan.";
   if (count < 4) {
     const missing = 4 - count;
     return `Encore ${missing} point${missing > 1 ? "s" : ""} pour le trapèze : un détail sur la photo, puis le même sur la façade, bien répartis vers les quatre coins de la photo.`;
@@ -106,7 +107,7 @@ export function summary(report: RegistrationReport | null, count: number): strin
   if (!report) return `${count} points.`;
   if (report.stage === "trapeze") {
     return count === 4
-      ? "Trapèze calculé (4 points, sans écart mesurable). Ajouter des points pour suivre le relief : l'écart de chacun s'affiche à partir du 5e."
+      ? "Trapèze calculé (4 points, sans écart mesurable). Pour affiner : attraper un détail de la photo sur la façade et le lâcher sur le même détail du plan."
       : "Trapèze calculé sur 5 points. Au 6e, le relief est corrigé et les points douteux sont signalés.";
   }
   const outliers = report.pairs.filter((p) => p.outlier).length;
@@ -139,16 +140,226 @@ export function facadePhotoLayer(
   show: boolean,
   opacity: number,
   photoUrl: (request: string) => string,
+  live: MeshLike | null = null,
 ): LayerSpec | null {
   const p = overview?.projectors.find((q) => q.projectorId === projectorId);
-  if (!p?.mesh || !p.photoPreview) return null;
+  // Pendant un glisser, le maillage provisoire remplace celui enregistré.
+  const mesh = live ?? p?.mesh ?? null;
+  if (!mesh || !p?.photoPreview) return null;
   return {
     id: "photo-recalee",
     kind: "mesh-image",
     url: photoUrl(p.photoPreview),
-    divisions: p.mesh.divisions,
-    points: p.mesh.facade,
+    divisions: mesh.divisions,
+    points: mesh.facade,
     opacity,
     visible: show,
   };
+}
+
+// --- Pose directe sur la façade (D-3.2-h) -------------------------------------
+//
+// Au lieu de cliquer chaque point deux fois (photo, puis façade), on pose la
+// photo redressée sur la façade d'un clic, par ses quatre coins, puis on la
+// cale en glissant directement sur la façade :
+// - un coin (ou tout point déjà posé) se glisse ;
+// - la poignée du centre déplace toute la photo ;
+// - ailleurs sur la photo, on attrape un détail et on le lâche sur le même
+//   détail du plan : c'est une nouvelle paire (une « épingle »).
+// Les paires restent celles du recalage par points : rien ne change dans le
+// projet ni dans le calcul du moteur.
+
+/** Coins de la diapositive, dans l'ordre haut-gauche, haut-droit, bas-droit, bas-gauche. */
+export const SLIDE_CORNERS: readonly XYPoint[] = [
+  { x: 0, y: 0 },
+  { x: SLIDE_MM, y: 0 },
+  { x: SLIDE_MM, y: SLIDE_MM },
+  { x: 0, y: SLIDE_MM },
+];
+const CORNER_NAMES = ["haut-gauche", "haut-droit", "bas-droit", "bas-gauche"];
+
+/** « Coin haut-gauche » si la paire tient un coin de la diapositive, sinon rien. */
+export function cornerName(pair: RegistrationPair): string | null {
+  const k = SLIDE_CORNERS.findIndex((c) => Math.abs(c.x - pair.slide.x) < 1e-6 && Math.abs(c.y - pair.slide.y) < 1e-6);
+  return k < 0 ? null : `Coin ${CORNER_NAMES[k]}`;
+}
+
+/** Nom d'un point dans la liste : « Coin bas-droit » ou « Point 5 ». */
+export function pairTitle(pairs: RegistrationPair[], index: number): string {
+  return cornerName(pairs[index]) ?? `Point ${index + 1}`;
+}
+
+/** Une zone rectangulaire de la façade, en mm. */
+export interface MmRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Côté du carré où poser la photo la première fois : la taille moyenne des
+ * emprises déjà recalées (les projecteurs d'un site se ressemblent), sinon
+ * 40 % de la vue (on y voit la photo entière et de la marge pour la caler).
+ */
+export function initialSide(view: MmRect, otherFootprints: XYPoint[][]): number {
+  const sizes = otherFootprints
+    .filter((f) => f.length >= 3)
+    .map((f) => {
+      const xs = f.map((p) => p.x);
+      const ys = f.map((p) => p.y);
+      return Math.sqrt((Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys)));
+    })
+    .filter((s) => Number.isFinite(s) && s > 0);
+  if (sizes.length > 0) return sizes.reduce((a, b) => a + b, 0) / sizes.length;
+  return 0.4 * Math.min(view.width, view.height);
+}
+
+/** Les quatre coins de la diapositive posés en carré de côté `side`, centré sur `center`. */
+export function cornerPairs(center: XYPoint, side: number): RegistrationPair[] {
+  return SLIDE_CORNERS.map((c) => ({
+    slide: { x: c.x, y: c.y },
+    facade: { x: center.x + ((c.x / SLIDE_MM) - 0.5) * side, y: center.y + ((c.y / SLIDE_MM) - 0.5) * side },
+  }));
+}
+
+/** Toute la photo déplacée sur la façade : chaque point de façade glisse de (dx, dy). */
+export function translateFacade(pairs: RegistrationPair[], dx: number, dy: number): RegistrationPair[] {
+  return pairs.map((p) => ({ slide: p.slide, facade: { x: p.facade.x + dx, y: p.facade.y + dy } }));
+}
+
+/** Le maillage de la photo sur la façade (même forme que celui du moteur). */
+export interface MeshLike {
+  divisions: number;
+  facade: XYPoint[];
+}
+
+/** Centre de la diapositive posé sur la façade : là où se dessine la poignée de déplacement. */
+export function meshCenter(mesh: MeshLike): XYPoint | null {
+  const n = mesh.divisions;
+  if (n % 2 !== 0) return null;
+  return mesh.facade[(n / 2) * (n + 1) + n / 2] ?? null;
+}
+
+/**
+ * Le point de la diapositive (mm) qui s'affiche au point `at` de la façade,
+ * ou rien s'il est hors de la photo. Même découpage en triangles que
+ * l'affichage (`gridTriangles`) : le détail attrapé reste sous le pointeur.
+ */
+export function locateOnSlide(mesh: MeshLike, at: XYPoint): XYPoint | null {
+  const n = mesh.divisions;
+  const pts = mesh.facade;
+  if (n < 1 || pts.length !== (n + 1) * (n + 1)) return null;
+  const step = SLIDE_MM / n;
+  const slideOf = (k: number) => ({ x: (k % (n + 1)) * step, y: Math.floor(k / (n + 1)) * step });
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n; i++) {
+      const a = j * (n + 1) + i;
+      const b = a + 1;
+      const c = a + n + 1;
+      const d = c + 1;
+      for (const [u, v, w] of [
+        [a, b, c],
+        [b, d, c],
+      ]) {
+        const weights = barycentric(pts[u], pts[v], pts[w], at);
+        if (!weights) continue;
+        const [wu, wv, ww] = weights;
+        const su = slideOf(u);
+        const sv = slideOf(v);
+        const sw = slideOf(w);
+        return { x: wu * su.x + wv * sv.x + ww * sw.x, y: wu * su.y + wv * sv.y + ww * sw.y };
+      }
+    }
+  }
+  return null;
+}
+
+/** Poids barycentriques de `p` dans le triangle (a, b, c), ou rien s'il est dehors. */
+function barycentric(a: XYPoint, b: XYPoint, c: XYPoint, p: XYPoint): [number, number, number] | null {
+  const det = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+  if (Math.abs(det) < 1e-12) return null;
+  const wa = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / det;
+  const wb = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / det;
+  const wc = 1 - wa - wb;
+  const eps = -1e-9;
+  return wa >= eps && wb >= eps && wc >= eps ? [wa, wb, wc] : null;
+}
+
+/** Ce que fait un appui sur la façade. */
+export type FacadeGrab =
+  | { kind: "point"; index: number }
+  | { kind: "move" }
+  | { kind: "pin"; slide: XYPoint }
+  | { kind: "none" };
+
+/**
+ * Décide ce qu'attrape un appui sur la façade : un point posé (le plus
+ * proche, à moins de `GRAB_RADIUS_PX`), la poignée du centre, un détail de la
+ * photo (épingle), ou rien (la vue se déplace, ou c'est un clic de pose).
+ * Barre d'espace enfoncée : toujours rien, pour déplacer la vue comme dans
+ * Illustrator.
+ */
+export function facadeGrab(input: {
+  pointHit: number | null;
+  centerDistancePx: number | null;
+  mesh: MeshLike | null;
+  at: XYPoint;
+  photoShown: boolean;
+  spaceHeld: boolean;
+}): FacadeGrab {
+  if (input.spaceHeld) return { kind: "none" };
+  if (input.pointHit !== null) return { kind: "point", index: input.pointHit };
+  if (!input.photoShown || !input.mesh) return { kind: "none" };
+  if (input.centerDistancePx !== null && input.centerDistancePx <= GRAB_RADIUS_PX) return { kind: "move" };
+  const slide = locateOnSlide(input.mesh, input.at);
+  return slide ? { kind: "pin", slide } : { kind: "none" };
+}
+
+/**
+ * Maillage d'un simple trapèze par les 4 premières paires, calculé ici
+ * seulement pour l'exemple du navigateur, où le moteur n'est pas joignable
+ * (dans l'app, c'est toujours le moteur qui pose la photo).
+ */
+export function demoTrapezeMesh(pairs: RegistrationPair[], divisions = 16): MeshLike | null {
+  if (pairs.length < 4) return null;
+  const h = homography(
+    pairs.slice(0, 4).map((p) => p.slide),
+    pairs.slice(0, 4).map((p) => p.facade),
+  );
+  if (!h) return null;
+  const step = SLIDE_MM / divisions;
+  const facade: XYPoint[] = [];
+  for (let j = 0; j <= divisions; j++) {
+    for (let i = 0; i <= divisions; i++) {
+      const x = i * step;
+      const y = j * step;
+      const w = h[6] * x + h[7] * y + 1;
+      facade.push({ x: (h[0] * x + h[1] * y + h[2]) / w, y: (h[3] * x + h[4] * y + h[5]) / w });
+    }
+  }
+  return { divisions, facade };
+}
+
+/** Homographie exacte par 4 points (8 inconnues), ou rien si elle est dégénérée. */
+function homography(src: XYPoint[], dst: XYPoint[]): number[] | null {
+  const a: number[][] = [];
+  for (let k = 0; k < 4; k++) {
+    const { x, y } = src[k];
+    const { x: u, y: v } = dst[k];
+    a.push([x, y, 1, 0, 0, 0, -u * x, -u * y, u]);
+    a.push([0, 0, 0, x, y, 1, -v * x, -v * y, v]);
+  }
+  for (let c = 0; c < 8; c++) {
+    let pivot = c;
+    for (let r = c + 1; r < 8; r++) if (Math.abs(a[r][c]) > Math.abs(a[pivot][c])) pivot = r;
+    if (Math.abs(a[pivot][c]) < 1e-12) return null;
+    [a[c], a[pivot]] = [a[pivot], a[c]];
+    for (let r = 0; r < 8; r++) {
+      if (r === c) continue;
+      const f = a[r][c] / a[c][c];
+      for (let k = c; k < 9; k++) a[r][k] -= f * a[c][k];
+    }
+  }
+  return a.map((row, r) => row[8] / row[r]);
 }

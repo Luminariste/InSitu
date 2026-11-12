@@ -13,6 +13,15 @@ import {
   pairStatus,
   removePair,
   summary,
+  cornerName,
+  cornerPairs,
+  demoTrapezeMesh,
+  facadeGrab,
+  initialSide,
+  locateOnSlide,
+  meshCenter,
+  pairTitle,
+  translateFacade,
 } from "./logic";
 
 const p = (x: number, y: number) => ({ x, y });
@@ -160,5 +169,68 @@ describe("photo recalée sur la façade", () => {
     expect(facadePhotoLayer(overview, "b", true, 0.6, (r) => r)).toBeNull();
     expect(facadePhotoLayer(overview, null, true, 0.6, (r) => r)).toBeNull();
     expect(facadePhotoLayer(null, "a", true, 0.6, (r) => r)).toBeNull();
+  });
+});
+
+describe("pose directe sur la façade (D-3.2-h)", () => {
+  // Diapositive posée agrandie 10 fois, coin haut-gauche en (1000, 500), légèrement en trapèze.
+  const pairs = cornerPairs(p(2400, 1900), 2800);
+  const skewed = pairs.map((q, i) => (i === 2 ? { ...q, facade: p(q.facade.x + 300, q.facade.y + 200) } : q));
+
+  it("pose les quatre coins de la diapositive en carré autour d'un centre", () => {
+    expect(pairs.map((q) => q.slide)).toEqual([p(0, 0), p(280, 0), p(280, 280), p(0, 280)]);
+    expect(pairs.map((q) => q.facade)).toEqual([p(1000, 500), p(3800, 500), p(3800, 3300), p(1000, 3300)]);
+    expect(pairs.map((_, i) => pairTitle(pairs, i))).toEqual([
+      "Coin haut-gauche",
+      "Coin haut-droit",
+      "Coin bas-droit",
+      "Coin bas-gauche",
+    ]);
+    expect(cornerName({ slide: p(140, 0), facade: p(0, 0) })).toBeNull();
+    expect(pairTitle([...pairs, { slide: p(10, 10), facade: p(0, 0) }], 4)).toBe("Point 5");
+  });
+
+  it("prend la taille des emprises déjà recalées, sinon 40 % de la vue", () => {
+    expect(initialSide({ x: 0, y: 0, width: 10000, height: 5000 }, [])).toBe(2000);
+    const square = [p(0, 0), p(3000, 0), p(3000, 3000), p(0, 3000), p(0, 0)];
+    expect(initialSide({ x: 0, y: 0, width: 10000, height: 5000 }, [square])).toBeCloseTo(3000, 9);
+  });
+
+  it("déplace toute la photo sans toucher à la diapositive", () => {
+    const moved = translateFacade(pairs, 100, -50);
+    expect(moved[0]).toEqual({ slide: p(0, 0), facade: p(1100, 450) });
+  });
+
+  it("retrouve sur la diapositive le détail attrapé sur la façade, comme il est affiché", () => {
+    const mesh = demoTrapezeMesh(skewed)!;
+    expect(mesh.facade).toHaveLength(17 * 17);
+    // Un nœud du maillage : retrouvé exactement.
+    const k = 5 * 17 + 3;
+    const back = locateOnSlide(mesh, mesh.facade[k])!;
+    expect(back.x).toBeCloseTo(3 * 17.5, 9);
+    expect(back.y).toBeCloseTo(5 * 17.5, 9);
+    // Le carré non déformé : un point quelconque, à l'échelle 10.
+    const flat = demoTrapezeMesh(pairs)!;
+    const inside = locateOnSlide(flat, p(1000 + 1234, 500 + 567))!;
+    expect(inside.x).toBeCloseTo(123.4, 6);
+    expect(inside.y).toBeCloseTo(56.7, 6);
+    expect(locateOnSlide(flat, p(900, 400))).toBeNull();
+    expect(meshCenter(flat)).toEqual(p(2400, 1900));
+  });
+
+  it("choisit entre point, poignée du centre, épingle et déplacement de la vue", () => {
+    const mesh = demoTrapezeMesh(pairs)!;
+    const base = { pointHit: null, centerDistancePx: 100, mesh, at: p(1500, 1000), photoShown: true, spaceHeld: false };
+    expect(facadeGrab({ ...base, pointHit: 2 })).toEqual({ kind: "point", index: 2 });
+    expect(facadeGrab({ ...base, centerDistancePx: 5 })).toEqual({ kind: "move" });
+    const pin = facadeGrab(base);
+    expect(pin.kind).toBe("pin");
+    if (pin.kind === "pin") {
+      expect(pin.slide.x).toBeCloseTo(50, 6);
+      expect(pin.slide.y).toBeCloseTo(50, 6);
+    }
+    expect(facadeGrab({ ...base, at: p(0, 0) })).toEqual({ kind: "none" });
+    expect(facadeGrab({ ...base, photoShown: false })).toEqual({ kind: "none" });
+    expect(facadeGrab({ ...base, pointHit: 2, spaceHeld: true })).toEqual({ kind: "none" });
   });
 });

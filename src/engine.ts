@@ -577,6 +577,19 @@ export async function saveRegistration(
   return { project, report };
 }
 
+/** Pose provisoire de la diapositive sur la façade (rien n'est enregistré). */
+export interface RegistrationPreview {
+  /** Emprise (mm), fermée ; vide sous 4 paires. */
+  footprint: SourcePoint[];
+  mesh: SlideMesh | null;
+}
+
+/** Emprise et maillage pour des paires en cours de glisser (D-3.2-h). */
+export async function previewRegistration(pairs: RegistrationPair[]): Promise<RegistrationPreview> {
+  requireEngine();
+  return invoke<RegistrationPreview>("registration_preview", { pairs });
+}
+
 // --- Dessins posés sur la façade (tâche 4.2) ------------------------------------
 
 /** Remplace tous les dessins posés ; le moteur les contrôle et les enregistre. */

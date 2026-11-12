@@ -1270,6 +1270,43 @@ Façade : sur un plan clair, le fondu « écran » rendrait la photo
 invisible. La consigne des premiers points dit en clair qu'il faut des
 détails d'architecture communs, pas les coins de la photo.
 
+**D-3.2-h. Recalage direct sur la façade : poser, glisser les coins,
+épingler.** Demande de Benjamin (12 novembre 2026, au soir, avant un essai
+grandeur nature) : le recalage par deux clics est trop complexe. On garde le
+même modèle (des paires diapositive ↔ façade, même calcul, même format de
+projet), mais on le manipule directement sur la façade :
+
+- **Poser la photo sur la façade** crée quatre paires aux coins de la
+  diapositive, en carré au milieu de la vue (de la taille moyenne des
+  emprises déjà recalées, sinon 40 % de la vue). La photo s'affiche aussitôt
+  par-dessus le plan.
+- On **glisse les coins** sur la façade jusqu'à ce que la photo tombe sur le
+  plan ; la **poignée du centre** déplace toute la photo.
+- Pour affiner, on **attrape un détail de la photo** sur la façade et on le
+  lâche sur le même détail du plan : c'est une nouvelle paire (le point de
+  diapositive est celui affiché sous le pointeur, retrouvé dans le maillage
+  affiché, mêmes triangles). Un simple clic (sans glisser) garde la pose en
+  deux clics de D-3.2-e.
+- Pendant un glisser, la photo suit en direct : le moteur calcule l'emprise
+  et le maillage des paires non enregistrées (`registration_preview`,
+  `insitu registration preview`), une demande à la fois ; on enregistre au
+  lâcher. Dans l'exemple du navigateur seulement (pas de moteur), un trapèze
+  par les 4 premiers points est calculé dans l'interface.
+- Barre d'espace + glisser déplace la vue, comme dans Illustrator (un
+  glisser sur la photo l'épingle désormais). Le défilement à deux doigts
+  déplace toujours la vue.
+- La vue de la façade prend 3/5 de la largeur, la photo redressée 2/5.
+- L'aperçu de la photo redressée est fabriqué dès qu'elle existe, recalée ou
+  non (`facade_overview`).
+
+Cela amende la consigne de D-3.2-g (« pas les coins de la photo ») : elle
+valait pour des coins cliqués à l'aveugle sur le plan. Ici, les coins sont
+calés à l'œil, photo posée sur le plan ; ce sont des paires comme les
+autres, que les détails épinglés corrigent. Les coins gardent leur nom
+dans la liste (« Coin haut-gauche »…). Rien n'est automatique : un
+appariement automatique photo ↔ plan (analyse d'image, photo « lum ») reste
+à étudier ; il serait trop fragile pour l'essai du 13 novembre.
+
 ## 2026-11-12 — Tâche 2.5
 
 Écran de redressement : `src/rectification/`, module

@@ -20,6 +20,7 @@ import {
   openProject,
   openTiledImage,
   openTileFolder,
+  previewRegistration,
   projectFile,
   saveRegistration,
   type FacadeOverview,
@@ -38,7 +39,16 @@ import {
   POINT_ADVICE,
   SLIDE_MM,
   click,
+  cornerPairs,
+  demoTrapezeMesh,
+  facadeGrab,
   facadePhotoLayer,
+  initialSide,
+  meshCenter,
+  pairTitle,
+  translateFacade,
+  type MeshLike,
+  type XYPoint,
   formatFacadeCm,
   formatSlideMm,
   hint,
@@ -75,6 +85,30 @@ import "./registration.css";
 
 /** Échelle supposée de la façade de l'exemple du navigateur (mm par pixel). */
 const DEMO_FACADE_MM_PER_PIXEL = 4;
+/** Aperçu de la photo de l'exemple du navigateur (voir `docs/recalage.md`). */
+const DEMO_PHOTO_PREVIEW = "/tuiles/recalage-photo/apercu.jpg";
+
+/** Ce qu'on est en train de glisser. */
+type Drag =
+  /** Un point posé, d'un côté ou de l'autre. */
+  | { kind: "point"; side: Side; index: number; before: RegistrationPair[] }
+  /** Toute la photo, par la poignée du centre (façade). */
+  | { kind: "move"; start: XYPoint; before: RegistrationPair[] }
+  /** Un détail de la photo attrapé sur la façade : nouvelle paire au premier mouvement. */
+  | { kind: "pin"; slide: XYPoint; before: RegistrationPair[] };
+
+/** Contour d'un maillage (pour l'emprise de l'exemple du navigateur). */
+function meshOutline(mesh: MeshLike): XYPoint[] {
+  const n = mesh.divisions;
+  const at = (i: number, j: number) => mesh.facade[j * (n + 1) + i];
+  const out: XYPoint[] = [];
+  for (let i = 0; i < n; i++) out.push(at(i, 0));
+  for (let j = 0; j < n; j++) out.push(at(n, j));
+  for (let i = n; i > 0; i--) out.push(at(i, n));
+  for (let j = n; j > 0; j--) out.push(at(0, j));
+  out.push(at(0, 0));
+  return out;
+}
 
 /** Installe un objet de repères dans la scène d'une visionneuse, dès qu'elle existe. */
 function useMarkers(viewer: RefObject<ViewerHandle | null>, name: string) {
@@ -131,8 +165,12 @@ export function RegistrationScreen() {
   const [report, setReport] = useState<RegistrationReport | null>(null);
   const [pending, setPending] = useState<Pending>(NO_PENDING);
   const [selected, setSelected] = useState<number | null>(null);
-  /** Point saisi pour être glissé : son côté, son numéro, les paires d'avant. */
-  const [dragging, setDragging] = useState<{ side: Side; index: number; before: RegistrationPair[] } | null>(null);
+  /** Ce qui est saisi pour être glissé, et les paires d'avant. */
+  const [dragging, setDragging] = useState<Drag | null>(null);
+  /** Pose provisoire calculée par le moteur pendant un glisser (D-3.2-h). */
+  const [live, setLive] = useState<{ mesh: MeshLike | null; footprint: XYPoint[] } | null>(null);
+  const previewing = useRef<{ busy: boolean; next: RegistrationPair[] | null }>({ busy: false, next: null });
+  const spaceHeld = useRef(false);
   const [grabbable, setGrabbable] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -175,6 +213,7 @@ export function RegistrationScreen() {
     setSelected(null);
     setPhoto(null);
     setReport(null);
+    setLive(null);
     const p = opened.projectors.find((q) => q.id === id) ?? null;
     setPairs(p?.registration ?? []);
     if (!p?.rectifiedPhoto) return;
@@ -224,21 +263,37 @@ export function RegistrationScreen() {
 
   // --- Repères -------------------------------------------------------------
 
+  /** Dans l'exemple du navigateur, un simple trapèze par les 4 premiers points. */
+  const demoMesh = useMemo(() => (engine ? null : demoTrapezeMesh(pairs)), [engine, pairs]);
+  const savedMesh = overview?.projectors.find((q) => q.projectorId === selectedProjector)?.mesh ?? null;
+  /** La photo telle qu'elle est posée sur la façade en ce moment. */
+  const currentMesh: MeshLike | null = demoMesh ?? live?.mesh ?? (pairs.length >= 4 ? savedMesh : null);
+  const photoOnFacade = showPhoto && currentMesh !== null && (engine ? true : photo !== null);
+
   useEffect(() => {
     const statuses = pairs.map((_, i) => pairStatus(report?.pairs[i]));
+    const footprint = demoMesh
+      ? meshOutline(demoMesh)
+      : live
+        ? live.footprint
+        : report && report.footprint.length > 1
+          ? report.footprint
+          : null;
     setSlideMarkers({
       points: pairs.map((p, i) => ({ ...p.slide, status: statuses[i] })),
       selected,
       pending: pending.slide,
       footprint: null,
+      handle: null,
     });
     setFacadeMarkers({
       points: pairs.map((p, i) => ({ ...p.facade, status: statuses[i] })),
       selected,
       pending: pending.facade,
-      footprint: report && report.footprint.length > 1 ? report.footprint : null,
+      footprint: footprint && footprint.length > 1 ? footprint : null,
+      handle: photoOnFacade && currentMesh ? meshCenter(currentMesh) : null,
     });
-  }, [pairs, report, pending, selected, setSlideMarkers, setFacadeMarkers]);
+  }, [pairs, report, pending, selected, live, demoMesh, currentMesh, photoOnFacade, setSlideMarkers, setFacadeMarkers]);
 
   // Nouvelle image : on recadre.
   useEffect(() => {
@@ -268,9 +323,21 @@ export function RegistrationScreen() {
     if (!facade) return [];
     const plan: LayerSpec = { id: "facade-plan", kind: "tiles", source: facade.source, placement: facade.placement };
     // La photo recalée par-dessus le plan, pour juger le recalage d'un coup d'œil.
-    const recaled = facadePhotoLayer(overview, selectedProjector, showPhoto, photoOpacity, cacheFileUrl);
+    const recaled = demoMesh
+      ? ({
+          id: "photo-recalee",
+          kind: "mesh-image",
+          url: DEMO_PHOTO_PREVIEW,
+          divisions: demoMesh.divisions,
+          points: demoMesh.facade,
+          opacity: photoOpacity,
+          visible: showPhoto,
+        } satisfies LayerSpec)
+      : pairs.length >= 4
+        ? facadePhotoLayer(overview, selectedProjector, showPhoto, photoOpacity, cacheFileUrl, live?.mesh ?? null)
+        : null;
     return recaled ? [plan, recaled] : [plan];
-  }, [facade, overview, selectedProjector, showPhoto, photoOpacity]);
+  }, [facade, overview, selectedProjector, showPhoto, photoOpacity, live, demoMesh, pairs.length]);
 
   // --- Actions -------------------------------------------------------------
 
@@ -282,14 +349,64 @@ export function RegistrationScreen() {
       (saved) => {
         setProject(saved.project);
         setReport(saved.report);
-        void refreshOverview(folder);
+        // La pose provisoire reste affichée jusqu'à ce que la vraie la remplace.
+        void refreshOverview(folder).then(() => setLive(null));
       },
       (failure: unknown) => {
         // Refusé par le moteur : rien n'est enregistré, on revient en arrière.
         setPairs(previous);
+        setLive(null);
         setError(String(failure).replace(/^Error: /, ""));
       },
     );
+  };
+
+  /**
+   * Redessine la photo sur la façade pour des paires en cours de glisser.
+   * Le moteur calcule ; une seule demande à la fois, la dernière gagne.
+   */
+  const requestPreview = useCallback(
+    (next: RegistrationPair[]) => {
+      if (!engine || next.length < 4) return;
+      const queue = previewing.current;
+      queue.next = next;
+      if (queue.busy) return;
+      const pump = async () => {
+        while (queue.next) {
+          const asked = queue.next;
+          queue.next = null;
+          queue.busy = true;
+          try {
+            const result = await previewRegistration(asked);
+            setLive({ mesh: result.mesh, footprint: result.footprint });
+          } catch {
+            // Pas d'aperçu pour cette position : on garde le précédent.
+          }
+        }
+        queue.busy = false;
+      };
+      void pump();
+    },
+    [engine],
+  );
+
+  /** Pose la photo sur la façade par ses quatre coins, au milieu de la vue. */
+  const placeByCorners = () => {
+    const scene = facadeViewer.current?.scene();
+    if (!scene) return;
+    const view = scene.getView();
+    const viewport = scene.getViewport();
+    const a = screenToMm(view, viewport, { x: 0, y: 0 });
+    const b = screenToMm(view, viewport, { x: viewport.width, y: viewport.height });
+    const rect = { x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y };
+    const others = (overview?.projectors ?? []).filter((q) => q.projectorId !== selectedProjector).map((q) => q.footprint);
+    const side = initialSide(rect, others);
+    const next = cornerPairs({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }, side);
+    setPending(NO_PENDING);
+    setSelected(null);
+    setShowPhoto(true);
+    requestPreview(next);
+    commit(next);
   };
 
   const chooseProjector = (id: string) =>
@@ -326,48 +443,93 @@ export function RegistrationScreen() {
       GRAB_RADIUS_PX,
     );
 
+  /** Ce qu'un appui attrape à cet endroit (point posé, poignée, détail de la photo). */
+  const grabAt = (side: Side, at: NonNullable<ReturnType<typeof pointerAt>>) => {
+    const hit = pointUnder(side, at);
+    if (side === "slide") return hit === null ? ({ kind: "none" } as const) : ({ kind: "point", index: hit } as const);
+    const center = currentMesh ? meshCenter(currentMesh) : null;
+    const c = center ? at.toScreen(center) : null;
+    return facadeGrab({
+      pointHit: hit,
+      centerDistancePx: c ? Math.hypot(c.x - at.screen.x, c.y - at.screen.y) : null,
+      mesh: currentMesh,
+      at: at.mm,
+      photoShown: photoOnFacade,
+      spaceHeld: spaceHeld.current,
+    });
+  };
+
   const onPointerDown = (side: Side) => (event: PointerEvent<HTMLDivElement>) => {
     pointerDown.current = { x: event.clientX, y: event.clientY, t: event.timeStamp };
-    if (!ready) return;
+    if (!ready || spaceHeld.current) return;
     const at = pointerAt(side, event);
-    const hit = at ? pointUnder(side, at) : null;
-    if (hit === null) return;
-    // Le point est saisi : la visionneuse ne doit pas se déplacer.
+    if (!at) return;
+    const grab = grabAt(side, at);
+    if (grab.kind === "none") return;
+    // Quelque chose est saisi : la visionneuse ne doit pas se déplacer.
     event.stopPropagation();
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    setDragging({ side, index: hit, before: pairs });
+    if (grab.kind === "point") setDragging({ kind: "point", side, index: grab.index, before: pairs });
+    else if (grab.kind === "move") setDragging({ kind: "move", start: at.mm, before: pairs });
+    else setDragging({ kind: "pin", slide: grab.slide, before: pairs });
   };
 
   const onPointerMove = (side: Side) => (event: PointerEvent<HTMLDivElement>) => {
     const at = pointerAt(side, event);
     if (!at) return;
-    if (dragging && dragging.side === side) {
-      setPairs(movePoint(dragging.before, dragging.index, side, at.mm));
+    if (dragging) {
+      const down = pointerDown.current;
+      const moved = down ? !isClick(down, { x: event.clientX, y: event.clientY, t: event.timeStamp }) : true;
+      let next: RegistrationPair[] | null = null;
+      if (dragging.kind === "point" && dragging.side === side) {
+        next = movePoint(dragging.before, dragging.index, side, at.mm);
+      } else if (dragging.kind === "move" && side === "facade") {
+        next = translateFacade(dragging.before, at.mm.x - dragging.start.x, at.mm.y - dragging.start.y);
+      } else if (dragging.kind === "pin" && side === "facade" && moved) {
+        next = [...dragging.before, { slide: dragging.slide, facade: at.mm }];
+      }
+      if (next) {
+        setPairs(next);
+        requestPreview(next);
+      }
       return;
     }
-    setGrabbable(ready && pointUnder(side, at) !== null);
+    setGrabbable(ready && !spaceHeld.current && grabAt(side, at).kind !== "none");
   };
 
   const onPointerUp = (side: Side) => (event: PointerEvent<HTMLDivElement>) => {
     const down = pointerDown.current;
     pointerDown.current = null;
     const up = { x: event.clientX, y: event.clientY, t: event.timeStamp };
+    const clicked = down !== null && isClick(down, up);
     if (dragging) {
       event.currentTarget.releasePointerCapture(event.pointerId);
-      const { index, before } = dragging;
+      const drag = dragging;
       setDragging(null);
-      if (down && isClick(down, up)) {
-        // Simple clic sur un point : il est choisi (ou ne l'est plus).
-        setPairs(before);
-        setSelected(selected === index ? null : index);
+      if (drag.kind === "point") {
+        if (clicked) {
+          // Simple clic sur un point : il est choisi (ou ne l'est plus).
+          setPairs(drag.before);
+          setSelected(selected === drag.index ? null : drag.index);
+          return;
+        }
+        setSelected(drag.index);
+        commit(pairs, drag.before);
         return;
       }
-      setSelected(index);
-      commit(pairs, before);
-      return;
+      if (clicked) {
+        setPairs(drag.before);
+        // Un simple clic sur la photo (sans glisser) reste un clic de pose.
+        if (drag.kind === "move") return;
+      } else {
+        // Une épingle n'est pas choisie après la pose : le clic suivant pose
+        // un nouveau point au lieu de la déplacer.
+        commit(pairs, drag.before);
+        return;
+      }
     }
-    if (!down || !ready || !isClick(down, up)) return;
+    if (!down || !ready || !clicked) return;
     const at = pointerAt(side, event)?.mm;
     if (!at) return;
     if (side === "slide" && !onSlide(at)) {
@@ -379,6 +541,30 @@ export function RegistrationScreen() {
     setPending(result.pending);
     if (result.changed) commit(result.pairs);
   };
+
+  // Barre d'espace enfoncée : glisser déplace la vue, comme dans Illustrator.
+  useEffect(() => {
+    const isTyping = (event: KeyboardEvent) =>
+      event.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName);
+    const down = (event: KeyboardEvent) => {
+      if (event.code !== "Space" || isTyping(event)) return;
+      event.preventDefault();
+      spaceHeld.current = true;
+      setGrabbable(false);
+    };
+    const up = (event: KeyboardEvent) => {
+      if (event.code === "Space") spaceHeld.current = false;
+    };
+    const blur = () => (spaceHeld.current = false);
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
+    };
+  }, []);
 
   // Échap : abandonne le point en attente ou la sélection.
   useEffect(() => {
@@ -500,12 +686,37 @@ export function RegistrationScreen() {
 
   const inspector = (
     <Panel side="right" title="Points communs">
-      {pairs.length < 4 && (
+      {pairs.length === 0 && (
+        <div className="registration-advice">
+          <Button
+            variant="primary"
+            icon="link"
+            onClick={placeByCorners}
+            disabled={!ready || !photo || !facade || (engine && !projector)}
+            title="Pose la photo redressée au milieu de la vue de la façade, par ses quatre coins"
+          >
+            Poser la photo sur la façade
+          </Button>
+          <p className="ui-note">
+            Puis glisser ses quatre coins sur la façade jusqu'à ce que les fenêtres de la photo tombent sur celles du plan. La
+            poignée du centre déplace toute la photo.
+          </p>
+        </div>
+      )}
+      {pairs.length > 0 && pairs.length < 4 && (
         <div className="registration-advice">
           <p className="ui-note">{POINT_ADVICE}</p>
           <p className="ui-note">
             Cliquer le détail sur la photo, puis le même sur la façade. Il en faut 4, répartis vers les quatre coins de la
-            photo ; la photo se pose alors sur la façade.
+            photo. Plus simple : supprimer ces points et poser la photo par ses coins.
+          </p>
+        </div>
+      )}
+      {pairs.length >= 4 && (
+        <div className="registration-advice">
+          <p className="ui-note">
+            Pour affiner : sur la façade, attraper un détail de la photo (coin de fenêtre…) et le lâcher sur le même détail du
+            plan. Chaque détail ainsi posé devient un point. Barre d'espace + glisser : déplacer la vue.
           </p>
         </div>
       )}
@@ -525,7 +736,7 @@ export function RegistrationScreen() {
                 }}
                 tooltip={r?.outlier ? "Point douteux : à vérifier, déplacer ou supprimer" : "Cliquer pour choisir ce point, puis le glisser pour le déplacer"}
                 leading={<Dot tone={tones[status]} />}
-                title={`Point ${i + 1}`}
+                title={pairTitle(pairs, i)}
                 detail={`diapo ${formatSlideMm(r?.slideResidualMm)} · façade ${formatFacadeCm(r?.facadeResidualMm)}`}
                 actions={<IconButton icon="trash" label={`Supprimer le point ${i + 1}`} shortcut="backspace" size="sm" onClick={() => remove(i)} disabled={!ready} />}
               />
