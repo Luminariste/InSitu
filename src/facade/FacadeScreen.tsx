@@ -431,7 +431,7 @@ export function FacadeScreen() {
                 <p>Créer un projet ou ouvrir un projet existant, puis importer le plan de la façade.</p>
               ) : (
                 <p>
-                  Importer le plan de la façade : PDF d'architecte, image (PNG, JPEG, TIFF), SVG ou DXF.
+                  Importer le plan de la façade : PDF d'architecte, image (PNG, JPEG, TIFF, HEIC), SVG ou DXF.
                   <br />
                   <small>Un DWG est à exporter d'abord en PDF ou en DXF.</small>
                 </p>

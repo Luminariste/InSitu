@@ -13,7 +13,7 @@
 //!
 //! | Format | Unité | Origine |
 //! | --- | --- | --- |
-//! | Image (PNG, JPEG, TIFF) | pixel | coin haut-gauche |
+//! | Image (PNG, JPEG, TIFF, HEIC) | pixel | coin haut-gauche |
 //! | PDF | point (1/72 de pouce) | coin haut-gauche de la page affichée |
 //! | SVG | pixel CSS (1/96 de pouce) | coin haut-gauche |
 //! | DXF | unité de dessin | coin haut-gauche du dessin (voir [`dxf`]) |
@@ -70,7 +70,7 @@ impl SourceKind {
             "pdf" => Ok(Self::Pdf),
             "svg" | "svgz" => Ok(Self::Svg),
             "dxf" => Ok(Self::Dxf),
-            "png" | "jpg" | "jpeg" | "tif" | "tiff" => Ok(Self::Image),
+            "png" | "jpg" | "jpeg" | "tif" | "tiff" | "heic" | "heif" => Ok(Self::Image),
             _ => Err(FacadeError::Unsupported(extension)),
         }
     }
@@ -141,16 +141,13 @@ impl fmt::Display for FacadeError {
                 "dwg" => f.write_str(
                     "Le format DWG n'est pas lu : l'exporter en PDF ou en DXF depuis le logiciel de l'architecte.",
                 ),
-                "heic" | "heif" => f.write_str(
-                    "Le HEIC n'est pas encore lu pour la façade : l'exporter en JPEG (Aperçu, Fichier > Exporter).",
-                ),
                 "ai" => f.write_str(
                     "Un fichier Illustrator n'est pas lu comme plan : l'enregistrer en PDF.",
                 ),
                 "" => f.write_str("Fichier sans extension : format inconnu."),
                 other => write!(
                     f,
-                    "Format « .{other} » non pris en charge pour la façade (PDF, PNG, JPEG, TIFF, SVG ou DXF)."
+                    "Format « .{other} » non pris en charge pour la façade (PDF, PNG, JPEG, TIFF, HEIC, SVG ou DXF)."
                 ),
             },
             Self::Unreadable(message) => write!(f, "Plan illisible : {message}"),
@@ -231,11 +228,8 @@ pub fn inspect(path: &Path, page: Option<u32>) -> Result<SourceInfo, FacadeError
     };
     match kind {
         SourceKind::Image => {
-            let (width, height) = image::ImageReader::open(path)
-                .map_err(|error| FacadeError::Io(path.to_path_buf(), error))?
-                .with_guessed_format()
-                .map_err(|error| FacadeError::Io(path.to_path_buf(), error))?
-                .into_dimensions()
+            // Le HEIC des iPhone compris (photo d'ensemble de la façade).
+            let (width, height) = crate::photo::dimensions(path)
                 .map_err(|error| FacadeError::Unreadable(format!("image illisible : {error}")))?;
             info.width = f64::from(width);
             info.height = f64::from(height);

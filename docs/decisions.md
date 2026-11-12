@@ -380,6 +380,18 @@ dans `rectification.mirror` (champ facultatif, ancien fichier lisible tel
 quel) pour être réappliqué quand la mire est détectée de nouveau. Ce n'est
 pas le miroir de l'export pour la gravure (tâche 3.5), qui reste à part.
 
+**D-2.5-k. HEIC : aussi pour la façade, et un secours par le Mac.**
+Benjamin a vu un HEIC refusé (12 novembre 2026). Trois changements :
+l'écran Façade accepte maintenant le HEIC (il le refusait exprès, avec un
+message demandant un JPEG) ; un fichier est reconnu comme HEIF aussi par ses
+marques compatibles, pas seulement par sa marque principale ; si notre
+décodeur échoue (variante non prise en charge, par exemple 10 bits), le
+moteur demande à `sips`, le convertisseur fourni avec macOS, d'en faire un
+PNG provisoire. Ce secours dépend du système, mais seulement sur Mac et en
+dernier recours ; les tests (Linux) ne le parcourent pas. Le décodeur à
+nous reste le premier, pour que Mac et tests donnent les mêmes pixels
+(D-2.5-a).
+
 ## 2026-11-12 — Tâche 2.4a
 
 Détection de l'ancienne mire et redressement : module

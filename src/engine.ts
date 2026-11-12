@@ -353,7 +353,7 @@ export async function exportRectified(
 // --- Fenêtres de choix de fichiers (macOS) ----------------------------------
 
 /** Extensions de plan acceptées pour la façade. */
-export const PLAN_EXTENSIONS = ["pdf", "png", "jpg", "jpeg", "tif", "tiff", "svg", "dxf"];
+export const PLAN_EXTENSIONS = ["pdf", "png", "jpg", "jpeg", "tif", "tiff", "heic", "heif", "svg", "dxf"];
 
 /** Demande un dossier de projet existant ; `null` si l'utilisateur renonce. */
 export async function chooseProjectFolder(): Promise<string | null> {
