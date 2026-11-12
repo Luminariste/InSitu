@@ -4,13 +4,14 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+use insitu_core::library::silhouette::{load_silhouettes, rasterize, set_silhouette};
 use insitu_core::library::vectors::{
     drawing_vectors, set_vector_settings, vectorize_drawings, VectorSummary,
 };
 use insitu_core::library::{
     self, decode, encode_png, import_folder, rendition, ImportOptions, THUMBNAIL_SIDE,
 };
-use insitu_core::project::{ProjectDir, VectorSettings};
+use insitu_core::project::{ProjectDir, SilhouettePolygon, VectorSettings};
 
 /// Ce qui peut mal tourner.
 pub enum Problem {
@@ -26,6 +27,8 @@ pub const USAGE: &str = r#"Usage :
   insitu library vectors <projet.insitu> [<dessin>] --cache DOSSIER
          [--threshold N] [--tolerance PX] [--corner DEG] [--min-area PX2]
          [--default]
+  insitu library silhouette <projet.insitu> <dessin> --cache DOSSIER
+         [--from CONTOURS.json | --none | --default] [--mask SORTIE.png]
 
 Bibliothèque de dessins (traits blancs sur fond noir ; PNG, JPEG, TIFF, BMP,
 PSD aplati, SVG).
@@ -50,6 +53,14 @@ PSD aplati, SVG).
              dessin et enregistrent le projet ; --default le ramène aux
              réglages par défaut (seuil 128, tolérance 0,3 px, angle 70°,
              aire minimale 0).
+  silhouette Silhouette d'un dessin (tâche 4.7) en JSON : polygones en
+             fractions du dessin, et « manual » s'il a été retouché. --from
+             la remplace par les contours d'un fichier JSON (une liste de
+             polygones, chacun une liste de points [u, v]) ; --none retire
+             la silhouette (le dessin ne cache plus rien) ; --default revient
+             à la détection automatique. Ces trois options enregistrent le
+             projet. --mask écrit la silhouette en image (blanc dedans), au
+             côté --size (1 024 par défaut).
 
   --cache DOSSIER  Où ranger vignettes et vecteurs (comme le cache de
                    l'app). Sans cette option, import et list n'en font pas.
@@ -65,6 +76,10 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
     let mut size = THUMBNAIL_SIDE;
     let mut settings: Option<VectorSettings> = None;
     let mut reset = false;
+    let mut size_given = false;
+    let mut from: Option<String> = None;
+    let mut none = false;
+    let mut mask: Option<String> = None;
     let mut words = Vec::new();
     let mut rest = args.iter().copied();
     while let Some(arg) = rest.next() {
@@ -88,7 +103,20 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                     .and_then(|v| v.parse().ok())
                     .filter(|&v: &u32| v >= 1)
                     .ok_or_else(|| usage("--size attend un nombre de pixels."))?;
+                size_given = true;
             }
+            "--from" | "--mask" => {
+                let value = rest
+                    .next()
+                    .ok_or_else(|| usage(&format!("{arg} attend un fichier.")))?
+                    .to_string();
+                if arg == "--from" {
+                    from = Some(value);
+                } else {
+                    mask = Some(value);
+                }
+            }
+            "--none" => none = true,
             "--threshold" | "--tolerance" | "--corner" | "--min-area" => {
                 let value: f64 = rest
                     .next()
@@ -200,6 +228,50 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                     Ok(table.trim_end().to_string())
                 }
             }
+        }
+        ["silhouette", folder, drawing] => {
+            let cache = cache.ok_or_else(|| usage("silhouette demande --cache DOSSIER."))?;
+            if [from.is_some(), none, reset].iter().filter(|&&x| x).count() > 1 {
+                return Err(usage("--from, --none et --default s'excluent."));
+            }
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let project = dir.load().map_err(failed)?.project;
+            let id = library::find(&project, drawing).map_err(failed)?.id.clone();
+            let current = if from.is_some() || none || reset {
+                let wanted: Option<Vec<SilhouettePolygon>> = match &from {
+                    Some(file) => {
+                        let text = std::fs::read_to_string(file).map_err(|e| {
+                            Problem::Failed(format!("Impossible de lire « {file} » : {e}"))
+                        })?;
+                        Some(serde_json::from_str(&text).map_err(|e| {
+                            Problem::Failed(format!("Contours illisibles dans « {file} » : {e}"))
+                        })?)
+                    }
+                    None if none => Some(Vec::new()),
+                    None => None,
+                };
+                set_silhouette(&dir, &id, wanted, &cache).map_err(failed)?.1
+            } else {
+                load_silhouettes(&dir, std::slice::from_ref(&id), &cache)
+                    .map_err(failed)?
+                    .pop()
+                    .expect("un dessin demandé")
+            };
+            if let Some(output) = &mask {
+                let side = if size_given { size } else { 1024 };
+                let d = project.drawing(&id).expect("trouvé plus haut");
+                let scale = f64::from(side) / d.width.max(d.height);
+                let (w, h) = (
+                    ((d.width * scale).round() as u32).max(1),
+                    ((d.height * scale).round() as u32).max(1),
+                );
+                let image = rasterize(&current.polygons, w, h);
+                let bytes = encode_png(&image).map_err(Problem::Failed)?;
+                std::fs::write(output, bytes).map_err(|e| {
+                    Problem::Failed(format!("Impossible d'écrire « {output} » : {e}"))
+                })?;
+            }
+            Ok(serde_json::to_string_pretty(&current).expect("sérialisable"))
         }
         _ => Err(usage("Commande de bibliothèque incomplète ou inconnue.")),
     }

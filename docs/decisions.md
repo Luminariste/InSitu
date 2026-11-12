@@ -4,6 +4,47 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 4.7 : silhouettes et superposition
+
+Module `crates/insitu-core/src/library/silhouette.rs` ; écran
+`src/library/SilhouetteEditor.tsx`.
+
+**D-4.7-a. Détection par fermeture sur une grille réduite.** Le dessin est
+ramené à environ 1 024 cases (une case est encrée si un de ses pixels
+dépasse 48 sur 255 : un trait fin n'est jamais perdu). L'encre est épaissie
+de 12 cases (environ 1,2 % du dessin), le fond est rempli depuis les bords,
+puis la silhouette est amincie de 10 cases : elle déborde de 2 cases autour
+du trait extérieur. Ses contours sont suivis comme pour la vectorisation,
+puis simplifiés (0,75 case). Raison : les traits d'un dessin à la main ne
+sont pas toujours fermés ; une ouverture de moins de 24 cases est bouchée.
+Contrepartie : deux parties à moins de 24 cases l'une de l'autre sont
+réunies, et une ouverture plus large laisse le fond entrer. La retouche à la
+main règle ces cas.
+
+**D-4.7-b. Polygones en fractions du dessin.** La silhouette suit le dessin
+dans toutes ses transformations, déformations et retouches, comme ses
+pixels. Retouchée, elle est écrite dans `library[].silhouette` ; détectée,
+elle est rangée dans le cache de l'app (`silhouettes/`) et refaite si le
+fichier change. Une liste vide veut dire « pas de silhouette ».
+
+**D-4.7-c. Composition dans l'export.** Les dessins sont posés du fond vers
+l'avant (ordre des calques, puis de la liste). Pour chacun : sous sa
+silhouette, ce qui est déjà dans la diapositive est assombri en proportion
+du masque (bord adouci par le rééchantillonnage), puis ses traits sont
+ajoutés en gardant le plus clair. Le masque est la silhouette rendue à
+2 048 px au plus et passe par la même chaîne que le dessin. Il n'est
+calculé que s'il y a quelque chose dessous. Dans l'export, une silhouette
+non retouchée est détectée sur l'image lue en pleine résolution (même
+calcul que dans l'app).
+
+**D-4.7-d. Sur la façade, un polygone noir opaque** est posé juste sous
+chaque dessin. La vue Diapositive montre l'aperçu calculé par le moteur,
+donc le même masquage que l'export.
+
+**D-4.7-e. Le SVG de la diapositive (critère « … et dans le SVG ») viendra
+avec l'export SVG (tâche 5.3)**, qui n'existe pas encore : la silhouette y
+sera appliquée en découpant les courbes des dessins de derrière.
+
 ## 2026-11-12 — Tâche 4.6 : ajustement d'un dessin par diapositive
 
 Module `crates/insitu-core/src/placement/adjust.rs` ; écran

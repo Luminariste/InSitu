@@ -207,7 +207,7 @@ pub fn sizes_px(dpi: f64) -> (u32, u32) {
 #[derive(Default)]
 pub struct Artwork<'a> {
     pub fresco: Option<(&'a Raster, &'a RectMm)>,
-    pub drawings: Vec<(&'a Placement, &'a Raster)>,
+    pub drawings: Vec<drawings::Posed<'a>>,
     /// Le projecteur de la diapositive : ses retouches de dessins (tâche
     /// 4.6) s'appliquent.
     pub projector: Option<&'a str>,
