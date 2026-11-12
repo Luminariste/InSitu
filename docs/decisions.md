@@ -385,7 +385,8 @@ Benjamin a vu un HEIC refusé (12 novembre 2026). Trois changements :
 l'écran Façade accepte maintenant le HEIC (il le refusait exprès, avec un
 message demandant un JPEG) ; un fichier est reconnu comme HEIF aussi par ses
 marques compatibles, pas seulement par sa marque principale ; si notre
-décodeur échoue (variante non prise en charge, par exemple 10 bits), le
+décodeur échoue (variante non prise en charge : c'était le cas de la photo
+« C BRUT.heic » de Benjamin, en couleurs 4:4:4 ; ou 10 bits), le
 moteur demande à `sips`, le convertisseur fourni avec macOS, d'en faire un
 PNG provisoire. Ce secours dépend du système, mais seulement sur Mac et en
 dernier recours ; les tests (Linux) ne le parcourent pas. Le décodeur à

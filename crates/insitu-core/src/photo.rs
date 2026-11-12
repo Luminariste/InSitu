@@ -56,9 +56,9 @@ pub fn is_heif(bytes: &[u8]) -> bool {
     let is_heif_brand = |b: &[u8]| HEIF_BRANDS.iter().any(|brand| b == &brand[..]);
     // Marque principale (8..12), version (12..16), marques compatibles.
     is_heif_brand(&bytes[8..12])
-        || bytes
-            .get(16..end)
-            .is_some_and(|rest| rest.chunks_exact(4).any(is_heif_brand))
+        || (16..end.saturating_sub(3))
+            .step_by(4)
+            .any(|i| is_heif_brand(&bytes[i..i + 4]))
 }
 
 /// Vrai si le fichier est un HEIF, d'après ses premiers octets.
