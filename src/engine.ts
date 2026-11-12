@@ -623,3 +623,22 @@ export async function chooseExportFolder(): Promise<string | null> {
   const chosen = await open({ directory: true, multiple: false, title: "Dossier des diapositives à graver" });
   return typeof chosen === "string" ? chosen : null;
 }
+
+// --- Vue diapositive (tâche 3.6) -------------------------------------------------
+
+/** Un projecteur dans la vue diapositive. */
+export interface SlideView {
+  projectorId: string;
+  label: string;
+  /** Photo redressée, chemin relatif au projet (mm de diapositive). */
+  rectifiedPhoto: string | null;
+  /** Aperçu de la diapositive calculée, dans le cache de l'app. */
+  preview: string | null;
+  problem: string | null;
+}
+
+/** Photo redressée et diapositive calculée de chaque projecteur. */
+export async function fetchSlideViews(folder: string): Promise<SlideView[]> {
+  requireEngine();
+  return invoke<SlideView[]>("slide_views", { folder });
+}

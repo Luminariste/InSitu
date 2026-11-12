@@ -74,7 +74,10 @@ export class MeshImageNode implements SceneNode {
     this.container.alpha = spec.opacity ?? 1;
     this.container.visible = spec.visible ?? true;
     this.container.blendMode = spec.blend === "screen" ? "screen" : "normal";
-    if (this.mesh) this.setVertices(this.mesh);
+    if (this.mesh) {
+      this.mesh.tint = spec.tint ?? 0xffffff;
+      this.setVertices(this.mesh);
+    }
   }
 
   private setVertices(mesh: MeshSimple): void {
@@ -107,6 +110,7 @@ export class MeshImageNode implements SceneNode {
         uvs: gridUvs(this.spec.divisions),
         indices: gridTriangles(this.spec.divisions),
       });
+      this.mesh.tint = this.spec.tint ?? 0xffffff;
       this.setVertices(this.mesh);
       this.container.addChild(this.mesh);
       onLoaded();
