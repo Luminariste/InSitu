@@ -17,10 +17,12 @@
 //! - [`import_folder`] : import d'un dossier ;
 //! - [`list`] : la bibliothèque, vignettes comprises ;
 //! - [`ensure_rendition`] : une vignette ou un aperçu dans le cache ;
-//! - [`vectors`] : les vecteurs de chaque dessin (tâche 5.2).
+//! - [`vectors`] : les vecteurs de chaque dessin (tâche 5.2) ;
+//! - [`silhouette`] : la silhouette de chaque dessin (tâche 4.7).
 
 pub mod psd;
 pub mod read;
+pub mod silhouette;
 pub mod vectors;
 
 #[cfg(test)]
@@ -83,6 +85,8 @@ pub enum LibraryError {
     UnknownDrawing(String),
     /// Réglages de vectorisation refusés.
     Settings(String),
+    /// Silhouette retouchée refusée.
+    Silhouette(String),
     /// Écriture d'une vignette impossible.
     Cache {
         path: PathBuf,
@@ -110,6 +114,7 @@ impl fmt::Display for LibraryError {
             }
             Self::UnknownDrawing(id) => write!(f, "Aucun dessin « {id} » dans la bibliothèque."),
             Self::Settings(reason) => write!(f, "Réglages de vectorisation refusés : {reason}."),
+            Self::Silhouette(reason) => write!(f, "Silhouette refusée : {reason}."),
             Self::Cache { path, reason } => {
                 write!(
                     f,
@@ -546,6 +551,7 @@ pub fn import_folder(
                     width,
                     height,
                     vector: None,
+                    silhouette: None,
                     extra: ExtraFields::new(),
                 });
             }

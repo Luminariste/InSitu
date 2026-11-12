@@ -55,6 +55,43 @@ function sketch(seed: number, side: number): string {
   return canvas.toDataURL("image/png");
 }
 
+/**
+ * Silhouette d'un dessin inventé : l'enveloppe convexe de ses traits, un peu
+ * élargie (dans l'app, le moteur suit le vrai contour extérieur).
+ */
+export function demoSilhouette(id: string): [number, number][][] {
+  const index = Number(id.replace(/^demo-/, ""));
+  if (!Number.isInteger(index)) return [];
+  const side = 256;
+  const points = strokes(index, side)
+    .flatMap((s) => s.points)
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o: [number, number], a: [number, number], b: [number, number]) =>
+    (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const half = (list: [number, number][]) => {
+    const out: [number, number][] = [];
+    for (const p of list) {
+      while (out.length >= 2 && cross(out[out.length - 2], out[out.length - 1], p) <= 0) out.pop();
+      out.push(p);
+    }
+    out.pop();
+    return out;
+  };
+  const hull = [...half(points), ...half([...points].reverse())];
+  const cx = hull.reduce((s, p) => s + p[0], 0) / hull.length;
+  const cy = hull.reduce((s, p) => s + p[1], 0) / hull.length;
+  return [
+    hull.map(([x, y]) => {
+      const d = Math.hypot(x - cx, y - cy) || 1;
+      const grow = 6 / d;
+      return [
+        Math.min(1, Math.max(0, (x + (x - cx) * grow) / side)),
+        Math.min(1, Math.max(0, (y + (y - cy) * grow) / side)),
+      ];
+    }),
+  ];
+}
+
 /** `count` dessins inventés, avec leur vignette. */
 export function demoLibrary(count: number): (LibraryEntry & { url: string | null })[] {
   return Array.from({ length: count }, (_, i) => {

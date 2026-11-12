@@ -21,13 +21,15 @@ import {
   fetchAssignments,
   fetchDrawingPreview,
   fetchLibrary,
+  fetchSilhouettes,
   saveComposition,
   type Assignment,
   type LibraryEntry,
   type Project,
+  type SilhouettePolygon,
 } from "../engine";
 import { projectorColor } from "../facade/overview";
-import { demoLibrary } from "../library/demo";
+import { demoLibrary, demoSilhouette } from "../library/demo";
 import type { LayerSpec, ViewerHandle } from "../viewer";
 import { mmToScreen, screenToMm, visibleRect } from "../viewer/geometry";
 import {
@@ -207,6 +209,8 @@ export function useComposition(options: Options): Composition {
   const [marquee, setMarquee] = useState<Rect | null>(null);
   const [previews, setPreviews] = useState<Map<string, string>>(new Map());
   const [assignments, setAssignments] = useState<Map<string, Assignment>>(new Map());
+  const [detected, setDetected] = useState<Map<string, SilhouettePolygon[]>>(new Map());
+  const requested = useRef<Set<string>>(new Set());
   const active = useRef<Active | null>(null);
   const lastRepeat = useRef<Repeatable | null>(null);
   const clipboard = useRef<Placement[]>([]);
@@ -264,6 +268,8 @@ export function useComposition(options: Options): Composition {
   useEffect(() => {
     setSelection(new Set());
     setPreviews(new Map());
+    setDetected(new Map());
+    requested.current = new Set();
     lastRepeat.current = null;
   }, [folder]);
 
@@ -369,6 +375,39 @@ export function useComposition(options: Options): Composition {
     move: (id, step) => commitLayers(moveLayer(current, id, step)),
   };
 
+  // Silhouettes (tâche 4.7) : celle retouchée dans la bibliothèque (le projet
+  // fait foi), sinon celle que le moteur détecte, demandée une fois par dessin.
+  const projectLibrary = project?.library;
+  const manualSilhouettes = useMemo(
+    () => new Map((projectLibrary ?? []).flatMap((d) => (d.silhouette ? [[d.id, d.silhouette] as const] : []))),
+    [projectLibrary],
+  );
+  useEffect(() => {
+    // Une silhouette rendue à la détection se redemande.
+    requested.current = new Set();
+  }, [projectLibrary]);
+  useEffect(() => {
+    const wanted = [...new Set(placements.map((p) => p.drawing))].filter(
+      (id) => !manualSilhouettes.has(id) && !detected.has(id) && !requested.current.has(id),
+    );
+    if (wanted.length === 0) return;
+    for (const id of wanted) requested.current.add(id);
+    if (!engine) {
+      setDetected((current) => new Map([...current, ...wanted.map((id) => [id, demoSilhouette(id)] as const)]));
+      return;
+    }
+    if (!folder) return;
+    fetchSilhouettes(folder, wanted).then(
+      (list) =>
+        setDetected((current) => {
+          const next = new Map(current);
+          for (const s of list) if (!s.manual) next.set(s.drawing, s.polygons);
+          return next;
+        }),
+      (failure: unknown) => onError(String(failure)),
+    );
+  }, [placements, manualSilhouettes, detected, engine, folder, onError]);
+
   // --- Affichage --------------------------------------------------------------------------
 
   const selected = useMemo(() => placements.filter((p) => selection.has(p.id)), [placements, selection]);
@@ -382,9 +421,23 @@ export function useComposition(options: Options): Composition {
       shown(placements, layerList).flatMap((p) => {
         const url = previews.get(p.drawing);
         if (!url) return [];
-        return [{ id: `pose:${p.id}`, kind: "mesh-image", url, ...previewMesh(p) } satisfies LayerSpec];
+        const pose = { id: `pose:${p.id}`, kind: "mesh-image", url, ...previewMesh(p) } satisfies LayerSpec;
+        // Juste sous le dessin, sa silhouette en noir cache ce qui est derrière.
+        const polygons = manualSilhouettes.get(p.drawing) ?? detected.get(p.drawing) ?? [];
+        if (polygons.length === 0) return [pose];
+        const mask = {
+          id: `silhouette:${p.id}`,
+          kind: "polygons",
+          shapes: polygons.map((polygon) => ({
+            points: polygon.map(([u, v]) => facadePoint(p, u, v)),
+            color: 0x000000,
+            fillAlpha: 1,
+            strokeAlpha: 0,
+          })),
+        } satisfies LayerSpec;
+        return [mask, pose];
       }),
-    [placements, layerList, previews],
+    [placements, layerList, previews, manualSilhouettes, detected],
   );
 
   // Le cadre de sélection, dessiné par-dessus tout.

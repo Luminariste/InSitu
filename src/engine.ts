@@ -152,6 +152,26 @@ export interface Project {
   layers?: Layer[];
   /** Assemblage de photos de façade (tâche 6.4). */
   facadeAssembly?: FacadeAssembly | null;
+  /** Dessins de la bibliothèque (seuls les champs lus par l'interface). */
+  library?: ProjectDrawing[];
+}
+
+/** Un dessin de la bibliothèque, tel qu'enregistré dans `projet.json`. */
+export interface ProjectDrawing {
+  id: string;
+  /** Silhouette retouchée à la main (tâche 4.7) ; absente : détectée. */
+  silhouette?: SilhouettePolygon[] | null;
+}
+
+/** Un contour de silhouette : points `[u, v]` en fractions du dessin. */
+export type SilhouettePolygon = [number, number][];
+
+/** La silhouette d'un dessin (tâche 4.7). */
+export interface DrawingSilhouette {
+  drawing: string;
+  polygons: SilhouettePolygon[];
+  /** Vrai si elle a été retouchée à la main. */
+  manual: boolean;
 }
 
 /** Assemblage de photos de façade, tel qu'enregistré dans `projet.json`. */
@@ -745,6 +765,27 @@ export async function saveVectorSettings(
     settings,
   });
   return { project, vectors };
+}
+
+/** Silhouettes des dessins donnés (tous si la liste est vide) : retouchées, sinon détectées. */
+export async function fetchSilhouettes(folder: string, drawings: string[]): Promise<DrawingSilhouette[]> {
+  requireEngine();
+  return invoke<DrawingSilhouette[]>("library_silhouettes", { folder, drawings });
+}
+
+/** Retouche la silhouette d'un dessin (`null` : détection automatique) ; le projet est enregistré. */
+export async function saveSilhouette(
+  folder: string,
+  drawing: string,
+  polygons: SilhouettePolygon[] | null,
+): Promise<{ project: Project; silhouette: DrawingSilhouette }> {
+  requireEngine();
+  const [project, silhouette] = await invoke<[Project, DrawingSilhouette]>("library_set_silhouette", {
+    folder,
+    drawing,
+    polygons,
+  });
+  return { project, silhouette };
 }
 
 /** Demande un dossier de dessins à importer ; `null` si l'utilisateur renonce. */

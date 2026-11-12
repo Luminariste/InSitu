@@ -272,3 +272,16 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+
+/* Retouche de silhouette (tâche 4.7) */
+.silhouette-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.vc-stage.silhouette-resultat {
+  background: repeating-linear-gradient(45deg, #6b6b70 0 12px, #8a8a90 12px 24px);
+}

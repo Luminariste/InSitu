@@ -63,6 +63,34 @@ Importer deux fois le même dossier n'ajoute rien. Un fichier modifié depuis
 le premier import arrive à côté de l'ancien, avec un suffixe (`merle-2.png`).
 Le fichier copié dans le projet n'est jamais modifié.
 
+## Silhouettes (tâche 4.7)
+
+Chaque dessin a une **silhouette** : son contour extérieur, rempli de noir.
+Elle est posée sous le dessin et cache ce qui est derrière lui : la fresque
+et les dessins placés plus bas dans l'empilement. On le voit sur la façade,
+dans la vue Diapositive et dans les PNG exportés.
+
+L'app la trouve seule : le trait est épaissi d'environ 1 % du dessin pour
+boucher les petites ouvertures, le fond est rempli depuis les bords, et tout
+ce que le fond n'atteint pas est dans la silhouette, qui déborde d'un rien
+autour du trait extérieur (D-4.7-a). Deux parties d'un dessin très proches
+l'une de l'autre sont réunies.
+
+Dans l'inspecteur, la section **Silhouette** dit si elle est détectée ou
+retouchée. **Retoucher la silhouette…** ouvre le dessin en grand avec son
+contour en rouge :
+
+- tirer un point pour le déplacer ;
+- double-clic sur un bord : un point de plus ; ailleurs : un nouveau
+  contour carré, à façonner ;
+- ⌥-clic sur un point : le retirer (un contour de moins de trois points
+  disparaît) ;
+- **Résultat** montre la silhouette en noir sous le dessin, sur un fond
+  rayé : ce qui est rayé reste visible ;
+- **Enregistrer** écrit la silhouette dans le projet ; **Détecter à
+  nouveau** oublie les retouches ; **Aucune silhouette** (puis Enregistrer)
+  : le dessin ne cache plus rien.
+
 ## En ligne de commande
 
 ```
@@ -73,7 +101,14 @@ insitu library thumbnail dessin.psd vignette.png --size 1024
 insitu library vectors Épinal.insitu --cache /tmp/vignettes
 insitu library vectors Épinal.insitu merle --cache /tmp/vignettes --threshold 90
 insitu library vectors Épinal.insitu merle --cache /tmp/vignettes --default
+insitu library silhouette Épinal.insitu merle --cache /tmp/vignettes --mask merle-silhouette.png
+insitu library silhouette Épinal.insitu merle --cache /tmp/vignettes --from contours.json
+insitu library silhouette Épinal.insitu merle --cache /tmp/vignettes --none
+insitu library silhouette Épinal.insitu merle --cache /tmp/vignettes --default
 ```
+
+`silhouette` affiche la silhouette en JSON ; `--mask` l'écrit aussi en image
+(blanc dedans), pour la comparer au dessin.
 
 Sans nom de dessin, `vectors` donne un tableau de toute la bibliothèque
 (contours, morceaux, écart, durée) : pratique pour repérer les dessins à

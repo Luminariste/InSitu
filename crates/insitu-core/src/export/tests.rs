@@ -428,6 +428,7 @@ fn project_with_placed_drawing(label: &str, frame: &RectMm) -> (TempDir, Project
         width: f64::from(verre.width),
         height: f64::from(verre.height),
         vector: None,
+        silhouette: None,
         extra: Default::default(),
     });
     project.placements.push(Placement {
@@ -548,6 +549,9 @@ fn drawings_add_to_the_fresco_and_outside_ones_are_ignored() {
     .unwrap();
     import_fresco(&dir, &image, Some(FRAME)).unwrap();
     let mut project = dir.load().unwrap().project;
+    // Sans silhouette (tâche 4.7), un dessin ne cache rien : il ajoute ses
+    // traits à la fresque.
+    project.library[0].silhouette = Some(Vec::new());
     // Un second dessin, loin de la diapositive, dont le fichier manque :
     // il n'est pas lu, donc pas d'erreur.
     let mut far = project.placements[0].clone();
@@ -809,4 +813,136 @@ fn a_slide_adjustment_shows_in_the_export_and_resets() {
         .adjustment
         .is_none());
     assert_eq!(export("apres").data, before.data);
+}
+
+/// Tâche 4.7 : de deux dessins superposés, celui de devant cache l'autre
+/// sous sa silhouette, et cache aussi la fresque.
+#[test]
+fn the_front_drawing_hides_the_one_behind_under_its_silhouette() {
+    use crate::project::{Drawing, RelativePath};
+    let frame = RectMm {
+        x: 2_000.0,
+        y: 1_500.0,
+        width: 2_000.0,
+        height: 2_000.0,
+    };
+    let (temp, dir, _) = project_with_placed_drawing("export-silhouettes", &frame);
+    // Derrière : des rayures sur tout le carré. Devant : un anneau ouvert
+    // d'un petit trou (le trait d'un vrai dessin n'est pas toujours fermé).
+    let side = 600u32;
+    let stripes: Vec<u8> = (0..side * side)
+        .map(|k| if (k / side) % 20 < 4 { 255 } else { 0 })
+        .collect();
+    let ring: Vec<u8> = (0..side * side)
+        .map(|k| {
+            let (x, y) = (f64::from(k % side) - 300.0, f64::from(k / side) - 300.0);
+            let r = (x * x + y * y).sqrt();
+            let gap = y.abs() < 4.0 && x > 0.0;
+            if (r - 180.0).abs() < 5.0 && !gap {
+                255
+            } else {
+                0
+            }
+        })
+        .collect();
+    let mut project = dir.load().unwrap().project;
+    for (name, data) in [("rayures", &stripes), ("anneau", &ring)] {
+        let source = RelativePath::new(format!("bibliotheque/{name}.png")).unwrap();
+        image::save_buffer(
+            dir.resolve(&source),
+            data,
+            side,
+            side,
+            image::ExtendedColorType::L8,
+        )
+        .unwrap();
+        project.library.push(Drawing {
+            id: name.into(),
+            name: name.into(),
+            source,
+            width: f64::from(side),
+            height: f64::from(side),
+            vector: None,
+            silhouette: None,
+            extra: Default::default(),
+        });
+    }
+    // Deux placements sur le même carré : les rayures, puis l'anneau devant.
+    let mut front = project.placements[0].clone();
+    project.placements[0].drawing = "rayures".into();
+    front.id = "p2".into();
+    front.drawing = "anneau".into();
+    project.placements.push(front);
+    dir.save(&project).unwrap();
+
+    let s = settings(100.0);
+    let px_mm = units::px_size_mm(s.dpi);
+    let warp = slide_to_facade(&pairs()).unwrap();
+    // Valeur moyenne de l'export autour d'un point du dessin (u, v).
+    let export = |name: &str| -> Raster {
+        let report = export_slides(&dir, &temp.path().join(name), &s, None, 0, &|_| {}).unwrap();
+        to_gray(tiles::read_raster(&report.slides[0].path).unwrap())
+    };
+    let mean = |r: &Raster, u: f64, v: f64| -> f64 {
+        let facade = Point::new(frame.x + u * frame.width, frame.y + v * frame.height);
+        let p = warp.apply_inverse(facade).unwrap();
+        let (cx, cy) = ((p.x / px_mm) as i64, (p.y / px_mm) as i64);
+        let mut sum = 0.0;
+        for y in cy - 8..=cy + 8 {
+            for x in cx - 8..=cx + 8 {
+                sum += f64::from(r.data[(y * i64::from(r.width) + x) as usize]);
+            }
+        }
+        sum / 289.0
+    };
+    let shown = export("devant");
+    // Rayures : environ un cinquième de blanc. Dans l'anneau, plus rien ;
+    // hors de l'anneau, elles restent.
+    let outside = mean(&shown, 0.08, 0.5);
+    assert!(outside > 30.0, "rayures hors de l'anneau : {outside}");
+    for (u, v) in [(0.5, 0.5), (0.35, 0.4), (0.62, 0.6), (0.7, 0.5)] {
+        let inside = mean(&shown, u, v);
+        assert!(
+            inside < 2.0,
+            "rayures dans l'anneau en ({u}, {v}) : {inside}"
+        );
+    }
+    // Le trait de l'anneau lui-même est là.
+    let edge = mean(&shown, 0.5, 0.2);
+    assert!(edge > 20.0, "trait de l'anneau : {edge}");
+
+    // Silhouette retouchée à vide : l'anneau ne cache plus rien.
+    let mut project = dir.load().unwrap().project;
+    project
+        .library
+        .iter_mut()
+        .find(|d| d.id == "anneau")
+        .unwrap()
+        .silhouette = Some(Vec::new());
+    dir.save(&project).unwrap();
+    let plain = export("sans");
+    assert!(mean(&plain, 0.5, 0.5) > 30.0);
+
+    // L'ordre inversé : les rayures devant cachent l'anneau en entier
+    // (leur silhouette est tout le carré). L'export est celui des rayures
+    // seules.
+    let mut project = dir.load().unwrap().project;
+    project.library.iter_mut().for_each(|d| d.silhouette = None);
+    project.placements.swap(0, 1);
+    dir.save(&project).unwrap();
+    let swapped = export("derriere");
+    project.placements.remove(0);
+    dir.save(&project).unwrap();
+    let alone = export("seules");
+    let worst = swapped
+        .data
+        .iter()
+        .zip(&alone.data)
+        .map(|(&a, &b)| a.abs_diff(b))
+        .max()
+        .unwrap();
+    assert!(
+        worst <= 2,
+        "anneau visible derrière les rayures : écart {worst}"
+    );
 }

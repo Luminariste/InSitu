@@ -11,6 +11,7 @@ use insitu_core::export::preview::{self as slide_preview, SlideView};
 use insitu_core::export::{self, ExportReport};
 use insitu_core::facade::{self, FacadeDisplay, SourceInfo};
 use insitu_core::geometry::Point;
+use insitu_core::library::silhouette::{self, DrawingSilhouette};
 use insitu_core::library::vectors::{self, VectorSummary, VectorizeReport};
 use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
 use insitu_core::overview::{self, FacadeOverview};
@@ -18,7 +19,7 @@ use insitu_core::placement;
 use insitu_core::project::history::{self, HistoryState};
 use insitu_core::project::{
     AssemblyPair, ExportSettings, Layer, Mirror, Placement, Project, ProjectDir, RegistrationPair,
-    SlideAdjustment, SourcePoint, VectorSettings,
+    SilhouettePolygon, SlideAdjustment, SourcePoint, VectorSettings,
 };
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
@@ -408,6 +409,35 @@ fn library_vectors(
         .map_err(|e| e.to_string())
 }
 
+/// La silhouette des dessins `drawings` (tous si vide) : retouchée, sinon
+/// détectée (tâche 4.7).
+#[tauri::command(async)]
+fn library_silhouettes(
+    app: AppHandle,
+    folder: String,
+    drawings: Vec<String>,
+) -> Result<Vec<DrawingSilhouette>, String> {
+    silhouette::load_silhouettes(&project_dir(&folder)?, &drawings, &tile_cache_dir(&app)?)
+        .map_err(|e| e.to_string())
+}
+
+/// Retouche la silhouette d'un dessin (`None` : détection automatique).
+#[tauri::command(async)]
+fn library_set_silhouette(
+    app: AppHandle,
+    folder: String,
+    drawing: String,
+    polygons: Option<Vec<SilhouettePolygon>>,
+) -> Result<(Project, DrawingSilhouette), String> {
+    silhouette::set_silhouette(
+        &project_dir(&folder)?,
+        &drawing,
+        polygons,
+        &tile_cache_dir(&app)?,
+    )
+    .map_err(|e| e.to_string())
+}
+
 /// Change les réglages de vectorisation d'un dessin (`None` : par défaut).
 #[tauri::command(async)]
 fn library_set_vector_settings(
@@ -572,6 +602,8 @@ pub fn run() {
             library_vectorize,
             library_vectors,
             library_set_vector_settings,
+            library_silhouettes,
+            library_set_silhouette,
             facade_overview,
             fresco_import,
             slides_export,

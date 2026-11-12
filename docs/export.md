@@ -43,10 +43,11 @@ Les dessins posés sur la façade (étape Façade, `docs/composition.md`)
 partent aussi dans les diapositives, chacun depuis son fichier d'origine en
 pleine résolution, avec sa taille, sa rotation et sa symétrie. Les dessins
 d'un calque masqué ne partent pas. Un projet peut n'avoir que des dessins
-posés, sans fresque. Là où un dessin croise la fresque ou un autre dessin,
-le plus clair l'emporte : un trait n'en efface jamais un autre (le masquage
-par silhouette viendra avec la tâche 4.7). La vue Diapositive (⌘4) les
-montre de la même façon.
+posés, sans fresque. Depuis la tâche 4.7, chaque dessin cache, sous sa
+silhouette (`docs/bibliotheque.md`), la fresque et les dessins placés
+derrière lui ; ses traits s'ajoutent ensuite. Un dessin sans silhouette ne
+cache rien : là où il croise la fresque ou un autre dessin, le plus clair
+l'emporte. La vue Diapositive (⌘4) les montre de la même façon.
 
 Depuis la tâche 4.5, chaque dessin posé ne part que dans **une** diapositive,
 celle que montre sa couleur sur la façade : il n'est ni coupé entre deux

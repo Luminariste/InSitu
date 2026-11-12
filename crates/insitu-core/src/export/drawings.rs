@@ -8,14 +8,16 @@
 //! placement) → pixel du dessin. Seul le rectangle de la diapositive que le
 //! dessin peut toucher est calculé.
 //!
-//! Les dessins sont des traits blancs sur fond noir : ils se superposent en
-//! gardant, pixel par pixel, le plus clair (un trait n'efface jamais un
-//! autre trait). Le masquage par la silhouette viendra avec la tâche 4.7.
+//! Les dessins sont des traits blancs sur fond noir, posés du fond vers
+//! l'avant. Chacun cache d'abord, sous sa silhouette (tâche 4.7), ce qui est
+//! déjà dans la diapositive (la fresque, les dessins de derrière), puis
+//! ajoute ses traits en gardant, pixel par pixel, le plus clair.
 
 use std::collections::HashMap;
 
 use super::{to_gray, ExportError};
 use crate::geometry::{Point, PointWarp, Transform};
+use crate::library::silhouette;
 use crate::library::{flatten_on_black, read::decode};
 use crate::placement::mesh;
 use crate::project::{Deformation, Placement, PointMm, Project, ProjectDir};
@@ -29,6 +31,17 @@ const OUTLINE_POINTS_PER_SIDE: usize = 32;
 const OUTLINE_MARGIN_PX: f64 = 3.0;
 /// Côté de rendu d'un SVG : borné pour garder la mémoire raisonnable.
 const SVG_SIDE_RANGE: (u32, u32) = (512, 16_384);
+/// Plus grand côté du masque de silhouette d'un dessin, en pixels.
+const MASK_SIDE: u32 = 2048;
+
+/// Un dessin posé, son image et le masque de sa silhouette (255 dedans ;
+/// aucun : le dessin ne cache rien).
+#[derive(Clone, Copy)]
+pub struct Posed<'a> {
+    pub placement: &'a Placement,
+    pub image: &'a Raster,
+    pub mask: Option<&'a Raster>,
+}
 
 /// Rectangle de pixels `[x0, x1[ × [y0, y1[` de la diapositive.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -114,10 +127,11 @@ pub fn slide_rect(placement: &Placement, place: &Placing) -> Option<PixelRect> {
 }
 
 /// Pose les dessins sur l'image de la diapositive `slide` (niveaux de gris,
-/// `side × side`), en gardant le plus clair.
+/// `side × side`), du fond vers l'avant : sous la silhouette de chacun, ce
+/// qui est déjà là est caché ; ses traits gardent le plus clair.
 pub fn draw(
     slide: &mut Raster,
-    drawings: &[(&Placement, &Raster)],
+    drawings: &[Posed],
     place: &Placing,
     threads: usize,
 ) -> Result<(), ExportError> {
@@ -133,14 +147,15 @@ pub fn draw(
         threads,
         ..WarpOptions::default()
     };
-    for &(placement, image) in drawings {
+    for posed in drawings {
+        let (placement, image) = (posed.placement, posed.image);
         let Some(rect) = slide_rect(placement, place) else {
             continue;
         };
         let adjustment = place.adjustment(placement);
         let (w, h) = (rect.x1 - rect.x0, rect.y1 - rect.y0);
-        let (iw, ih) = (f64::from(image.width), f64::from(image.height));
-        let map = |q: Point| {
+        // Position (u, v) dans le dessin du pixel (x, y) du rectangle.
+        let to_drawing = |q: Point| {
             let x = q.x + f64::from(rect.x0);
             let x = if mirror { f64::from(side) - x } else { x };
             let y = q.y + f64::from(rect.y0);
@@ -150,14 +165,28 @@ pub fn draw(
                 None => PointMm::new(x * px_mm, y * px_mm),
             };
             let facade = warp.apply(Point::new(s.x, s.y))?;
-            let (u, v) = placement.drawing_point(PointMm::new(facade.x, facade.y))?;
-            Some(Point::new(u * iw, v * ih))
+            placement.drawing_point(PointMm::new(facade.x, facade.y))
         };
-        let part = warp_raster(image, w, h, map, &options)
-            .map_err(|e| ExportError::BadSettings(e.to_string()))?;
+        let in_pixels = |source: &Raster| {
+            let (sw, sh) = (f64::from(source.width), f64::from(source.height));
+            move |q: Point| to_drawing(q).map(|(u, v)| Point::new(u * sw, v * sh))
+        };
         let stride = side as usize;
-        for (j, line) in part.data.chunks_exact(w as usize).enumerate() {
-            let start = (j + rect.y0 as usize) * stride + rect.x0 as usize;
+        let rows = || (rect.y0 as usize..rect.y1 as usize).map(|j| j * stride + rect.x0 as usize);
+        // La silhouette d'abord, et seulement s'il y a quelque chose à cacher.
+        let covered = rows().any(|s| slide.data[s..s + w as usize].iter().any(|&v| v > 0));
+        if let (Some(mask), true) = (posed.mask, covered) {
+            let part = warp_raster(mask, w, h, in_pixels(mask), &options)
+                .map_err(|e| ExportError::BadSettings(e.to_string()))?;
+            for (start, line) in rows().zip(part.data.chunks_exact(w as usize)) {
+                for (out, &m) in slide.data[start..start + w as usize].iter_mut().zip(line) {
+                    *out = ((u32::from(*out) * (255 - u32::from(m)) + 127) / 255) as u8;
+                }
+            }
+        }
+        let part = warp_raster(image, w, h, in_pixels(image), &options)
+            .map_err(|e| ExportError::BadSettings(e.to_string()))?;
+        for (start, line) in rows().zip(part.data.chunks_exact(w as usize)) {
             for (out, &v) in slide.data[start..start + w as usize].iter_mut().zip(line) {
                 *out = (*out).max(v);
             }
@@ -171,7 +200,7 @@ pub fn draw(
 /// qu'une fois).
 #[derive(Default)]
 pub struct DrawingCache {
-    images: HashMap<String, Raster>,
+    images: HashMap<String, (Raster, Option<Raster>)>,
 }
 
 impl DrawingCache {
@@ -207,18 +236,38 @@ impl DrawingCache {
             let path = dir.resolve(&drawing.source);
             let decoded = decode(&path, svg_side)
                 .map_err(|e| ExportError::Image(format!("dessin « {} » : {e}", drawing.name)))?;
-            self.images
-                .insert(p.drawing.clone(), to_gray(flatten_on_black(decoded.raster)));
+            let image = to_gray(flatten_on_black(decoded.raster));
+            // La silhouette retouchée, sinon celle détectée sur l'image.
+            let polygons = match &drawing.silhouette {
+                Some(polygons) => polygons.clone(),
+                None => silhouette::detect(&image),
+            };
+            let mask = (!polygons.is_empty()).then(|| {
+                let scale =
+                    (f64::from(MASK_SIDE) / f64::from(image.width.max(image.height))).min(1.0);
+                let mw = ((f64::from(image.width) * scale).round() as u32).max(1);
+                let mh = ((f64::from(image.height) * scale).round() as u32).max(1);
+                silhouette::rasterize(&polygons, mw, mh)
+            });
+            self.images.insert(p.drawing.clone(), (image, mask));
         }
         Ok(())
     }
 
-    /// Les placements avec leur image (ceux dont le dessin n'est pas lu
-    /// sont omis).
-    pub fn pair<'a>(&'a self, placements: &[&'a Placement]) -> Vec<(&'a Placement, &'a Raster)> {
+    /// Les placements avec leur image et leur silhouette (ceux dont le
+    /// dessin n'est pas lu sont omis).
+    pub fn pair<'a>(&'a self, placements: &[&'a Placement]) -> Vec<Posed<'a>> {
         placements
             .iter()
-            .filter_map(|&p| self.images.get(&p.drawing).map(|image| (p, image)))
+            .filter_map(|&placement| {
+                self.images
+                    .get(&placement.drawing)
+                    .map(|(image, mask)| Posed {
+                        placement,
+                        image,
+                        mask: mask.as_ref(),
+                    })
+            })
             .collect()
     }
 }

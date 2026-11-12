@@ -127,7 +127,13 @@ fn anchors(points: &[Point], params: FitParams) -> Vec<(usize, bool)> {
 
 /// Simplification de Douglas-Peucker entre `first` et `last` (indices pris
 /// modulo n) ; ajoute les sommets gardés, sans les extrémités.
-fn douglas_peucker(points: &[Point], first: usize, last: usize, tol: f64, kept: &mut Vec<usize>) {
+pub(crate) fn douglas_peucker(
+    points: &[Point],
+    first: usize,
+    last: usize,
+    tol: f64,
+    kept: &mut Vec<usize>,
+) {
     let n = points.len();
     let mut stack = vec![(first, last)];
     while let Some((a, b)) = stack.pop() {

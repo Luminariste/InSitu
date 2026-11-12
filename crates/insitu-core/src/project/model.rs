@@ -528,8 +528,38 @@ pub struct Drawing {
     /// réglages par défaut.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vector: Option<VectorSettings>,
+    /// Silhouette retouchée à la main (tâche 4.7) : polygones en fractions
+    /// du dessin. Absente : la silhouette est détectée automatiquement ;
+    /// liste vide : le dessin n'en a pas (il ne cache rien).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub silhouette: Option<Vec<SilhouettePolygon>>,
     #[serde(flatten)]
     pub extra: ExtraFields,
+}
+
+/// Un polygone de silhouette : points `[u, v]` en fractions du dessin,
+/// (0, 0) en haut à gauche, (1, 1) en bas à droite ; le dernier est relié
+/// au premier.
+pub type SilhouettePolygon = Vec<[f64; 2]>;
+
+/// Ce qui ne va pas dans une silhouette, s'il y a quelque chose.
+pub fn silhouette_problem(polygons: &[SilhouettePolygon]) -> Option<String> {
+    for (i, polygon) in polygons.iter().enumerate() {
+        if polygon.len() < 3 {
+            return Some(format!("le contour {} a moins de trois points", i + 1));
+        }
+        if polygon
+            .iter()
+            .flatten()
+            .any(|c| !c.is_finite() || !(-1.0..=2.0).contains(c))
+        {
+            return Some(format!(
+                "le contour {} a un point hors du dessin ou invalide",
+                i + 1
+            ));
+        }
+    }
+    None
 }
 
 /// Assemblage de plusieurs photos de façade en une seule image (tâche 6.4).

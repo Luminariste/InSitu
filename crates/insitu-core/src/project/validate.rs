@@ -228,6 +228,15 @@ pub fn check_model(project: &Project, report: &mut ValidationReport) {
     for (location, message) in placement_errors(project) {
         report.error(location, message);
     }
+    for (i, drawing) in project.library.iter().enumerate() {
+        if let Some(problem) = drawing
+            .silhouette
+            .as_deref()
+            .and_then(super::model::silhouette_problem)
+        {
+            report.error(format!("library[{i}].silhouette"), problem);
+        }
+    }
 }
 
 /// Erreurs des placements (tâche 4.2) : dessin inconnu, identifiant en

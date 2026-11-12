@@ -14,21 +14,27 @@ import {
   fetchDrawingPreview,
   fetchDrawingVectors,
   fetchLibrary,
+  fetchSilhouettes,
   hasEngine,
   importDrawingFolder,
   openProject,
   removeDrawing,
+  saveSilhouette,
   saveVectorSettings,
   vectorizeDrawings,
+  type DrawingSilhouette,
   type ImportProgress,
   type LibraryEntry,
   type Project,
+  type SilhouettePolygon,
   type VectorSettings,
   type VectorSummary,
 } from "../engine";
 import { recalledProject } from "../project/current";
 import { countLabel, filterEntries, folderTree, formatSize, importSummary, progressLabel } from "./logic";
-import { demoLibrary, demoVectors } from "./demo";
+import { demoLibrary, demoSilhouette, demoVectors } from "./demo";
+import { SilhouetteEditor } from "./SilhouetteEditor";
+import { silhouetteLine } from "./silhouetteLogic";
 import { VectorCompare, type ShownVectors } from "./VectorCompare";
 import { vectorLine } from "./vectorLogic";
 import { ProjectMenu } from "../project/ProjectMenu";
@@ -89,6 +95,10 @@ export function LibraryScreen() {
   const [comparing, setComparing] = useState(false);
   const [vectorProgress, setVectorProgress] = useState<ImportProgress | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [silhouette, setSilhouette] = useState<DrawingSilhouette | null>(null);
+  const [silhouetteError, setSilhouetteError] = useState<string | null>(null);
+  const [silhouetteBusy, setSilhouetteBusy] = useState(false);
+  const [editingSilhouette, setEditingSilhouette] = useState(false);
   const grid = useRef<HTMLDivElement>(null);
 
   const run = useCallback(async (label: string | null, task: () => Promise<void>) => {
@@ -234,6 +244,44 @@ export function LibraryScreen() {
       })
       .catch((failure: unknown) => setVectorError(String(failure).replace(/^Error: /, "")))
       .finally(() => setVectorBusy(false));
+  };
+
+  // Silhouette du dessin choisi (tâche 4.7) : retouchée, sinon détectée par
+  // le moteur (une fraction de seconde, puis gardée en cache).
+  useEffect(() => {
+    setSilhouette(null);
+    setSilhouetteError(null);
+    if (!chosen || chosen.problem) return;
+    if (!engine || !folder) {
+      setSilhouette({ drawing: chosen.id, polygons: demoSilhouette(chosen.id), manual: false });
+      return;
+    }
+    let cancelled = false;
+    fetchSilhouettes(folder, [chosen.id]).then(
+      ([found]) => !cancelled && setSilhouette(found ?? null),
+      (failure: unknown) => !cancelled && setSilhouetteError(String(failure).replace(/^Error: /, "")),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [chosen?.id, chosen?.problem, engine, folder]);
+
+  const applySilhouette = (polygons: SilhouettePolygon[] | null) => {
+    if (!chosen) return;
+    if (!engine || !folder) {
+      // Navigateur seul : la retouche reste en mémoire, pour juger des gestes.
+      setSilhouette({ drawing: chosen.id, polygons: polygons ?? demoSilhouette(chosen.id), manual: polygons !== null });
+      return;
+    }
+    setSilhouetteBusy(true);
+    setSilhouetteError(null);
+    saveSilhouette(folder, chosen.id, polygons)
+      .then(({ project: updated, silhouette: current }) => {
+        setProject(updated);
+        setSilhouette(current);
+      })
+      .catch((failure: unknown) => setSilhouetteError(String(failure).replace(/^Error: /, "")))
+      .finally(() => setSilhouetteBusy(false));
   };
 
   // Retirer un dessin (D15-h) : avec confirmation ; ses placements sur la
@@ -392,6 +440,16 @@ export function LibraryScreen() {
               </Button>
             </Section>
           )}
+          {!chosen.problem && (
+            <Section title="Silhouette">
+              <p className={silhouetteError ? "library-vectors library-problem" : "library-vectors"}>
+                {silhouetteError ?? (silhouette ? silhouetteLine(silhouette.polygons, silhouette.manual) : "Détection…")}
+              </p>
+              <Button icon="pencil" onClick={() => setEditingSilhouette(true)} disabled={!silhouette}>
+                Retoucher la silhouette…
+              </Button>
+            </Section>
+          )}
           {engine && folder && (
             <Section title="Retirer">
               <Button variant="danger" icon="trash" shortcut="backspace" onClick={() => setRemoving(chosen.id)} disabled={!ready}>
@@ -480,6 +538,21 @@ export function LibraryScreen() {
           )}
           <p>Le fichier reste dans le dossier du projet ; un nouvel import du même dossier le remet dans la bibliothèque.</p>
         </ConfirmDialog>
+      )}
+      {editingSilhouette && chosen && (
+        <SilhouetteEditor
+          name={chosen.name}
+          imageUrl={preview}
+          width={chosen.width}
+          height={chosen.height}
+          silhouette={silhouette}
+          backdrop={backdrop}
+          editable
+          busy={silhouetteBusy}
+          error={silhouetteError}
+          onSave={applySilhouette}
+          onClose={() => setEditingSilhouette(false)}
+        />
       )}
       {comparing && chosen && (
         <VectorCompare
