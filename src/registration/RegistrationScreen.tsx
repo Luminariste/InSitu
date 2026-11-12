@@ -12,6 +12,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, type RefObject } from "react";
 import {
+  cacheFileUrl,
+  fetchFacadeOverview,
   fetchRegistration,
   hasEngine,
   openFacadeView,
@@ -20,6 +22,7 @@ import {
   openTileFolder,
   projectFile,
   saveRegistration,
+  type FacadeOverview,
   type Project,
   type RegistrationPair,
   type RegistrationReport,
@@ -32,8 +35,10 @@ import { facadePlacement, isClick, mmPerSourceUnit } from "../facade/scale";
 import {
   GRAB_RADIUS_PX,
   NO_PENDING,
+  POINT_ADVICE,
   SLIDE_MM,
   click,
+  facadePhotoLayer,
   formatFacadeCm,
   formatSlideMm,
   hint,
@@ -131,6 +136,10 @@ export function RegistrationScreen() {
   const [grabbable, setGrabbable] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Projecteurs posés sur la façade, pour y voir la photo recalée. */
+  const [overview, setOverview] = useState<FacadeOverview | null>(null);
+  const [showPhoto, setShowPhoto] = useState(true);
+  const [photoOpacity, setPhotoOpacity] = useState(0.6);
 
   const projector = project?.projectors.find((p) => p.id === selectedProjector) ?? null;
   const facadeInfo = project?.facade ?? null;
@@ -150,6 +159,16 @@ export function RegistrationScreen() {
   }, []);
 
   // --- Chargement ---------------------------------------------------------
+
+  /** Relit la pose des photos sur la façade (après chaque recalage enregistré). */
+  const refreshOverview = useCallback(async (dir: string) => {
+    try {
+      setOverview(await fetchFacadeOverview(dir));
+    } catch {
+      // Sans aperçu, le recalage reste possible : on n'affiche pas la photo.
+      setOverview(null);
+    }
+  }, []);
 
   const showProjector = useCallback(async (dir: string, opened: Project, id: string | null) => {
     setPending(NO_PENDING);
@@ -171,6 +190,7 @@ export function RegistrationScreen() {
         setFolder(path);
         setProject(opened);
         setFacade(null);
+        setOverview(null);
         const k = mmPerSourceUnit(opened.facade?.scale ?? null);
         if (opened.facade && k !== null) {
           setBusy("Préparation de l'affichage du plan…");
@@ -183,8 +203,9 @@ export function RegistrationScreen() {
           null;
         setSelectedProjector(chosen?.id ?? null);
         await showProjector(path, opened, chosen?.id ?? null);
+        await refreshOverview(path);
       }),
-    [run, showProjector],
+    [run, showProjector, refreshOverview],
   );
 
   // Au lancement : le projet ouvert dans les autres écrans ; l'exemple sinon.
@@ -243,10 +264,13 @@ export function RegistrationScreen() {
         : [],
     [photo],
   );
-  const facadeLayers = useMemo<LayerSpec[]>(
-    () => (facade ? [{ id: "facade-plan", kind: "tiles", source: facade.source, placement: facade.placement }] : []),
-    [facade],
-  );
+  const facadeLayers = useMemo<LayerSpec[]>(() => {
+    if (!facade) return [];
+    const plan: LayerSpec = { id: "facade-plan", kind: "tiles", source: facade.source, placement: facade.placement };
+    // La photo recalée par-dessus le plan, pour juger le recalage d'un coup d'œil.
+    const recaled = facadePhotoLayer(overview, selectedProjector, showPhoto, photoOpacity, cacheFileUrl);
+    return recaled ? [plan, recaled] : [plan];
+  }, [facade, overview, selectedProjector, showPhoto, photoOpacity]);
 
   // --- Actions -------------------------------------------------------------
 
@@ -258,6 +282,7 @@ export function RegistrationScreen() {
       (saved) => {
         setProject(saved.project);
         setReport(saved.report);
+        void refreshOverview(folder);
       },
       (failure: unknown) => {
         // Refusé par le moteur : rien n'est enregistré, on revient en arrière.
@@ -420,6 +445,24 @@ export function RegistrationScreen() {
         onError={setError}
       />
       <ToolSpacer />
+      <ToolGroup label="Photo sur la façade">
+        <label className="ui-check" title="Poser la photo redressée sur la façade, d'après les points (à partir de 4)">
+          <input type="checkbox" checked={showPhoto} onChange={(e) => setShowPhoto(e.target.checked)} disabled={!engine} />
+          Photo recalée
+        </label>
+        <input
+          type="range"
+          className="registration-opacity"
+          aria-label="Opacité de la photo recalée"
+          title="Opacité de la photo recalée"
+          min={0.1}
+          max={1}
+          step={0.05}
+          value={photoOpacity}
+          disabled={!engine || !showPhoto}
+          onChange={(e) => setPhotoOpacity(Number(e.target.value))}
+        />
+      </ToolGroup>
       <ToolGroup label="Voir">
         <Button icon="fit" onClick={() => slideViewer.current?.fitAll()} disabled={!photo}>
           Toute la photo
@@ -457,6 +500,15 @@ export function RegistrationScreen() {
 
   const inspector = (
     <Panel side="right" title="Points communs">
+      {pairs.length < 4 && (
+        <div className="registration-advice">
+          <p className="ui-note">{POINT_ADVICE}</p>
+          <p className="ui-note">
+            Cliquer le détail sur la photo, puis le même sur la façade. Il en faut 4, répartis vers les quatre coins de la
+            photo ; la photo se pose alors sur la façade.
+          </p>
+        </div>
+      )}
       {pairs.length > 0 ? (
         <List label="Points communs" onMove={stepPoint}>
           {pairs.map((_, i) => {
@@ -481,7 +533,7 @@ export function RegistrationScreen() {
           })}
         </List>
       ) : (
-        <p className="ui-list-empty">Aucun point pour l'instant. Cliquer un point sur la photo, puis le même sur la façade.</p>
+        <p className="ui-list-empty">Aucun point pour l'instant.</p>
       )}
     </Panel>
   );

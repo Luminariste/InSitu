@@ -14,7 +14,7 @@ use insitu_core::photo;
 use insitu_core::project::{Mirror, PointMm, ProjectDir, RectificationMethod, RegistrationPair};
 use insitu_core::rectification::projector::{
     add_projector, export_rectified, import_raw_photo, mirror_projector, projector_view,
-    rectify_projector, RectifyError,
+    rectify_projector, rotate_projector, RectifyError,
 };
 use insitu_core::rectification::{self, DetectOptions};
 
@@ -370,4 +370,67 @@ fn the_slide_can_be_mirrored_and_keeps_its_mirror() {
         project.projector(&id).unwrap().registration[0].slide,
         PointMm::new(40.0, 100.0)
     );
+}
+
+/// Retour d'essai de Benjamin (12 novembre 2026) : sur une photo où la
+/// grille ne se lit pas, même les coins posés à la main étaient refusés
+/// (« seulement 7 croisements… »), ce qui bloquait tout. Les coins seuls
+/// suffisent maintenant à redresser, en le disant (D-2.5-l), et un quart
+/// de tour corrige le sens quand les petits cercles ne se voient pas.
+#[test]
+fn an_unreadable_grid_is_rectified_by_the_corners_alone() {
+    let scratch = Scratch::new("coins-seuls");
+    // La photo A réduite (4 fois plus petite), très floue : la grille ne
+    // se lit plus.
+    let sharp =
+        photo::read_rgb(&test_set().join("epinal/reduits/photos-brutes/a-brut.jpg")).unwrap();
+    let blurred = image::imageops::blur(&sharp, 3.0);
+    let path = scratch.0.join("floue.png");
+    blurred.save(&path).unwrap();
+    let (dir, _) = ProjectDir::create(scratch.0.join("Flou.insitu"), None).unwrap();
+    let (_, id) = add_projector(&dir, "A").unwrap();
+    import_raw_photo(&dir, &id, &path).unwrap();
+    assert!(rectify_projector(&dir, &id, None).is_err());
+
+    // Coins de la mire relevés sur la photo nette (détection pleine
+    // résolution, divisée par 4), dans le désordre.
+    let corners = [
+        Point::new(634.1, 650.8),
+        Point::new(626.8, 105.6),
+        Point::new(166.7, 157.6),
+        Point::new(187.0, 608.3),
+    ];
+    let (project, view) = rectify_projector(&dir, &id, Some(corners)).unwrap();
+    let why = view.grid_unread.as_deref().expect("grille non lue");
+    assert!(why.contains("croisements"), "{why}");
+    let saved = project
+        .projector(&id)
+        .unwrap()
+        .rectification
+        .as_ref()
+        .unwrap();
+    assert_eq!(saved.method, RectificationMethod::Manual);
+    assert_eq!(saved.points.len(), 4);
+    // Chaque coin de la diapositive tombe exactement sur un coin posé.
+    for c in view.corners {
+        assert!(corners.iter().any(|p| distance(*p, c) < 0.01), "{c:?}");
+    }
+    assert!(project.projector(&id).unwrap().rectified_photo.is_some());
+    // Relu depuis le projet, il se présente de la même façon.
+    let reread = projector_view(&dir, &id).unwrap().unwrap();
+    assert!(reread.grid_unread.is_some());
+
+    // Un quart de tour : le coin bas-gauche devient le haut-gauche ; quatre
+    // quarts reviennent au départ.
+    let (_, turned) = rotate_projector(&dir, &id).unwrap();
+    assert!(distance(turned.corners[0], view.corners[3]) < 0.01);
+    assert!(distance(turned.corners[1], view.corners[0]) < 0.01);
+    assert!(turned.grid_unread.is_some());
+    for _ in 0..3 {
+        rotate_projector(&dir, &id).unwrap();
+    }
+    let back = projector_view(&dir, &id).unwrap().unwrap();
+    for k in 0..4 {
+        assert!(distance(back.corners[k], view.corners[k]) < 0.01);
+    }
 }

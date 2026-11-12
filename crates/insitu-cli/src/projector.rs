@@ -7,7 +7,7 @@ use insitu_core::geometry::Point;
 use insitu_core::project::{Mirror, ProjectDir};
 use insitu_core::rectification::projector::{
     self, add_projector, export_rectified, import_raw_photo, mirror_projector, projector_view,
-    rectify_projector, remove_projector, rename_projector, RectificationView,
+    rectify_projector, remove_projector, rename_projector, rotate_projector, RectificationView,
 };
 use insitu_core::units::RECTIFIED_PHOTO_DPI;
 use serde_json::json;
@@ -46,6 +46,7 @@ fn summary(view: &RectificationView, full: bool) -> String {
         "pxPerMm": view.px_per_mm,
         "seconds": view.seconds,
         "mirror": view.mirror,
+        "gridUnread": view.grid_unread,
     }))
 }
 
@@ -114,6 +115,10 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             let (_, view) = mirror_projector(&open(folder)?, key, change).map_err(failed)?;
             Ok(summary(&view, false))
         }
+        ["rotate", folder, key] => {
+            let (_, view) = rotate_projector(&open(folder)?, key).map_err(failed)?;
+            Ok(summary(&view, false))
+        }
         ["show", folder, key, rest @ ..] => {
             let with_nodes = match rest {
                 [] => false,
@@ -167,12 +172,19 @@ Le projecteur est désigné par son identifiant ou par son nom (« A »).
       photos-redressees/). Avec --corners : position approchée, en pixels
       de la photo, des quatre coins de la mire, dans n'importe quel ordre, à
       la place de la recherche automatique ; le sens de la mire est lu sur
-      les petits cercles, la grille affine ensuite.
+      les petits cercles, la grille affine ensuite. Si la grille ne se lit
+      pas, la photo est redressée par les quatre coins seuls (gridUnread
+      dit pourquoi ; précision non mesurée).
 
   mirror <projet.insitu> <projecteur> horizontal|vertical
       Retourne la diapositive (gauche-droite ou haut-bas) : photo redressée,
       export et points du recalage. Le même miroir une seconde fois revient
       au départ. Le réglage est gardé si la mire est détectée de nouveau.
+
+  rotate <projet.insitu> <projecteur>
+      Tourne la diapositive d'un quart de tour (sens des aiguilles d'une
+      montre) : pour un redressement par les coins seuls dont le sens est
+      faux. Une nouvelle détection retrouve le sens et oublie ce réglage.
 
   show <projet.insitu> <projecteur> [--nodes]
       Relit le redressement enregistré (écarts, couverture, coins dans la

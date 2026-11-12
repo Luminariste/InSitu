@@ -168,6 +168,7 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
         "outliersRemoved": detection.outliers_removed,
         "quarterTurns": detection.quarter_turns,
         "orientationMargin": detection.orientation_margin,
+        "gridUnread": detection.grid_unread,
         "redCircleSectors": detection.red_circle_sectors,
         "pxPerMm": detection.px_per_mm,
         "homographyResidualMm": detection.homography_residual_mm,

@@ -1,7 +1,8 @@
 // Logique pure de l'écran Recalage (tâche 3.2) : paires de points, pose en
 // deux clics, textes affichés. Testée sans écran (`logic.test.ts`).
 
-import type { PairReport, RegistrationPair, RegistrationReport } from "../engine";
+import type { FacadeOverview, PairReport, RegistrationPair, RegistrationReport } from "../engine";
+import type { LayerSpec } from "../viewer";
 
 export interface XYPoint {
   x: number;
@@ -92,11 +93,15 @@ export function formatFacadeCm(value: number | null | undefined): string {
   return value === null || value === undefined || !Number.isFinite(value) ? "—" : `${mm1.format(value / 10)} cm`;
 }
 
+/** Ce qu'il faut cliquer, en clair : des détails communs, pas les coins de la photo. */
+export const POINT_ADVICE =
+  "Choisir un détail d'architecture visible à la fois sur la photo et sur la façade (coin de fenêtre, pied de colonne, pointe d'un arc), pas les coins de la photo.";
+
 /** Phrase de résumé du recalage, sous la vue. */
 export function summary(report: RegistrationReport | null, count: number): string {
   if (count < 4) {
     const missing = 4 - count;
-    return `Encore ${missing} point${missing > 1 ? "s" : ""} pour le trapèze. Cliquer un point sur la photo, puis le même sur la façade.`;
+    return `Encore ${missing} point${missing > 1 ? "s" : ""} pour le trapèze : un détail sur la photo, puis le même sur la façade, bien répartis vers les quatre coins de la photo.`;
   }
   if (!report) return `${count} points.`;
   if (report.stage === "trapeze") {
@@ -120,4 +125,30 @@ export function hint(pending: Pending, selected: number | null): string | null {
   if (pending.slide && !pending.facade) return "Cliquer maintenant le même point sur la façade.";
   if (pending.facade && !pending.slide) return "Cliquer maintenant le même point sur la photo.";
   return null;
+}
+
+/**
+ * La photo redressée du projecteur posée sur la façade, d'après son
+ * recalage enregistré (le même calque que l'écran Façade), ou rien s'il
+ * n'est pas encore recalé. Fondu normal : sur un plan clair, on voit la
+ * photo et le plan l'un à travers l'autre.
+ */
+export function facadePhotoLayer(
+  overview: FacadeOverview | null,
+  projectorId: string | null,
+  show: boolean,
+  opacity: number,
+  photoUrl: (request: string) => string,
+): LayerSpec | null {
+  const p = overview?.projectors.find((q) => q.projectorId === projectorId);
+  if (!p?.mesh || !p.photoPreview) return null;
+  return {
+    id: "photo-recalee",
+    kind: "mesh-image",
+    url: photoUrl(p.photoPreview),
+    divisions: p.mesh.divisions,
+    points: p.mesh.facade,
+    opacity,
+    visible: show,
+  };
 }

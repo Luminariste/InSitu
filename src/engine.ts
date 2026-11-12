@@ -341,6 +341,8 @@ export interface RectificationView {
   seconds: number | null;
   /** Miroir appliqué à la diapositive (gauche-droite, haut-bas). */
   mirror: Mirror;
+  /** Pourquoi la grille n'a pas été lue, quand le redressement ne tient qu'aux quatre coins. */
+  gridUnread: string | null;
 }
 
 export interface Mirror {
@@ -405,6 +407,13 @@ export async function mirrorProjector(
     projector,
     change,
   });
+  return { project, view };
+}
+
+/** Tourne la diapositive d'un quart de tour (sens des aiguilles d'une montre). */
+export async function rotateProjector(folder: string, projector: string): Promise<{ project: Project; view: RectificationView }> {
+  requireEngine();
+  const [project, view] = await invoke<[Project, RectificationView]>("projector_rotate", { folder, projector });
   return { project, view };
 }
 

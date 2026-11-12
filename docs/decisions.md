@@ -306,6 +306,17 @@ par erreur. Un projet sans fresque mais avec des dessins posés s'exporte.
 compte des placements visibles et de la taille et de la date des fichiers
 des dessins : bouger un dessin refait l'aperçu.
 
+**D-4.2-k. Glisser un dessin sur la façade : la fenêtre ne capte plus les
+glisser.** Essai de la 0.1.28 par Benjamin : le dessin glissé ne se posait
+pas. Tauri capte par défaut tout glisser au-dessus de la fenêtre (pour
+recevoir des fichiers du Finder), ce qui empêche la page de recevoir le
+lâcher ; l'app n'utilise pas ce glisser de fichiers, il est coupé
+(`dragDropEnabled: false` dans `tauri.conf.json`). Par prudence, le dessin
+glissé est aussi gardé en mémoire au départ du geste et porté en texte
+simple, pour le cas où la vue web du Mac ne rendrait pas le type maison.
+Le double-clic sur une vignette pose toujours le dessin au centre de la
+vue. Non vérifiable en session cloud : seul l'essai sur Mac le prouve.
+
 **Limite.** Les fichiers des dessins utilisés par une diapositive restent
 en mémoire pendant l'export (en niveaux de gris, un dessin de 4 096 px pèse
 16 Mo) ; à surveiller avec une très grande bibliothèque.
@@ -925,6 +936,15 @@ des repères : à voir après l'essai de Benjamin.
 servir de repère large ; le format de projet n'a pas encore de place pour
 elle (pas de champ `litPhoto`). Noté pour une tâche suivante.
 
+**D-3.2-g. La photo recalée posée sur la façade, dans l'écran Recalage.**
+Demande de Benjamin (12 novembre 2026). Le calque est celui de l'écran
+Façade (maillage et aperçu de `facade_overview`, tâche 3.3), relu après
+chaque recalage enregistré, sans nouveau calcul dans le moteur. Fondu
+normal à 60 % d'opacité, réglable, et non « écran » comme dans l'écran
+Façade : sur un plan clair, le fondu « écran » rendrait la photo
+invisible. La consigne des premiers points dit en clair qu'il faut des
+détails d'architecture communs, pas les coins de la photo.
+
 ## 2026-11-12 — Tâche 2.5
 
 Écran de redressement : `src/rectification/`, module
@@ -1033,6 +1053,26 @@ PNG provisoire. Ce secours dépend du système, mais seulement sur Mac et en
 dernier recours ; les tests (Linux) ne le parcourent pas. Le décodeur à
 nous reste le premier, pour que Mac et tests donnent les mêmes pixels
 (D-2.5-a).
+
+**D-2.5-l. Grille illisible : redressement par les quatre coins seuls.**
+Benjamin a été bloqué (12 novembre 2026) : sur sa photo, même les coins
+posés à la main étaient refusés (« seulement 7 croisements de la grille
+mesurés, il en faut au moins 40 »). Quand les coins sont donnés et que la
+grille ne se lit pas, le moteur redresse maintenant par le trapèze des
+quatre coins, sans correction de l'objectif ni du papier. Rien n'est
+caché : `grid_unread` (`gridUnread` à l'écran et en ligne de commande) dit
+pourquoi, l'écran l'affiche en orange avec « précision non mesurée », et
+aucun croisement n'est coloré. Le fichier projet ne change pas : c'est un
+redressement « manuel » à quatre points, reconnu comme tel à la relecture.
+Le sens de la mire est lu sur les petits cercles quand ils se voient ;
+sinon le coin le plus en haut à gauche de la photo devient le haut-gauche,
+et un **quart de tour** (`rotate_projector`, `insitu projector rotate`)
+corrige le sens. Il tourne aussi les points du recalage, comme le miroir
+(D-2.5-j), mais n'est pas gardé : une nouvelle détection retrouve le sens
+d'elle-même. La détection automatique (sans coins) n'a pas de tel repli :
+elle a besoin de la grille pour trouver la mire. Prouvé par
+`an_unreadable_grid_is_rectified_by_the_corners_alone` (photo A réduite et
+floutée).
 
 ## 2026-11-12 — Tâche 2.4a
 

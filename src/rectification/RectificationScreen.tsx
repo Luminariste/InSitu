@@ -25,6 +25,7 @@ import {
   rectifyProjector,
   mirrorProjector,
   removeProjector,
+  rotateProjector,
   renameProjector,
   type Project,
   type Projector,
@@ -230,7 +231,8 @@ export function RectificationScreen() {
   // --- Repères et loupe -------------------------------------------------------
 
   const nodesInView = useMemo(() => {
-    if (!view) return [];
+    // Coins seuls : aucun croisement mesuré, rien à colorer.
+    if (!view || view.gridUnread) return [];
     return view.nodes.map((n) => {
       const [x, y] = mode === "brute" ? n.photo : n.slide;
       return { x, y, quality: nodeQuality(n.errorMm) };
@@ -306,7 +308,9 @@ export function RectificationScreen() {
       const message = String(failure).replace(/^Error: /, "");
       if (from || !size) throw failure;
       // La recherche automatique a échoué : on passe à la pose des coins.
-      setError(`${message}. Glisser les quatre poignées sur les coins de la mire, puis « Détecter depuis les coins ».`);
+      setError(
+        `${message}. Glisser les quatre poignées sur les coins de la mire, puis « Détecter depuis les coins ». Si la grille ne se lit pas, la photo sera redressée par les coins seuls.`,
+      );
       setCorners(defaultCorners(size.width, size.height));
       setEditing(true);
     }
@@ -379,6 +383,18 @@ export function RectificationScreen() {
       });
       setProject(next);
       setView(mirrored);
+      const p = next.projectors.find((q) => q.id === selected);
+      if (p?.rectifiedPhoto) setRectifiedSource(await openTiledImage(projectFile(folder, p.rectifiedPhoto)));
+      setMode("redressee");
+    });
+
+  /** Quart de tour, pour un redressement par les coins seuls dont le sens est faux. */
+  const rotate = () =>
+    run("Quart de tour de la photo redressée…", async () => {
+      if (!folder || !selected) return;
+      const { project: next, view: turned } = await rotateProjector(folder, selected);
+      setProject(next);
+      setView(turned);
       const p = next.projectors.find((q) => q.id === selected);
       if (p?.rectifiedPhoto) setRectifiedSource(await openTiledImage(projectFile(folder, p.rectifiedPhoto)));
       setMode("redressee");
@@ -545,6 +561,15 @@ export function RectificationScreen() {
         >
           ↕ Haut-bas
         </Button>
+        {view?.gridUnread && (
+          <Button
+            onClick={() => void rotate()}
+            disabled={!engine || !ready || editing}
+            title="Tourner la diapositive d'un quart de tour : le sens de la mire n'a pas pu être lu sur la photo"
+          >
+            ↻ Quart de tour
+          </Button>
+        )}
       </ToolGroup>
       <ToolSeparator />
       <ToolGroup label="Export">
@@ -673,7 +698,7 @@ export function RectificationScreen() {
       ) : (
         <StatusText>{projector ? `Projecteur ${projector.label} : ${projectorStatus(projector)}` : "Aucun projecteur choisi"}</StatusText>
       )}
-      {view && !hint && (
+      {view && !hint && !view.gridUnread && (
         <span className="ui-legend push">
           <span>
             <Dot tone="success" /> &lt; 0,15 mm

@@ -113,6 +113,13 @@ const int = new Intl.NumberFormat("fr-FR");
 
 /** Résumé d'un redressement, en phrases courtes pour la barre du bas. */
 export function summarize(view: RectificationView): { text: string; quality: NodeQuality } {
+  if (view.gridUnread) {
+    // Coins seuls (D-2.5-l) : rien n'est mesuré, on le dit.
+    return {
+      text: `Redressée par les quatre coins seuls, la grille ne se lit pas (${view.gridUnread}). Précision non mesurée : vérifier la photo redressée, et la tourner d'un quart si son sens est faux.`,
+      quality: "moyen",
+    };
+  }
   const how = view.method === "automatic" ? "Mire détectée automatiquement" : "Mire détectée à partir des coins posés à la main";
   const nodes = `${int.format(view.nodes.length)} croisements sur ${int.format(view.measurableNodes)}`;
   const precision = `écart estimé ${mm2.format(view.leaveOneOutMm.mean)} mm en moyenne, ${mm2.format(view.leaveOneOutMm.p95)} mm pour 95 % des croisements`;
