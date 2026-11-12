@@ -4,6 +4,55 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 6.4
+
+Assemblage de photos de façade : `crates/insitu-core/src/assembly/`,
+commande `insitu assembly`, fenêtre « Assembler des photos… » de l'écran
+Façade (`src/assembly/`), mode d'emploi `docs/assemblage.md`.
+
+**D-6.4-a. Une homographie par photo : façade supposée plane.** Chaque
+photo est raccordée à sa photo d'appui par une homographie (trapèze), et de
+proche en proche à la référence. C'est exact pour des photos d'un même mur
+plat ; un relief marqué (avancée, porche) laissera des décalages dans les
+recouvrements. Pas de déformation par grille ici : un plan exact reste
+préférable quand il existe. Interdit : présenter l'assemblage comme un relevé.
+
+**D-6.4-b. Points douteux : celui dont le retrait améliore le plus les
+autres.** Avec 6 points ou plus, le moteur cherche le point dont l'absence
+réduit le plus l'écart des autres ; il est signalé si son écart dépasse
+4 fois l'écart médian des autres (au moins 4 px). On recommence tant qu'il
+reste plus de 5 points. Un simple « écart en laissant ce point de côté »
+désignait parfois le mauvais point. Rien n'est retiré d'office : le point
+douteux est montré en rouge et compté hors de l'écart moyen.
+
+**D-6.4-c. Image assemblée : JPEG de 12 000 px au plus, fondu sur les
+bords.** Au-delà, l'image est réduite (l'échelle est notée dans `output`).
+Dans les recouvrements, chaque photo pèse moins près de ses bords (fondu sur
+10 % de sa taille) : pas de couture nette. JPEG qualité 92 : une photo
+d'ensemble n'a pas besoin du sans-perte, et un PNG de cette taille pèserait
+des centaines de Mo dans le Dropbox.
+
+**D-6.4-d. Recalculer garde l'échelle et ce qui est posé.** Si la façade
+est déjà l'assemblage précédent et qu'elle est à l'échelle, l'échelle est
+reprise et les points de façade des recalages et le cadre de la fresque
+sont décalés de ce dont l'origine de l'image a bougé (ajout d'une photo à
+gauche, par exemple), en tenant compte d'une réduction différente. Retirer
+la photo de référence change le repère : l'échelle est alors à refaire.
+
+**D-6.4-e. Changer la photo d'appui efface ses points.** Ils sont en
+pixels de l'ancienne photo d'appui et n'ont pas de sens sur la nouvelle ;
+l'écran demande confirmation.
+
+**D-6.4-f. Rotation EXIF non appliquée.** Comme pour la façade (3.1) et
+la photo brute, les pixels sont ceux du fichier. Une photo prise iPhone
+tourné s'affiche couchée ; il faut l'enregistrer droite avant de l'ajouter.
+À reprendre en 6.5 (finitions) si c'est gênant.
+
+**D-6.4-g. Écran plein par-dessus l'écran Façade, pas une sixième étape.**
+L'assemblage remplace l'import d'un plan : il s'ouvre depuis la barre de
+l'écran Façade et y revient avec la nouvelle façade. Il reprend les deux
+vues côte à côte et les couleurs des points de l'écran Recalage.
+
 ## 2026-11-12 — Tâche 5.2
 
 Vecteurs en bibliothèque : `crates/insitu-core/src/library/vectors.rs`,
