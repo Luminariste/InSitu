@@ -4,17 +4,17 @@ import { contextTab, type TabContext } from "./inspectorTabs";
 const idle: TabContext = { hasPlan: true, picking: false, selection: 0 };
 
 describe("onglet de l'inspecteur selon le contexte", () => {
-  it("choisir un dessin ouvre Outils", () => {
-    expect(contextTab(idle, { ...idle, selection: 1 }, "export")).toBe("outils");
+  it("choisir un dessin ouvre Dessins", () => {
+    expect(contextTab(idle, { ...idle, selection: 1 }, "export")).toBe("dessins");
   });
 
   it("un onglet choisi à la main reste tant que rien ne change", () => {
     expect(contextTab({ ...idle, selection: 2 }, { ...idle, selection: 3 }, "calques")).toBe("calques");
-    expect(contextTab(idle, idle, "fresque")).toBe("fresque");
+    expect(contextTab(idle, idle, "export")).toBe("export");
   });
 
-  it("poser A et B ouvre Mise en plan", () => {
-    expect(contextTab(idle, { ...idle, picking: true }, "outils")).toBe("echelle");
+  it("poser A et B ouvre Plan", () => {
+    expect(contextTab(idle, { ...idle, picking: true }, "dessins")).toBe("plan");
   });
 
   it("sans plan, on revient à Plan", () => {

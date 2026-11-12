@@ -46,7 +46,7 @@
   --ui-toolbar-h: 44px; /* barre d'outils de l'écran */
   --ui-statusbar-h: 26px; /* barre d'état, tout en bas */
   --ui-sidebar-w: 240px; /* panneau de gauche : les objets */
-  --ui-inspector-w: 320px; /* panneau de droite : les réglages (six onglets, D15-i) */
+  --ui-inspector-w: 300px; /* panneau de droite : les réglages */
 
   /* --- Mouvement ---------------------------------------------------------- */
   --ui-fast: 120ms;

@@ -43,7 +43,7 @@ tableau à jour.
 | 6.4 Assemblage de photos | Fusionnée (version 0.1.16), **non validée** : essai sur Mac à faire par Benjamin avec trois vraies photos de façade (`docs/assemblage.md`) ; façade supposée plane (D-6.4-a), rotation EXIF non appliquée (D-6.4-f) |
 | Renommer / supprimer un projecteur, barre de menus du Mac (hors plan, demande de Benjamin) | Fusionné (version 0.1.18), **non validé** : essai sur Mac ; décisions D15-f et D15-g |
 | Retirer un dessin de la bibliothèque, retirer le plan de la façade (hors plan, demande de Benjamin) | Version 0.1.19, **non validé** : essai sur Mac ; décision D15-h |
-| Panneau de droite de la Façade en onglets (hors plan, demande de Benjamin) | Version 0.1.31, **non validé** : essai sur Mac ; décision D15-i |
+| Panneau de droite de la Façade en onglets, outils des dessins en icônes dans la barre du haut (hors plan, demande de Benjamin) | Version 0.1.31, **non validé** : essai sur Mac ; décisions D15-i et D15-j |
 | Toutes les autres | À faire |
 
 **Ce qui bloque la validation de la tâche 1.5.** Dans la version 0.1.1,

@@ -11,7 +11,7 @@
    ou DXF. Pour un PDF de plusieurs pages, l'app demande laquelle est la
    façade. Le fichier est copié dans le dossier `facade/` du projet. Un DWG
    est à exporter d'abord en PDF ou en DXF.
-3. Dans le panneau de droite, onglet **Mise en plan** : **Poser A
+3. Dans le panneau de droite, onglet **Plan**, rubrique **Mise en plan** : **Poser A
    et B**, puis cliquer deux points du plan dont on connaît la
    distance réelle (deux repères d'une ligne de cote, deux angles du
    bâtiment). Zoomer avant de cliquer donne un point plus juste : le plan

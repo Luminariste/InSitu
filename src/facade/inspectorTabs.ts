@@ -2,9 +2,9 @@
 // l'onglet que le contexte appelle. Logique pure, testée sans écran
 // (`inspectorTabs.test.ts`).
 
-export type FacadeTab = "plan" | "echelle" | "outils" | "calques" | "fresque" | "export";
+export type FacadeTab = "plan" | "dessins" | "calques" | "export";
 
-export const FACADE_TABS: FacadeTab[] = ["plan", "echelle", "outils", "calques", "fresque", "export"];
+export const FACADE_TABS: FacadeTab[] = ["plan", "dessins", "calques", "export"];
 
 /** Ce qui, à l'écran, appelle un onglet plutôt qu'un autre. */
 export interface TabContext {
@@ -20,14 +20,14 @@ export interface TabContext {
  * L'onglet à montrer après un changement de contexte. Seuls les
  * changements comptent : un onglet choisi à la main reste tant que rien de
  * neuf ne se passe.
- *  - des dessins viennent d'être choisis : Outils ;
- *  - la pose des points A et B commence : Mise en plan ;
+ *  - des dessins viennent d'être choisis : Dessins ;
+ *  - la pose des points A et B commence : Plan (rubrique Mise en plan) ;
  *  - le plan vient de disparaître (projet sans plan, plan retiré) : Plan.
  */
 export function contextTab(previous: TabContext | null, current: TabContext, tab: FacadeTab): FacadeTab {
   if (previous === null) return current.hasPlan ? tab : "plan";
-  if (current.selection > 0 && previous.selection === 0) return "outils";
-  if (current.picking && !previous.picking) return "echelle";
+  if (current.selection > 0 && previous.selection === 0) return "dessins";
+  if (current.picking && !previous.picking) return "plan";
   if (!current.hasPlan && previous.hasPlan) return "plan";
   return tab;
 }

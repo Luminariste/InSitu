@@ -15,7 +15,7 @@ la façade. Un PNG par projecteur, prêt pour LightBurn.
 
 ## Dans l'app
 
-1. Étape **Façade**, panneau de droite, onglet **Fresque** :
+1. Étape **Façade**, panneau de droite, onglet **Plan**, rubrique **Fresque** :
    **Importer la fresque…**. L'image est copiée dans le projet et posée sur
    toute la largeur de la façade, à partir du coin haut-gauche. Elle
    s'affiche sur le plan ; la case **Montrer** la masque.

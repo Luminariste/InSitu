@@ -8,6 +8,7 @@
 // contrôler l'ergonomie sans l'app ; rien n'y est enregistré.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
+import { CompositionToolbar } from "../compose/CompositionToolbar";
 import { DrawingsSection } from "../compose/DrawingsSection";
 import { LayersSection } from "../compose/LayersSection";
 import { PlacementInspector } from "../compose/PlacementInspector";
@@ -77,6 +78,7 @@ import {
   Dialog,
   Dot,
   EmptyState,
+  IconButton,
   Property,
   Screen,
   Section,
@@ -302,7 +304,7 @@ export function FacadeScreen() {
   const composeBlocked = !view
     ? "Importer d'abord un plan."
     : engine && !k
-      ? "Mettre d'abord le plan à l'échelle (onglet Mise en plan, à droite)."
+      ? "Mettre d'abord le plan à l'échelle (onglet Plan, à droite, rubrique Mise en plan)."
       : null;
   const composition = useComposition({
     engine,
@@ -495,23 +497,23 @@ export function FacadeScreen() {
       <Button icon="import" shortcut="mod+i" title="Importer le plan de la façade" onClick={() => void choosePlan()} disabled={!canImport}>
         {facade ? "Remplacer le plan…" : "Importer un plan…"}
       </Button>
-      <Button
-        icon="image"
-        title="Sans plan : assembler plusieurs photos de face de la façade en une seule image"
+      <IconButton
+        icon="photos"
+        label="Assembler des photos… (sans plan : plusieurs photos de face de la façade en une seule image)"
+        variant="default"
         onClick={() => setAssembling(true)}
         disabled={(engine && folder === null) || !ready}
-      >
-        Assembler des photos…
-      </Button>
+      />
+      <ToolSeparator />
+      {/* Outils des dessins posés (D15-j) : agissent sur la sélection. */}
+      <CompositionToolbar selected={composition.selected} actions={composition.actions} enabled={composeBlocked === null && picking === "off" && ready} />
       <ToolSpacer />
-      <Button icon="fit" shortcut="mod+0" title="Voir toute la façade" onClick={() => viewer.current?.fitAll()} disabled={!view}>
-        Tout voir
-      </Button>
+      <IconButton icon="fit" label="Tout voir" shortcut="mod+0" variant="default" onClick={() => viewer.current?.fitAll()} disabled={!view} />
     </Toolbar>
   );
 
   // Inspecteur en onglets (D15-i) : un onglet par sujet, choisi par le
-  // contexte (dessins choisis : Outils ; pose de A et B : Mise en plan) ou
+  // contexte (dessins choisis : Dessins ; pose de A et B : Plan) ou
   // à la main ; le dernier choisi est retenu d'un lancement à l'autre.
   const exportPanel = useExportPanel({
     engine,
@@ -542,83 +544,82 @@ export function FacadeScreen() {
       value={tab}
       onChange={chooseTab}
       tabs={[
-        { value: "plan", label: "Plan", icon: "document", title: "Le plan de la façade : fichier, format, taille" },
-        { value: "echelle", label: "Mise en plan", icon: "ruler", title: "Mise en plan : l'échelle du plan", badge: view && !k ? "warning" : undefined },
-        { value: "outils", label: "Outils", icon: "cursor", title: "Dessins : poser, placer, déformer", badge: composition.selected.length },
+        { value: "plan", label: "Plan", icon: "document", title: "Le plan de la façade, sa mise en plan (échelle) et la fresque", badge: view && !k ? "warning" : undefined },
+        { value: "dessins", label: "Dessins", icon: "image", title: "Dessins à poser, et réglages des dessins choisis", badge: composition.selected.length },
         { value: "calques", label: "Calques", icon: "layers", title: "Ranger les dessins posés" },
-        { value: "fresque", label: "Fresque", icon: "image", title: "La fresque importée en une image" },
         { value: "export", label: "Export", icon: "export", title: "Simulation, export des diapositives, fiche de calepinage" },
       ]}
       panes={{
         plan: (
-          <Section>
-            {view ? (
-              <dl className="ui-facts">
-                <dt>Fichier</dt>
-                <dd title={planName ?? undefined}>{planName}</dd>
-                <dt>Format</dt>
-                <dd>{KIND_LABEL[view.kind]}</dd>
-                <dt>Taille</dt>
-                <dd>
-                  {Math.round(view.sourceWidth).toLocaleString("fr-FR")} × {Math.round(view.sourceHeight).toLocaleString("fr-FR")} {unit}
-                </dd>
-                {sizeMm && (
-                  <>
-                    <dt>Façade</dt>
-                    <dd>
-                      {formatLength(sizeMm.width)} × {formatLength(sizeMm.height)}
-                    </dd>
-                  </>
-                )}
-              </dl>
-            ) : (
-              <p>Aucun plan pour l'instant.</p>
-            )}
-            {engine && facade && (
-              <Button variant="danger" size="sm" icon="trash" onClick={() => setRemovingPlan(true)} disabled={!ready}>
-                Retirer le plan…
-              </Button>
-            )}
-          </Section>
-        ),
-        echelle: (
-          <Section title="Mise en plan">
-            <form className="facade-scale" onSubmit={validateScale}>
-              <p className={k ? "facade-scale-ok" : undefined}>
-                {k ? `1 ${unit} = ${formatLength(k)}` : "Pas encore à l'échelle : cliquer deux points dont on connaît la distance réelle."}
-              </p>
-              <Property label="Points A et B">
-                <Button
-                  icon="ruler"
-                  active={picking !== "off"}
-                  onClick={picking === "off" ? startPicking : () => setPicking("off")}
-                  disabled={!view || !ready}
-                  title="Cliquer deux points du plan dont on connaît la distance réelle"
-                >
-                  {picking === "a" ? "Cliquer A…" : picking === "b" ? "Cliquer B…" : points.length === 2 ? "Reposer A et B" : "Poser A et B"}
+          <>
+            <Section>
+              {view ? (
+                <dl className="ui-facts">
+                  <dt>Fichier</dt>
+                  <dd title={planName ?? undefined}>{planName}</dd>
+                  <dt>Format</dt>
+                  <dd>{KIND_LABEL[view.kind]}</dd>
+                  <dt>Taille</dt>
+                  <dd>
+                    {Math.round(view.sourceWidth).toLocaleString("fr-FR")} × {Math.round(view.sourceHeight).toLocaleString("fr-FR")} {unit}
+                  </dd>
+                  {sizeMm && (
+                    <>
+                      <dt>Façade</dt>
+                      <dd>
+                        {formatLength(sizeMm.width)} × {formatLength(sizeMm.height)}
+                      </dd>
+                    </>
+                  )}
+                </dl>
+              ) : (
+                <p>Aucun plan pour l'instant.</p>
+              )}
+              {engine && facade && (
+                <Button variant="danger" size="sm" icon="trash" onClick={() => setRemovingPlan(true)} disabled={!ready}>
+                  Retirer le plan…
                 </Button>
-              </Property>
-              <Property label="Distance A–B" hint={span !== null ? `Sur le plan : ${span.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} ${unit}` : "Par exemple 12,5 m, 1250 cm ou 12500 (mm)."}>
-                <input
-                  className="ui-input"
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="ex. 12,5 m"
-                  value={distanceText}
-                  onChange={(event) => setDistanceText(event.target.value)}
-                  disabled={!view}
-                  aria-label="Distance réelle entre A et B"
-                />
-              </Property>
-              <div className="facade-scale-actions">
-                <Button type="submit" variant="primary" disabled={!view || points.length < 2 || !ready}>
-                  {k ? "Mettre à jour l'échelle" : "Valider l'échelle"}
-                </Button>
-              </div>
-            </form>
-          </Section>
+              )}
+            </Section>
+            <Section title="Mise en plan">
+              <form className="facade-scale" onSubmit={validateScale}>
+                <p className={k ? "facade-scale-ok" : undefined}>
+                  {k ? `1 ${unit} = ${formatLength(k)}` : "Pas encore à l'échelle : cliquer deux points dont on connaît la distance réelle."}
+                </p>
+                <Property label="Points A et B">
+                  <Button
+                    icon="ruler"
+                    active={picking !== "off"}
+                    onClick={picking === "off" ? startPicking : () => setPicking("off")}
+                    disabled={!view || !ready}
+                    title="Cliquer deux points du plan dont on connaît la distance réelle"
+                  >
+                    {picking === "a" ? "Cliquer A…" : picking === "b" ? "Cliquer B…" : points.length === 2 ? "Reposer A et B" : "Poser A et B"}
+                  </Button>
+                </Property>
+                <Property label="Distance A–B" hint={span !== null ? `Sur le plan : ${span.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} ${unit}` : "Par exemple 12,5 m, 1250 cm ou 12500 (mm)."}>
+                  <input
+                    className="ui-input"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="ex. 12,5 m"
+                    value={distanceText}
+                    onChange={(event) => setDistanceText(event.target.value)}
+                    disabled={!view}
+                    aria-label="Distance réelle entre A et B"
+                  />
+                </Property>
+                <div className="facade-scale-actions">
+                  <Button type="submit" variant="primary" disabled={!view || points.length < 2 || !ready}>
+                    {k ? "Mettre à jour l'échelle" : "Valider l'échelle"}
+                  </Button>
+                </div>
+              </form>
+            </Section>
+            {exportPanel.fresco}
+          </>
         ),
-        outils: (
+        dessins: (
           <>
             <PlacementInspector
               selected={composition.selected}
@@ -641,7 +642,6 @@ export function FacadeScreen() {
             blocked={composeBlocked}
           />
         ),
-        fresque: exportPanel.fresco,
         export: (
           <>
             <SimulationSection

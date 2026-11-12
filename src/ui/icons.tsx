@@ -141,6 +141,69 @@ const PATHS = {
       <path d="M5.5 7V5a2.5 2.5 0 0 1 4.9-.7" />
     </>
   ),
+  photos: (
+    <>
+      <path d="M4.5 4.5V2.5h9v7h-2" />
+      <path d="M2.5 6.5h9v7h-9zM2.5 12l3-3 2.5 2.5 1.5-1.5 2 2" />
+    </>
+  ),
+  // Outils des dessins posés (barre d'outils de la Façade, D15-j).
+  rotateLeft: (
+    <>
+      <path d="M4.5 8a4 4 0 1 0 1.2-2.9" />
+      <path d="M3 3.5v3h3" />
+    </>
+  ),
+  rotateRight: (
+    <>
+      <path d="M11.5 8a4 4 0 1 1-1.2-2.9" />
+      <path d="M13 3.5v3h-3" />
+    </>
+  ),
+  flipHorizontal: <path d="M8 2v12M6 4.5L2.5 11.5H6zM10 4.5l3.5 7H10z" />,
+  flipVertical: <path d="M2 8h12M4.5 6l7-3.5V6zM4.5 10l7 3.5V10z" />,
+  alignLeft: <path d="M2.5 2v12M5 4.5h8v2.5H5zM5 9h5v2.5H5z" />,
+  alignHCenter: <path d="M8 2v12M3.5 4.5h9v2.5h-9zM5.5 9h5v2.5h-5z" />,
+  alignRight: <path d="M13.5 2v12M3 4.5h8v2.5H3zM6 9h5v2.5H6z" />,
+  alignTop: <path d="M2 2.5h12M4.5 5h2.5v8H4.5zM9 5h2.5v5H9z" />,
+  alignVCenter: <path d="M2 8h12M4.5 3.5h2.5v9H4.5zM9 5.5h2.5v5H9z" />,
+  alignBottom: <path d="M2 13.5h12M4.5 3h2.5v8H4.5zM9 6h2.5v5H9z" />,
+  distributeHorizontal: <path d="M2.5 2v12M13.5 2v12M6.5 5h3v6h-3z" />,
+  distributeVertical: <path d="M2 2.5h12M2 13.5h12M5 6.5h6v3H5z" />,
+  warpCorners: (
+    <>
+      <path d="M3.5 3.5l9-1.5-1 11-7-1.5z" />
+      <path d="M2.5 2.5h2v2h-2zM11.5 1h2v2h-2zM10.5 12h2v2h-2zM3.5 11h2v2h-2z" fill="currentColor" />
+    </>
+  ),
+  warpGrid: <path d="M3 3l10 .5-.5 9.5-9.5-.5zM6.3 3.2L6 12.7M9.6 3.3l-.2 9.5M3 6.3l9.8.3M2.8 9.6l9.8.3" />,
+  straighten: <path d="M3 3h10v10H3zM3 3l10 10" />,
+  bringFront: (
+    <>
+      <path d="M2.5 5.5h7v8h-7z" />
+      <path d="M6.5 2.5h7v7h-7z" fill="currentColor" />
+    </>
+  ),
+  bringForward: (
+    <>
+      <path d="M2.5 2.5h7v7h-7z" />
+      <path d="M6.5 6.5h7v7h-7z" fill="currentColor" fillOpacity={0.45} />
+    </>
+  ),
+  sendBackward: (
+    <>
+      <path d="M6.5 2.5h7v7h-7z" fill="currentColor" fillOpacity={0.45} />
+      <path d="M2.5 6.5h7v7h-7z" />
+    </>
+  ),
+  sendBack: (
+    <>
+      <path d="M6.5 2.5h7v7h-7z" fill="currentColor" />
+      <path d="M2.5 6.5h7v7h-7z" />
+    </>
+  ),
+  group: <path d="M2 2h3M11 2h3v3M14 11v3h-3M5 14H2v-3M2 5V2M5 5h4v4H5zM8 8h3v3H8z" />,
+  ungroup: <path d="M3 3h5v5H3zM8.5 8.5h4.5v4.5H8.5z" />,
   arrowUp: <path d="M8 13V3M4 7l4-4 4 4" />,
   arrowDown: <path d="M8 3v10M4 9l4 4 4-4" />,
   sidebar: (

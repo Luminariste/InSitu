@@ -79,11 +79,13 @@ de panneau de gauche.
   Quand un écran a plus de trois sujets à régler, l'inspecteur devient un
   **panneau de propriétés en onglets** (`TabbedPanel`, D15-i) : une rangée
   d'onglets (icône et libellé court, bulle d'aide) à la place du titre.
-  L'onglet suit le contexte (choisir un dessin ouvre « Outils », poser A et
-  B ouvre « Mise en plan ») et reste celui qu'on a choisi tant que rien de
-  neuf ne se passe. Une pastille dit qu'un onglet attend quelque chose :
-  un nombre (dessins choisis) ou un point orange (plan pas à l'échelle).
-  Façade : Plan · Mise en plan · Outils · Calques · Fresque · Export.
+  L'onglet suit le contexte (choisir un dessin ouvre « Dessins », poser A et
+  B ouvre « Plan ») et reste celui qu'on a choisi tant que rien de neuf ne
+  se passe. Une pastille dit qu'un onglet attend quelque chose : un nombre
+  (dessins choisis) ou un point orange (plan pas à l'échelle). Façade :
+  Plan (plan, mise en plan, fresque) · Dessins · Calques · Export.
+  L'inspecteur porte les *réglages et mesures* ; les *outils* (actions sur
+  la sélection) sont des icônes dans la barre d'outils (D15-j).
 - **Barre d'état** (`StatusBar`) : une phrase d'état (avec sa couleur), la
   consigne du geste en cours, et à droite la légende des pastilles.
 
