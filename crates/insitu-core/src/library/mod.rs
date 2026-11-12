@@ -472,7 +472,8 @@ enum Outcome {
         width: f64,
         height: f64,
     },
-    AlreadyPresent,
+    /// Déjà dans la bibliothèque à l'identique : son identifiant.
+    AlreadyPresent(String),
     Failed(String),
 }
 
@@ -511,13 +512,57 @@ pub fn import_folder(
     // toute copie.
     RelativePath::new(base.as_str())?;
 
+    let (project, report, _) = import_found(dir, &base, &found, options, progress)?;
+    Ok((project, report))
+}
+
+/// Importe des fichiers choisis un à un (tâche 6.3 : les liens d'un fichier
+/// Illustrator) sous `base` (`bibliotheque/<dossier>`) : chaque fichier va
+/// dans `base/<inner>`, `inner` étant son chemin relatif avec des `/`
+/// (`Algues/algue-01.png`). Rend, pour chaque fichier dans l'ordre,
+/// l'identifiant du dessin (ajouté ou déjà présent à l'identique), ou la
+/// raison de l'échec.
+pub fn import_files(
+    dir: &ProjectDir,
+    base: &str,
+    files: &[(PathBuf, String)],
+    options: &ImportOptions,
+    progress: &(dyn Fn(ImportProgress) + Sync),
+) -> Result<(Project, Vec<Result<String, String>>), LibraryError> {
+    RelativePath::new(base)?;
+    let found: Vec<Found> = files
+        .iter()
+        .map(|(path, inner)| Found {
+            path: path.clone(),
+            inner: inner
+                .split('/')
+                .map(clean_segment)
+                .collect::<Vec<_>>()
+                .join("/"),
+        })
+        .collect();
+    let (project, _, ids) = import_found(dir, base, &found, options, progress)?;
+    Ok((project, ids))
+}
+
+/// Le travail commun aux imports : lecture, copie et vignette de chaque
+/// fichier en parallèle, puis enregistrement. Rend aussi, pour chaque
+/// fichier, l'identifiant de son dessin ou la raison de l'échec.
+#[allow(clippy::type_complexity)]
+fn import_found(
+    dir: &ProjectDir,
+    base: &str,
+    found: &[Found],
+    options: &ImportOptions,
+    progress: &(dyn Fn(ImportProgress) + Sync),
+) -> Result<(Project, ImportReport, Vec<Result<String, String>>), LibraryError> {
     let project = dir.load()?.project;
     let total = found.len();
     progress(ImportProgress { done: 0, total });
     let outcomes = parallel_each(
-        &found,
+        found,
         thread_count(options.threads),
-        |file| import_one(dir, &project, &base, file, options),
+        |file| import_one(dir, &project, base, file, options),
         |done| progress(ImportProgress { done, total }),
     );
 
@@ -525,11 +570,12 @@ pub fn import_folder(
     // enregistrement.
     let mut project = dir.load()?.project;
     let mut report = ImportReport {
-        folder: base,
+        folder: base.to_string(),
         added: Vec::new(),
         already_present: 0,
         failures: Vec::new(),
     };
+    let mut ids = Vec::with_capacity(found.len());
     for (file, outcome) in found.iter().zip(outcomes) {
         match outcome {
             Outcome::Added {
@@ -538,12 +584,14 @@ pub fn import_folder(
                 width,
                 height,
             } => {
-                if project.library.iter().any(|d| d.source == source) {
+                if let Some(existing) = project.library.iter().find(|d| d.source == source) {
                     report.already_present += 1;
+                    ids.push(Ok(existing.id.clone()));
                     continue;
                 }
                 let id = new_id();
                 report.added.push(id.clone());
+                ids.push(Ok(id.clone()));
                 project.library.push(Drawing {
                     id,
                     name,
@@ -555,17 +603,23 @@ pub fn import_folder(
                     extra: ExtraFields::new(),
                 });
             }
-            Outcome::AlreadyPresent => report.already_present += 1,
-            Outcome::Failed(reason) => report.failures.push(ImportFailure {
-                file: file.inner.clone(),
-                reason,
-            }),
+            Outcome::AlreadyPresent(id) => {
+                report.already_present += 1;
+                ids.push(Ok(id));
+            }
+            Outcome::Failed(reason) => {
+                ids.push(Err(reason.clone()));
+                report.failures.push(ImportFailure {
+                    file: file.inner.clone(),
+                    reason,
+                });
+            }
         }
     }
     if !report.added.is_empty() {
         dir.save(&project)?;
     }
-    Ok((project, report))
+    Ok((project, report, ids))
 }
 
 fn import_one(
@@ -592,7 +646,7 @@ fn import_one(
         if let Some(cache) = &options.cache_root {
             let _ = ensure_rendition(&dir.resolve(&drawing.source), cache, THUMBNAIL_SIDE);
         }
-        return Outcome::AlreadyPresent;
+        return Outcome::AlreadyPresent(drawing.id.clone());
     }
     let decoded = match decode(&file.path, THUMBNAIL_SIDE) {
         Ok(decoded) => decoded,
