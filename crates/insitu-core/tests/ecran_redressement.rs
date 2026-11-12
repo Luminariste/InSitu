@@ -11,10 +11,10 @@ use std::time::Instant;
 
 use insitu_core::geometry::Point;
 use insitu_core::photo;
-use insitu_core::project::{ProjectDir, RectificationMethod};
+use insitu_core::project::{Mirror, PointMm, ProjectDir, RectificationMethod, RegistrationPair};
 use insitu_core::rectification::projector::{
-    add_projector, export_rectified, import_raw_photo, projector_view, rectify_projector,
-    RectifyError,
+    add_projector, export_rectified, import_raw_photo, mirror_projector, projector_view,
+    rectify_projector, RectifyError,
 };
 use insitu_core::rectification::{self, DetectOptions};
 
@@ -287,4 +287,87 @@ fn photo_import_refuses_what_it_cannot_read() {
         rectify_projector(&dir, "A", None),
         Err(RectifyError::NoRawPhoto(_))
     ));
+}
+
+#[test]
+fn the_slide_can_be_mirrored_and_keeps_its_mirror() {
+    let scratch = Scratch::new("miroir");
+    let (dir, _) = ProjectDir::create(scratch.0.join("Miroir.insitu"), None).unwrap();
+    let (_, id) = add_projector(&dir, "D").unwrap();
+    import_raw_photo(
+        &dir,
+        &id,
+        &test_set().join("epinal/references/photos-brutes/d-brut.jpg"),
+    )
+    .unwrap();
+    // Pas de miroir sans redressement.
+    let h = Mirror {
+        horizontal: true,
+        vertical: false,
+    };
+    assert!(matches!(
+        mirror_projector(&dir, &id, h),
+        Err(RectifyError::NotRectified(_))
+    ));
+    let (_, plain) = rectify_projector(&dir, &id, None).unwrap();
+    let rectified_path = |dir: &ProjectDir| {
+        let project = dir.load().unwrap().project;
+        let p = project.projector(&id).unwrap();
+        dir.resolve(p.rectified_photo.as_ref().unwrap())
+    };
+    let before = photo::read_rgb(&rectified_path(&dir)).unwrap();
+
+    // Un point de recalage déjà posé suit le miroir.
+    let mut project = dir.load().unwrap().project;
+    project
+        .projector_mut(&id)
+        .unwrap()
+        .registration
+        .push(RegistrationPair::new(
+            PointMm::new(40.0, 100.0),
+            PointMm::new(0.0, 0.0),
+        ));
+    dir.save(&project).unwrap();
+
+    let (project, mirrored) = mirror_projector(&dir, &id, h).unwrap();
+    assert_eq!(mirrored.mirror, h);
+    let p = project.projector(&id).unwrap();
+    assert_eq!(p.registration[0].slide, PointMm::new(240.0, 100.0));
+    // Le coin haut-gauche de la diapositive est maintenant l'ancien haut-droit.
+    for (k, from) in [(0, 1), (1, 0), (2, 3), (3, 2)] {
+        let px = distance(mirrored.corners[k], plain.corners[from]);
+        assert!(px < 1.0, "coin {k} : {px:.2} px");
+    }
+    // La photo redressée est l'image miroir de la précédente.
+    let after = photo::read_rgb(&rectified_path(&dir)).unwrap();
+    assert_eq!(after.dimensions(), before.dimensions());
+    let (w, hgt) = before.dimensions();
+    let mut total = 0.0;
+    let mut count = 0.0;
+    for y in (0..hgt).step_by(37) {
+        for x in (0..w).step_by(37) {
+            let a = before.get_pixel(x, y)[1] as f64;
+            let b = after.get_pixel(w - 1 - x, y)[1] as f64;
+            total += (a - b).abs();
+            count += 1.0;
+        }
+    }
+    let mean = total / count;
+    eprintln!("écart moyen avec l'image miroir : {mean:.2} niveaux");
+    assert!(mean < 3.0, "{mean:.2}");
+
+    // Une nouvelle détection garde le miroir ; le relire aussi.
+    let (_, again) = rectify_projector(&dir, &id, None).unwrap();
+    assert_eq!(again.mirror, h);
+    assert!(distance(again.corners[0], plain.corners[1]) < 1.0);
+    assert_eq!(projector_view(&dir, &id).unwrap().unwrap().mirror, h);
+
+    // Le même miroir une seconde fois revient au départ.
+    let (project, back) = mirror_projector(&dir, &id, h).unwrap();
+    assert!(back.mirror.is_none());
+    assert!(distance(back.corners[0], plain.corners[0]) < 1.0);
+    assert_eq!(
+        project.projector(&id).unwrap().registration[0].slide,
+        PointMm::new(40.0, 100.0)
+    );
 }

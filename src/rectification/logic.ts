@@ -118,11 +118,13 @@ export function summarize(view: RectificationView): { text: string; quality: Nod
   const precision = `écart estimé ${mm2.format(view.leaveOneOutMm.mean)} mm en moyenne, ${mm2.format(view.leaveOneOutMm.p95)} mm pour 95 % des croisements`;
   const coverage = `mire couverte à ${Math.round(view.coverage * 100)} %`;
   const time = view.seconds !== null ? ` · calcul ${s1.format(view.seconds)} s` : "";
+  const axes = [view.mirror?.horizontal && "gauche-droite", view.mirror?.vertical && "haut-bas"].filter(Boolean);
+  const mirror = axes.length ? ` · miroir ${axes.join(" et ")}` : "";
   // Jugé comme le critère de la tâche 2.4a : 95 % des croisements à moins de
   // 0,3 mm (l'écart de validation croisée est un majorant).
   const p95 = view.leaveOneOutMm.p95;
   const quality: NodeQuality = view.coverage < 0.8 || p95 >= 0.6 ? "mauvais" : p95 < 0.3 ? "bon" : "moyen";
-  return { text: `${how} : ${nodes}, ${precision}, ${coverage}${time}`, quality };
+  return { text: `${how} : ${nodes}, ${precision}, ${coverage}${mirror}${time}`, quality };
 }
 
 /** Nom proposé pour l'export : « A-redressee-500dpi.tif ». */

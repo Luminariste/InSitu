@@ -99,6 +99,11 @@ describe("affichage du résultat", () => {
     expect(summarize(p95(0.7)).quality).toBe("mauvais");
     expect(summarize({ ...view, coverage: 0.5 }).quality).toBe("mauvais");
     expect(summarize({ ...view, method: "manual", seconds: null }).text).toContain("coins posés à la main");
+    expect(summarize(view).text).not.toContain("miroir");
+    expect(summarize({ ...view, mirror: { horizontal: true, vertical: false } }).text).toContain("miroir gauche-droite");
+    expect(summarize({ ...view, mirror: { horizontal: true, vertical: true } }).text).toContain(
+      "miroir gauche-droite et haut-bas",
+    );
   });
 });
 

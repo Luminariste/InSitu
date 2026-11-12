@@ -24,6 +24,7 @@ import {
   openTileFolder,
   projectFile,
   rectifyProjector,
+  mirrorProjector,
   type Project,
   type Projector,
   type RectificationView,
@@ -346,6 +347,21 @@ export function RectificationScreen() {
     });
   };
 
+  /** Miroir de la diapositive : gauche-droite ou haut-bas, à bascule. */
+  const mirror = (axis: "horizontal" | "vertical") =>
+    run("Miroir de la photo redressée…", async () => {
+      if (!folder || !selected) return;
+      const { project: next, view: mirrored } = await mirrorProjector(folder, selected, {
+        horizontal: axis === "horizontal",
+        vertical: axis === "vertical",
+      });
+      setProject(next);
+      setView(mirrored);
+      const p = next.projectors.find((q) => q.id === selected);
+      if (p?.rectifiedPhoto) setRectifiedSource(await openTiledImage(projectFile(folder, p.rectifiedPhoto)));
+      setMode("redressee");
+    });
+
   const exportImage = () =>
     run("Export de la photo redressée…", async () => {
       if (!folder || !projector) return;
@@ -499,6 +515,28 @@ export function RectificationScreen() {
           </div>
           <button type="button" onClick={() => viewer.current?.fitAll()} disabled={layers.length === 0}>
             Tout voir
+          </button>
+        </div>
+
+        <div className="rectification-group">
+          <span className="rectification-label">Miroir</span>
+          <button
+            type="button"
+            className={view?.mirror?.horizontal ? "actif" : ""}
+            onClick={() => mirror("horizontal")}
+            disabled={!engine || !view || !ready || editing}
+            title="Échanger la gauche et la droite de la diapositive (photo redressée, export et points du recalage)"
+          >
+            ↔ Gauche-droite
+          </button>
+          <button
+            type="button"
+            className={view?.mirror?.vertical ? "actif" : ""}
+            onClick={() => mirror("vertical")}
+            disabled={!engine || !view || !ready || editing}
+            title="Échanger le haut et le bas de la diapositive (photo redressée, export et points du recalage)"
+          >
+            ↕ Haut-bas
           </button>
         </div>
 

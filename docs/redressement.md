@@ -23,7 +23,10 @@
    depuis les coins** : l'app retrouve seule quel coin est lequel (par les
    petits cercles de la mire), et les coins n'ont pas besoin d'être exacts
    (1 ou 2 mm suffisent), la grille affine ensuite.
-6. **Exporter…** : la photo redressée en TIFF ou en PNG, à 300, 500, 1 000
+6. **Miroir** : **↔ Gauche-droite** et **↕ Haut-bas** retournent la photo
+   redressée (et donc l'export et les points du recalage) ; un second clic
+   annule. Le réglage est gardé si la mire est détectée de nouveau.
+7. **Exporter…** : la photo redressée en TIFF ou en PNG, à 300, 500, 1 000
    ou 1 400 dpi. La résolution est inscrite dans le fichier : il s'ouvre à
    280 mm dans Illustrator, Photoshop ou LightBurn. L'image est recalculée
    depuis la photo brute à chaque export (ce n'est pas un agrandissement de

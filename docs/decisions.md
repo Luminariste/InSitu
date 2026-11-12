@@ -370,6 +370,16 @@ comme la détection automatique. Si ce sens reste incertain, il garde celui de
 la photo. Cela remplace la règle de D-2.4a selon laquelle l'ordre des coins
 fixe le sens de la mire.
 
+**D-2.5-j. Miroir de la diapositive, à l'écran de redressement.**
+Demande de Benjamin (12 novembre 2026). Deux boutons à bascule, gauche-droite
+et haut-bas, retournent la diapositive du projecteur. Le miroir est appliqué
+aux coordonnées `slide` des points du redressement **et** des points du
+recalage déjà posés : tout ce qui suit (photo redressée, export, recalage,
+déformation) reste cohérent sans rien savoir du miroir. Le réglage est noté
+dans `rectification.mirror` (champ facultatif, ancien fichier lisible tel
+quel) pour être réappliqué quand la mire est détectée de nouveau. Ce n'est
+pas le miroir de l'export pour la gravure (tâche 3.5), qui reste à part.
+
 ## 2026-11-12 — Tâche 2.4a
 
 Détection de l'ancienne mire et redressement : module

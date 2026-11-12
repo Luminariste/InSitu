@@ -263,6 +263,13 @@ export interface RectificationView {
   coverage: number;
   pxPerMm: number;
   seconds: number | null;
+  /** Miroir appliqué à la diapositive (gauche-droite, haut-bas). */
+  mirror: Mirror;
+}
+
+export interface Mirror {
+  horizontal: boolean;
+  vertical: boolean;
 }
 
 export interface ExportedImage {
@@ -295,6 +302,24 @@ export async function importProjectorPhoto(folder: string, projector: string, pa
  * haut-gauche, haut-droit, bas-droit, bas-gauche dans la photo, en px), la
  * recherche automatique est remplacée par ces coins ; la grille affine.
  */
+/**
+ * Retourne la diapositive d'un projecteur : `change` dit quel axe basculer.
+ * La photo redressée est recalculée ; les points du recalage suivent.
+ */
+export async function mirrorProjector(
+  folder: string,
+  projector: string,
+  change: Mirror,
+): Promise<{ project: Project; view: RectificationView }> {
+  requireEngine();
+  const [project, view] = await invoke<[Project, RectificationView]>("projector_mirror", {
+    folder,
+    projector,
+    change,
+  });
+  return { project, view };
+}
+
 export async function rectifyProjector(
   folder: string,
   projector: string,

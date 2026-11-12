@@ -120,6 +120,7 @@ fn build_epinal(root: &Path) -> (ProjectDir, Project) {
                 ),
             ],
             residual_mm: Some(0.35 + shift / 10.0),
+            mirror: Default::default(),
             extra: ExtraFields::new(),
         });
         // Recalage : quatre points pour le trapèze, deux de plus pour le
