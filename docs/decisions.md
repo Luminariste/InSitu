@@ -4,6 +4,67 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 5.1
+
+Moteur de vectorisation : `crates/insitu-core/src/vectorize/`, commande
+`insitu vectorize`, tests `crates/insitu-core/tests/vectorisation.rs`.
+
+**D-5.1-a. Contour brut : ligne de niveau du seuil, suivie case par case.**
+Les nœuds sont les centres des pixels ; le contour passe entre un pixel
+« dedans » (valeur ≥ seuil) et un pixel « dehors », là où l'interpolation
+linéaire des deux valeurs vaut `seuil − 0,5`. Les gris du bord d'un trait
+placent donc le contour au dixième de pixel près (mesuré sur un disque
+anticrénelé : 0,09 px au plus), et un centre de pixel n'est jamais sur le
+contour. Une bordure noire entoure l'image : tous les contours sont fermés.
+Case en selle (deux coins opposés dedans) : la moyenne des quatre coins
+tranche. Le trait est toujours à droite du sens de parcours (y vers le bas) :
+bords extérieurs et trous tournent en sens opposés, le remplissage
+« nonzero » et « evenodd » donnent le même dessin. Une image en couleur est
+ramenée à sa luminance (Rec. 709), la transparence posée sur du noir.
+
+**D-5.1-b. Lissage : droites et cubiques de Bézier (méthode de Schneider).**
+Angles vifs cherchés sur le contour simplifié à 0,75 px (en dessous, ce sont
+les marches d'une image sans anticrénelage) : virage de plus de 70° par
+défaut. Entre deux angles, une droite si elle passe assez près de tous les
+points, sinon une cubique aux moindres carrés, coupée en deux là où l'écart
+dépasse la tolérance (0,3 px par défaut). L'écart est mesuré aux points bruts
+et à trois endroits entre deux points (sinon une boucle entre deux points
+passe inaperçue : vu sur le verre A) ; une poignée plus longue que le chemin
+est refusée. Pas de lissage préalable de l'image : il déplacerait les bords.
+« Assez près », pour une droite : toute la tolérance si elle mesure 16 px ou
+plus, le quart sinon. Une droite courte posée sur un arc passe à l'intérieur
+de l'arc et amincit le trait (à pleine tolérance, les traits d'un pixel des
+réduits perdaient 10 % de surface ; 4 % avec cette règle, pour 2 % de
+morceaux en plus) ; une droite longue ne remplace qu'un arc presque droit, et un
+bord droit reste d'un seul tenant malgré ses coins arrondis.
+
+**D-5.1-c. L'écart est mesuré par un calcul indépendant de l'ajustement.**
+`compare` (et `insitu vectorize --check`) recalcule le contour brut, aplatit
+les courbes à 0,005 px près, et mesure la distance de Hausdorff dans les deux
+sens (courbes parcourues tous les 0,25 px ; contour brut à ses sommets et
+aux milieux de ses côtés). Il remplit aussi les courbes au centre de chaque
+pixel et relève la distance à la courbe de chaque pixel classé autrement que
+par l'image seuillée. Le critère « moins d'un demi-pixel » porte sur ces deux
+chiffres. Mesuré sur les quatre verres d'Épinal en pleine résolution : 0,325 px
+au plus, pixels mal classés au plus à 0,30 px de la courbe, surface du trait
+changée de moins de 1 % ; 1,6 à 3,8 s par verre sur 4 cœurs (contrôle non
+compris, quelques secondes de plus).
+
+**D-5.1-d. Coordonnées en pixels de l'image source.**
+Centre du premier pixel en (0,5 ; 0,5), comme D-2.4-c. Le passage en
+millimètres viendra avec le transport des courbes vers la diapositive
+(tâche 5.3). Le SVG de `insitu vectorize --svg` est en pixels, blanc sur noir,
+pour comparer à l'œil avec l'image ; ce n'est pas l'export de la tâche 5.3.
+
+**D-5.1-e. Limites connues.**
+Lecture des images par le module `image` déjà présent : PNG, JPEG, TIFF ;
+le BMP et le PSD prévus pour la bibliothèque (4.1) n'y sont pas encore. Les
+taches minuscules sont gardées par défaut (`--min-area` pour les retirer).
+Les verres d'Épinal mêlent hachures fines et aplats gris : beaucoup de
+petits contours (35 000 à 110 000 par verre, 0,5 à 1,6 million de morceaux).
+Aucun dessin de Marc n'a encore été essayé : les dix dessins de styles
+différents demandés pour 5.2 manquent.
+
 ## 2026-11-12 — Tâche 2.4a
 
 Détection de l'ancienne mire et redressement : module
