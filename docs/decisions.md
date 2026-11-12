@@ -4,6 +4,79 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 2.4a
+
+Détection de l'ancienne mire et redressement : module
+`crates/insitu-core/src/rectification/`, commande `insitu rectify`, tests
+`crates/insitu-core/tests/redressement.rs`.
+
+**D-2.4-a. Portage fidèle du prototype de l'étude 2.1.**
+L'amorce (cercle rouge, croix, six petits cercles) et la mesure des
+croisements reprennent `etudes/2.1-detection/detecteurs.py` avec les mêmes
+réglages. Vérifié sur les 8 photos d'Épinal : même sens de la mire, mêmes
+croisements à 0,003 px près (médiane). Écarts assumés : les filtres
+morphologiques utilisent un carré au lieu d'un disque (plus rapide, sans
+effet mesurable), l'ellipse est ajustée par une conique aux moindres carrés
+(`A + C = 1`) au lieu de la fonction d'OpenCV, les tirages au sort sont
+reproductibles.
+
+**D-2.4-b. Le modèle final est celui de la tâche 2.3, sans lissage.**
+Trapèze + plaque mince (`fit_with_report`), sur tous les croisements gardés ;
+les points que le diagnostic déclare aberrants sont retirés une fois, puis le
+modèle est réajusté (D-2.3-f laissait ce choix à la détection). Seuil
+plancher des points aberrants : 0,15 mm. Le lissage de la plaque mince vaut 0 :
+en mettant un croisement sur quatre de côté, l'erreur de prédiction est de
+0,04 à 0,08 mm en moyenne et 0,11 à 0,21 mm au 95e centile, la meilleure de
+toutes les valeurs essayées (0 à 0,1), et meilleure que la régression locale
+du prototype (0,08 à 0,15 / 0,20 à 0,33 mm dans l'étude). L'image est ensuite
+calculée par `GridWarp` (pas de 2,5 mm, D-2.3-b), interpolation bicubique
+dans la photo, sur tous les cœurs.
+
+**D-2.4-c. Pixels de la photo : le centre du premier pixel est en (0,5 ; 0,5).**
+C'est la convention de la visionneuse (un calque posé par son coin). Les
+points écrits dans le fichier projet (`rectification.points[].photo`) la
+suivent. Le prototype Python utilisait celle d'OpenCV (centre en 0) : il faut
+ajouter 0,5 pour comparer.
+
+**D-2.4-d. Carte de confiance : erreur estimée par cases de 2 mm.**
+Une case est « couverte » si un croisement mesuré est à moins de 8 mm de son
+centre (définition de l'étude). Son erreur estimée est la moyenne
+quadratique, pondérée par une gaussienne de 10 mm, des écarts de validation
+croisée (chaque croisement prédit sans lui) des croisements voisins : c'est
+un majorant. Image : blanc = sûr, noir = 1 mm et plus ou non couvert.
+Conséquence visible : le disque blanc central et une bande de 4 mm le long
+de la croix épaisse (où il n'y a pas de croisement mesurable) sont marqués
+« non couverts », alors que le redressement y est interpolé entre des
+croisements à 10 mm.
+
+**D-2.4-e. Quatre coins approchés peuvent remplacer l'amorce automatique.**
+`DetectOptions::corners` (et `insitu rectify --corners`) : un trapèze tiré de
+quatre coins à 1 ou 2 mm près suffit à lancer la mesure de la grille, qui
+affine ensuite (tâche 2.5). Les coins fixent le sens de la mire. Le
+redressement obtenu est alors noté « manuel » dans le fichier projet.
+
+**D-2.4-f. A.tiff n'est qu'un témoin.**
+Critère retenu par Benjamin le 12 novembre 2026 : celui de l'étude
+(croisements de l'image redressée à moins de 0,3 mm au 95e centile, 8 photos
+détectées sans aide). Le test compare aussi notre image de la photo A à
+A.tiff : même sens (ressemblance 0,98, contre moins de 0,6 tournée ou
+retournée) et écart de 0,61 mm en moyenne, 1,04 mm au 95e centile, 1,29 mm au
+plus, soit l'écart propre à A.tiff ; il exige seulement moins de 2 mm.
+
+**D-2.4-g. Le moteur est optimisé même en développement et en test.**
+`Cargo.toml` : `opt-level = 3` pour `insitu-core` et toutes les
+dépendances dans le profil `dev` (donc aussi `test`). Sans cela, détecter la
+mire sur une photo de 12 Mpx prend plusieurs minutes. Contrepartie : la
+première compilation est plus longue, et le pas-à-pas au débogueur moins
+lisible dans le moteur.
+
+**D-2.4-h. Limites connues de cette amorce.**
+Les réglages (tailles de filtres, seuils en pixels) sont ceux des photos
+d'Épinal (12 Mpx, 6,7 px par mm). Une photo de 48 Mpx n'a pas été essayée.
+Le HEIC n'est pas lu (tâche 2.5). La nouvelle mire (tâche 2.2) n'a plus les
+six petits cercles : cette amorce devrait y trouver la position puis refuser
+faute de sens (non essayé) ; c'est la tâche 2.4b qui la lira par ses repères.
+
 ## 2026-11-12 — Économie de minutes GitHub
 
 **D14. Les vérifications ne tournent que sur ce qui a changé.**
