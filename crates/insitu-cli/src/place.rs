@@ -15,6 +15,7 @@ pub const USAGE: &str = r#"Usage :
   insitu place add <projet.insitu> <dessin> --at X,Y --width MM [--rotation DEG] [--mirror] [--group NOM]
   insitu place remove <projet.insitu> <id>…
   insitu place set <projet.insitu> <placements.json> [--history DOSSIER]
+  insitu place deform <projet.insitu> <id>… (--corners | --grid CxR | --none)
 
 Dessins posés sur la façade. Longueurs en mm réels de façade, origine en haut
 à gauche, y vers le bas ; rotation en degrés, sens des aiguilles d'une montre.
@@ -29,6 +30,10 @@ Dessins posés sur la façade. Longueurs en mm réels de façade, origine en hau
           Rien n'est enregistré si un placement est incorrect. Le fichier
           peut aussi être {"layers": [...], "placements": [...]} : calques
           et dessins posés remplacés ensemble.
+  deform  Tend une grille au repos sur les dessins donnés, ensemble (tâche
+          4.4) : --corners, quatre coins en perspective ; --grid 3x2, une
+          grille lisse de 3 × 2 cases ; --none retire la déformation. Les
+          nœuds se déplacent ensuite par set (champ deformation.nodes).
 
   --history DOSSIER  Note l'enregistrement dans l'historique d'annulation
                      rangé là (voir insitu project undo)."#;
@@ -50,6 +55,7 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
     let mut mirrored = false;
     let mut group: Option<String> = None;
     let mut history: Option<String> = None;
+    let mut grid: Option<(u32, u32)> = None;
     let mut words = Vec::new();
     let mut i = 0;
     while i < args.len() {
@@ -87,6 +93,16 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                 i += 1;
             }
             "--mirror" => mirrored = true,
+            "--corners" => grid = Some((1, 1)),
+            "--none" => grid = Some((0, 0)),
+            "--grid" => {
+                let size = args.get(i + 1).and_then(|v| {
+                    let (c, r) = v.split_once(['x', '×'])?;
+                    Some((c.trim().parse().ok()?, r.trim().parse().ok()?))
+                });
+                grid = Some(size.ok_or_else(|| usage("--grid attend CxR, par exemple 3x2."))?);
+                i += 1;
+            }
             other if other.starts_with("--") => {
                 return Err(usage(&format!("Option inconnue : {other}")))
             }
@@ -151,6 +167,18 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                 project.placements.len(),
                 project.layers.len()
             ))
+        }
+        ["deform", folder, ref ids @ ..] if !ids.is_empty() => {
+            let (columns, rows) =
+                grid.ok_or_else(|| usage("Choisir --corners, --grid CxR ou --none."))?;
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let ids: Vec<String> = ids.iter().map(|s| s.to_string()).collect();
+            placement::deform(&dir, &ids, columns, rows).map_err(failed)?;
+            Ok(if columns == 0 {
+                format!("{} dessin(s) redressé(s).", ids.len())
+            } else {
+                format!("Grille de {columns} × {rows} sur {} dessin(s).", ids.len())
+            })
         }
         _ => Err(usage("Commande de placement incomplète ou inconnue.")),
     }

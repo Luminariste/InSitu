@@ -7,6 +7,19 @@
 // `crates/insitu-core/src/project/model.rs`) : mm réels de façade, y vers le
 // bas, rotation en degrés dans le sens des aiguilles d'une montre.
 
+import {
+  deformPoint,
+  flipDeformation,
+  identity,
+  moveNode,
+  rotateDeformation,
+  sameDeformation,
+  scaleDeformation,
+  translateDeformation,
+  type Deformation,
+  type DeformationFrame,
+} from "./deformation";
+
 export interface Point {
   x: number;
   y: number;
@@ -34,6 +47,8 @@ export interface Placement {
   group?: string | null;
   /** Calque du dessin posé ; absent : le premier calque. */
   layer?: string | null;
+  /** Déformation libre (tâche 4.4) ; absente : le dessin reste droit. */
+  deformation?: Deformation | null;
 }
 
 /** Calque de composition : l'ordre de la liste est l'ordre d'empilement (le premier dessous). */
@@ -71,8 +86,14 @@ export function normalizeAngle(deg: number): number {
   return a === 0 ? 0 : a; // pas de -0
 }
 
-/** Point de la façade où tombe le point (u, v) du fichier, en fractions. */
+/** Point de la façade où tombe le point (u, v) du fichier, en fractions (déformation comprise). */
 export function facadePoint(p: Placement, u: number, v: number): Point {
+  const q = rigidPoint(p, u, v);
+  return p.deformation ? deformPoint(p.deformation, q) : q;
+}
+
+/** Comme `facadePoint`, sans la déformation libre. */
+export function rigidPoint(p: Placement, u: number, v: number): Point {
   let x = (u - 0.5) * p.width;
   const y = (v - 0.5) * p.height;
   if (p.mirrored) x = -x;
@@ -85,6 +106,38 @@ export function facadePoint(p: Placement, u: number, v: number): Point {
 /** Coins du fichier sur la façade : haut-gauche, haut-droit, bas-droit, bas-gauche. */
 export function corners(p: Placement): [Point, Point, Point, Point] {
   return [facadePoint(p, 0, 0), facadePoint(p, 1, 0), facadePoint(p, 1, 1), facadePoint(p, 0, 1)];
+}
+
+/** Points par côté du contour d'un dessin déformé. */
+const OUTLINE_STEPS = 12;
+
+/** Contour du dessin sur la façade (ses quatre coins, ou une courbe s'il est déformé). */
+export function outline(p: Placement): Point[] {
+  if (!p.deformation) return corners(p);
+  const out: Point[] = [];
+  const edges: [number, number, number, number][] = [
+    [0, 0, 1, 0],
+    [1, 0, 1, 1],
+    [1, 1, 0, 1],
+    [0, 1, 0, 0],
+  ];
+  for (const [u0, v0, u1, v1] of edges)
+    for (let k = 0; k < OUTLINE_STEPS; k++) {
+      const a = k / OUTLINE_STEPS;
+      out.push(facadePoint(p, u0 + (u1 - u0) * a, v0 + (v1 - v0) * a));
+    }
+  return out;
+}
+
+/** Le point est-il dans le polygone ? (règle pair-impair) */
+function insidePolygon(polygon: Point[], pt: Point): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const a = polygon[i];
+    const b = polygon[j];
+    if (a.y > pt.y !== b.y > pt.y && pt.x < ((b.x - a.x) * (pt.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
 }
 
 /** Rectangle droit qui contient des points. */
@@ -105,7 +158,7 @@ export function boundsOfPoints(points: Point[]): Rect | null {
 
 /** Rectangle droit qui contient des dessins posés. */
 export function bounds(placements: Placement[]): Rect | null {
-  return boundsOfPoints(placements.flatMap((p) => corners(p)));
+  return boundsOfPoints(placements.flatMap((p) => outline(p)));
 }
 
 export function rectCenter(r: Rect): Point {
@@ -114,6 +167,7 @@ export function rectCenter(r: Rect): Point {
 
 /** Le point tombe-t-il sur le dessin posé (sur son rectangle) ? */
 export function contains(p: Placement, pt: Point): boolean {
+  if (p.deformation) return insidePolygon(outline(p), pt);
   const r = (-p.rotation * Math.PI) / 180;
   const dx = pt.x - p.center.x;
   const dy = pt.y - p.center.y;
@@ -171,7 +225,11 @@ function mapSelected(placements: Placement[], ids: Set<string>, f: (p: Placement
 }
 
 export function translate(placements: Placement[], ids: Set<string>, dx: number, dy: number): Placement[] {
-  return mapSelected(placements, ids, (p) => ({ ...p, center: { x: p.center.x + dx, y: p.center.y + dy } }));
+  return mapSelected(placements, ids, (p) => ({
+    ...p,
+    center: { x: p.center.x + dx, y: p.center.y + dy },
+    deformation: p.deformation && translateDeformation(p.deformation, dx, dy),
+  }));
 }
 
 /** Tourne la sélection de `deg` degrés autour de `pivot`. */
@@ -186,6 +244,7 @@ export function rotate(placements: Placement[], ids: Set<string>, deg: number, p
       ...p,
       center: { x: pivot.x + dx * cos - dy * sin, y: pivot.y + dx * sin + dy * cos },
       rotation: normalizeAngle(p.rotation + deg),
+      deformation: p.deformation && rotateDeformation(p.deformation, deg, pivot),
     };
   });
 }
@@ -205,6 +264,7 @@ export function scale(placements: Placement[], ids: Set<string>, factor: number,
     center: { x: anchor.x + (p.center.x - anchor.x) * f, y: anchor.y + (p.center.y - anchor.y) * f },
     width: p.width * f,
     height: p.height * f,
+    deformation: p.deformation && scaleDeformation(p.deformation, f, anchor),
   }));
 }
 
@@ -225,12 +285,14 @@ export function flip(placements: Placement[], ids: Set<string>, axis: FlipAxis):
           center: { x: 2 * c.x - p.center.x, y: p.center.y },
           mirrored: !p.mirrored,
           rotation: normalizeAngle(-p.rotation),
+          deformation: p.deformation && flipDeformation(p.deformation, "horizontal", c.x),
         }
       : {
           ...p,
           center: { x: p.center.x, y: 2 * c.y - p.center.y },
           mirrored: !p.mirrored,
           rotation: normalizeAngle(180 - p.rotation),
+          deformation: p.deformation && flipDeformation(p.deformation, "vertical", c.y),
         },
   );
 }
@@ -263,7 +325,13 @@ export function copyOf(source: Placement[], offset: Point, makeId: () => string 
       if (!groupIds.has(group)) groupIds.set(group, makeId());
       group = groupIds.get(group)!;
     }
-    return { ...p, id: makeId(), group, center: { x: p.center.x + offset.x, y: p.center.y + offset.y } };
+    return {
+      ...p,
+      id: makeId(),
+      group,
+      center: { x: p.center.x + offset.x, y: p.center.y + offset.y },
+      deformation: p.deformation && translateDeformation(p.deformation, offset.x, offset.y),
+    };
   });
 }
 
@@ -396,4 +464,62 @@ export function dropped(
     mirrored: false,
     group: null,
   };
+}
+
+// --- Déformation libre (tâche 4.4) --------------------------------------------
+
+/**
+ * Le cadre d'une nouvelle déformation, comme le moteur
+ * (`placement::deformation_frame`) : le dessin lui-même s'il est seul,
+ * sinon le rectangle droit qui contient tous les dessins (sans leur
+ * déformation précédente).
+ */
+export function deformationFrameOf(chosen: Placement[]): DeformationFrame | null {
+  if (chosen.length === 0) return null;
+  if (chosen.length === 1) {
+    const p = chosen[0];
+    return { center: { ...p.center }, width: p.width, height: p.height, rotation: p.rotation };
+  }
+  const box = boundsOfPoints(
+    chosen.flatMap((p) => [rigidPoint(p, 0, 0), rigidPoint(p, 1, 0), rigidPoint(p, 1, 1), rigidPoint(p, 0, 1)]),
+  );
+  if (!box) return null;
+  return { center: rectCenter(box), width: box.width, height: box.height, rotation: 0 };
+}
+
+/**
+ * Tend une grille au repos de `columns × rows` cases (1 × 1 : quatre coins)
+ * sur la sélection, d'un seul bloc ; `columns` à 0 retire la déformation.
+ */
+export function deform(placements: Placement[], ids: Set<string>, columns: number, rows: number): Placement[] {
+  const chosen = placements.filter((p) => ids.has(p.id));
+  if (chosen.length === 0) return placements;
+  if (columns === 0) return mapSelected(placements, ids, (p) => ({ ...p, deformation: null }));
+  const frame = deformationFrameOf(chosen);
+  if (!frame) return placements;
+  const d = identity(frame, columns, Math.max(rows, 1));
+  return mapSelected(placements, ids, (p) => ({ ...p, deformation: d }));
+}
+
+/**
+ * La déformation que la sélection partage (un dessin déformé, ou un groupe
+ * déformé d'un bloc) : ses nœuds se tirent à la souris. Aucune si les
+ * dessins choisis n'ont pas tous la même.
+ */
+export function sharedDeformation(selected: Placement[]): Deformation | null {
+  const first = selected[0]?.deformation;
+  if (!first) return null;
+  return selected.every((p) => sameDeformation(p.deformation, first)) ? first : null;
+}
+
+/** Déplace un nœud de la déformation `d` pour tous les dessins choisis qui la partagent. */
+export function moveSharedNode(
+  placements: Placement[],
+  ids: Set<string>,
+  d: Deformation,
+  index: number,
+  to: Point,
+): Placement[] {
+  const moved = moveNode(d, index, to);
+  return mapSelected(placements, ids, (p) => (sameDeformation(p.deformation, d) ? { ...p, deformation: moved } : p));
 }

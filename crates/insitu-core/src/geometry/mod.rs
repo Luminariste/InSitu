@@ -45,6 +45,7 @@ pub use diagnostics::{
 pub use grid::{GridWarp, Rect};
 pub use homography::Homography;
 pub use spline::ThinPlateSpline;
+pub(crate) use warp::invert_by_newton;
 pub use warp::{has_fold, PointWarp};
 
 /// Un point du plan. S'écrit `[x, y]` en JSON.

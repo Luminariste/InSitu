@@ -4,6 +4,53 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 4.4 : déformation libre
+
+Modules `crates/insitu-core/src/placement/mesh.rs` (moteur) et
+`src/compose/deformation.ts` (aperçu).
+
+**D-4.4-a. Une déformation est une grille tendue sur un cadre.** Le cadre
+est un rectangle tourné de la façade ; la grille a de 1 à 16 cases par côté,
+et chaque nœud est noté en fractions du cadre (`placements[].deformation`).
+Le dessin est d'abord posé droit (centre, taille, rotation, miroir), puis
+chaque point de la façade passe par la grille. Raison : déplacer, tourner,
+agrandir ou retourner un dessin déformé ne touche que le cadre, la forme
+reste la même.
+
+**D-4.4-b. Une seule case : quatre coins en perspective ; plus : surface
+lisse.** Quatre coins donnent une homographie (les droites restent droites,
+comme un trapèze de projecteur). Une grille donne une surface de
+Catmull-Rom qui passe par chaque nœud ; au-delà du bord, les nœuds
+manquants sont prolongés en parabole, pour qu'une rangée de six cases
+épouse un arc de cercle à moins de 1 % près (test « voussure »). Le chemin
+inverse (pour l'export) se fait par la méthode de Newton.
+
+**D-4.4-c. Un groupe se déforme d'un bloc.** « Quatre coins » ou « Grille »
+sur plusieurs dessins tend une seule grille sur le rectangle droit qui les
+contient, copiée à l'identique dans chacun ; tirer un nœud le déplace pour
+tous les dessins qui partagent cette grille. Une nouvelle grille remplace
+la précédente.
+
+**D-4.4-d. Le moteur refuse une grille qui replie le dessin.** Même
+contrôle que la fresque (tâche 3.4) : grille retournée ou nœud tiré au-delà
+de son voisin. L'enregistrement est refusé, le message s'affiche, l'état
+d'avant revient.
+
+**D-4.4-e. « Export identique à l'aperçu » est prouvé par des cas calculés
+par le moteur.** `src/compose/deformation-cases.json` contient des dessins
+déformés (quatre coins, grilles, tournés, retournés) et, pour chacun, la
+position sur la façade de points du dessin calculée par le moteur ; le test
+de l'interface vérifie que l'aperçu tombe au même endroit (écart inférieur
+à un milliardième de mm). Le test du moteur refait ces cas et échoue s'ils
+ont changé (`INSITU_REFAIRE_CAS=1` pour les réécrire). L'export lui-même
+passe par la même fonction que ces cas (test d'export d'un dessin déformé).
+
+**D-4.4-f. À l'écran, un dessin déformé est affiché par une maille de
+16 × 16 cases**, chaque sommet calculé exactement ; entre deux sommets,
+l'image est tirée en ligne droite (écart invisible à l'écran, aucun à
+l'export). Les nœuds sont des points bleus ronds ; ils passent avant les
+poignées carrées du cadre quand les deux se touchent.
+
 ## 2026-11-12 — Export des dessins posés (après la tâche 4.3)
 
 Demande de Benjamin (réponse « oui » du 12 novembre) : lever la limite de la

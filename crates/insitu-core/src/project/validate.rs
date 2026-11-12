@@ -231,7 +231,8 @@ pub fn check_model(project: &Project, report: &mut ValidationReport) {
 }
 
 /// Erreurs des placements (tâche 4.2) : dessin inconnu, identifiant en
-/// double, taille nulle ou négative.
+/// double, taille nulle ou négative, calque inconnu (4.3), déformation
+/// incohérente ou repliée (4.4).
 pub(crate) fn placement_errors(project: &Project) -> Vec<(String, String)> {
     let mut out = Vec::new();
     let mut seen: BTreeMap<&str, usize> = BTreeMap::new();
@@ -264,6 +265,13 @@ pub(crate) fn placement_errors(project: &Project) -> Vec<(String, String)> {
                     placement.drawing
                 ),
             ));
+        }
+        if let Some(problem) = placement
+            .deformation
+            .as_ref()
+            .and_then(crate::placement::mesh::check)
+        {
+            out.push((format!("{here}.deformation"), problem));
         }
         if !(placement.width > 0.0 && placement.height > 0.0) {
             out.push((

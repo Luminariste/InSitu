@@ -307,6 +307,15 @@ Absent d'un fichier plus ancien : aucun changement de `formatVersion`.
 | `mirrored` | Retourné de gauche à droite (avant la rotation) ; absent si non |
 | `group` | Groupe : les dessins de même groupe se manipulent ensemble ; absent si seul |
 | `layer` | Identifiant du calque (tâche 4.3) ; absent ou inconnu : le premier calque |
+| `deformation` | Déformation libre (tâche 4.4) ; absente si le dessin est droit. Voir ci-dessous |
+
+`deformation` contient `frame` (le cadre : `center`, `width`, `height` en mm
+réels, `rotation` en degrés), `columns` et `rows` (cases de la grille, de 1
+à 16 ; 1 × 1 : quatre coins) et `nodes`, les `(columns + 1) × (rows + 1)`
+nœuds ligne par ligne, chacun `[s, t]` en fractions du cadre (`[0, 0]` en
+haut à gauche, `[1, 1]` en bas à droite, au repos). Les dessins d'un groupe
+déformé d'un bloc portent la même déformation. Le contrôle refuse une
+grille mal formée ou qui replie le dessin (D-4.4-d).
 
 Une symétrie de haut en bas s'écrit `mirrored` plus 180° de rotation. Le
 contrôle refuse un placement dont le dessin n'est pas dans la bibliothèque,

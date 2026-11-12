@@ -2,14 +2,17 @@
 // d'Illustrator : glisser un dessin le déplace (⌥ : une copie, ⇧ : à
 // l'horizontale, à la verticale ou à 45°), une poignée de coin l'agrandit
 // (⌥ : depuis le centre), juste au-delà d'un coin on le tourne (⇧ : par pas
-// de 45°), glisser dans le vide trace un cadre de sélection. ⌘D répète le
-// dernier geste. Calculs purs, testés sans écran (`gesture.test.ts`).
+// de 45°), glisser dans le vide trace un cadre de sélection, un nœud d'un
+// dessin déformé se tire (tâche 4.4). ⌘D répète le dernier geste. Calculs
+// purs, testés sans écran (`gesture.test.ts`).
 
+import type { Deformation } from "./deformation";
 import {
   bounds,
   constrainMove,
   duplicate,
   inMarquee,
+  moveSharedNode,
   rectCenter,
   rotate,
   scale,
@@ -62,12 +65,35 @@ export function handleAt(screenCorners: Point[], pointer: Point): Handle | null 
   return null;
 }
 
+/**
+ * Le nœud de déformation sous le pointeur (nœuds à l'écran, en pixels), ou
+ * aucun ; le plus proche l'emporte (tâche 4.4).
+ */
+export function nodeAt(screenNodes: Point[], pointer: Point): number | null {
+  let best: { index: number; distance: number } | null = null;
+  screenNodes.forEach((c, index) => {
+    const distance = Math.hypot(pointer.x - c.x, pointer.y - c.y);
+    if (distance <= HANDLE_PX && (!best || distance < best.distance)) best = { index, distance };
+  });
+  return best ? (best as { index: number }).index : null;
+}
+
 /** Un geste en cours. `before` est la liste au début du geste. */
 export type Gesture =
   | { kind: "move"; start: Point; before: Placement[]; ids: Set<string> }
   | { kind: "scale"; start: Point; before: Placement[]; ids: Set<string>; frame: Rect; corner: number }
   | { kind: "rotate"; start: Point; before: Placement[]; ids: Set<string>; pivot: Point }
-  | { kind: "marquee"; start: Point; before: Placement[]; ids: Set<string> };
+  | { kind: "marquee"; start: Point; before: Placement[]; ids: Set<string> }
+  | {
+      kind: "node";
+      start: Point;
+      before: Placement[];
+      ids: Set<string>;
+      deformation: Deformation;
+      index: number;
+      /** Position du nœud au début du geste. */
+      origin: Point;
+    };
 
 /** Ce qu'a fait un geste terminé, pour le répéter par ⌘D. */
 export type Repeatable =
@@ -107,6 +133,11 @@ export function applyGesture(g: Gesture, at: Point, mods: Modifiers, makeId?: ()
     // ⇧ ajoute à la sélection d'avant.
     const selection = mods.shift ? new Set([...g.ids, ...hit]) : hit;
     return { placements: g.before, selection, marquee: rect };
+  }
+  if (g.kind === "node") {
+    // Le nœud suit le pointeur, sans saut à la prise.
+    const to = { x: g.origin.x + at.x - g.start.x, y: g.origin.y + at.y - g.start.y };
+    return { placements: moveSharedNode(g.before, g.ids, g.deformation, g.index, to), selection: g.ids };
   }
   if (g.kind === "move") {
     let d = { x: at.x - g.start.x, y: at.y - g.start.y };

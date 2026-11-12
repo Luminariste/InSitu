@@ -440,6 +440,7 @@ fn project_with_placed_drawing(label: &str, frame: &RectMm) -> (TempDir, Project
         mirrored: false,
         group: None,
         layer: None,
+        deformation: None,
         extra: Default::default(),
     });
     dir.save(&project).unwrap();
@@ -613,4 +614,49 @@ fn slide_previews_show_placed_drawings() {
         .clone()
         .unwrap();
     assert_ne!(moved, first);
+}
+
+/// Un dessin déformé (tâche 4.4) : au repos, la grille ne change rien à
+/// l'export ; ramenée à la moitié de sa taille par ses quatre coins, le
+/// dessin occupe le quart de la place.
+#[test]
+fn a_deformed_drawing_is_exported_through_its_mesh() {
+    use crate::placement::{deformation_frame, mesh};
+    let frame = RectMm {
+        x: 1_800.0,
+        y: 1_200.0,
+        width: 2_400.0,
+        height: 2_400.0,
+    };
+    let (temp, dir, _) = project_with_placed_drawing("export-deforme", &frame);
+    let s = settings(100.0);
+    let out = temp.path().join("export");
+    let lit = |dir: &ProjectDir| {
+        let report = export_slides(dir, &out, &s, None, 0, &|_| {}).unwrap();
+        to_gray(tiles::read_raster(&report.slides[0].path).unwrap())
+    };
+    let rigid = lit(&dir);
+
+    let mut project = dir.load().unwrap().project;
+    let p = project.placements[0].clone();
+    project.placements[0].deformation =
+        Some(mesh::identity(deformation_frame(&[&p]).unwrap(), 3, 3));
+    dir.save(&project).unwrap();
+    let rest = lit(&dir);
+    assert!(rest
+        .data
+        .iter()
+        .zip(&rigid.data)
+        .all(|(&a, &b)| a.abs_diff(b) <= 2));
+
+    let mut d = mesh::identity(deformation_frame(&[&p]).unwrap(), 1, 1);
+    for n in &mut d.nodes {
+        *n = [0.25 + n[0] * 0.5, 0.25 + n[1] * 0.5];
+    }
+    project.placements[0].deformation = Some(d);
+    dir.save(&project).unwrap();
+    let small = lit(&dir);
+    let count = |r: &Raster| r.data.iter().filter(|&&v| v >= 128).count() as f64;
+    let ratio = count(&small) / count(&rigid);
+    assert!((0.15..0.4).contains(&ratio), "{ratio}");
 }
