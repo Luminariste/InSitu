@@ -45,5 +45,13 @@
       "../jeu-essai/epinal/references/verres/*.png": "jeu-essai/epinal/references/verres/",
       "../jeu-essai/epinal/references/photos-redressees/*.jpg": "jeu-essai/epinal/references/photos-redressees/"
     }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFGRjBDNTBDNjM4NzcxRjgKUldUNGNZZGpETVh3cnphOHNFVitPMkdmYlBRZjMvdGQ4eEpqay9IS3pFdlZIUFVHK0l6d0U0YU0K",
+      "endpoints": [
+        "https://github.com/Luminariste/InSitu/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

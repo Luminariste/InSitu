@@ -5,6 +5,7 @@ import { RectificationScreen } from "./rectification/RectificationScreen";
 import { RegistrationScreen } from "./registration/RegistrationScreen";
 import { SlideScreen } from "./slide/SlideScreen";
 import { ViewerDemo } from "./ViewerDemo";
+import { UpdateCheck } from "./update/UpdateDialog";
 import { listenMenu } from "./engine";
 import {
   APPEARANCES,
@@ -111,6 +112,7 @@ export function App() {
         )}
       </div>
       {help && <ShortcutsDialog onClose={() => setHelp(false)} />}
+      <UpdateCheck />
     </div>
   );
 }

@@ -4,6 +4,48 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Mise à jour automatique (hors plan, demande de Benjamin)
+
+**D16. L'app se met à jour toute seule, avec l'accord de l'utilisateur.**
+Demande de Benjamin : ne plus réinstaller le `.dmg` à chaque version. Revient
+sur la fin de D12 (« pas de mise à jour automatique ») avec son accord. Au
+lancement, l'app cherche une version plus récente ; si elle en trouve une, un
+dialogue propose « Installer et relancer » ou « Plus tard » (la question
+revient au lancement suivant). Une recherche ratée (pas de réseau) ne dit
+rien. Code : `src-tauri/src/updates.rs`, `src/update/`.
+
+**D16-a. Module de mise à jour de Tauri (`tauri-plugin-updater`), appelé
+depuis la coque.** Deux commandes (`update_check`, `update_install`) passent
+par `src/engine.ts` comme le reste ; l'interface n'utilise pas le module
+JavaScript du greffon. Après installation, la coque relance l'app.
+
+**D16-b. Les mises à jour sont signées par une clé à nous.** Indépendante de
+la signature Apple (toujours « ad hoc », D12). Clé publique dans
+`tauri.conf.json`, clé privée dans le secret GitHub
+`TAURI_SIGNING_PRIVATE_KEY` (sans mot de passe), nulle part ailleurs. L'app
+refuse une archive qui n'est pas signée par cette clé. La fabrication
+contrôle, avant de publier, que la signature vient bien de la clé attendue
+(`.github/scripts/mise_a_jour.py`). Si la clé privée était perdue : en créer
+une autre, et réinstaller une fois l'app à la main.
+
+**D16-c. Le dépôt devient public.** Choix de Benjamin (12 novembre 2026),
+plutôt qu'une clé GitHub en lecture seule gravée dans l'app : les Releases
+d'un dépôt privé ne se téléchargent pas sans identification. Le code et le
+jeu d'essai (images d'Épinal comprises) deviennent visibles de tous ; en
+échange, plus de jeton à renouveler, et les minutes GitHub Actions d'un dépôt
+public sont gratuites. Tant que le dépôt reste privé, la recherche de mise à
+jour échoue sans bruit.
+
+**D16-d. Le manifeste est joint à chaque version.** La fabrication écrit
+`latest.json` (version, signature, adresse de l'archive) et le joint à la
+version avec l'archive `InSitu-X.Y.Z-mac.app.tar.gz`. L'app le lit à
+l'adresse fixe `…/releases/latest/download/latest.json`, qui suit toujours la
+dernière version publiée. Sans le secret de signature, la fabrication publie
+comme avant, sans archive ni manifeste.
+
+**D16-e. La première version qui sait se mettre à jour s'installe à la
+main.** Les versions déjà installées n'ont pas ce module.
+
 ## 2026-11-12 — Jeu d'essai Trévarez (hors plan, demande de Benjamin)
 
 Deuxième projet réel, `jeu-essai/trevarez`, tests dans
@@ -1861,7 +1903,8 @@ une dépendance du moteur (elle n'était utilisée que par ses tests).
 puce Apple ne se lance pas. Avec cette signature locale, elle se lance mais
 macOS la bloque au premier lancement après téléchargement ; la marche à
 suivre est dans `docs/installer.md`. Pas de notarisation, pas de mise à jour
-automatique.
+automatique (mise à jour automatique ajoutée depuis, avec l'accord de
+Benjamin : D16).
 
 **D11. Le numéro de version n'est écrit qu'à un endroit.**
 `Cargo.toml` à la racine, rubrique `[workspace.package]`. `tauri.conf.json`

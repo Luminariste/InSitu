@@ -3,6 +3,7 @@
 //! renvoie le résultat à l'interface.
 
 mod menu;
+mod updates;
 
 use std::path::{Path, PathBuf};
 
@@ -608,6 +609,8 @@ fn serve_tile<R: Runtime>(
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updates::PendingUpdate::default())
         .register_asynchronous_uri_scheme_protocol(TILE_SCHEME, serve_tile)
         .setup(|app| {
             if let Ok(cache) = app.path().app_cache_dir() {
@@ -619,6 +622,8 @@ pub fn run() {
         .on_menu_event(menu::on_event)
         .invoke_handler(tauri::generate_handler![
             engine_info,
+            updates::update_check,
+            updates::update_install,
             open_tiled_image,
             test_set_dir,
             project_create,
