@@ -4,6 +4,65 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 4.3
+
+Calques de la composition (champ `layers`, `placement.layer`) et annulation
+illimitée (module `crates/insitu-core/src/project/history/`, commandes
+`insitu project undo|redo|history`, ⌘Z et ⇧⌘Z dans le menu Projet).
+
+**D-4.3-a. L'annulation garde le `projet.json` d'avant chaque enregistrement.**
+Chaque fois que l'app enregistre le projet, quel que soit l'écran, le
+`projet.json` d'avant est copié dans un dossier de l'app ; ⌘Z le remet, ⇧⌘Z
+remet celui d'après. Aucune limite de nombre. Raison : toute action passe
+déjà par un enregistrement complet du projet ; garder des copies entières est
+simple, sûr, et couvre d'un coup tous les écrans présents et à venir (un
+`projet.json` pèse quelques dizaines de Ko). Ce que cela interdit : écrire
+`projet.json` sans passer par `ProjectDir::save`.
+
+**D-4.3-b. L'historique est rangé hors du projet, dans le cache de l'app.**
+`~/Library/Caches/com.luminariste.insitu/historique/<identifiant du projet>/`.
+Raison : il ne doit pas passer par Dropbox (des centaines de copies, et
+l'autre Mac n'a pas à annuler mes gestes). Il survit à la fermeture de l'app ;
+macOS peut toutefois vider ce dossier s'il manque de place, l'historique est
+alors simplement perdu, jamais le projet.
+
+**D-4.3-c. Garde-fou : on n'annule jamais par-dessus un changement fait ailleurs.**
+Chaque entrée retient l'empreinte du `projet.json` qu'elle s'attend à
+trouver. Si le fichier a changé autrement (l'autre Mac, par Dropbox, ou une
+modification à la main), ⌘Z refuse, le dit, et vide l'historique.
+
+**D-4.3-d. L'annulation ne touche qu'au `projet.json`.**
+Les fichiers importés (plan, photos, dessins) restent dans le dossier du
+projet : annuler un import retire la référence, pas le fichier. Les
+confirmations avant suppression déjà en place (projecteur, plan, dessin de
+la bibliothèque) sont gardées pour l'instant : les retirer, comme le prévoit
+`docs/design.md`, est un changement à part.
+
+**D-4.3-f. Annuler et Rétablir du menu Édition passent par l'interface.**
+Les entrées toutes faites du Mac (`undo`, `redo`) ne savent annuler que la
+frappe. Elles sont remplacées par des entrées InSitu (`raccourci:mod+z`,
+`raccourci:mod+shift+z`) : hors d'un champ de texte, elles annulent la
+dernière modification du projet ; dans un champ, elles annulent la frappe
+(`document.execCommand`).
+
+**D-4.3-e. Calques : une liste ordonnée, le premier au fond.**
+`layers[]` porte `id`, `name`, `visible` (absent si vrai) et `locked`
+(absent si faux) ; chaque dessin posé cite son calque par `layer`. Un dessin
+sans calque, ou sur un calque inconnu, appartient au premier. Un projet sans
+calque en montre un seul, « Calque 1 », écrit dans le projet à la première
+action sur les calques. L'ordre d'affichage est celui des calques, puis
+celui des dessins dans chaque calque (`Project::stacked_placements` dans le
+moteur, `stack` dans l'interface). Un calque masqué ne s'affiche pas ; masqué
+ou verrouillé, ses dessins ne se choisissent plus. Supprimer un calque
+supprime ses dessins (⌘Z les rend). Les nouveaux dessins se posent sur le
+calque choisi dans la liste ; s'il est masqué ou verrouillé, l'app refuse et
+le dit.
+
+**Limite.** « Avancer » et « reculer » (⌘] ⌘[) ne font pas passer un dessin
+d'un calque à l'autre : on change son calque dans l'inspecteur. L'export des
+diapositives ne lit pas encore les dessins posés (limite de la tâche 4.2) ; quand il le
+fera, il devra suivre le même ordre et ignorer les calques masqués.
+
 ## 2026-11-12 — Tâche 4.2
 
 Placement des dessins sur la façade : champ `placements` du projet, module

@@ -10,7 +10,7 @@ use std::fmt;
 
 use crate::project::model::new_id;
 use crate::project::validate::placement_errors;
-use crate::project::{Placement, PointMm, Project, ProjectDir, ProjectError};
+use crate::project::{Layer, Placement, PointMm, Project, ProjectDir, ProjectError};
 
 #[derive(Debug)]
 pub enum PlacementError {
@@ -98,6 +98,27 @@ pub fn set_placements(
     Ok(project)
 }
 
+/// Remplace les calques et les dessins posés d'un coup (tâche 4.3) ; un
+/// calque sans identifiant en reçoit un. Rien n'est enregistré si l'ensemble
+/// est incohérent.
+pub fn set_composition(
+    dir: &ProjectDir,
+    mut layers: Vec<Layer>,
+    placements: Vec<Placement>,
+) -> Result<Project, PlacementError> {
+    let mut project = dir.load()?.project;
+    for layer in &mut layers {
+        if layer.id.trim().is_empty() {
+            layer.id = new_id();
+        }
+    }
+    project.layers = layers;
+    project.placements = placements;
+    check(&mut project)?;
+    dir.save(&project)?;
+    Ok(project)
+}
+
 /// Un nouveau placement du dessin `drawing` (nom ou identifiant), centré en
 /// `center`, large de `width` mm ; la hauteur suit les proportions du
 /// fichier.
@@ -128,6 +149,7 @@ pub fn new_placement(
         rotation: 0.0,
         mirrored: false,
         group: None,
+        layer: None,
         extra: Default::default(),
     })
 }

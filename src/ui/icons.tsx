@@ -122,6 +122,20 @@ const PATHS = {
       <path d="M4 6.5h.5M6.5 6.5H7M9 6.5h.5M11.5 6.5h.5M4.5 9.5h7" />
     </>
   ),
+  lock: (
+    <>
+      <rect x="3.5" y="7" width="9" height="6.5" rx="1" />
+      <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
+    </>
+  ),
+  lockOpen: (
+    <>
+      <rect x="3.5" y="7" width="9" height="6.5" rx="1" />
+      <path d="M5.5 7V5a2.5 2.5 0 0 1 4.9-.7" />
+    </>
+  ),
+  arrowUp: <path d="M8 13V3M4 7l4-4 4 4" />,
+  arrowDown: <path d="M8 3v10M4 9l4 4 4-4" />,
   sidebar: (
     <>
       <rect x="2" y="3" width="12" height="10" rx="1" />

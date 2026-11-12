@@ -104,6 +104,8 @@ export const APP_SHORTCUTS: { group: string; items: { keys: ShortcutSpec; label:
       { keys: "mod+n", label: "Nouveau projet" },
       { keys: "mod+o", label: "Ouvrir un projet" },
       { keys: "mod+r", label: "Relire le projet depuis le disque" },
+      { keys: "mod+z", label: "Annuler la dernière modification" },
+      { keys: "mod+shift+z", label: "Rétablir" },
       { keys: "mod+i", label: "Importer (plan, photo ou dossier de dessins, selon l'écran)" },
       { keys: "mod+e", label: "Exporter (selon l'écran)" },
     ],

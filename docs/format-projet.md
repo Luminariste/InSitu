@@ -215,6 +215,7 @@ exactement ce que l'app écrit.
 | `export` | Les réglages d'export |
 | `library` | La bibliothèque de dessins ; absent tant qu'elle est vide (tâche 4.1) |
 | `placements` | Les dessins posés sur la façade, du plus au fond au plus en avant ; absent tant qu'il n'y en a pas (tâche 4.2) |
+| `layers` | Les calques de la composition, du fond vers l'avant ; absent tant qu'aucun n'est créé (tâche 4.3) |
 | `facadeAssembly` | L'assemblage de photos de façade ; absent tant qu'aucune photo n'est ajoutée (tâche 6.4) |
 
 ### `facade` — la façade
@@ -305,10 +306,27 @@ Absent d'un fichier plus ancien : aucun changement de `formatVersion`.
 | `rotation` | Rotation en degrés, sens des aiguilles d'une montre ; 0 si absent |
 | `mirrored` | Retourné de gauche à droite (avant la rotation) ; absent si non |
 | `group` | Groupe : les dessins de même groupe se manipulent ensemble ; absent si seul |
+| `layer` | Identifiant du calque (tâche 4.3) ; absent ou inconnu : le premier calque |
 
 Une symétrie de haut en bas s'écrit `mirrored` plus 180° de rotation. Le
 contrôle refuse un placement dont le dessin n'est pas dans la bibliothèque,
 de taille nulle, ou d'identifiant déjà pris.
+
+### `layers[]` — un calque de la composition (tâche 4.3)
+
+| Champ | Sens |
+| --- | --- |
+| `id` | Identifiant stable, cité par `placements[].layer` |
+| `name` | Nom affiché |
+| `visible` | `false` si le calque est masqué ; absent s'il est visible |
+| `locked` | `true` si ses dessins ne se choisissent plus ; absent sinon |
+
+Les dessins s'affichent calque par calque, du premier au dernier, puis dans
+l'ordre de `placements`. Le contrôle refuse un dessin posé sur un calque
+inconnu et deux calques de même identifiant.
+
+L'historique d'annulation n'est pas dans le projet : il est rangé dans le
+cache de l'app (voir D-4.3-b).
 
 ### `export` — les réglages d'export
 

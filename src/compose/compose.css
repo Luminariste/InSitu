@@ -76,3 +76,32 @@
   min-width: 32px;
   justify-content: center;
 }
+
+/* Calques (tâche 4.3). */
+.compose-layer .ui-row-leading .ui-button {
+  opacity: 0.7;
+}
+
+.compose-layer .ui-row-leading .ui-button.is-active,
+.compose-layer .ui-row.is-dimmed .ui-row-leading .ui-button:first-child {
+  opacity: 1;
+}
+
+.compose-layer-name {
+  width: 100%;
+  height: 22px;
+}
+
+/* Le nom passe avant les boutons : ils n'apparaissent qu'au survol, à la place du nombre. */
+.compose-layer .ui-row-actions,
+.compose-layer .ui-row.is-selected .ui-row-actions {
+  display: none;
+}
+
+.compose-layer:hover .ui-row-actions {
+  display: flex;
+}
+
+.compose-layer:hover .ui-row-trailing {
+  display: none;
+}

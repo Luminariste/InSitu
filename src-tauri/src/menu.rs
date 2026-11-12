@@ -52,9 +52,11 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .close_window()
         .build()?;
 
+    // Annuler et Rétablir passent par l'interface (tâche 4.3) : hors d'un
+    // champ de texte, ils annulent la dernière modification du projet.
     let edit = SubmenuBuilder::new(app, "Édition")
-        .undo()
-        .redo()
+        .item(&entry(app, "Annuler", "mod+z", "CmdOrCtrl+Z")?)
+        .item(&entry(app, "Rétablir", "mod+shift+z", "CmdOrCtrl+Shift+Z")?)
         .separator()
         .cut()
         .copy()

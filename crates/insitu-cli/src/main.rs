@@ -295,6 +295,13 @@ fn run_project(args: &[&str]) -> Result<ExitCode, Failure> {
         }
         ["info", folder] => project_info(folder),
         ["validate", folder] => project_validate(folder),
+        [verb @ ("undo" | "redo" | "history"), folder, "--history", root] => {
+            project_history(verb, folder, root)
+        }
+        ["undo" | "redo" | "history", ..] => Err(Failure::Usage(format!(
+            "Usage : insitu project {} <dossier.insitu> --history <dossier de l'historique>",
+            args[0]
+        ))),
         ["new", ..] => Err(Failure::Usage(
             "Usage : insitu project new <dossier.insitu> [--name <nom>]".to_string(),
         )),
@@ -309,6 +316,27 @@ fn run_project(args: &[&str]) -> Result<ExitCode, Failure> {
             "Il manque la commande de projet.".to_string(),
         )),
     }
+}
+
+/// Annuler, rétablir, ou montrer l'historique d'annulation (tâche 4.3),
+/// rangé dans `root` comme l'app le range dans son cache.
+fn project_history(verb: &str, folder: &str, root: &str) -> Result<ExitCode, Failure> {
+    use insitu_core::project::history;
+    let dir = ProjectDir::open(folder)?.with_history(root);
+    let text = match verb {
+        "history" => serde_json::to_string_pretty(
+            &history::state(&dir).map_err(|e| Failure::Failed(e.to_string()))?,
+        )
+        .expect("sérialisable"),
+        _ => {
+            let redo = verb == "redo";
+            let (_, label) =
+                history::step(&dir, redo).map_err(|e| Failure::Failed(e.to_string()))?;
+            format!("{} : {label}", if redo { "Rétabli" } else { "Annulé" })
+        }
+    };
+    println!("{text}");
+    Ok(ExitCode::SUCCESS)
 }
 
 fn project_new(folder: &str, name: Option<&str>) -> Result<ExitCode, Failure> {
@@ -402,6 +430,8 @@ fn usage() -> &'static str {
      project new <dossier.insitu> [--name <nom>]   Crée un projet vide\n  \
      project info <dossier.insitu>                 Affiche le résumé d'un projet (JSON)\n  \
      project validate <dossier.insitu>             Contrôle le projet et ses fichiers\n  \
+     project undo|redo|history <dossier.insitu> --history <dossier>\n  \
+                                                   Annule, rétablit, montre l'historique d'annulation\n  \
      projector --help                              Photo de mire d'un projecteur : import, redressement, export\n  \
      registration --help                           Recalage d'un projecteur sur la façade par points communs\n  \
      slides <dossier.insitu> --cache <dossier>     Vue diapositive : aperçu calculé de chaque diapositive (JSON)\n  \
