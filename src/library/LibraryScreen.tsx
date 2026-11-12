@@ -23,6 +23,27 @@ import {
 import { recalledProject } from "../project/current";
 import { countLabel, filterEntries, folderTree, formatSize, importSummary, progressLabel } from "./logic";
 import { demoLibrary } from "./demo";
+import { ProjectMenu } from "../project/ProjectMenu";
+import {
+  Banner,
+  Busy,
+  Button,
+  EmptyState,
+  Icon,
+  List,
+  ListRow,
+  Panel,
+  Progress,
+  Screen,
+  Segmented,
+  StatusBar,
+  StatusText,
+  ToolGroup,
+  ToolSeparator,
+  ToolSpacer,
+  Toolbar,
+  useShortcuts,
+} from "../ui";
 import "./library.css";
 
 /** Un dessin affiché : l'entrée du moteur et l'adresse de sa vignette. */
@@ -153,129 +174,169 @@ export function LibraryScreen() {
 
   const ready = busy === null && progress === null;
 
-  return (
-    <div className="library">
-      <header className="library-bar">
-        <div className="library-group">
-          <span className="library-label">Projet</span>
-          <span className="library-value">{project?.name ?? (engine ? "aucun" : "exemple")}</span>
-          {engine && (
-            <button type="button" onClick={() => folder && void load(folder)} disabled={!folder || !ready}>
-              Relire
-            </button>
-          )}
-        </div>
-        <button type="button" className="library-primary" onClick={() => void importFolder()} disabled={!engine || !folder || !ready}>
-          Importer un dossier…
-        </button>
-        <input
-          className="library-search"
-          type="search"
-          placeholder="Chercher (nom ou dossier)"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          aria-label="Chercher un dessin"
+  useShortcuts([{ keys: "mod+i", run: () => void importFolder(), enabled: engine && !!folder && ready }]);
+
+  const toolbar = (
+    <Toolbar>
+      <ProjectMenu
+        name={project?.name ?? null}
+        folder={folder}
+        ready={ready}
+        placeholder="Exemple sans moteur"
+        onOpen={(path) => void load(path)}
+        onReload={() => folder && void load(folder)}
+        onError={setError}
+      />
+      <ToolSeparator />
+      <Button icon="import" shortcut="mod+i" title="Copier un dossier de dessins dans le projet" onClick={() => void importFolder()} disabled={!engine || !folder || !ready}>
+        Importer un dossier…
+      </Button>
+      <input
+        className="ui-input ui-input-search library-search"
+        type="search"
+        placeholder="Chercher (nom ou dossier)"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        aria-label="Chercher un dessin"
+      />
+      <ToolSpacer />
+      <ToolGroup label="Fond">
+        <Segmented label="Fond des vignettes" value={backdrop} onChange={setBackdrop} options={BACKDROPS} />
+      </ToolGroup>
+    </Toolbar>
+  );
+
+  const banner = progress ? (
+    <Progress
+      done={progress.done}
+      total={progress.total}
+      label={progress.total ? progressLabel(progress.done, progress.total) : "Recherche des dessins…"}
+    />
+  ) : error ? (
+    <Banner tone="danger" onClose={() => setError(null)}>
+      {error}
+    </Banner>
+  ) : message ? (
+    <Banner tone="success" onClose={() => setMessage(null)}>
+      {message}
+    </Banner>
+  ) : null;
+
+  const sidebar = (
+    <Panel side="left" title="Dossiers">
+      <List label="Dossiers">
+        <ListRow
+          selected={currentFolder === null}
+          onSelect={() => setCurrentFolder(null)}
+          leading={<Icon name="image" />}
+          title="Tous les dessins"
+          trailing={entries.length}
         />
-        <div className="library-group">
-          <span className="library-label">Fond</span>
-          <select value={backdrop} onChange={(event) => setBackdrop(event.target.value as Backdrop)} aria-label="Fond">
-            {BACKDROPS.map((b) => (
-              <option key={b.value} value={b.value}>
-                {b.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <span className="library-count">
-          {visible.length === entries.length ? countLabel(entries.length) : `${visible.length} sur ${countLabel(entries.length)}`}
-        </span>
-      </header>
+        {folders.map((row) => (
+          <div key={row.path} style={{ paddingLeft: 14 * row.depth }}>
+            <ListRow
+              selected={currentFolder === row.path}
+              onSelect={() => setCurrentFolder(row.path)}
+              leading={<Icon name="folder" />}
+              title={row.label}
+              trailing={row.count}
+              tooltip={row.path}
+            />
+          </div>
+        ))}
+      </List>
+    </Panel>
+  );
 
-      {progress && (
-        <div className="library-progress" role="progressbar" aria-valuenow={progress.done} aria-valuemax={progress.total}>
-          <div style={{ width: `${progress.total ? (100 * progress.done) / progress.total : 0}%` }} />
-          <span>{progress.total ? progressLabel(progress.done, progress.total) : "Recherche des dessins…"}</span>
-        </div>
+  const inspector = (
+    <Panel side="right" title="Dessin">
+      {chosen ? (
+        <>
+          <div className={`library-preview fond-${backdrop}`}>
+            {preview ? <img src={preview} alt={chosen.name} /> : <span>{chosen.problem ?? "Préparation de l'aperçu…"}</span>}
+          </div>
+          <h3 className="library-detail-name">{chosen.name}</h3>
+          <dl className="ui-facts">
+            <dt>Dossier</dt>
+            <dd>{chosen.folder || "—"}</dd>
+            <dt>Taille</dt>
+            <dd>{formatSize(chosen)}</dd>
+            <dt>Fichier</dt>
+            <dd className="ui-selectable">{chosen.source}</dd>
+            {chosen.problem && (
+              <>
+                <dt>Problème</dt>
+                <dd className="library-problem">{chosen.problem}</dd>
+              </>
+            )}
+          </dl>
+        </>
+      ) : (
+        <p className="ui-list-empty">Cliquer un dessin pour le voir en grand. Les flèches du clavier passent d'un dessin à l'autre.</p>
       )}
-      {(busy || message || error || (engine && !folder && !busy)) && (
-        <p className={error ? "library-message erreur" : "library-message"}>
-          {error ?? busy ?? message ?? "Ouvrir ou créer un projet dans l'onglet Façade, puis revenir ici."}
-        </p>
-      )}
+    </Panel>
+  );
 
-      <div className="library-body">
-        <nav className="library-folders" aria-label="Dossiers">
-          <button type="button" className={currentFolder === null ? "actif" : ""} onClick={() => setCurrentFolder(null)}>
-            <span>Tous les dessins</span>
-            <span className="library-folder-count">{entries.length}</span>
+  return (
+    <Screen
+      className="library"
+      toolbar={toolbar}
+      banner={banner}
+      sidebar={sidebar}
+      inspector={inspector}
+      status={
+        <StatusBar>
+          <StatusText>
+            {visible.length === entries.length ? countLabel(entries.length) : `${visible.length} sur ${countLabel(entries.length)}`}
+          </StatusText>
+          {!engine && <StatusText push>Exemple sans moteur : 200 dessins inventés</StatusText>}
+        </StatusBar>
+      }
+    >
+      <div className={`library-grid fond-${backdrop}`} ref={grid} tabIndex={0} onKeyDown={onKey} aria-label="Dessins">
+        {visible.map((entry) => (
+          <button
+            type="button"
+            key={entry.id}
+            className={entry.id === selected ? "library-card choisi" : "library-card"}
+            onClick={() => setSelected(entry.id)}
+            title={entry.folder ? `${entry.folder}/${entry.name}` : entry.name}
+          >
+            <span className="library-thumb">
+              {entry.url ? (
+                <img src={entry.url} alt="" loading="lazy" decoding="async" draggable={false} />
+              ) : (
+                <span className="library-missing">{entry.problem ? "introuvable" : "…"}</span>
+              )}
+            </span>
+            <span className="library-name">{entry.name}</span>
           </button>
-          {folders.map((row) => (
-            <button
-              type="button"
-              key={row.path}
-              className={currentFolder === row.path ? "actif" : ""}
-              style={{ paddingLeft: 10 + 14 * row.depth }}
-              onClick={() => setCurrentFolder(row.path)}
-              title={row.path}
-            >
-              <span>{row.label}</span>
-              <span className="library-folder-count">{row.count}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className={`library-grid fond-${backdrop}`} ref={grid} tabIndex={0} onKeyDown={onKey} aria-label="Dessins">
-          {visible.map((entry) => (
-            <button
-              type="button"
-              key={entry.id}
-              className={entry.id === selected ? "library-card choisi" : "library-card"}
-              onClick={() => setSelected(entry.id)}
-              title={entry.folder ? `${entry.folder}/${entry.name}` : entry.name}
-            >
-              <span className="library-thumb">
-                {entry.url ? (
-                  <img src={entry.url} alt="" loading="lazy" decoding="async" draggable={false} />
-                ) : (
-                  <span className="library-missing">{entry.problem ? "introuvable" : "…"}</span>
-                )}
-              </span>
-              <span className="library-name">{entry.name}</span>
-            </button>
-          ))}
-          {entries.length > 0 && visible.length === 0 && <p className="library-empty">Aucun dessin ne correspond.</p>}
-          {entries.length === 0 && folder && !busy && (
-            <p className="library-empty">La bibliothèque est vide. « Importer un dossier… » y copie un dossier de dessins.</p>
-          )}
-        </div>
-
-        <aside className="library-detail">
-          {chosen ? (
-            <>
-              <div className={`library-preview fond-${backdrop}`}>
-                {preview ? <img src={preview} alt={chosen.name} /> : <span>{chosen.problem ?? "Préparation de l'aperçu…"}</span>}
-              </div>
-              <h2>{chosen.name}</h2>
-              <dl>
-                <dt>Dossier</dt>
-                <dd>{chosen.folder || "—"}</dd>
-                <dt>Taille</dt>
-                <dd>{formatSize(chosen)}</dd>
-                <dt>Fichier</dt>
-                <dd className="library-path">{chosen.source}</dd>
-                {chosen.problem && (
-                  <>
-                    <dt>Problème</dt>
-                    <dd className="erreur">{chosen.problem}</dd>
-                  </>
-                )}
-              </dl>
-            </>
-          ) : (
-            <p className="library-hint">Cliquer un dessin pour le voir en grand. Les flèches du clavier passent d'un dessin à l'autre.</p>
-          )}
-        </aside>
+        ))}
       </div>
-    </div>
+      {entries.length > 0 && visible.length === 0 && (
+        <EmptyState icon="search" title="Aucun dessin ne correspond">
+          <p>Essayer un autre mot, ou choisir « Tous les dessins ».</p>
+        </EmptyState>
+      )}
+      {engine && !folder && !busy && (
+        <EmptyState icon="folder" title="Aucun projet ouvert">
+          <p>Ouvrir un projet avec le menu Projet (⌘O), ou en créer un (⌘N).</p>
+        </EmptyState>
+      )}
+      {entries.length === 0 && folder && !busy && (
+        <EmptyState
+          icon="image"
+          title="La bibliothèque est vide"
+          actions={
+            <Button variant="primary" icon="import" onClick={() => void importFolder()} disabled={!ready}>
+              Importer un dossier…
+            </Button>
+          }
+        >
+          <p>Les dessins d'un dossier (et de ses sous-dossiers) sont copiés dans le projet. PNG, BMP, TIFF, PSD aplati, SVG.</p>
+        </EmptyState>
+      )}
+      {busy && <Busy>{busy}</Busy>}
+    </Screen>
   );
 }

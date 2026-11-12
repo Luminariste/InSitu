@@ -1,83 +1,10 @@
-/* Écran Redressement (tâche 2.5). Mêmes codes que l'écran Façade. */
-
-.rectification {
-  height: 100%;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-}
-
-.rectification-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 24px;
-  padding: 8px 14px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--filet);
-  user-select: none;
-}
-
-.rectification-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.rectification-label {
-  color: var(--texte-discret);
-}
-
-.rectification-value {
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rectification-export {
-  margin-left: auto;
-}
-
-.rectification-bar button,
-.rectification-bar select {
-  font: inherit;
-  color: var(--texte);
-  background: #222226;
-  border: 1px solid var(--filet);
-  border-radius: 5px;
-  padding: 4px 10px;
-}
-
-.rectification-bar button:hover:not(:disabled) {
-  border-color: #4a4a50;
-}
-
-.rectification-bar button:disabled,
-.rectification-bar select:disabled {
-  opacity: 0.45;
-}
-
-.rectification-bar button.actif {
-  border-color: var(--repere);
-  color: #fff;
-}
-
-.rectification-switch {
-  display: flex;
-}
-
-.rectification-switch button:first-child {
-  border-radius: 5px 0 0 5px;
-}
-
-.rectification-switch button:last-child {
-  border-radius: 0 5px 5px 0;
-  margin-left: -1px;
-}
+/* Écran Redressement (tâche 2.5). Gabarit, panneaux et contrôles : système
+   de design (src/ui/). Ici, seulement ce qui est propre à l'écran. */
 
 .rectification-stage {
   position: relative;
   min-height: 0;
+  display: grid;
 }
 
 .rectification-stage > .viewer {
@@ -99,10 +26,10 @@
   top: 12px;
   right: 12px;
   border: 2px solid var(--repere);
-  border-radius: 6px;
+  border-radius: var(--ui-radius-md);
   overflow: hidden;
   pointer-events: none;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--ui-shadow);
 }
 
 .loupe {
@@ -144,72 +71,4 @@
   paint-order: stroke;
   stroke: #000;
   stroke-width: 3px;
-}
-
-.rectification-message {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  height: fit-content;
-  max-width: 520px;
-  padding: 16px 20px;
-  text-align: center;
-  color: var(--texte-discret);
-  background: rgba(21, 21, 23, 0.92);
-  border: 1px solid var(--filet);
-  border-radius: 8px;
-  pointer-events: none;
-}
-
-.rectification-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 24px;
-  padding: 6px 14px;
-  min-height: 30px;
-  color: var(--texte-discret);
-  background: var(--surface);
-  border-top: 1px solid var(--filet);
-}
-
-.rectification-ok,
-.rectification-quality-bon {
-  color: var(--texte);
-}
-
-.rectification-hint,
-.rectification-quality-moyen {
-  color: #e8b04a;
-}
-
-.rectification-error,
-.rectification-quality-mauvais {
-  color: #ff6b6b;
-}
-
-.rectification-legend {
-  margin-left: auto;
-  white-space: nowrap;
-}
-
-.pastille {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  margin: 0 4px 0 10px;
-  border-radius: 50%;
-  vertical-align: -1px;
-}
-
-.pastille.bon {
-  background: #3ccf6e;
-}
-
-.pastille.moyen {
-  background: #e8b04a;
-}
-
-.pastille.mauvais {
-  background: #ff4d4d;
 }

@@ -2,20 +2,23 @@
 
 ## Dans l'app
 
-1. Onglet **Façade**. **Nouveau…** crée un projet (un dossier `Nom.insitu`,
-   à mettre dans le Dropbox) ; **Ouvrir…** rouvre un projet existant. L'app
-   rouvre seule le dernier projet au lancement suivant.
-2. **Importer un plan…** : PDF d'architecte, image (PNG, JPEG, TIFF), SVG ou
+1. Étape **Façade** (⌘1). Le menu **Projet**, en haut à gauche de chaque
+   écran : **Nouveau projet…** (⌘N) crée un projet (un dossier
+   `Nom.insitu`, à mettre dans le Dropbox) ; **Ouvrir un projet…** (⌘O)
+   rouvre un projet existant. L'app rouvre seule le dernier projet au
+   lancement suivant.
+2. **Importer un plan…** (⌘I, barre d'outils) : PDF d'architecte, image (PNG, JPEG, TIFF), SVG ou
    DXF. Pour un PDF de plusieurs pages, l'app demande laquelle est la
    façade. Le fichier est copié dans le dossier `facade/` du projet. Un DWG
    est à exporter d'abord en PDF ou en DXF ; une photo HEIC, en JPEG (le
    moteur lit le HEIC depuis la tâche 2.5, mais pas encore pour la façade).
-3. **Poser A et B**, puis cliquer deux points du plan dont on connaît la
+3. Dans l'inspecteur **Plan**, à droite, rubrique **Échelle** : **Poser A
+   et B**, puis cliquer deux points du plan dont on connaît la
    distance réelle (deux repères d'une ligne de cote, deux angles du
    bâtiment). Zoomer avant de cliquer donne un point plus juste : le plan
    reste net à tout zoom.
-4. Écrire la **cote A–B** (`12,5 m`, `1250 cm` ou `12500`, en mm par
-   défaut) et **Valider**. Le bas de l'écran affiche alors les dimensions de
+4. Écrire la **distance A–B** (`12,5 m`, `1250 cm` ou `12500`, en mm par
+   défaut) et **Valider l'échelle**. La barre d'état affiche alors les dimensions de
    la façade en mètres ; les coordonnées de la barre d'état sont en mm réels.
 
 Avant la mise à l'échelle, la barre d'état compte dans l'unité du fichier
