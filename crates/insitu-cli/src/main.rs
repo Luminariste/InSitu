@@ -11,6 +11,8 @@
 //! - `insitu project info <dossier.insitu>` : résumé d'un projet, en JSON ;
 //! - `insitu project validate <dossier.insitu>` : contrôle le JSON et la
 //!   présence des fichiers référencés ;
+//! - `insitu target pdf <fichier.pdf> [--page a3|carre]` : écrit la mire
+//!   imprimable ; `insitu target info` la décrit en JSON (repères, grille) ;
 //! - `insitu tiles <image> <dossier>` : pyramide de tuiles d'une image, pour
 //!   la visionneuse (descripteur en JSON, durée sur la sortie d'erreur) ;
 //! - `insitu warp <image> <sortie.png> <paires.json>` : déforme une image
@@ -20,6 +22,7 @@
 //! invalide, 2 si la commande est mal écrite.
 
 mod geometry;
+mod target;
 mod warp;
 
 use std::path::Path;
@@ -75,6 +78,14 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             Err(geometry::Problem::Failed(message)) => Err(Failure::Failed(message)),
         },
         ["project", rest @ ..] => run_project(rest),
+        ["target", rest @ ..] => match target::run(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(target::Problem::Usage(message)) => Err(Failure::Usage(message)),
+            Err(target::Problem::Failed(message)) => Err(Failure::Failed(message)),
+        },
         ["tiles", rest @ ..] => run_tiles(rest),
         ["warp", rest @ ..] => match warp::run(rest) {
             Ok(text) => {
@@ -252,6 +263,8 @@ fn usage() -> &'static str {
      project new <dossier.insitu> [--name <nom>]   Crée un projet vide\n  \
      project info <dossier.insitu>                 Affiche le résumé d'un projet (JSON)\n  \
      project validate <dossier.insitu>             Contrôle le projet et ses fichiers\n  \
+     target pdf <fichier.pdf> [--page a3|carre]    Écrit la mire imprimable (PDF, 280 mm)\n  \
+     target info                                   Décrit la mire en JSON (repères, grille)\n  \
      tiles <image> <dossier>                       Fabrique la pyramide de tuiles d'une image\n      \
      --tile-size N                               côté des tuiles en pixels (512 par défaut)\n      \
      --format png|jpeg                           format imposé (sinon choisi d'après l'image)\n      \

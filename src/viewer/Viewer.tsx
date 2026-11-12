@@ -13,8 +13,11 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import type { Point } from "./geometry";
 import type { LayerSpec } from "./nodes";
+import { formatFrameStats } from "./frameMeter";
 import { ViewerScene, type FrameStats, type SceneOptions, type SceneStatus } from "./scene";
 import "./viewer.css";
+
+export { formatFrameStats };
 
 export interface ViewerHandle {
   /** Montre tous les calques visibles en entier. */
@@ -44,14 +47,6 @@ const precise = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maxim
 function formatZoom(percent: number | null): string {
   if (percent === null) return "—";
   return `${percent < 10 ? decimal.format(percent) : Math.round(percent)} %`;
-}
-
-export function formatFrameStats(stats: FrameStats): string {
-  const slow = stats.slowFrames === 0 ? "aucune saccade" : `${stats.slowFrames} en retard`;
-  return (
-    `${stats.frames} images, ${decimal.format(stats.meanMs)} ms en moyenne, ` +
-    `${decimal.format(stats.worstMs)} ms au pire, ${slow} (calcul : ${decimal.format(stats.meanWorkMs)} ms)`
-  );
 }
 
 export function Viewer(props: ViewerProps) {
