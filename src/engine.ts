@@ -482,6 +482,59 @@ export interface LibraryEntry {
   thumbnail: string | null;
   /** Ce qui empêche de montrer le dessin (fichier absent, illisible). */
   problem: string | null;
+  /** Réglages de vectorisation propres au dessin ; `null` : par défaut. */
+  vector: VectorSettings | null;
+}
+
+/** Réglages de vectorisation d'un dessin (tâche 5.2). */
+export interface VectorSettings {
+  /** Seuil, de 1 à 255 : un pixel au moins aussi clair est dans le trait. */
+  threshold: number;
+  /** Écart toléré entre les courbes et le contour de l'image, en pixels. */
+  tolerancePx: number;
+  /** Au-delà de cet angle (degrés), un sommet est un angle vif. */
+  cornerAngleDeg: number;
+  /** Taches et trous plus petits (pixels carrés) ignorés. */
+  minAreaPx: number;
+}
+
+/** Réglages par défaut, les mêmes que ceux du moteur. */
+export const DEFAULT_VECTOR_SETTINGS: VectorSettings = {
+  threshold: 128,
+  tolerancePx: 0.3,
+  cornerAngleDeg: 70,
+  minAreaPx: 0,
+};
+
+/** Vecteurs d'un dessin, tels que le moteur les décrit (tâche 5.2). */
+export interface VectorSummary {
+  settings: VectorSettings;
+  defaultSettings: boolean;
+  /** Cadre des SVG : taille de l'image vectorisée, en pixels. */
+  width: number;
+  height: number;
+  stats: {
+    contours: number;
+    removedContours: number;
+    rawPoints: number;
+    lines: number;
+    cubics: number;
+    maxFitErrorPx: number;
+  };
+  comparison: {
+    maxDeviationPx: number;
+    rawToVectorPx: number;
+    vectorToRawPx: number;
+    sourcePixels: number;
+    vectorPixels: number;
+    mismatchedPixels: number;
+    maxMismatchDistancePx: number;
+  };
+  seconds: number;
+  /** Fichiers du cache, à passer à `cacheFileUrl`. */
+  filledSvg: string;
+  outlineSvg: string;
+  image: string;
 }
 
 export interface ImportProgress {
@@ -530,6 +583,49 @@ export async function fetchLibrary(folder: string): Promise<LibraryEntry[]> {
 export async function fetchDrawingPreview(folder: string, drawing: string): Promise<string> {
   requireEngine();
   return cacheFileUrl(await invoke<string>("library_preview", { folder, drawing }));
+}
+
+export interface VectorizeReport {
+  done: number;
+  failures: { file: string; reason: string }[];
+  seconds: number;
+}
+
+/** Vectorise les dessins donnés (tous si la liste est vide) qui ne le sont pas encore. */
+export async function vectorizeDrawings(
+  folder: string,
+  drawings: string[],
+  onProgress: (progress: ImportProgress) => void,
+): Promise<VectorizeReport> {
+  requireEngine();
+  const { listen } = await import("@tauri-apps/api/event");
+  const stop = await listen<ImportProgress>("vecteurs-progression", (event) => onProgress(event.payload));
+  try {
+    return await invoke<VectorizeReport>("library_vectorize", { folder, drawings });
+  } finally {
+    stop();
+  }
+}
+
+/** Vecteurs d'un dessin, calculés par le moteur s'ils ne sont pas en cache. */
+export async function fetchDrawingVectors(folder: string, drawing: string): Promise<VectorSummary> {
+  requireEngine();
+  return invoke<VectorSummary>("library_vectors", { folder, drawing });
+}
+
+/** Change les réglages de vectorisation d'un dessin (`null` : par défaut) ; le projet est enregistré. */
+export async function saveVectorSettings(
+  folder: string,
+  drawing: string,
+  settings: VectorSettings | null,
+): Promise<{ project: Project; vectors: VectorSummary }> {
+  requireEngine();
+  const [project, vectors] = await invoke<[Project, VectorSummary]>("library_set_vector_settings", {
+    folder,
+    drawing,
+    settings,
+  });
+  return { project, vectors };
 }
 
 /** Demande un dossier de dessins à importer ; `null` si l'utilisateur renonce. */

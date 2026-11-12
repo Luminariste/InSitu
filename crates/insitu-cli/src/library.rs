@@ -4,10 +4,13 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+use insitu_core::library::vectors::{
+    drawing_vectors, set_vector_settings, vectorize_drawings, VectorSummary,
+};
 use insitu_core::library::{
     self, decode, encode_png, import_folder, rendition, ImportOptions, THUMBNAIL_SIDE,
 };
-use insitu_core::project::ProjectDir;
+use insitu_core::project::{ProjectDir, VectorSettings};
 
 /// Ce qui peut mal tourner.
 pub enum Problem {
@@ -19,22 +22,34 @@ pub const USAGE: &str = r#"Usage :
   insitu library import <projet.insitu> <dossier> [--cache DOSSIER] [--threads N]
   insitu library list <projet.insitu> [--cache DOSSIER]
   insitu library thumbnail <dessin> <sortie.png> [--size PX]
+  insitu library vectors <projet.insitu> [<dessin>] --cache DOSSIER
+         [--threshold N] [--tolerance PX] [--corner DEG] [--min-area PX2]
+         [--default]
 
 Bibliothèque de dessins (traits blancs sur fond noir ; PNG, JPEG, TIFF, BMP,
 PSD aplati, SVG).
 
   import     Copie le dossier et ses sous-dossiers dans le projet, sous
              bibliotheque/<nom du dossier>/, inscrit chaque dessin et
-             enregistre le projet. Affiche le compte rendu en JSON (dessins
+             enregistre le projet ; avec --cache, vectorise ensuite les
+             nouveaux dessins. Affiche le compte rendu en JSON (dessins
              ajoutés, déjà présents, fichiers illisibles) ; la durée est
              écrite sur la sortie d'erreur.
   list       Affiche la bibliothèque en JSON.
   thumbnail  Écrit la vignette d'un fichier de dessin : réduit de moitié en
              moitié jusqu'à tenir dans --size (320 par défaut), le noir
              rendu transparent.
+  vectors    Vecteurs des dessins (tâche 5.2), calculés s'ils ne sont pas
+             dans le cache. Sans <dessin> (identifiant ou nom) : un tableau
+             de toute la bibliothèque (contours, morceaux, écart maximal
+             entre les courbes et l'image, durée). Avec <dessin> : le compte
+             rendu en JSON. Les options de réglage changent les réglages du
+             dessin et enregistrent le projet ; --default le ramène aux
+             réglages par défaut (seuil 128, tolérance 0,3 px, angle 70°,
+             aire minimale 0).
 
-  --cache DOSSIER  Où ranger les vignettes (comme le cache de l'app). Sans
-                   cette option, import et list n'en font pas.
+  --cache DOSSIER  Où ranger vignettes et vecteurs (comme le cache de
+                   l'app). Sans cette option, import et list n'en font pas.
   --threads N      Nombre de fils (par défaut : un par cœur, 8 au plus)."#;
 
 pub fn run(args: &[&str]) -> Result<String, Problem> {
@@ -45,6 +60,8 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
     let mut cache: Option<PathBuf> = None;
     let mut threads = 0usize;
     let mut size = THUMBNAIL_SIDE;
+    let mut settings: Option<VectorSettings> = None;
+    let mut reset = false;
     let mut words = Vec::new();
     let mut rest = args.iter().copied();
     while let Some(arg) = rest.next() {
@@ -69,6 +86,25 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                     .filter(|&v: &u32| v >= 1)
                     .ok_or_else(|| usage("--size attend un nombre de pixels."))?;
             }
+            "--threshold" | "--tolerance" | "--corner" | "--min-area" => {
+                let value: f64 = rest
+                    .next()
+                    .and_then(|v| v.replace(',', ".").parse().ok())
+                    .ok_or_else(|| usage(&format!("{arg} attend un nombre.")))?;
+                let s = settings.get_or_insert_with(VectorSettings::default);
+                match arg {
+                    "--threshold" => {
+                        if !(1.0..=255.0).contains(&value) || value.fract() != 0.0 {
+                            return Err(usage("--threshold attend un entier de 1 à 255."));
+                        }
+                        s.threshold = value as u8;
+                    }
+                    "--tolerance" => s.tolerance_px = value,
+                    "--corner" => s.corner_angle_deg = value,
+                    _ => s.min_area_px = value,
+                }
+            }
+            "--default" => reset = true,
             other if other.starts_with("--") => {
                 return Err(usage(&format!("Option inconnue : {other}")))
             }
@@ -86,6 +122,18 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             let (_, report) =
                 import_folder(&dir, Path::new(source), &options, &|_| {}).map_err(failed)?;
             eprintln!("Import en {:.1} s.", start.elapsed().as_secs_f64());
+            // Puis les vecteurs des nouveaux dessins (tâche 5.2), comme l'app.
+            if let (Some(cache), false) = (&options.cache_root, report.added.is_empty()) {
+                let vectors = vectorize_drawings(&dir, &report.added, cache, threads, &|_| {})
+                    .map_err(failed)?;
+                eprintln!(
+                    "{} dessins vectorisés en {:.1} s.",
+                    vectors.done, vectors.seconds
+                );
+                for failure in &vectors.failures {
+                    eprintln!("Non vectorisé : {} : {}", failure.file, failure.reason);
+                }
+            }
             Ok(serde_json::to_string_pretty(&report).expect("sérialisable"))
         }
         ["list", folder] => {
@@ -101,8 +149,62 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                 .map_err(|e| Problem::Failed(format!("Impossible d'écrire « {output} » : {e}")))?;
             Ok(format!("{output} : {} × {} px", small.width, small.height))
         }
+        ["vectors", folder, ref only @ ..] if only.len() <= 1 => {
+            let cache = cache.ok_or_else(|| usage("vectors demande --cache DOSSIER."))?;
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            if reset && settings.is_some() {
+                return Err(usage("--default ne se combine pas avec un réglage."));
+            }
+            match only {
+                [drawing] => {
+                    let project = dir.load().map_err(failed)?.project;
+                    let id = library::find(&project, drawing).map_err(failed)?.id.clone();
+                    let summary = if reset || settings.is_some() {
+                        let wanted = if reset { None } else { settings };
+                        set_vector_settings(&dir, &id, wanted, &cache)
+                            .map_err(failed)?
+                            .1
+                    } else {
+                        drawing_vectors(&dir, &id, &cache).map_err(failed)?
+                    };
+                    Ok(serde_json::to_string_pretty(&summary).expect("sérialisable"))
+                }
+                _ => {
+                    if reset || settings.is_some() {
+                        return Err(usage("Les réglages se changent dessin par dessin."));
+                    }
+                    let project = dir.load().map_err(failed)?.project;
+                    let mut table = String::from(
+                        "dessin\tréglages\tcontours\tmorceaux\técart max (px)\tdurée (s)\n",
+                    );
+                    for drawing in &project.library {
+                        let line = match drawing_vectors(&dir, &drawing.id, &cache) {
+                            Ok(summary) => summary_line(&summary),
+                            Err(error) => format!("erreur : {error}"),
+                        };
+                        table.push_str(&format!("{}\t{line}\n", drawing.name));
+                    }
+                    Ok(table.trim_end().to_string())
+                }
+            }
+        }
         _ => Err(usage("Commande de bibliothèque incomplète ou inconnue.")),
     }
+}
+
+fn summary_line(summary: &VectorSummary) -> String {
+    format!(
+        "{}\t{}\t{}\t{:.3}\t{:.2}",
+        if summary.default_settings {
+            "défaut"
+        } else {
+            "propres"
+        },
+        summary.stats.contours,
+        summary.stats.lines + summary.stats.cubics,
+        summary.comparison.max_deviation_px,
+        summary.seconds
+    )
 }
 
 fn failed(error: impl std::fmt::Display) -> Problem {

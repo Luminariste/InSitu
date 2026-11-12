@@ -16,10 +16,12 @@
 //! - [`read`] : lecture de tous les formats de dessin ;
 //! - [`import_folder`] : import d'un dossier ;
 //! - [`list`] : la bibliothèque, vignettes comprises ;
-//! - [`ensure_rendition`] : une vignette ou un aperçu dans le cache.
+//! - [`ensure_rendition`] : une vignette ou un aperçu dans le cache ;
+//! - [`vectors`] : les vecteurs de chaque dessin (tâche 5.2).
 
 pub mod psd;
 pub mod read;
+pub mod vectors;
 
 #[cfg(test)]
 mod tests;
@@ -39,6 +41,7 @@ use serde::Serialize;
 use crate::project::model::new_id;
 use crate::project::{
     AssetKind, Drawing, ExtraFields, Project, ProjectDir, ProjectError, RelativePath,
+    VectorSettings,
 };
 use crate::tiles::{self, Raster};
 
@@ -78,6 +81,8 @@ pub enum LibraryError {
     },
     /// Aucun dessin de la bibliothèque ne porte cet identifiant.
     UnknownDrawing(String),
+    /// Réglages de vectorisation refusés.
+    Settings(String),
     /// Écriture d'une vignette impossible.
     Cache {
         path: PathBuf,
@@ -104,6 +109,7 @@ impl fmt::Display for LibraryError {
                 write!(f, "Dessin illisible « {} » : {reason}", path.display())
             }
             Self::UnknownDrawing(id) => write!(f, "Aucun dessin « {id} » dans la bibliothèque."),
+            Self::Settings(reason) => write!(f, "Réglages de vectorisation refusés : {reason}."),
             Self::Cache { path, reason } => {
                 write!(
                     f,
@@ -539,6 +545,7 @@ pub fn import_folder(
                     source,
                     width,
                     height,
+                    vector: None,
                     extra: ExtraFields::new(),
                 });
             }
@@ -629,6 +636,8 @@ pub struct LibraryEntry {
     pub thumbnail: Option<String>,
     /// Ce qui empêche de montrer le dessin (fichier absent, illisible).
     pub problem: Option<String>,
+    /// Réglages de vectorisation propres au dessin ; absent : par défaut.
+    pub vector: Option<VectorSettings>,
 }
 
 /// La bibliothèque du projet, dans l'ordre d'import, avec la vignette de
@@ -674,6 +683,7 @@ pub fn entries(
                 height: drawing.height,
                 thumbnail,
                 problem,
+                vector: drawing.vector,
             }
         },
         |_| {},
