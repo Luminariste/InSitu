@@ -70,6 +70,9 @@ déformation, même retouche de diapositive, même miroir que dans le PNG.
   celui de devant, comme dans le PNG.
 - La **fresque importée en une image** n'est pas dans le SVG (elle n'a pas
   de courbes), ni le nom et les repères de la marge.
+- Un **cadre rouge** de 280 mm (trait de 0,1 mm, sans remplissage) marque
+  le bord de la diapositive. Dans LightBurn il arrive sur son propre calque
+  (rouge) : le laisser en « Sortie » désactivée pour ne pas le graver.
 - Le **négatif** et le **noir et blanc pur** ne s'appliquent qu'au PNG.
 - Compter quelques secondes de plus par diapositive : chaque dessin est
   vectorisé avec ses réglages de la Bibliothèque.
@@ -77,7 +80,9 @@ déformation, même retouche de diapositive, même miroir que dans le PNG.
 ## Dans LightBurn
 
 Importer le PNG : il doit mesurer **280 mm** (ou **300 mm** avec la plaque)
-sans rien régler, car la résolution est inscrite dans le fichier. Le SVG
+sans rien régler, car la résolution est inscrite dans le fichier.
+LightBurn peut afficher **279,999 mm** : c'est normal (D-5.3-g), 280 mm
+tombant entre deux pixels ; l'écart est d'un millième de millimètre. Le SVG
 aussi s'ouvre à sa taille (ses dimensions sont écrites en mm). Les réglages
 conseillés pour graver le SVG viendront avec l'essai de la tâche 5.4.
 
