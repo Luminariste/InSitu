@@ -182,6 +182,12 @@ export function ExportPanel({ engine, folder, project, onProject, showFresco, on
             Fiche de calepinage…
           </Button>
         </div>
+        {engine && folder && !artwork && (
+          <p className="ui-note tone-warning">
+            Rien à exporter pour l'instant : poser des dessins sur la façade (rubrique Dessins), ou importer une fresque
+            ci-dessus.
+          </p>
+        )}
         {progress && progress.total > 0 && (
           <Progress
             done={progress.done}

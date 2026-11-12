@@ -4,7 +4,8 @@
 
 import { useState } from "react";
 import { Section } from "../ui";
-import { DRAWING_DRAG_TYPE, type ComposeDrawing } from "./useComposition";
+import { endDrawingDrag, startDrawingDrag } from "./dragDrawing";
+import type { ComposeDrawing } from "./useComposition";
 
 interface Props {
   drawings: ComposeDrawing[];
@@ -41,10 +42,8 @@ export function DrawingsSection({ drawings, blocked, onPlace }: Props) {
                 className="compose-drawing"
                 draggable={!d.problem}
                 title={`${d.folder ? `${d.folder}/` : ""}${d.name} — glisser sur la façade, ou double-cliquer`}
-                onDragStart={(e) => {
-                  e.dataTransfer.setData(DRAWING_DRAG_TYPE, d.id);
-                  e.dataTransfer.effectAllowed = "copy";
-                }}
+                onDragStart={(e) => startDrawingDrag(e, d.id)}
+                onDragEnd={endDrawingDrag}
                 onDoubleClick={() => !d.problem && onPlace(d.id)}
               >
                 {d.url ? (

@@ -19,13 +19,21 @@ de fenêtre, le pied d'une colonne, la pointe d'un arc… visibles sur les deux.
    les points et leur écart.
 2. Au centre, la photo redressée à gauche et la façade à droite. Chaque vue se
    déplace et se zoome comme d'habitude (un glisser ne pose pas de point).
-3. **Cliquer un point sur la photo, puis le même sur la façade** (ou dans
+3. **Quels points ?** Des **détails d'architecture visibles à la fois sur
+   la photo et sur la façade** : coin de fenêtre, pied de colonne, pointe
+   d'un arc, angle d'un bandeau. **Pas les coins de la photo** : ils ne
+   tombent sur rien de reconnaissable sur le plan. Le panneau de droite le
+   rappelle tant qu'il manque des points.
+   **Cliquer le détail sur la photo, puis le même sur la façade** (ou dans
    l'autre ordre). Le premier clic laisse une cible jaune en attente ; le
    second crée la paire, numérotée des deux côtés. Échap abandonne le point
    en attente.
 4. Il faut **4 points** pour le trapèze, bien répartis (près des coins de la
    diapositive). L'emprise du projecteur se dessine alors en bleu sur la
-   façade.
+   façade, **et la photo redressée s'y pose, par-dessus le plan** : on voit
+   d'un coup d'œil si les fenêtres de la photo tombent sur celles du plan.
+   En haut, **Photo recalée** la montre ou la cache, et le curseur à côté
+   règle sa transparence. Elle suit chaque point ajouté ou déplacé.
 5. Les points suivants corrigent le relief. À partir du 5e, chaque point a
    un **écart** : en mm sur la diapositive, en cm sur la façade (colonne de
    droite). À partir du 6e, c'est l'écart du point **prédit par les

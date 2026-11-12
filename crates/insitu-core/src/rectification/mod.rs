@@ -187,6 +187,10 @@ pub struct TargetDetection {
     pub coverage: f64,
     /// Lissage de la plaque mince utilisé.
     pub smoothing: f64,
+    /// Pourquoi la grille n'a pas été lue, quand le redressement ne tient
+    /// qu'aux quatre coins posés à la main (D-2.5-l) : sa précision n'est
+    /// alors pas mesurée. Absent quand la grille a été lue.
+    pub grid_unread: Option<String>,
     /// Déformation mm de diapositive → px de photo.
     #[serde(skip)]
     pub warp: GridWarp,
@@ -247,8 +251,12 @@ pub fn detect(
                 not_found("les quatre coins donnés ne forment pas un quadrilatère".into())
             })?;
             let every = |_: Node| true;
-            let (nodes, raw) =
-                grow_and_clean(&gray, &[], Some((&h0, &every))).map_err(not_found)?;
+            let (nodes, raw) = match grow_and_clean(&gray, &[], Some((&h0, &every))) {
+                Ok(found) => found,
+                // La grille ne se lit pas (photo floue, sombre, trop petite) :
+                // on redresse quand même, par les quatre coins seuls (D-2.5-l).
+                Err(cause) => return corners_only(photo, &gray, &h0, corners, cause),
+            };
             // Les coins ne disent pas le sens de la mire : on le lit sur les
             // petits cercles. S'il reste incertain, on garde le sens de la
             // photo (le coin le plus en haut à gauche est le haut-gauche).
@@ -387,6 +395,7 @@ fn fit_model(
             quarter_turns,
             orientation_margin,
             red_circle_sectors,
+            grid_unread: None,
         },
         smoothing,
     )
@@ -400,6 +409,7 @@ struct Seed {
     quarter_turns: u8,
     orientation_margin: Option<f64>,
     red_circle_sectors: Option<usize>,
+    grid_unread: Option<String>,
 }
 
 /// Compte rendu complet à partir du modèle ajusté. `nodes` : position sur
@@ -444,6 +454,7 @@ fn assemble(
         quarter_turns: seed.quarter_turns,
         orientation_margin: seed.orientation_margin,
         red_circle_sectors: seed.red_circle_sectors,
+        grid_unread: seed.grid_unread,
         px_per_mm,
         homography_residual_mm: ErrorSummary::of(&homography_residual),
         leave_one_out_mm: ErrorSummary::of(&loo),
@@ -487,6 +498,10 @@ pub fn from_rectification(
         RectificationMethod::Automatic => SeedMethod::RedCircleAndCross,
         RectificationMethod::Manual => SeedMethod::Corners,
     };
+    // Quatre points posés à la main, sans croisement mesuré : les coins
+    // seuls (D-2.5-l).
+    let grid_unread = (method == SeedMethod::Corners && points.len() == 4)
+        .then(|| "grille non lue : redressement par les quatre coins seuls".to_string());
     assemble(
         photo_size,
         &nodes,
@@ -499,6 +514,64 @@ pub fn from_rectification(
             quarter_turns: 0,
             orientation_margin: None,
             red_circle_sectors: None,
+            grid_unread,
+        },
+        DEFAULT_SMOOTHING,
+    )
+}
+
+/// Redressement par les quatre coins posés à la main, quand la grille ne se
+/// lit pas (D-2.5-l) : un simple trapèze, sans correction de l'objectif ni
+/// du papier, et dont la précision n'est pas mesurée. Le sens de la mire
+/// est lu sur les petits cercles quand ils se voient ; sinon le coin le
+/// plus en haut à gauche de la photo est le haut-gauche de la diapositive.
+fn corners_only(
+    photo: &RgbImage,
+    gray: &raster::Plane,
+    h0: &Homography,
+    corners: [Point; 4],
+    cause: String,
+) -> Result<TargetDetection, DetectionError> {
+    let predicted: Vec<Measured> = legacy_target::all_nodes()
+        .filter(|n| is_measurable(*n))
+        .filter_map(|node| {
+            h0.apply(node.position()).map(|photo| Measured {
+                node,
+                photo,
+                score: 0.0,
+            })
+        })
+        .collect();
+    let (quarters, margin) = match find_orientation(gray, &predicted) {
+        Some(o) if o.margin >= MIN_ORIENTATION_MARGIN => (o.quarters, Some(o.margin)),
+        _ => (0, None),
+    };
+    let back = (4 - quarters) % 4;
+    let s = SLIDE_SIZE_MM;
+    let mm: Vec<Point> = [(0.0, 0.0), (s, 0.0), (s, s), (0.0, s)]
+        .iter()
+        .map(|&(x, y)| rotate_quarters(Point::new(x, y), back))
+        .collect();
+    let px: Vec<Point> = corners.to_vec();
+    let options = FitOptions {
+        smoothing: DEFAULT_SMOOTHING,
+        ..FitOptions::default()
+    };
+    let (warp, report) = fit_with_report(&mm, &px, &options)?;
+    let nodes: Vec<(Point, Point, f64)> = mm.iter().zip(&px).map(|(&a, &b)| (a, b, 0.0)).collect();
+    assemble(
+        (photo.width(), photo.height()),
+        &nodes,
+        &warp,
+        &report,
+        Seed {
+            method: SeedMethod::Corners,
+            raw_nodes: 0,
+            outliers_removed: 0,
+            quarter_turns: quarters,
+            orientation_margin: margin,
+            red_circle_sectors: None,
+            grid_unread: Some(cause),
         },
         DEFAULT_SMOOTHING,
     )
