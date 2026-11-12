@@ -1,0 +1,12 @@
+/* Mise à jour automatique (D16). */
+.update-note {
+  font-size: var(--ui-text-sm);
+}
+
+.ui-dialog-body .ui-progress {
+  margin: var(--ui-space-2) 0 var(--ui-space-3);
+}
+
+.ui-dialog-body .ui-progress > span {
+  white-space: nowrap;
+}

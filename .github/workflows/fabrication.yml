@@ -9,6 +9,11 @@ name: Fabrication de l'app Mac
 #   coque, lui, est vérifié par la compilation de ci.yml, bien moins chère
 #   (D14). Une app qui ne démarre pas est attrapée au plus tard ici, avant
 #   publication : la version n'est alors pas publiée.
+# - Mise à jour automatique (D16) : quand le secret TAURI_SIGNING_PRIVATE_KEY
+#   existe, la fabrication produit aussi l'archive signée de l'app et, à la
+#   publication, joint à la version l'archive et le manifeste `latest.json`
+#   que l'app lit au lancement. Sans ce secret, tout se passe comme avant
+#   (pas de mise à jour proposée).
 # - À la main (bouton « Run workflow ») : fabrique sans publier.
 
 on:
@@ -20,6 +25,7 @@ on:
       - ".github/workflows/fabrication.yml"
       - "src-tauri/tauri.conf.json"
       - "src-tauri/icons/**"
+      - ".github/scripts/mise_a_jour.py"
 
 permissions:
   contents: write
@@ -91,7 +97,19 @@ jobs:
       - run: npm ci
 
       - name: Fabriquer l'app
-        run: npm run tauri build -- --target aarch64-apple-darwin --bundles app,dmg
+        env:
+          # Clé de signature des mises à jour (D16-b).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        run: |
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "Clé de signature présente : archive de mise à jour fabriquée."
+            npm run tauri build -- --target aarch64-apple-darwin --bundles app,dmg \
+              --config '{"bundle":{"createUpdaterArtifacts":true}}'
+          else
+            echo "::warning::Secret TAURI_SIGNING_PRIVATE_KEY absent : pas d'archive de mise à jour (voir docs/publier.md)."
+            npm run tauri build -- --target aarch64-apple-darwin --bundles app,dmg
+          fi
 
       - name: Contrôler l'app fabriquée
         run: |
@@ -132,6 +150,27 @@ jobs:
           ls -lh "$DMG"
           echo "path=$DMG" >> "$GITHUB_OUTPUT"
 
+      - name: Contrôler l'archive de mise à jour
+        id: maj
+        env:
+          HAS_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+        run: |
+          if [ "$HAS_KEY" != "true" ]; then
+            echo "Pas de clé de signature : pas d'archive."
+            exit 0
+          fi
+          SOURCE=target/aarch64-apple-darwin/release/bundle/macos/InSitu.app.tar.gz
+          test -f "$SOURCE" && test -f "$SOURCE.sig"
+          ARCHIVE="InSitu-${{ needs.decider.outputs.version }}-mac.app.tar.gz"
+          cp "$SOURCE" "$ARCHIVE"
+          cp "$SOURCE.sig" "$ARCHIVE.sig"
+          # La signature doit venir de la clé que les apps installées attendent.
+          python3 .github/scripts/mise_a_jour.py verifier "$ARCHIVE.sig" src-tauri/tauri.conf.json
+          # L'archive contient bien l'app, au bon numéro.
+          tar -tzf "$ARCHIVE" | grep -q "InSitu.app/Contents/Info.plist$"
+          ls -lh "$ARCHIVE"
+          echo "archive=$ARCHIVE" >> "$GITHUB_OUTPUT"
+
       - uses: actions/upload-artifact@v4
         with:
           name: InSitu-${{ needs.decider.outputs.version }}
@@ -148,3 +187,17 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "InSitu $VERSION" \
             --notes-file docs/installer.md
+
+      - name: Publier la mise à jour automatique
+        if: needs.decider.outputs.publier == 'true' && steps.maj.outputs.archive != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.decider.outputs.version }}
+          ARCHIVE: ${{ steps.maj.outputs.archive }}
+        run: |
+          URL="https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/$ARCHIVE"
+          python3 .github/scripts/mise_a_jour.py manifeste "$VERSION" "$ARCHIVE.sig" "$URL" latest.json
+          # Joints à la version : l'app lit le `latest.json` de la dernière
+          # version publiée, à une adresse fixe (D16-d).
+          gh release upload "v$VERSION" "$ARCHIVE" latest.json --repo "$GITHUB_REPOSITORY"
+          echo "Les apps installées proposeront la version $VERSION à leur prochain lancement."

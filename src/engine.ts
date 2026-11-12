@@ -1156,3 +1156,50 @@ export async function chooseFacadePhotos(): Promise<string[]> {
   if (Array.isArray(chosen)) return chosen;
   return typeof chosen === "string" ? [chosen] : [];
 }
+
+// --- Mise à jour automatique (D16) ------------------------------------------
+
+/** Une version plus récente, publiée dans les Releases du dépôt. */
+export interface UpdateInfo {
+  currentVersion: string;
+  version: string;
+  notes: string | null;
+}
+
+/** Avancement du téléchargement d'une mise à jour, en octets. */
+export interface UpdateProgress {
+  done: number;
+  total: number | null;
+}
+
+/**
+ * Cherche une version plus récente que celle de l'app. `null` : l'app est à
+ * jour, ou la recherche est impossible (navigateur seul, pas de réseau,
+ * fabrication sans clé de lecture). Ne lève jamais d'erreur : une recherche
+ * ratée ne doit pas gêner le travail.
+ */
+export async function checkForUpdate(): Promise<UpdateInfo | null> {
+  if (!isTauri()) return null;
+  try {
+    return await invoke<UpdateInfo | null>("update_check");
+  } catch (error) {
+    console.warn("Recherche de mise à jour impossible :", error);
+    return null;
+  }
+}
+
+/**
+ * Télécharge, vérifie et installe la mise à jour trouvée par
+ * `checkForUpdate`, puis relance l'app (la promesse ne se résout alors
+ * jamais). `onProgress` reçoit l'avancement du téléchargement.
+ */
+export async function installUpdate(onProgress: (progress: UpdateProgress) => void): Promise<void> {
+  requireEngine();
+  const { listen } = await import("@tauri-apps/api/event");
+  const stop = await listen<UpdateProgress>("mise-a-jour", (event) => onProgress(event.payload));
+  try {
+    await invoke("update_install");
+  } finally {
+    stop();
+  }
+}
