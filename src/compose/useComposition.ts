@@ -137,6 +137,8 @@ export interface CompositionActions {
    * (1 × 1 : quatre coins), d'un bloc ; 0 retire la déformation (tâche 4.4).
    */
   deform(columns: number, rows: number): void;
+  /** Choisit ces dessins posés (ceux qui existent), par identifiant (tâche 6.1). */
+  select(ids: string[]): void;
 }
 
 /** Ce que la rubrique « Calques » peut faire (tâche 4.3). */
@@ -737,6 +739,7 @@ export function useComposition(options: Options): Composition {
     },
     deform: (columns, rows) => apply(deform(placements, selection, columns, rows)),
     assignTo: (projector) => apply(assignTo(placements, selection, projector)),
+    select: (ids) => setSelection(new Set(ids.filter((id) => placements.some((p) => p.id === id)))),
   };
 
   const shortcuts = [

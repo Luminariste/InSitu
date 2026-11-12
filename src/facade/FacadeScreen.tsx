@@ -32,15 +32,26 @@ import {
   type Project,
   type SourcePoint,
 } from "../engine";
-import { cacheFileUrl, fetchFacadeOverview, openTiledImage, projectFile, type FacadeOverview } from "../engine";
+import {
+  cacheFileUrl,
+  fetchFacadeOverview,
+  fetchSimulation,
+  openTiledImage,
+  projectFile,
+  type FacadeOverview,
+  type Simulation,
+  type SimulationAlert,
+} from "../engine";
 import type { TileSource } from "../viewer";
 import { ExportPanel } from "./ExportPanel";
 import { frescoPlacement } from "./exportLogic";
 import { DEFAULT_DISPLAY, overviewLayers, type OverviewDisplay } from "./overview";
-import { demoOverview } from "./overviewDemo";
+import { demoOverview, demoSimulation } from "./overviewDemo";
 import { OverviewPanel } from "./OverviewPanel";
+import { SimulationSection } from "./SimulationSection";
+import { alertTarget, simulationLayers } from "./simulation";
 import { Viewer, type LayerSpec, type ViewerHandle } from "../viewer";
-import { screenToMm } from "../viewer/geometry";
+import { fitView, screenToMm } from "../viewer/geometry";
 import { ScaleMarkersNode } from "./markers";
 import {
   facadePlacement,
@@ -113,6 +124,11 @@ export function FacadeScreen() {
   const [overview, setOverview] = useState<FacadeOverview | null>(null);
   const [overviewBusy, setOverviewBusy] = useState(false);
   const [display, setDisplay] = useState<OverviewDisplay>(DEFAULT_DISPLAY);
+  /** Simulation de tous les projecteurs et ses alertes (tâche 6.1). */
+  const [simulation, setSimulation] = useState<Simulation | null>(null);
+  const [simulating, setSimulating] = useState(false);
+  const [showSlides, setShowSlides] = useState(true);
+  const [chosenAlert, setChosenAlert] = useState<number | null>(null);
   /** Fresque en une image (tâche 3.5), affichée par tuiles sur la façade. */
   const [frescoSource, setFrescoSource] = useState<TileSource | null>(null);
   const [showFresco, setShowFresco] = useState(true);
@@ -167,6 +183,8 @@ export function FacadeScreen() {
           setView(await openFacadeView(path));
         }
         setOverview(null);
+        setSimulation(null);
+        setChosenAlert(null);
         void loadOverview(path);
       }),
     [run, loadOverview],
@@ -270,8 +288,13 @@ export function FacadeScreen() {
         blend: "screen",
       });
     }
-    return [...plan, ...overviewLayers(overview, display, engine ? cacheFileUrl : (request) => request)];
-  }, [view, k, overview, display, engine, project?.fresco, frescoSource, showFresco]);
+    const url = engine ? cacheFileUrl : (request: string) => request;
+    return [
+      ...plan,
+      ...overviewLayers(overview, display, url),
+      ...simulationLayers(overview, simulation, display, showSlides, url),
+    ];
+  }, [view, k, overview, display, engine, project?.fresco, frescoSource, showFresco, simulation, showSlides]);
 
   // Dessins posés sur la façade (tâche 4.2) : il faut une façade à l'échelle
   // (dans le navigateur sans moteur, le plan d'essai suffit).
@@ -291,6 +314,40 @@ export function FacadeScreen() {
     onError: setError,
   });
   const viewerLayers = useMemo(() => [...layers, ...composition.layers], [layers, composition.layers]);
+
+  // --- Simulation (tâche 6.1) ----------------------------------------------
+
+  const simulationBlocked = !overview
+    ? "Ouvrir un projet pour simuler ses projecteurs."
+    : overview.projectors.every((p) => p.footprint.length < 3)
+      ? "Recaler d'abord au moins un projecteur."
+      : null;
+
+  const simulate = () => {
+    if (!engine) {
+      if (overview) setSimulation(demoSimulation(overview));
+      return;
+    }
+    if (!folder) return;
+    setSimulating(true);
+    setChosenAlert(null);
+    fetchSimulation(folder)
+      .then((result) => {
+        setSimulation(result);
+        setShowSlides(true);
+      })
+      .catch((failure) => setError(String(failure).replace(/^Error: /, "")))
+      .finally(() => setSimulating(false));
+  };
+
+  // Une alerte mène au dessin concerné : il est choisi, et la vue le montre.
+  const goToAlert = (alert: SimulationAlert, index: number) => {
+    setChosenAlert(index);
+    const target = alertTarget(alert);
+    composition.actions.select(target.selection);
+    const scene = viewer.current?.scene();
+    if (scene) scene.setView(fitView(target.rect, scene.getViewport()));
+  };
 
   // --- Actions -------------------------------------------------------------
 
@@ -600,6 +657,16 @@ export function FacadeScreen() {
           onReload={engine && folder ? () => void loadOverview(folder) : null}
           busy={overviewBusy}
         >
+          <SimulationSection
+            simulation={simulation}
+            blocked={simulationBlocked}
+            busy={simulating}
+            onRun={simulate}
+            showSlides={showSlides}
+            onShowSlides={setShowSlides}
+            chosen={chosenAlert}
+            onAlert={goToAlert}
+          />
           <LayersSection
             layers={composition.composeLayers}
             active={composition.activeLayer}

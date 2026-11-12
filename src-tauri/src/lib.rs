@@ -23,6 +23,7 @@ use insitu_core::project::{
 };
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
+use insitu_core::simulation::{self, Simulation};
 use insitu_core::tiles;
 use tauri::http::{header, Request, Response, StatusCode};
 use tauri::{AppHandle, Emitter, Manager, Runtime, UriSchemeContext, UriSchemeResponder};
@@ -509,6 +510,13 @@ fn slide_views(app: AppHandle, folder: String) -> Result<Vec<SlideView>, String>
     .map_err(|e| e.to_string())
 }
 
+// --- Simulation et alertes (tâche 6.1) -------------------------------------------
+
+#[tauri::command(async)]
+fn facade_simulation(app: AppHandle, folder: String) -> Result<Simulation, String> {
+    simulation::simulate(&project_dir(&folder)?, &tile_cache_dir(&app)?).map_err(|e| e.to_string())
+}
+
 /// Dossier du jeu d'essai, pour l'écran de démonstration. Dans l'ordre :
 /// celui que désigne `INSITU_JEU_ESSAI`, celui du dépôt d'où l'app a été
 /// compilée (lancement depuis le code), puis les images embarquées dans
@@ -608,6 +616,7 @@ pub fn run() {
             fresco_import,
             slides_export,
             slide_views,
+            facade_simulation,
             assembly_show,
             assembly_add,
             assembly_remove,

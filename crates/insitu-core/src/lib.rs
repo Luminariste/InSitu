@@ -24,6 +24,7 @@ pub mod project;
 pub mod rectification;
 pub mod registration;
 pub mod resample;
+pub mod simulation;
 pub mod target;
 pub mod tiles;
 pub mod units;

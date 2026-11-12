@@ -3,7 +3,7 @@
 // biais, avec une fausse photo redressée. Les recouvrements sont des
 // rectangles approchés : le vrai calcul est fait par le moteur.
 
-import type { FacadeOverview, Overlap, ProjectorOverview, SourcePoint } from "../engine";
+import type { FacadeOverview, Overlap, ProjectorOverview, Simulation, SimulationAlert, SourcePoint } from "../engine";
 
 const DIVISIONS = 16;
 
@@ -124,4 +124,39 @@ export function demoOverview(): FacadeOverview {
     }
   }
   return { projectors, overlaps };
+}
+
+/**
+ * Simulation inventée pour le navigateur seul (tâche 6.1) : la fausse photo
+ * de chaque projecteur tient lieu de diapositive calculée, et trois alertes
+ * montrent la liste : un trait projeté deux fois dans chacun des deux
+ * premiers recouvrements, et un dessin hors emprise.
+ */
+export function demoSimulation(overview: FacadeOverview): Simulation {
+  const slides = overview.projectors.map((p) => ({
+    projectorId: p.projectorId,
+    preview: p.photoPreview,
+    problem: p.problem,
+  }));
+  const alerts: SimulationAlert[] = overview.overlaps.slice(0, 2).map((o) => {
+    const xs = o.outlines[0].map((q) => q.x);
+    const ys = o.outlines[0].map((q) => q.y);
+    const x = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const y0 = Math.min(...ys) + 600;
+    return {
+      kind: "doubled",
+      placement: null,
+      projectors: [...o.projectors],
+      message: `Lumière projetée deux fois par ${o.projectors.map((id) => id.replace("demo-", "P")).join(" et ")} : la fresque est dans les deux diapositives, sur 4 × 1 800 mm.`,
+      bounds: { x, y: y0, width: 4, height: 1800 },
+    };
+  });
+  alerts.push({
+    kind: "outside",
+    placement: null,
+    projectors: [],
+    message: "« rosace » ne tombe dans aucune emprise : il ne sera pas projeté.",
+    bounds: { x: 600, y: 9800, width: 900, height: 900 },
+  });
+  return { slides, alerts };
 }
