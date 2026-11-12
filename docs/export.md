@@ -10,14 +10,30 @@ la façade. Un PNG par projecteur, prêt pour LightBurn.
 - Chaque projecteur à exporter est **recalé** (au moins 4 paires de points,
   étape Recalage).
 - La fresque est composée dans Illustrator **sur la façade entière**, sur
-  un plan de travail de la taille de la façade, et exportée en une image
-  (PNG ou TIFF, traits blancs sur fond noir).
+  un plan de travail de la taille de la façade (traits blancs sur fond
+  noir). L'app accepte directement :
+  - le fichier **Illustrator `.ai`**, s'il a été enregistré avec la case
+    « Créer un fichier compatible PDF » cochée (c'est le réglage par
+    défaut d'Illustrator) ;
+  - un **PDF** (Fichier > Enregistrer sous… > Adobe PDF) ;
+  - un **SVG** ;
+  - une **image** : PNG, TIFF, JPEG ou BMP.
+
+  Avec un `.ai`, un PDF ou un SVG, les traits restent **nets** à l'export :
+  le fichier d'origine est relu pour chaque diapositive, à sa résolution.
+  Une image, elle, est agrandie telle quelle (voir « Fresque vectorielle »
+  plus bas).
+- **Masquer le calque du plan** dans Illustrator avant d'enregistrer : tout
+  ce qui est visible dans le fichier est gravé, plan de fond, textes et
+  cotes compris. Ce qui n'est couvert par rien reste noir (pas de lumière).
 
 ## Dans l'app
 
 1. Étape **Façade**, inspecteur à droite, rubrique **Fresque** :
-   **Importer la fresque…**. L'image est copiée dans le projet et posée sur
-   toute la largeur de la façade, à partir du coin haut-gauche. Elle
+   **Importer la fresque…**. Le fichier est copié dans le projet et posé sur
+   toute la largeur de la façade, à partir du coin haut-gauche. Pour un
+   `.ai`, un PDF ou un SVG, l'import prend quelques secondes : un aperçu
+   en image est calculé pour l'affichage. Elle
    s'affiche sur le plan ; la case **Montrer** la masque.
 2. Vérifier qu'elle tombe bien : les dessins doivent être à leur place sur
    le plan et dans les emprises des projecteurs.
@@ -68,11 +84,27 @@ déformation, même retouche de diapositive, même miroir que dans le PNG.
   par chemin, nommé d'après son placement.
 - Un dessin placé derrière un autre est **découpé par la silhouette** de
   celui de devant, comme dans le PNG.
-- La **fresque importée en une image** n'est pas dans le SVG (elle n'a pas
+- La **fresque** (image, PDF ou `.ai`) n'est pas dans le SVG (elle n'a pas
   de courbes), ni le nom et les repères de la marge.
 - Le **négatif** et le **noir et blanc pur** ne s'appliquent qu'au PNG.
 - Compter quelques secondes de plus par diapositive : chaque dessin est
   vectorisé avec ses réglages de la Bibliothèque.
+
+## Fresque vectorielle (.ai, PDF, SVG)
+
+- Seule la **première page** d'un PDF (le premier plan de travail d'un
+  `.ai`) est lue dans l'app ; la ligne de commande en accepte une autre
+  (`--page`).
+- L'aperçu affiché sur la façade fait 8 192 px de large : il peut sembler
+  flou de près. Ce n'est que l'affichage ; l'export relit le fichier
+  d'origine.
+- Les images placées dans le `.ai` sont gravées à la résolution où
+  Illustrator les a gardées dans la partie « compatible PDF » du fichier.
+  Si le PDF a été enregistré avec des images réduites (150 ppi, par
+  exemple), ce sont ces images réduites qui sont gravées : enregistrer le
+  PDF sans réduire les images (« Ne pas sous-échantillonner »).
+- Un `.ai` enregistré **sans** la case « compatible PDF » est refusé avec
+  un message qui l'explique.
 
 ## Dans LightBurn
 
@@ -85,6 +117,8 @@ conseillés pour graver le SVG viendront avec l'essai de la tâche 5.4.
 
 ```
 insitu fresco Mon-projet.insitu fresque.png
+insitu fresco Mon-projet.insitu Composition.ai
+insitu fresco Mon-projet.insitu Composition.pdf --page 2
 insitu export Mon-projet.insitu Gravure/ --dpi 1000 --no-margin
 insitu export Mon-projet.insitu Gravure/ --svg
 ```

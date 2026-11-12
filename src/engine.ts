@@ -193,10 +193,13 @@ export interface AssemblyPhoto {
   pairs?: AssemblyPair[];
 }
 
-/** La fresque en une image et le rectangle de façade qu'elle couvre (mm). */
+/** La fresque et le rectangle de façade qu'elle couvre (mm). */
 export interface FrescoImage {
+  /** L'image affichée ; pour un PDF, un .ai ou un SVG, son aperçu en niveaux de gris. */
   source: string;
   frame: { x: number; y: number; width: number; height: number };
+  /** Le fichier vectoriel d'origine (PDF, .ai, SVG), relu à l'export pour chaque diapositive. */
+  vector?: { source: string; page?: number } | null;
 }
 
 /** Réglages d'export des diapositives. */
@@ -871,10 +874,10 @@ export interface ExportReport {
   settings: ExportSettings;
 }
 
-/** Extensions acceptées pour la fresque. */
-export const FRESCO_EXTENSIONS = ["png", "tif", "tiff", "jpg", "jpeg", "bmp"];
+/** Extensions acceptées pour la fresque : images, PDF, Illustrator (compatible PDF), SVG. */
+export const FRESCO_EXTENSIONS = ["png", "tif", "tiff", "jpg", "jpeg", "bmp", "pdf", "ai", "svg"];
 
-/** Importe la fresque en une image, posée sur toute la largeur de la façade. */
+/** Importe la fresque (image, PDF, .ai ou SVG), posée sur toute la largeur de la façade. */
 export async function importFresco(folder: string, path: string): Promise<Project> {
   requireEngine();
   return invoke<Project>("fresco_import", { folder, path });
@@ -904,8 +907,8 @@ export async function chooseFrescoFile(): Promise<string | null> {
   const chosen = await open({
     multiple: false,
     directory: false,
-    title: "Importer la fresque (une image de toute la façade)",
-    filters: [{ name: "Image", extensions: FRESCO_EXTENSIONS }],
+    title: "Importer la fresque (toute la façade : image, PDF ou Illustrator)",
+    filters: [{ name: "Fresque", extensions: FRESCO_EXTENSIONS }],
   });
   return typeof chosen === "string" ? chosen : null;
 }

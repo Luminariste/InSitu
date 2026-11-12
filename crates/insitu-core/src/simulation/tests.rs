@@ -162,6 +162,7 @@ fn light_projected_twice_in_an_overlap_is_found_where_it_is() {
             width: 4_800.0,
             height: 2_800.0,
         },
+        vector: None,
         extra: Default::default(),
     });
     // Façade x = 2 400 mm : 240 mm dans A, 40 mm dans B, de y = 500 à

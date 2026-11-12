@@ -43,6 +43,7 @@ tableau à jour.
 | 6.4 Assemblage de photos | Fusionnée (version 0.1.16), **non validée** : essai sur Mac à faire par Benjamin avec trois vraies photos de façade (`docs/assemblage.md`) ; façade supposée plane (D-6.4-a), rotation EXIF non appliquée (D-6.4-f) |
 | Renommer / supprimer un projecteur, barre de menus du Mac (hors plan, demande de Benjamin) | Fusionné (version 0.1.18), **non validé** : essai sur Mac ; décisions D15-f et D15-g |
 | Retirer un dessin de la bibliothèque, retirer le plan de la façade (hors plan, demande de Benjamin) | Version 0.1.19, **non validé** : essai sur Mac ; décision D15-h |
+| Fresque en .ai, PDF ou SVG (hors plan, demande de Benjamin) | Version 0.1.33, **non validée** : import d'un vrai `.ai` dans l'app et gravure à essayer par Benjamin (`docs/export.md`) ; prouvé par test : bords nets et à leur place dans la diapositive, rendu à la résolution de la diapositive ; lu sans erreur sur « Epinal Coupe.ai » et la composition de Trévarez ; décisions D-3.5-h à k |
 | Toutes les autres | À faire |
 
 **Ce qui bloque la validation de la tâche 1.5.** Dans la version 0.1.1,
@@ -184,6 +185,7 @@ premier essai réel.
 | --- | --- |
 | Plan ou photo de façade | PDF, PNG, JPEG, TIFF, HEIC, SVG, DXF. Le DWG est à convertir en PDF ou DXF avant import |
 | Dessins | PNG, BMP, TIFF, PSD aplati, SVG |
+| Fresque en un bloc | PNG, TIFF, JPEG, BMP ; PDF, Illustrator `.ai` compatible PDF, SVG, relus à la résolution de chaque diapositive (D-3.5-h à k) |
 | Composition existante | Fichier Illustrator `.ai` : positions des images et liens récupérés (jalon 6) |
 | Export gravure | PNG 1 bit ou niveaux de gris, SVG en millimètres, options miroir et négatif |
 | Documents | Mire imprimable en PDF, fiche de calepinage en PDF |
