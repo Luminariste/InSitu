@@ -32,6 +32,7 @@ tableau à jour.
 | 4.2 Placement | Fusionnée (version 0.1.17), **non validée** : essai sur Mac à faire par Benjamin (`docs/composition.md`) ; raccourcis à comparer avec son Illustrator ; les dessins posés ne sont pas encore exportés (voir D-4.2-f) |
 | 5.2 Vecteurs en bibliothèque | Fusionnée (version 0.1.13), **non validée** : critère « dix dessins de styles différents validés à l'œil » à faire par Benjamin, idéalement sur des dessins de Marc (`docs/bibliotheque.md`) ; écart mesuré sous 0,5 px sur les dessins d'essai |
 | 6.4 Assemblage de photos | Fusionnée (version 0.1.16), **non validée** : essai sur Mac à faire par Benjamin avec trois vraies photos de façade (`docs/assemblage.md`) ; façade supposée plane (D-6.4-a), rotation EXIF non appliquée (D-6.4-f) |
+| Renommer / supprimer un projecteur, barre de menus du Mac (hors plan, demande de Benjamin) | Version 0.1.18, **non validé** : essai sur Mac ; décisions D15-f et D15-g |
 | Toutes les autres | À faire |
 
 **Ce qui bloque la validation de la tâche 1.5.** Dans la version 0.1.1,

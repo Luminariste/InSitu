@@ -23,6 +23,27 @@ export function hasEngine(): boolean {
  * Carte d'identité du moteur. Renvoie `null` quand l'interface tourne dans un
  * simple navigateur (`npm run dev` sans Tauri) : le moteur n'y existe pas.
  */
+/**
+ * Écoute la barre de menus du Mac : `handler` reçoit le raccourci de
+ * l'entrée choisie (« mod+n »…). Renvoie de quoi arrêter d'écouter. Sans
+ * l'app (navigateur seul), ne fait rien.
+ */
+export function listenMenu(handler: (keys: string) => void): () => void {
+  if (!hasEngine()) return () => {};
+  let stop: (() => void) | null = null;
+  let cancelled = false;
+  void import("@tauri-apps/api/event").then(({ listen }) =>
+    listen<string>("menu", (event) => handler(event.payload)).then((unlisten) => {
+      if (cancelled) unlisten();
+      else stop = unlisten;
+    }),
+  );
+  return () => {
+    cancelled = true;
+    stop?.();
+  };
+}
+
 export async function fetchEngineInfo(): Promise<EngineInfo | null> {
   if (!isTauri()) return null;
   return invoke<EngineInfo>("engine_info");
@@ -315,6 +336,18 @@ export async function addProjector(folder: string, label: string): Promise<{ pro
   requireEngine();
   const [project, id] = await invoke<[Project, string]>("projector_add", { folder, label });
   return { project, id };
+}
+
+/** Renomme un projecteur ; son travail (photos, redressement, recalage) est gardé. */
+export async function renameProjector(folder: string, projector: string, label: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("projector_rename", { folder, projector, label });
+}
+
+/** Retire un projecteur du projet ; ses photos restent dans le dossier. */
+export async function removeProjector(folder: string, projector: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("projector_remove", { folder, projector });
 }
 
 export async function importProjectorPhoto(folder: string, projector: string, path: string): Promise<Project> {
