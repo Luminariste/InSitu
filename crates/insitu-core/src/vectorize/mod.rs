@@ -28,7 +28,7 @@ use std::fmt::{self, Write as _};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::geometry::Point;
 use crate::tiles::Raster;
@@ -120,7 +120,7 @@ pub struct Vectorization {
 }
 
 /// Chiffres d'une vectorisation.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VectorizeStats {
     pub contours: usize,
@@ -183,7 +183,8 @@ impl GrayImage {
     }
 }
 
-fn validate(options: &VectorizeOptions) -> Result<(), VectorizeError> {
+/// Vérifie des réglages sans rien calculer.
+pub fn validate(options: &VectorizeOptions) -> Result<(), VectorizeError> {
     if options.threshold == 0 {
         return Err(VectorizeError::Threshold);
     }
@@ -308,16 +309,25 @@ impl Vectorization {
         );
         let _ = writeln!(svg, r#"<rect width="{w}" height="{h}" fill="black"/>"#);
         svg.push_str(r#"<path fill="white" fill-rule="nonzero" d=""#);
+        svg.push_str(&self.path_data());
+        svg.push_str("\"/>\n</svg>\n");
+        svg
+    }
+
+    /// Attribut `d` d'un chemin SVG qui trace tous les contours, en pixels
+    /// de l'image source, au millième de pixel.
+    pub fn path_data(&self) -> String {
+        let mut d = String::new();
         for contour in &self.contours {
-            let _ = write!(svg, "M{} {}", num(contour.start.x), num(contour.start.y));
+            let _ = write!(d, "M{} {}", num(contour.start.x), num(contour.start.y));
             for segment in &contour.segments {
                 match *segment {
                     Segment::Line { to } => {
-                        let _ = write!(svg, "L{} {}", num(to.x), num(to.y));
+                        let _ = write!(d, "L{} {}", num(to.x), num(to.y));
                     }
                     Segment::Cubic { c1, c2, to } => {
                         let _ = write!(
-                            svg,
+                            d,
                             "C{} {} {} {} {} {}",
                             num(c1.x),
                             num(c1.y),
@@ -329,10 +339,9 @@ impl Vectorization {
                     }
                 }
             }
-            svg.push('Z');
+            d.push('Z');
         }
-        svg.push_str("\"/>\n</svg>\n");
-        svg
+        d
     }
 }
 

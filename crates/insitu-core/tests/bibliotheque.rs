@@ -22,6 +22,7 @@ use std::time::Instant;
 
 use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 use image::{ExtendedColorType, ImageEncoder};
+use insitu_core::library::vectors::vectorize_drawings;
 use insitu_core::library::{import_folder, list, ImportOptions, THUMBNAIL_SIDE};
 use insitu_core::project::ProjectDir;
 
@@ -117,6 +118,17 @@ fn run(side: u32) {
             .filter(|d| d.folder() == "Dessins de Marc/Série B")
             .count(),
         100
+    );
+
+    // Les vecteurs des nouveaux dessins (tâche 5.2) sont faits après
+    // l'import, pendant qu'on parcourt déjà : mesurés à part, sans seuil.
+    let start = Instant::now();
+    let vectors = vectorize_drawings(&dir, &report.added, &cache, 0, &|_| {}).unwrap();
+    assert_eq!(vectors.done, 200, "{:?}", vectors.failures);
+    println!(
+        "vectorisation après l'import : {:.1} s ({:.0} ms par dessin)",
+        start.elapsed().as_secs_f64(),
+        start.elapsed().as_secs_f64() * 1000.0 / 200.0
     );
 
     let start = Instant::now();

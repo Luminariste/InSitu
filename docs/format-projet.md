@@ -269,10 +269,11 @@ en millimètres réels. Le coin haut-gauche du fichier est l'origine.
 | `name` | Nom affiché : celui du fichier, sans extension |
 | `source` | Le fichier, sous `bibliotheque/` : `bibliotheque/Oiseaux/Mer/goeland.png`. Le dossier importé et ses sous-dossiers sont conservés |
 | `width`, `height` | Taille du fichier : pixels pour une image, pixels CSS (1/96 de pouce) pour un SVG |
+| `vector` | Facultatif (tâche 5.2) : réglages de vectorisation propres au dessin, `threshold` (1 à 255), `tolerancePx`, `cornerAngleDeg`, `minAreaPx`. Absent : réglages par défaut (128 ; 0,3 px ; 70° ; 0) |
 
 Le fichier copié n'est jamais modifié : son fond noir est rendu transparent
-à l'affichage seulement. Les vignettes ne sont pas dans le projet : l'app les
-range dans son cache et les refait au besoin.
+à l'affichage seulement. Les vignettes et les vecteurs ne sont pas dans le
+projet : l'app les range dans son cache et les refait au besoin.
 
 ### `export` — les réglages d'export
 

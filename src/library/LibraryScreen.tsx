@@ -12,17 +12,24 @@ import {
   cacheFileUrl,
   chooseDrawingFolder,
   fetchDrawingPreview,
+  fetchDrawingVectors,
   fetchLibrary,
   hasEngine,
   importDrawingFolder,
   openProject,
+  saveVectorSettings,
+  vectorizeDrawings,
   type ImportProgress,
   type LibraryEntry,
   type Project,
+  type VectorSettings,
+  type VectorSummary,
 } from "../engine";
 import { recalledProject } from "../project/current";
 import { countLabel, filterEntries, folderTree, formatSize, importSummary, progressLabel } from "./logic";
-import { demoLibrary } from "./demo";
+import { demoLibrary, demoVectors } from "./demo";
+import { VectorCompare, type ShownVectors } from "./VectorCompare";
+import { vectorLine } from "./vectorLogic";
 import "./library.css";
 
 /** Un dessin affiché : l'entrée du moteur et l'adresse de sa vignette. */
@@ -52,6 +59,11 @@ export function LibraryScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [vectors, setVectors] = useState<ShownVectors | null>(null);
+  const [vectorError, setVectorError] = useState<string | null>(null);
+  const [vectorBusy, setVectorBusy] = useState(false);
+  const [comparing, setComparing] = useState(false);
+  const [vectorProgress, setVectorProgress] = useState<ImportProgress | null>(null);
   const grid = useRef<HTMLDivElement>(null);
 
   const run = useCallback(async (label: string | null, task: () => Promise<void>) => {
@@ -97,6 +109,7 @@ export function LibraryScreen() {
       if (!source) return;
       setMessage(null);
       setProgress({ done: 0, total: 0 });
+      let added: string[] = [];
       try {
         const { project: updated, report } = await importDrawingFolder(folder, source, setProgress);
         setProject(updated);
@@ -107,8 +120,22 @@ export function LibraryScreen() {
           setCurrentFolder(imported || null);
           setQuery("");
         }
+        added = report.added;
       } finally {
         setProgress(null);
+      }
+      // Vecteurs des nouveaux dessins (tâche 5.2), après l'import : la
+      // bibliothèque se parcourt déjà pendant ce temps.
+      if (added.length > 0) {
+        setVectorProgress({ done: 0, total: added.length });
+        vectorizeDrawings(folder, added, setVectorProgress)
+          .then((result) => {
+            if (result.failures.length > 0) {
+              setError(`${result.failures.length} dessin(s) non vectorisé(s) : ${result.failures.map((f) => f.file).join(", ")}`);
+            }
+          })
+          .catch((failure: unknown) => setError(String(failure).replace(/^Error: /, "")))
+          .finally(() => setVectorProgress(null));
       }
     });
 
@@ -135,6 +162,54 @@ export function LibraryScreen() {
       cancelled = true;
     };
   }, [chosen, engine, folder]);
+
+  // Vecteurs du dessin choisi (tâche 5.2) : déjà en cache après l'import ;
+  // sinon le moteur les calcule (quelques dixièmes de seconde par dessin).
+  const showVectors = useCallback((summary: VectorSummary, demo: boolean) => {
+    const url = (request: string) => (demo ? request : cacheFileUrl(request));
+    setVectors({
+      ...summary,
+      imageUrl: url(summary.image),
+      filledUrl: url(summary.filledSvg),
+      outlineUrl: url(summary.outlineSvg),
+    });
+  }, []);
+
+  useEffect(() => {
+    setVectors(null);
+    setVectorError(null);
+    if (!chosen || chosen.problem) return;
+    if (!engine || !folder) {
+      const index = entries.findIndex((e) => e.id === chosen.id);
+      if (chosen.url) showVectors(demoVectors(index, chosen.url), true);
+      return;
+    }
+    let cancelled = false;
+    fetchDrawingVectors(folder, chosen.id).then(
+      (summary) => !cancelled && showVectors(summary, false),
+      (failure: unknown) => !cancelled && setVectorError(String(failure).replace(/^Error: /, "")),
+    );
+    return () => {
+      cancelled = true;
+    };
+    // `entries` ne sert qu'au mode démonstration : pas de nouvelle demande
+    // quand la liste change (réglages appliqués).
+  }, [chosen?.id, chosen?.problem, engine, folder, showVectors]);
+
+  const applySettings = (settings: VectorSettings | null) => {
+    if (!engine || !folder || !chosen) return;
+    const id = chosen.id;
+    setVectorBusy(true);
+    setVectorError(null);
+    saveVectorSettings(folder, id, settings)
+      .then(({ project: updated, vectors: summary }) => {
+        setProject(updated);
+        setEntries((list) => list.map((e) => (e.id === id ? { ...e, vector: settings } : e)));
+        showVectors(summary, false);
+      })
+      .catch((failure: unknown) => setVectorError(String(failure).replace(/^Error: /, "")))
+      .finally(() => setVectorBusy(false));
+  };
 
   const onKey = (event: KeyboardEvent<HTMLDivElement>) => {
     if (visible.length === 0) return;
@@ -196,6 +271,11 @@ export function LibraryScreen() {
           <div style={{ width: `${progress.total ? (100 * progress.done) / progress.total : 0}%` }} />
           <span>{progress.total ? progressLabel(progress.done, progress.total) : "Recherche des dessins…"}</span>
         </div>
+      )}
+      {vectorProgress && (
+        <p className="library-message">
+          Vectorisation des nouveaux dessins : {vectorProgress.done} sur {vectorProgress.total}
+        </p>
       )}
       {(busy || message || error || (engine && !folder && !busy)) && (
         <p className={error ? "library-message erreur" : "library-message"}>
@@ -270,12 +350,37 @@ export function LibraryScreen() {
                   </>
                 )}
               </dl>
+              {!chosen.problem && (
+                <section className="library-vectors">
+                  <h3>Vecteurs</h3>
+                  <p className={vectorError ? "erreur" : undefined}>
+                    {vectorError ?? (vectors ? vectorLine(vectors) : "Vectorisation…")}
+                    {vectors && !vectors.defaultSettings && " · réglages propres"}
+                  </p>
+                  <button type="button" onClick={() => setComparing(true)} disabled={!vectors}>
+                    Comparer image et vecteurs…
+                  </button>
+                </section>
+              )}
             </>
           ) : (
             <p className="library-hint">Cliquer un dessin pour le voir en grand. Les flèches du clavier passent d'un dessin à l'autre.</p>
           )}
         </aside>
       </div>
+
+      {comparing && chosen && (
+        <VectorCompare
+          name={chosen.name}
+          vectors={vectors}
+          backdrop={backdrop}
+          editable={engine}
+          busy={vectorBusy}
+          error={vectorError}
+          onApply={applySettings}
+          onClose={() => setComparing(false)}
+        />
+      )}
     </div>
   );
 }

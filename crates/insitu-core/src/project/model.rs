@@ -459,8 +459,39 @@ pub struct Drawing {
     /// (1/96 de pouce) pour un SVG.
     pub width: f64,
     pub height: f64,
+    /// Réglages de vectorisation propres à ce dessin (tâche 5.2) ; absent :
+    /// réglages par défaut.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vector: Option<VectorSettings>,
     #[serde(flatten)]
     pub extra: ExtraFields,
+}
+
+/// Réglages de vectorisation d'un dessin (tâche 5.2). Les mêmes que ceux du
+/// moteur de vectorisation (tâche 5.1), sans le nombre de fils de calcul.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct VectorSettings {
+    /// Seuil, de 1 à 255 : un pixel au moins aussi clair est dans le trait.
+    pub threshold: u8,
+    /// Écart maximal toléré entre les courbes et le contour de l'image, en
+    /// pixels du dessin.
+    pub tolerance_px: f64,
+    /// Au-delà de cet angle (degrés), un sommet est un angle vif.
+    pub corner_angle_deg: f64,
+    /// Taches et trous plus petits que cette aire (pixels carrés) ignorés.
+    pub min_area_px: f64,
+}
+
+impl Default for VectorSettings {
+    fn default() -> Self {
+        Self {
+            threshold: 128,
+            tolerance_px: 0.3,
+            corner_angle_deg: 70.0,
+            min_area_px: 0.0,
+        }
+    }
 }
 
 impl Drawing {

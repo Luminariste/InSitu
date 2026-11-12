@@ -688,6 +688,7 @@ pub fn content_type(path: &Path) -> &'static str {
         Some("png") => "image/png",
         Some("jpg") => "image/jpeg",
         Some("json") => "application/json",
+        Some("svg") => "image/svg+xml",
         _ => "application/octet-stream",
     }
 }
