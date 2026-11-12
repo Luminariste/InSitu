@@ -45,6 +45,7 @@ tableau à jour.
 | Renommer / supprimer un projecteur, barre de menus du Mac (hors plan, demande de Benjamin) | Fusionné (version 0.1.18), **non validé** : essai sur Mac ; décisions D15-f et D15-g |
 | Retirer un dessin de la bibliothèque, retirer le plan de la façade (hors plan, demande de Benjamin) | Version 0.1.19, **non validé** : essai sur Mac ; décision D15-h |
 | Panneau de droite de la Façade en onglets, outils des dessins en icônes dans la barre du haut (hors plan, demande de Benjamin) | Version 0.1.31, **non validé** : essai sur Mac ; décisions D15-i et D15-j |
+| 6.3 Import Illustrator | Version 0.1.33, **non validée** : essai sur Mac à faire par Benjamin avec un vrai `.ai` et ses dessins à côté (`docs/composition.md`, « Importer une composition Illustrator ») ; prouvé par test : coins de chaque dessin posé là où Illustrator place l'image (rotation, retournement, échelle), liens retrouvés par dossier relatif, chemin absolu ou nom sans accents ; lu sur ECURIES-COMPOSITION.ai (245 images, 8 calques), superposé à son rendu PDF ; décisions D-6.3-a à e |
 | Toutes les autres | À faire |
 
 **Ce qui bloque la validation de la tâche 1.5.** Dans la version 0.1.1,

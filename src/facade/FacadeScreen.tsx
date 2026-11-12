@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import { CompositionToolbar } from "../compose/CompositionToolbar";
 import { DrawingsSection } from "../compose/DrawingsSection";
+import { IllustratorImport } from "../compose/IllustratorImport";
 import { LayersSection } from "../compose/LayersSection";
 import { PlacementInspector } from "../compose/PlacementInspector";
 import { useComposition } from "../compose/useComposition";
@@ -634,13 +635,16 @@ export function FacadeScreen() {
           </>
         ),
         calques: (
-          <LayersSection
-            layers={composition.composeLayers}
-            active={composition.activeLayer}
-            counts={composition.layerCounts}
-            actions={composition.layerActions}
-            blocked={composeBlocked}
-          />
+          <>
+            <LayersSection
+              layers={composition.composeLayers}
+              active={composition.activeLayer}
+              counts={composition.layerCounts}
+              actions={composition.layerActions}
+              blocked={composeBlocked}
+            />
+            <IllustratorImport engine={engine} folder={folder} scaled={sizeMm !== null} onProject={setProject} />
+          </>
         ),
         export: (
           <>

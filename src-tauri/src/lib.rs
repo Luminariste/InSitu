@@ -12,6 +12,7 @@ use insitu_core::export::preview::{self as slide_preview, SlideView};
 use insitu_core::export::{self, ExportReport};
 use insitu_core::facade::{self, FacadeDisplay, SourceInfo};
 use insitu_core::geometry::Point;
+use insitu_core::illustrator::{self, CompositionReport};
 use insitu_core::library::silhouette::{self, DrawingSilhouette};
 use insitu_core::library::vectors::{self, VectorSummary, VectorizeReport};
 use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
@@ -333,6 +334,30 @@ fn library_import(
     .map_err(|e| e.to_string())
 }
 
+/// Recrée la composition d'un fichier Illustrator (tâche 6.3) : liens dans la
+/// bibliothèque, images placées en dessins posés.
+#[tauri::command(async)]
+fn illustrator_import(
+    app: AppHandle,
+    folder: String,
+    path: String,
+) -> Result<(Project, CompositionReport), String> {
+    let options = ImportOptions {
+        cache_root: Some(tile_cache_dir(&app)?),
+        threads: 0,
+    };
+    illustrator::import_composition(
+        &project_dir(&folder)?,
+        Path::new(&path),
+        None,
+        &options,
+        &|progress| {
+            let _ = app.emit(LIBRARY_PROGRESS_EVENT, progress);
+        },
+    )
+    .map_err(|e| e.to_string())
+}
+
 /// La bibliothèque du projet, avec la vignette de chaque dessin.
 #[tauri::command(async)]
 fn library_list(app: AppHandle, folder: String) -> Result<Vec<LibraryEntry>, String> {
@@ -634,6 +659,7 @@ pub fn run() {
             registration_show,
             registration_set,
             library_import,
+            illustrator_import,
             library_list,
             library_remove,
             library_preview,
