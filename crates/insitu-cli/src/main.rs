@@ -11,6 +11,8 @@
 //! - `insitu project info <dossier.insitu>` : résumé d'un projet, en JSON ;
 //! - `insitu project validate <dossier.insitu>` : contrôle le JSON et la
 //!   présence des fichiers référencés ;
+//! - `insitu rectify <photo> [--output <image>] …` : détecte la mire dans
+//!   une photo brute et la redresse (options : `insitu rectify --help`) ;
 //! - `insitu target pdf <fichier.pdf> [--page a3|carre]` : écrit la mire
 //!   imprimable ; `insitu target info` la décrit en JSON (repères, grille) ;
 //! - `insitu tiles <image> <dossier>` : pyramide de tuiles d'une image, pour
@@ -20,6 +22,7 @@
 //! invalide, 2 si la commande est mal écrite.
 
 mod geometry;
+mod rectify;
 mod target;
 
 use std::path::Path;
@@ -75,6 +78,14 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             Err(geometry::Problem::Failed(message)) => Err(Failure::Failed(message)),
         },
         ["project", rest @ ..] => run_project(rest),
+        ["rectify", rest @ ..] => match rectify::run(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(rectify::Problem::Usage(message)) => Err(Failure::Usage(message)),
+            Err(rectify::Problem::Failed(message)) => Err(Failure::Failed(message)),
+        },
         ["target", rest @ ..] => match target::run(rest) {
             Ok(text) => {
                 println!("{text}");
@@ -252,6 +263,7 @@ fn usage() -> &'static str {
      project new <dossier.insitu> [--name <nom>]   Crée un projet vide\n  \
      project info <dossier.insitu>                 Affiche le résumé d'un projet (JSON)\n  \
      project validate <dossier.insitu>             Contrôle le projet et ses fichiers\n  \
+     rectify <photo> [--output <image>]            Détecte la mire et redresse la photo (rectify --help)\n  \
      target pdf <fichier.pdf> [--page a3|carre]    Écrit la mire imprimable (PDF, 280 mm)\n  \
      target info                                   Décrit la mire en JSON (repères, grille)\n  \
      tiles <image> <dossier>                       Fabrique la pyramide de tuiles d'une image\n      \

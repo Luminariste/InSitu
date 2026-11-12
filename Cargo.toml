@@ -19,3 +19,12 @@ serde_json = { version = "1", features = ["float_roundtrip"] }
 [profile.release]
 opt-level = 3
 lto = "thin"
+
+# Le moteur et ses dépendances sont optimisés même en développement et en
+# test : la détection de la mire sur une photo de 12 Mpx prend quelques
+# secondes optimisée, plusieurs minutes sans (décision D-2.4-g).
+[profile.dev.package.insitu-core]
+opt-level = 3
+
+[profile.dev.package."*"]
+opt-level = 3
