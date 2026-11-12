@@ -670,6 +670,24 @@ pub struct Placement {
     /// par le moteur (`crate::placement::assign`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub projector: Option<String>,
+    /// Retouche du dessin dans une diapositive (tâche 4.6), sans toucher à
+    /// la façade ; absente : aucune retouche.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub adjustment: Option<SlideAdjustment>,
+    #[serde(flatten)]
+    pub extra: ExtraFields,
+}
+
+/// Retouche locale d'un dessin posé dans la diapositive d'un projecteur
+/// (tâche 4.6) : une grille de déformation, comme la déformation libre,
+/// mais tendue en mm de diapositive. Elle ne vaut que pour ce projecteur.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SlideAdjustment {
+    /// Le projecteur dont la diapositive est retouchée.
+    pub projector: String,
+    /// La grille ; son cadre est en mm de diapositive.
+    pub deformation: Deformation,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }
@@ -792,6 +810,15 @@ impl Placement {
     /// dessin, en fractions de sa largeur et de sa hauteur, du point `p` de
     /// la façade. Hors du dessin, `u` ou `v` sort de [0, 1] ; `None` si la
     /// déformation n'a pas d'antécédent pour ce point.
+    /// La retouche du dessin dans la diapositive du projecteur `projector`,
+    /// s'il en a une (tâche 4.6).
+    pub fn adjustment_for(&self, projector: &str) -> Option<&Deformation> {
+        self.adjustment
+            .as_ref()
+            .filter(|a| a.projector == projector)
+            .map(|a| &a.deformation)
+    }
+
     pub fn drawing_point(&self, p: PointMm) -> Option<(f64, f64)> {
         let p = match &self.deformation {
             Some(d) => crate::placement::mesh::inverse(d, p)?,

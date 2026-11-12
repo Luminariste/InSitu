@@ -273,6 +273,13 @@ pub(crate) fn placement_errors(project: &Project) -> Vec<(String, String)> {
         {
             out.push((format!("{here}.deformation"), problem));
         }
+        if let Some(problem) = placement
+            .adjustment
+            .as_ref()
+            .and_then(|a| crate::placement::mesh::check(&a.deformation))
+        {
+            out.push((format!("{here}.adjustment"), problem));
+        }
         if !(placement.width > 0.0 && placement.height > 0.0) {
             out.push((
                 here,

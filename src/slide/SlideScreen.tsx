@@ -6,6 +6,9 @@
 // Les deux images sont en mm de diapositive (carré de 280 mm) : la photo
 // redressée par tuiles, la diapositive calculée (aperçu de 2 048 px fait par
 // le moteur, même calcul que l'export) colorée par-dessus.
+//
+// Un clic sur un dessin le choisit pour le retoucher dans cette diapositive
+// seulement (tâche 4.6, `useSlideAdjust.ts`).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -15,8 +18,11 @@ import {
   openProject,
   openTiledImage,
   projectFile,
+  type Placement,
+  type Project,
   type SlideView,
 } from "../engine";
+import { useSlideAdjust } from "./useSlideAdjust";
 import { recalledProject } from "../project/current";
 import { Viewer, placementForWidth, type LayerSpec, type TileSource, type ViewerHandle } from "../viewer";
 import { demoSlideViews, demoImages } from "./demo";
@@ -45,6 +51,8 @@ import "./slide.css";
 export function SlideScreen() {
   const engine = hasEngine();
   const viewer = useRef<ViewerHandle>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const [placements, setPlacements] = useState<Placement[]>([]);
   const [folder, setFolder] = useState<string | null>(null);
   const [projectName, setProjectName] = useState<string | null>(null);
   const [views, setViews] = useState<SlideView[]>([]);
@@ -65,6 +73,7 @@ export function SlideScreen() {
       const project = await openProject(path);
       setFolder(path);
       setProjectName(project.name);
+      setPlacements(project.placements ?? []);
       const list = await fetchSlideViews(path);
       setViews(list);
       setCurrent((before) =>
@@ -92,6 +101,26 @@ export function SlideScreen() {
   }, [engine, load]);
 
   const view = views.find((v) => v.projectorId === current) ?? null;
+
+  // Une retouche enregistrée : le projet change, l'aperçu est recalculé.
+  const onProject = useCallback(
+    (project: Project) => {
+      setPlacements(project.placements ?? []);
+      if (!folder) return;
+      fetchSlideViews(folder).then(setViews, (failure: unknown) => setError(String(failure)));
+    },
+    [folder],
+  );
+  const adjust = useSlideAdjust({
+    engine,
+    folder,
+    view,
+    placements,
+    onProject,
+    viewer,
+    stage,
+    onError: setError,
+  });
 
   // Tuiles de la photo redressée, gardées pour basculer sans attendre.
   useEffect(() => {
@@ -126,6 +155,7 @@ export function SlideScreen() {
     if (demo) {
       out.push({ id: "photo-demo", kind: "mesh-image", url: demo.photo, divisions: 1, points: SLIDE_SQUARE });
       out.push(...drawingsLayer(demo.drawings[view.projectorId] ?? null, showDrawings, opacity, tint));
+      out.push(...adjust.layers);
       return out;
     }
     const photo = photos[view.projectorId];
@@ -138,8 +168,9 @@ export function SlideScreen() {
       });
     }
     out.push(...drawingsLayer(view.preview ? cacheFileUrl(view.preview) : null, showDrawings, opacity, tint));
+    out.push(...adjust.layers);
     return out;
-  }, [view, photos, demo, showDrawings, opacity, tint]);
+  }, [view, photos, demo, showDrawings, opacity, tint, adjust.layers]);
 
   // Cadrer la diapositive à l'ouverture.
   useEffect(() => {
@@ -189,6 +220,27 @@ export function SlideScreen() {
         />
       </ToolGroup>
       <ToolSeparator />
+      {adjust.selected && (
+        <>
+          <ToolGroup label="Retouche">
+            <Button size="sm" onClick={() => adjust.setGrid(1, 1)} title="Quatre coins à tirer, dans cette diapositive seulement">
+              Quatre coins
+            </Button>
+            <Button size="sm" onClick={() => adjust.setGrid(3, 3)} title="Grille de 3 × 3 cases à tirer, dans cette diapositive seulement">
+              Grille
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => adjust.setGrid(0, 0)}
+              disabled={!adjust.adjustment}
+              title="Retirer la retouche : le dessin revient où la façade le place"
+            >
+              Réinitialiser
+            </Button>
+          </ToolGroup>
+          <ToolSeparator />
+        </>
+      )}
       <Button icon="fit" shortcut="mod+0" title="Voir toute la diapositive" onClick={() => viewer.current?.fitAll()} disabled={!view}>
         Tout voir
       </Button>
@@ -237,11 +289,17 @@ export function SlideScreen() {
           <StatusText>
             {view ? `${view.label} : diapositive calculée sur la photo redressée (280 mm)` : "Aucun projecteur choisi"}
           </StatusText>
-          <StatusText push>← → ou ↑ ↓ : projecteur précédent ou suivant</StatusText>
+          <StatusText push>{adjust.hint ? `${adjust.hint} · ` : ""}← → : projecteur précédent ou suivant</StatusText>
         </StatusBar>
       }
     >
-      <div className="slide-stage">
+      <div
+        className="slide-stage"
+        ref={stage}
+        onPointerDownCapture={adjust.onPointerDown}
+        onPointerMoveCapture={adjust.onPointerMove}
+        onPointerUpCapture={adjust.onPointerUp}
+      >
         <Viewer ref={viewer} layers={layers} cursorUnit="mm" />
         {engine && !folder && !busy && (
           <EmptyState icon="folder" title="Aucun projet ouvert">

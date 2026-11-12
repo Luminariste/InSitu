@@ -442,6 +442,7 @@ fn project_with_placed_drawing(label: &str, frame: &RectMm) -> (TempDir, Project
         layer: None,
         deformation: None,
         projector: None,
+        adjustment: None,
         extra: Default::default(),
     });
     dir.save(&project).unwrap();
@@ -716,4 +717,96 @@ fn a_drawing_in_an_overlap_goes_to_one_slide_only() {
     assert_eq!(a[0].projector.as_deref(), Some(ids[0].as_str()));
     assert!(a[0].manual && a[0].whole);
     assert_eq!(a[0].candidates, ids.to_vec());
+}
+
+/// Tâche 4.6 : la retouche d'un dessin dans une diapositive apparaît à
+/// l'export de cette diapositive, et se retire d'un clic.
+#[test]
+fn a_slide_adjustment_shows_in_the_export_and_resets() {
+    use crate::placement::adjust::{adjust, set_adjustment, slide_drawings};
+    let frame = RectMm {
+        x: 2_000.0,
+        y: 1_500.0,
+        width: 1_600.0,
+        height: 1_400.0,
+    };
+    let (temp, dir, _) = project_with_placed_drawing("export-retouche", &frame);
+    let s = settings(60.0);
+    let px_mm = units::px_size_mm(s.dpi);
+    let export = |name: &str| -> Raster {
+        let report = export_slides(&dir, &temp.path().join(name), &s, None, 0, &|_| {}).unwrap();
+        to_gray(tiles::read_raster(&report.slides[0].path).unwrap())
+    };
+    // Centre des pixels allumés, en mm de diapositive.
+    let centroid = |r: &Raster| -> (f64, f64, usize) {
+        let (mut sx, mut sy, mut n) = (0.0, 0.0, 0usize);
+        for (k, &v) in r.data.iter().enumerate() {
+            if v >= 128 {
+                sx += (k % r.width as usize) as f64;
+                sy += (k / r.width as usize) as f64;
+                n += 1;
+            }
+        }
+        (sx / n as f64 * px_mm, sy / n as f64 * px_mm, n)
+    };
+    let before = export("avant");
+    let (x0, y0, lit) = centroid(&before);
+    assert!(lit > 200, "le dessin doit être dans la diapositive : {lit}");
+
+    // Une grille au repos ne change rien.
+    let project = adjust(&dir, "p1", 1, 1).unwrap();
+    let id = project.projectors[0].id.clone();
+    let rest = export("repos");
+    let worst = rest
+        .data
+        .iter()
+        .zip(&before.data)
+        .map(|(&a, &b)| a.abs_diff(b))
+        .max()
+        .unwrap();
+    assert!(worst <= 2, "grille au repos : écart {worst}");
+
+    // Tous les nœuds décalés de 12 mm vers la droite dans la diapositive :
+    // le dessin exporté se décale d'autant, la façade ne bouge pas.
+    let mut a = project.placements[0].adjustment.clone().unwrap();
+    assert_eq!(a.projector, id);
+    let w = a.deformation.frame.width;
+    for node in &mut a.deformation.nodes {
+        node[0] += 12.0 / w;
+    }
+    let project = set_adjustment(&dir, "p1", Some(a.clone())).unwrap();
+    assert_eq!(project.placements[0].center.x, frame.x + frame.width / 2.0);
+    let moved = export("decale");
+    let (x1, y1, _) = centroid(&moved);
+    assert!(
+        (x1 - x0 - 12.0).abs() < 0.5 && (y1 - y0).abs() < 0.5,
+        "décalage ({}, {})",
+        x1 - x0,
+        y1 - y0
+    );
+    // La vue Diapositive le situe avant sa retouche.
+    let seen = slide_drawings(&project, &id);
+    assert_eq!(seen.len(), 1);
+    assert_eq!(seen[0].points.len(), 17 * 17);
+    // Le cadre d'une retouche neuve est le rectangle de ces points, comme
+    // le calcule l'interface (`restFrame` dans src/slide/adjust.ts).
+    let xs = seen[0].points.iter().map(|p| p.x);
+    let (lo, hi) = (
+        xs.clone().fold(f64::INFINITY, f64::min),
+        xs.fold(f64::NEG_INFINITY, f64::max),
+    );
+    assert!((a.deformation.frame.width - (hi - lo)).abs() < 1e-9);
+
+    // Pour un autre projecteur, la retouche ne compte pas.
+    a.projector = "autre".into();
+    set_adjustment(&dir, "p1", Some(a)).unwrap();
+    assert_eq!(export("autre").data, before.data);
+
+    // Un clic la retire : l'export redevient celui d'avant.
+    adjust(&dir, "p1", 1, 1).unwrap();
+    adjust(&dir, "p1", 0, 0).unwrap();
+    assert!(dir.load().unwrap().project.placements[0]
+        .adjustment
+        .is_none());
+    assert_eq!(export("apres").data, before.data);
 }

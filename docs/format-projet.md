@@ -308,6 +308,7 @@ Absent d'un fichier plus ancien : aucun changement de `formatVersion`.
 | `group` | Groupe : les dessins de même groupe se manipulent ensemble ; absent si seul |
 | `layer` | Identifiant du calque (tâche 4.3) ; absent ou inconnu : le premier calque |
 | `deformation` | Déformation libre (tâche 4.4) ; absente si le dessin est droit. Voir ci-dessous |
+| `adjustment` | Retouche dans une diapositive (tâche 4.6) : `projector` (identifiant) et `deformation` (même forme que `deformation`, cadre en mm de diapositive) ; absente : aucune |
 | `projector` | Diapositive choisie à la main (tâche 4.5) : identifiant du projecteur ; absente, ou projecteur inconnu : celle que propose le moteur (D-4.5-b) |
 
 `deformation` contient `frame` (le cadre : `center`, `width`, `height` en mm

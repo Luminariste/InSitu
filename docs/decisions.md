@@ -4,6 +4,39 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 4.6 : ajustement d'un dessin par diapositive
+
+Module `crates/insitu-core/src/placement/adjust.rs` ; écran
+`src/slide/useSlideAdjust.ts`.
+
+**D-4.6-a. Une retouche est une grille de déformation en mm de
+diapositive.** Même grille que la déformation libre (D-4.4-a, b), mais son
+cadre est le rectangle droit qui contient le dessin tel que le projecteur
+le montre. Elle est rangée dans le dessin posé (`placements[].adjustment`)
+avec le projecteur concerné, et ne compte que pour lui. Raison : le plan
+demande une retouche « sans toucher à la fresque » ; un dessin ne part que
+dans une diapositive (D-4.5-a), une seule retouche par dessin suffit.
+
+**D-4.6-b. Chaîne d'export.** Pixel de la diapositive → mm de diapositive →
+retouche défaite (inverse de la grille, par Newton) → façade (recalage) →
+dessin. L'aperçu de la vue Diapositive suit la même chaîne (sa clé de cache
+comprend la retouche).
+
+**D-4.6-c. Ce que fait l'écran.** Un clic choisit un dessin dans la vue
+Diapositive. Le glisser le décale dans cette diapositive : tous les nœuds
+d'une grille de quatre coins se déplacent ensemble, car un cadre déplacé
+seul ne décale rien. « Quatre coins » ou « Grille » (3 × 3) donne des
+points bleus à tirer, et « Réinitialiser » retire la retouche. Pendant un
+geste, le dessin retouché s'affiche en bleu par-dessus l'aperçu, qui montre
+encore l'état d'avant. À la fin du geste, la retouche est enregistrée et
+l'aperçu est recalculé.
+
+**D-4.6-d. La retouche reste quand on bouge le dessin sur la façade.** Elle
+est liée à une place dans la diapositive : après un grand déplacement sur la
+façade, mieux vaut la refaire (« Réinitialiser »). Une copie du dessin part
+sans retouche. Si le dessin change de diapositive, la retouche de l'ancienne
+est ignorée.
+
 ## 2026-11-12 — Tâche 4.5 : affectation des dessins aux diapositives
 
 Module `crates/insitu-core/src/placement/assign.rs`.

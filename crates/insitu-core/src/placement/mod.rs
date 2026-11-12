@@ -5,6 +5,7 @@
 //! et l'enregistre ([`set_placements`]). Les fonctions d'ajout et de retrait
 //! servent à la ligne de commande et aux tests.
 
+pub mod adjust;
 pub mod assign;
 pub mod mesh;
 
@@ -27,6 +28,8 @@ pub enum PlacementError {
     UnknownDrawing(String),
     /// Aucun placement ne porte cet identifiant.
     UnknownPlacement(String),
+    /// Le dessin ne tombe dans aucune diapositive : rien à retoucher.
+    NoSlide(String),
     /// Aucun projecteur ne porte ce libellé ou cet identifiant.
     UnknownProjector(String),
     /// Une largeur nulle ou négative demandée.
@@ -49,6 +52,10 @@ impl fmt::Display for PlacementError {
                 write!(f, "Aucun dessin « {name} » dans la bibliothèque.")
             }
             Self::UnknownPlacement(id) => write!(f, "Aucun dessin posé « {id} »."),
+            Self::NoSlide(id) => write!(
+                f,
+                "Le dessin posé « {id} » ne tombe dans aucune diapositive recalée."
+            ),
             Self::UnknownProjector(key) => write!(f, "Aucun projecteur « {key} »."),
             Self::InvalidWidth(width) => {
                 write!(
@@ -160,6 +167,7 @@ pub fn new_placement(
         layer: None,
         deformation: None,
         projector: None,
+        adjustment: None,
         extra: Default::default(),
     })
 }

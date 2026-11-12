@@ -2,7 +2,7 @@
 // fausse photo redressée (arcade en gris) et, pour trois projecteurs, des
 // dessins qui en suivent les arcs.
 
-import type { SlideView } from "../engine";
+import type { SlideDrawing, SlideView } from "../engine";
 
 export function demoSlideViews(): SlideView[] {
   return ["A", "B", "C"].map((label, i) => ({
@@ -11,7 +11,17 @@ export function demoSlideViews(): SlideView[] {
     rectifiedPhoto: "demo",
     preview: i < 2 ? "demo" : null,
     problem: i < 2 ? null : "recalage incomplet : 2 paire(s) de points sur 4 au moins",
+    drawings: i < 2 ? [demoDrawing(`demo-pose-${label}`, 95 + 6 * i, 45)] : [],
   }));
+}
+
+/** Un dessin posé inventé, situé dans la diapositive (mm), pour essayer la retouche (tâche 4.6). */
+function demoDrawing(placement: string, x: number, y: number): SlideDrawing {
+  const n = 16;
+  const points = [];
+  for (let j = 0; j <= n; j++)
+    for (let i = 0; i <= n; i++) points.push({ x: x + (90 * i) / n + 4 * (j / n), y: y + (110 * j) / n });
+  return { placement, drawing: "demo-0", divisions: n, points };
 }
 
 function canvas(draw: (g: CanvasRenderingContext2D, n: number) => void): string {

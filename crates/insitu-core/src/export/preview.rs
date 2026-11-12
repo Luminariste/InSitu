@@ -20,9 +20,10 @@ use std::time::UNIX_EPOCH;
 
 use serde::Serialize;
 
-use super::drawings::{slide_rect, DrawingCache};
+use super::drawings::{slide_rect, DrawingCache, Placing};
 use super::{read_fresco, render_artwork, Artwork, ExportError};
 use crate::library::{black_to_alpha, encode_png};
+use crate::placement::adjust::{slide_drawings_in, SlideDrawing};
 use crate::placement::assign::{assignments, slide_placements_in};
 use crate::project::model::new_id;
 use crate::project::{ExportSettings, Placement, Project, ProjectDir};
@@ -47,6 +48,9 @@ pub struct SlideView {
     pub preview: Option<String>,
     /// Ce qui manque pour calculer l'aperçu.
     pub problem: Option<String>,
+    /// Les dessins posés que porte cette diapositive, situés dedans avant
+    /// leur retouche (tâche 4.6).
+    pub drawings: Vec<SlideDrawing>,
 }
 
 /// La vue diapositive de tous les projecteurs du projet : l'aperçu de
@@ -79,6 +83,7 @@ pub fn slide_views(
             rectified_photo: p.rectified_photo.as_ref().map(|r| r.as_str().to_string()),
             preview: None,
             problem: None,
+            drawings: Vec::new(),
         };
         let warp = slide_to_facade(&p.registration);
         let nothing = project.fresco.is_none() && placements.is_empty();
@@ -94,6 +99,7 @@ pub fn slide_views(
             }
             Some(warp) => {
                 let mine = slide_placements_in(&project, &assigned, &p.id);
+                view.drawings = slide_drawings_in(&project, &assigned, &p.id);
                 let request = preview_request(dir, &project, &p.id, side, &mine)?;
                 if !cache_root.join(&request).is_file() {
                     if let (None, Some(fresco)) = (&fresco_image, &project.fresco) {
@@ -104,7 +110,16 @@ pub fn slide_views(
                     let seen: Vec<_> = mine
                         .iter()
                         .copied()
-                        .filter(|q| slide_rect(q, &warp, px_mm, n, false).is_some())
+                        .filter(|q| {
+                            let place = Placing {
+                                warp: &warp,
+                                px_mm,
+                                side: n,
+                                mirror: false,
+                                projector: Some(&p.id),
+                            };
+                            slide_rect(q, &place).is_some()
+                        })
                         .collect();
                     cache.load(dir, &project, &seen, px_mm)?;
                     let art = Artwork {
@@ -112,6 +127,7 @@ pub fn slide_views(
                             .as_ref()
                             .zip(project.fresco.as_ref().map(|f| &f.frame)),
                         drawings: cache.pair(&seen),
+                        projector: Some(&p.id),
                     };
                     let gray = render_artwork(&art, &warp, "", &settings, 0)?;
                     let rgba = Raster::new(gray.width, gray.height, 4, black_to_alpha(&gray));
