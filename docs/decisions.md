@@ -38,6 +38,13 @@ confirmations avant suppression déjà en place (projecteur, plan, dessin de
 la bibliothèque) sont gardées pour l'instant : les retirer, comme le prévoit
 `docs/design.md`, est un changement à part.
 
+**D-4.3-f. Annuler et Rétablir du menu Édition passent par l'interface.**
+Les entrées toutes faites du Mac (`undo`, `redo`) ne savent annuler que la
+frappe. Elles sont remplacées par des entrées InSitu (`raccourci:mod+z`,
+`raccourci:mod+shift+z`) : hors d'un champ de texte, elles annulent la
+dernière modification du projet ; dans un champ, elles annulent la frappe
+(`document.execCommand`).
+
 **D-4.3-e. Calques : une liste ordonnée, le premier au fond.**
 `layers[]` porte `id`, `name`, `visible` (absent si vrai) et `locked`
 (absent si faux) ; chaque dessin posé cite son calque par `layer`. Un dessin
@@ -53,7 +60,7 @@ le dit.
 
 **Limite.** « Avancer » et « reculer » (⌘] ⌘[) ne font pas passer un dessin
 d'un calque à l'autre : on change son calque dans l'inspecteur. L'export des
-diapositives ne lit pas encore les dessins posés (D-4.2-f) ; quand il le
+diapositives ne lit pas encore les dessins posés (limite de la tâche 4.2) ; quand il le
 fera, il devra suivre le même ordre et ignorer les calques masqués.
 
 ## 2026-11-12 — Tâche 4.2
@@ -253,7 +260,8 @@ boutons enfoncés, est réservé aux repères posés sur les images. Vert, orang
 rouge et bleu ne disent que l'état (bon, à surveiller, douteux, pas encore
 mesuré), avec une légende.
 
-**D15-c. Menus dans l'interface d'abord, barre de menus native ensuite.**
+**D15-c. Menus dans l'interface d'abord, barre de menus native ensuite**
+(faite le même jour, D15-g).
 Le menu Projet (Nouveau ⌘N, Ouvrir ⌘O, Relire ⌘R) est le même dans chaque
 écran ; le menu Présentation regroupe l'apparence, la liste des raccourcis
 (⌘/) et l'écran de démonstration de la visionneuse (provisoire, D13), qui
@@ -266,6 +274,22 @@ part, avec les mêmes entrées et les mêmes raccourcis.
 Un objet qui a demandé du travail se supprime après une confirmation dont le
 bouton dit ce qu'il fait ; un point de recalage se supprime sans (⌫ ou
 corbeille). Quand l'annulation existera (4.3), plus de confirmation.
+
+**D15-f. Retirer un projecteur n'efface pas ses photos.** Le projecteur,
+son redressement et son recalage sortent de `projet.json` ; ses photos
+brute et redressée restent dans le dossier du projet (on peut les
+réimporter, et rien ne se perd par erreur dans un dossier partagé par
+Dropbox). Renommer garde l'identifiant, donc tout le travail. Le nom est
+refusé s'il est vide ou déjà pris (sans tenir compte des majuscules), comme
+à l'ajout. Commandes : `insitu projector rename|remove`.
+
+**D15-g. La barre de menus du Mac envoie des raccourcis, pas des actions.**
+Chaque entrée propre à InSitu porte le raccourci de l'interface ; la coque
+le transmet (évènement `menu`) et l'interface déclenche l'action branchée
+sur ce raccourci dans l'écran affiché. Raison : la coque ne calcule rien
+et ne connaît pas l'état des écrans ; une seule liste d'actions, celle des
+raccourcis. Limite : une entrée ne se grise pas quand son action est
+indisponible ; la choisir ne fait alors rien.
 
 **D15-e. L'écran de démonstration garde son ancien style.** Il est
 provisoire (D13) ; il profite des nouvelles couleurs par les anciens noms de

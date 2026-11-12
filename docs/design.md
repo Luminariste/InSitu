@@ -101,10 +101,11 @@ justifiée seulement si l'action efface un fichier, ce que ⌘Z ne rend pas.
 
 Règle : **pas d'objet sans ses trois gestes.** Une session qui ajoute un
 nouveau type d'objet lui donne ajout, modification et suppression, ou note
-dans la demande de fusion ce qui manque. Manquent à ce jour (le moteur ne
-sait pas encore le faire) : renommer et supprimer un projecteur, retirer un
-dessin de la bibliothèque (prévu avec 4.2), retirer le plan de la façade
-(on peut le remplacer).
+dans la demande de fusion ce qui manque. Exemple complet : les projecteurs
+de l'étape Redressement (« + », double-clic ou crayon pour renommer,
+corbeille ou ⌫ avec confirmation). Manquent à ce jour : retirer un dessin
+de la bibliothèque (prévu avec 4.2), retirer le plan de la façade (on peut
+le remplacer).
 
 ## 4. États vides, attente, messages, erreurs
 
@@ -173,11 +174,19 @@ Présentation → Apparence. La toile reste sombre dans les trois cas.
 ## 7. Menus et raccourcis
 
 Les menus suivent l'ordre des menus du Mac et montrent leurs raccourcis à
-droite (`MenuButton`). Le menu Projet et le menu Présentation existent dans
-l'interface ; la **barre de menus native** du Mac (Fichier, Édition,
-Présentation, Fenêtre, Aide) reprendra les mêmes entrées et les mêmes
-raccourcis quand la coque Tauri l'offrira (à faire : demande une
-modification de la coque, voir D15).
+droite (`MenuButton`). Dans la fenêtre : le menu Projet et le menu
+Présentation. En haut de l'écran, la **barre de menus du Mac**
+(`src-tauri/src/menu.rs`) : InSitu (À propos, Masquer, Quitter), Fichier
+(Nouveau, Ouvrir, Relire, Importer, Exporter, Fermer), Édition (Annuler et
+Rétablir, propres à InSitu depuis la tâche 4.3 : le projet hors d'un champ,
+la frappe dans un champ ; Couper, Copier, Coller, Tout sélectionner, pour
+les champs de texte),
+Présentation (les étapes, Tout voir, Plein écran), Fenêtre, Aide
+(Raccourcis clavier). Une entrée propre à InSitu porte le raccourci de
+l'interface comme identifiant (`raccourci:mod+n`) : la coque l'envoie à
+l'interface, qui déclenche la même action que la touche (`runShortcut`).
+Un raccourci ajouté à la barre de menus doit donc exister dans un
+`useShortcuts` ; sinon l'entrée ne fait rien.
 
 | Raccourci | Action |
 | --- | --- |

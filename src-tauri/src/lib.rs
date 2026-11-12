@@ -2,6 +2,8 @@
 //! moteur. Aucun calcul ici : une commande Tauri appelle `insitu_core` et
 //! renvoie le résultat à l'interface.
 
+mod menu;
+
 use std::path::{Path, PathBuf};
 
 use insitu_core::assembly::{self, AssemblyReport, RenderOptions, RenderReport};
@@ -135,6 +137,19 @@ fn history_state(folder: String) -> Result<HistoryState, String> {
 #[tauri::command(async)]
 fn projector_add(folder: String, label: String) -> Result<(Project, String), String> {
     projectors::add_projector(&project_dir(&folder)?, &label).map_err(|e| e.to_string())
+}
+
+/// Renomme un projecteur (son travail est gardé).
+#[tauri::command(async)]
+fn projector_rename(folder: String, projector: String, label: String) -> Result<Project, String> {
+    projectors::rename_projector(&project_dir(&folder)?, &projector, &label)
+        .map_err(|e| e.to_string())
+}
+
+/// Retire un projecteur du projet ; ses photos restent dans le dossier.
+#[tauri::command(async)]
+fn projector_remove(folder: String, projector: String) -> Result<Project, String> {
+    projectors::remove_projector(&project_dir(&folder)?, &projector).map_err(|e| e.to_string())
 }
 
 /// Copie une photo de mire dans le projet et la donne au projecteur.
@@ -489,6 +504,8 @@ pub fn run() {
             }
             Ok(())
         })
+        .menu(menu::build)
+        .on_menu_event(menu::on_event)
         .invoke_handler(tauri::generate_handler![
             engine_info,
             open_tiled_image,
@@ -500,6 +517,8 @@ pub fn run() {
             facade_set_scale,
             facade_display,
             projector_add,
+            projector_rename,
+            projector_remove,
             projector_import_photo,
             projector_rectify,
             projector_view,

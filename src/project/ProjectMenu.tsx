@@ -4,11 +4,10 @@
 // L'écran garde la main sur l'ouverture : le menu lui donne seulement le
 // dossier choisi, et lui fait relire le projet après une annulation.
 
-import { useEffect, useRef } from "react";
 import { chooseNewProjectPath, chooseProjectFolder, createProject, hasEngine, historyStep } from "../engine";
 import { projectNameFromPath, withProjectExtension } from "../facade/scale";
 import { MenuButton, useShortcuts } from "../ui";
-import { isMac, isTextEntry, matchesShortcut } from "../ui/shortcuts";
+import { isTextEntry } from "../ui/shortcuts";
 import { rememberProject } from "./current";
 
 interface Props {
@@ -68,28 +67,19 @@ export function ProjectMenu({ name, folder, onOpen, onReload, ready, placeholder
       },
     );
   };
-  const latest = useRef(step);
-  latest.current = step;
-
-  // ⌘Z dans un champ de texte reste l'annulation de la frappe.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || isTextEntry(event.target as HTMLElement | null)) return;
-      if (document.querySelector(".ui-scrim")) return;
-      const mac = isMac();
-      const redo = matchesShortcut("mod+shift+z", event, mac);
-      if (!redo && !matchesShortcut("mod+z", event, mac)) return;
-      event.preventDefault();
-      latest.current(redo);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  // ⌘Z dans un champ de texte reste l'annulation de la frappe. Les mêmes
+  // raccourcis arrivent aussi du menu Édition du Mac (src-tauri/src/menu.rs).
+  const undoOrRedo = (redo: boolean) => () => {
+    if (isTextEntry(document.activeElement as HTMLElement | null)) document.execCommand(redo ? "redo" : "undo");
+    else step(redo);
+  };
 
   useShortcuts([
     { keys: "mod+n", run: create, enabled: engine && ready },
     { keys: "mod+o", run: open, enabled: engine && ready },
     { keys: "mod+r", run: () => onReload?.(), enabled: canReload },
+    { keys: "mod+shift+z", run: undoOrRedo(true) },
+    { keys: "mod+z", run: undoOrRedo(false) },
   ]);
 
   return (
