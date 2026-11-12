@@ -68,6 +68,8 @@ fn build_epinal(root: &Path) -> (ProjectDir, Project) {
             distance_mm: 4200.0,
             extra: ExtraFields::new(),
         }),
+        page: None,
+        origin: None,
         extra: ExtraFields::new(),
     };
     let (facade_width_mm, facade_height_mm) = facade.size_mm().expect("façade à l'échelle");

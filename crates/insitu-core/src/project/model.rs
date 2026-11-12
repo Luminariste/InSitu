@@ -189,6 +189,10 @@ impl Project {
         if let Some(facade) = &self.facade {
             out.push(("facade.sourceWidth".to_string(), facade.source_width));
             out.push(("facade.sourceHeight".to_string(), facade.source_height));
+            if let Some(origin) = &facade.origin {
+                out.push(("facade.origin.x".to_string(), origin.x));
+                out.push(("facade.origin.y".to_string(), origin.y));
+            }
             if let Some(scale) = &facade.scale {
                 out.push(("facade.scale.pointA.x".to_string(), scale.point_a.x));
                 out.push(("facade.scale.pointA.y".to_string(), scale.point_a.y));
@@ -246,6 +250,14 @@ pub struct Facade {
     /// Mise à l'échelle ; absente tant qu'elle n'a pas été faite.
     #[serde(default)]
     pub scale: Option<FacadeScale>,
+    /// Page retenue, à partir de 1, pour un PDF ; absente sinon (tâche 3.1).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub page: Option<u32>,
+    /// Pour un DXF : coin haut-gauche du repère du fichier, en coordonnées du
+    /// DXF (y vers le haut). Absent pour les autres formats (tâche 3.1,
+    /// D-3.1-d).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<SourcePoint>,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }
@@ -507,6 +519,8 @@ mod tests {
                 distance_mm: 2500.0,
                 extra: ExtraFields::new(),
             }),
+            page: None,
+            origin: None,
             extra: ExtraFields::new(),
         };
         // 300-400-500 : 500 unités pour 2 500 mm, soit 5 mm par unité.

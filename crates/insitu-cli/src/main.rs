@@ -13,6 +13,8 @@
 //!   présence des fichiers référencés ;
 //! - `insitu target pdf <fichier.pdf> [--page a3|carre]` : écrit la mire
 //!   imprimable ; `insitu target info` la décrit en JSON (repères, grille) ;
+//! - `insitu facade inspect|import|scale|tiles|render …` : import du plan de
+//!   façade et mise à l'échelle (détail : `insitu facade --help`) ;
 //! - `insitu tiles <image> <dossier>` : pyramide de tuiles d'une image, pour
 //!   la visionneuse (descripteur en JSON, durée sur la sortie d'erreur) ;
 //! - `insitu warp <image> <sortie.png> <paires.json>` : déforme une image
@@ -21,6 +23,7 @@
 //! Code de sortie : 0 si tout va bien, 1 en cas d'échec ou de projet
 //! invalide, 2 si la commande est mal écrite.
 
+mod facade;
 mod geometry;
 mod target;
 mod warp;
@@ -76,6 +79,14 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             }
             Err(geometry::Problem::Usage(message)) => Err(Failure::Usage(message)),
             Err(geometry::Problem::Failed(message)) => Err(Failure::Failed(message)),
+        },
+        ["facade", rest @ ..] => match facade::run(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(facade::Problem::Usage(message)) => Err(Failure::Usage(message)),
+            Err(facade::Problem::Failed(message)) => Err(Failure::Failed(message)),
         },
         ["project", rest @ ..] => run_project(rest),
         ["target", rest @ ..] => match target::run(rest) {
@@ -260,6 +271,7 @@ fn usage() -> &'static str {
      info                                          Affiche la carte d'identité du moteur (JSON)\n  \
      geometry fit <fichier.json>                   Ajuste une déformation sur des paires de points\n  \
      geometry --help                               Décrit le fichier attendu et le résultat\n  \
+     facade --help                                 Import du plan de façade et mise à l'échelle\n  \
      project new <dossier.insitu> [--name <nom>]   Crée un projet vide\n  \
      project info <dossier.insitu>                 Affiche le résumé d'un projet (JSON)\n  \
      project validate <dossier.insitu>             Contrôle le projet et ses fichiers\n  \

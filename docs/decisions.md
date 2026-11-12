@@ -4,6 +4,74 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 3.1
+
+Import du plan de façade. Les décisions de cette tâche portent un numéro
+local (D-3.1-a…), comme celles des tâches menées en parallèle.
+
+**D-3.1-a. Plans lus en Rust pur : `hayro` (PDF), `resvg` (SVG), `dxf`.**
+Aucune bibliothèque système ni binaire à embarquer : tout se compile dans le
+moteur, sous Linux comme sur Mac, et se teste en session cloud. `hayro` (0.9,
+Apache-2.0 ou MIT) est le moteur de rendu PDF le plus complet en Rust pur ;
+il ne lit pas les PDF protégés par mot de passe, ni quelques effets rares
+(mélanges, groupes « knockout »). `resvg` (0.50, mêmes licences) change les
+textes en tracés avec les polices du Mac. `dxf` (0.6, MIT) lit les DXF texte
+et binaires. Écartés : PDFium (binaire C++ à embarquer et signer), MuPDF
+(licence AGPL), et l'affichage du PDF par pdf.js dans l'interface (le calcul
+sortirait du moteur, contre la règle d'architecture).
+
+**D-3.1-b. Un plan vectoriel est rendu depuis ses vecteurs à chaque niveau
+de zoom, les niveaux fins à la demande.**
+Le plan reçoit une pyramide au format habituel (D-1.5-d) dont le niveau 0
+mesure 65 536 px sur son plus grand côté (`VECTOR_LEVEL0_SIDE`) : sur un A0,
+environ 1 400 dpi du papier. Chaque niveau est rendu directement depuis les
+vecteurs, sans réduire d'image : un trait fin reste fin et net partout. Les
+niveaux de moins de 4 096 × 4 096 px (environ 85 tuiles) sont rendus à
+l'ouverture ; les plus fins, tuile par tuile, quand la visionneuse les
+demande, puis gardés dans le cache. Le schéma `tuiles://` devient donc
+asynchrone : le rendu se fait hors du fil de la fenêtre, au plus un rendu par
+cœur à la fois. Raison : pré-rendre 16 000 tuiles prendrait plusieurs
+minutes ; on ne rend que ce qu'on regarde. Une image (PNG, JPEG, TIFF) garde
+sa pyramide ordinaire : elle n'est pas plus nette que ses pixels.
+
+**D-3.1-c. Tuiles de plan en PNG, en gris si le plan est en noir et blanc.**
+Le plus petit niveau est rendu d'abord : s'il ne contient aucune couleur, les
+tuiles sont en niveaux de gris. Limite : un détail en couleur invisible à
+cette taille sera rendu en gris.
+
+**D-3.1-d. Repère d'un DXF : coin haut-gauche du dessin, y vers le bas ;
+coin gardé dans `facade.origin`.**
+Un DXF a son origine où l'architecte l'a mise et son axe y vers le haut. Le
+moteur prend le rectangle qui englobe tout ce qu'il sait tracer et en fait le
+repère du fichier (comme une image). Ce coin est enregistré pour rester
+traçable. Limite : un objet égaré loin du dessin agrandit ce rectangle ;
+l'échelle n'en est pas faussée, mais le plan paraît petit dans la vue.
+Ce qui est tracé : lignes, polylignes et leurs arrondis, cercles, arcs,
+ellipses, splines, solides (contour), blocs (imbriqués, en réseau) et blocs
+de cotes, en noir d'un pixel d'écran à tout zoom. Pas encore : textes,
+hachures, images, objets 3D. `$INSUNITS` est lu et affiché par
+`insitu facade inspect`, sans remplacer la mise à l'échelle.
+
+**D-3.1-e. Mise à l'échelle : deux points et une cote, rien d'autre.**
+Comme le prévoit le plan. Les deux points doivent être distants d'au moins un
+millième du plan, la cote positive. Importer un autre plan efface l'échelle
+précédente (elle valait pour l'ancien fichier). Les points de recalage déjà
+posés, en mm, ne sont pas transformés : changer de plan après le recalage
+demandera de le refaire (à traiter avec la tâche 3.2 si le cas se présente).
+
+**D-3.1-f. Formats refusés avec un conseil : DWG, HEIC, Illustrator.**
+Le DWG est à exporter en PDF ou DXF (plan). Le HEIC n'est pas encore lu pour
+la façade : le lecteur HEIC viendra avec l'écran de redressement (tâche 2.5),
+d'ici là l'exporter en JPEG. Un `.ai` est à enregistrer en PDF.
+
+**D-3.1-g. L'app a des onglets : « Façade » et « Démonstration ».**
+L'écran Façade s'ouvre au lancement et rouvre le dernier projet (mémorisé
+dans le navigateur de l'app, simple confort). La démonstration de la
+visionneuse reste accessible tant que D13 n'est pas levée. Les fenêtres de
+choix de fichiers passent par le module officiel `tauri-plugin-dialog`
+(2.8). Un nouveau projet se crée par une fenêtre « Enregistrer » ; `.insitu`
+est ajouté au nom s'il manque.
+
 ## 2026-11-12 — Tâche 3.4
 
 Moteur de déformation : `crates/insitu-core/src/resample/`, commande
