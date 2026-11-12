@@ -4,6 +4,29 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 3.6
+
+Vue diapositive : `crates/insitu-core/src/export/preview.rs`, commande
+`insitu slides`, onglet « Diapositive » (`src/slide/`), mode d'emploi
+`docs/vue-diapositive.md`.
+
+**D-3.6-a. La diapositive montrée est calculée comme l'export, en aperçu de
+2 048 px.** Même chaîne et mêmes filtres que l'export (3.5), sans marge,
+miroir ni négatif, à 186 dpi environ (0,14 mm par pixel, la résolution utile
+d'une photo redressée) : ce qu'on voit est ce qui sera gravé. Le noir
+devient transparent (blanc à opacité variable) et l'interface colore les
+traits (cyan par défaut) pour qu'ils se voient sur une photo claire.
+
+**D-3.6-b. Aperçus dans le cache de l'app, refaits seulement si quelque
+chose change.** Clé : fichier de la fresque (chemin, taille, date), son
+rectangle, les paires du recalage, la taille. La fresque n'est lue que si un
+aperçu manque ; la bascule entre projecteurs ne recalcule rien.
+
+**D-3.6-c. Un onglet à part, après Recalage.** La vue diapositive sert à
+vérifier projecteur par projecteur ; elle accueillera l'ajustement par
+diapositive (4.6). Flèches ← → pour passer d'un projecteur à l'autre ; les
+tuiles des photos déjà vues sont gardées.
+
 ## 2026-11-12 — Tâche 3.5
 
 Export des diapositives : module `crates/insitu-core/src/export/`, commandes

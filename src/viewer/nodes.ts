@@ -54,6 +54,8 @@ export interface MeshImageLayerSpec extends LayerBase {
   url: string;
   divisions: number;
   points: { x: number; y: number }[];
+  /** Couleur multipliée à l'image (blanc par défaut : aucune). */
+  tint?: number;
 }
 
 /** Un polygone fermé (mm), son trait et son remplissage. */
