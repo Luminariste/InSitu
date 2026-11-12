@@ -46,6 +46,7 @@ tableau à jour.
 | Retirer un dessin de la bibliothèque, retirer le plan de la façade (hors plan, demande de Benjamin) | Version 0.1.19, **non validé** : essai sur Mac ; décision D15-h |
 | Jeu d'essai Trévarez (hors plan, demande de Benjamin) | Fait : projet réel de la 0.1.28 relu et diapositive C refaite à l'identique, prouvé par test (`jeu-essai/LISEZMOI.md`, D-JE-a à c) |
 | Panneau de droite de la Façade en onglets, outils des dessins en icônes dans la barre du haut (hors plan, demande de Benjamin) | Version 0.1.31, **non validé** : essai sur Mac ; décisions D15-i et D15-j |
+| Rotation du plan de façade par quarts de tour (hors plan, demande de Benjamin) | Version 0.1.34, **non validée** : essai sur Mac (`docs/facade.md`, point 5) ; prouvé par test : plan vectoriel et image tournés pixel pour pixel, échelle gardée, dessins et points de recalage qui suivent ; décision D15-k |
 | Toutes les autres | À faire |
 
 **Ce qui bloque la validation de la tâche 1.5.** Dans la version 0.1.1,
