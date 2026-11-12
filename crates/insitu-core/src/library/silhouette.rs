@@ -270,14 +270,11 @@ pub fn rasterize(polygons: &[SilhouettePolygon], width: u32, height: u32) -> Ras
                 }
             }
             crossings.sort_by(f64::total_cmp);
-            for pair in crossings.chunks_exact(2) {
-                let i0 = (pair[0] - 0.5).ceil().max(0.0) as usize;
-                let i1 = ((pair[1] - 0.5).ceil()).clamp(0.0, w as f64) as usize;
-                for i in i0..i1.max(i0) {
-                    // Pair-impair par polygone, union entre polygones.
-                    let cell = &mut data[j * w + i];
-                    *cell = 255;
-                }
+            // Pair-impair dans un polygone, union entre polygones.
+            for &[a, b] in crossings.as_chunks::<2>().0 {
+                let i0 = (a - 0.5).ceil().clamp(0.0, w as f64) as usize;
+                let i1 = (b - 0.5).ceil().clamp(0.0, w as f64) as usize;
+                data[j * w + i0..j * w + i1.max(i0)].fill(255);
             }
         }
     }
