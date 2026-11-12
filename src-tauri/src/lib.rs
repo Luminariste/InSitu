@@ -14,9 +14,10 @@ use insitu_core::geometry::Point;
 use insitu_core::library::vectors::{self, VectorSummary, VectorizeReport};
 use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
 use insitu_core::overview::{self, FacadeOverview};
+use insitu_core::placement;
 use insitu_core::project::{
-    AssemblyPair, ExportSettings, Mirror, Project, ProjectDir, RegistrationPair, SourcePoint,
-    VectorSettings,
+    AssemblyPair, ExportSettings, Mirror, Placement, Project, ProjectDir, RegistrationPair,
+    SourcePoint, VectorSettings,
 };
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
@@ -307,6 +308,15 @@ fn library_preview(app: AppHandle, folder: String, drawing: String) -> Result<St
         .map_err(|e| e.to_string())
 }
 
+// --- Dessins posés sur la façade (tâche 4.2) ----------------------------------
+
+/// Remplace tous les dessins posés, à la fin d'un geste ; rien n'est
+/// enregistré si l'un d'eux est incorrect.
+#[tauri::command(async)]
+fn placements_set(folder: String, placements: Vec<Placement>) -> Result<Project, String> {
+    placement::set_placements(&project_dir(&folder)?, placements).map_err(|e| e.to_string())
+}
+
 const VECTOR_PROGRESS_EVENT: &str = "vecteurs-progression";
 
 /// Vectorise les dessins `drawings` (tous si vide) qui ne le sont pas encore
@@ -488,6 +498,7 @@ pub fn run() {
             library_import,
             library_list,
             library_preview,
+            placements_set,
             library_vectorize,
             library_vectors,
             library_set_vector_settings,

@@ -1,0 +1,78 @@
+# Poser des dessins sur la façade (tâche 4.2)
+
+Dans l'étape **Façade** (⌘1), les dessins de la bibliothèque se posent
+directement sur le plan, comme dans Illustrator. Il faut un plan **mis à
+l'échelle** : les dessins sont posés en vraies dimensions (mm de façade).
+
+## Poser un dessin
+
+1. Importer des dessins dans l'étape Bibliothèque (⌘5) si ce n'est pas fait.
+2. Dans l'étape Façade, la rubrique **Dessins** (panneau de gauche, sous les
+   projecteurs) montre la bibliothèque ; un champ permet de chercher.
+3. Glisser une vignette sur le plan. Le dessin arrive au point de chute, large
+   du quart de ce qu'on voit, aux proportions du fichier. Un double-clic sur
+   la vignette le pose au centre de la vue.
+
+Tout s'enregistre dans le projet à la fin de chaque geste.
+
+## Gestes à la souris
+
+| Geste | Effet |
+| --- | --- |
+| Cliquer un dessin | Le choisir (avec tout son groupe) |
+| ⇧-clic | Ajouter ou retirer un dessin de la sélection |
+| Glisser dans le vide | Cadre de sélection (⇧ : ajoute) |
+| Cliquer dans le vide | Plus rien de choisi |
+| Glisser un dessin choisi | Le déplacer ; ⇧ : à l'horizontale, à la verticale ou à 45° |
+| ⌥-glisser | Déplacer une copie |
+| Poignée de coin (carré blanc) | Agrandir ou réduire, proportions gardées ; ⌥ : depuis le centre |
+| Juste au-delà d'un coin | Tourner autour du centre ; ⇧ : par pas de 45° |
+| Espace + glisser, ou défiler à deux doigts | Déplacer la vue |
+
+## Raccourcis (ceux d'Illustrator)
+
+| Raccourci | Effet |
+| --- | --- |
+| ⌘A / ⇧⌘A | Tout choisir / ne rien choisir ; Échap aussi |
+| ⌫ | Retirer les dessins choisis de la façade (la bibliothèque n'est pas touchée) |
+| ← → ↑ ↓ | Déplacer de 10 mm ; avec ⇧ : 100 mm |
+| ⌘C, ⌘X, ⌘V | Copier, couper, coller au centre de la vue |
+| ⌘F / ⌘B | Coller devant / derrière, à la même place |
+| ⌘D | Répéter le dernier geste : après un ⌥-glisser, chaque ⌘D pose une copie de plus au même écart |
+| ⌘G / ⇧⌘G | Grouper / dégrouper |
+| ⌘] / ⌘[ | Avancer / reculer d'un cran ; avec ⇧ : premier plan / arrière-plan |
+
+Sur un clavier français, les « crochets » sont les deux touches à droite du P
+(^ et $).
+
+## Inspecteur (à droite)
+
+La rubrique **Dessins posés** apparaît quand un dessin est choisi :
+
+- centre X et Y, largeur (la hauteur suit) : taper par exemple `2,5 m`,
+  `250 cm` ou `2500`, puis ↩ ;
+- rotation en degrés (un seul dessin) ; boutons ↺ 90° et ↻ 90° ;
+- symétries ⇆ (gauche-droite) et ⇅ (haut-bas) ;
+- avec plusieurs dessins : aligner à gauche, au centre, à droite, en haut, au
+  milieu, en bas ; répartir l'espacement (trois dessins ou plus) ; un groupe
+  compte pour un seul bloc ;
+- grouper, dégrouper, premier plan, arrière-plan, retirer.
+
+## Ce qui n'est pas encore là
+
+- **Annuler (⌘Z)** : tâche 4.3. D'ici là, un dessin retiré par erreur se
+  repose depuis la liste.
+- **Calques, verrouillage, masquage** : tâche 4.3.
+- **Déformation** (quatre coins, grille) : tâche 4.4.
+- **Export** : les diapositives sont encore calculées depuis la fresque en une
+  image (étape 3.5) ; les dessins posés ici n'y sont pas encore.
+- Les dessins sont affichés par leur aperçu de 1 024 px : flous de très près.
+
+## Sans écran
+
+```
+insitu place list <projet.insitu>
+insitu place add <projet.insitu> <dessin> --at X,Y --width MM [--rotation DEG] [--mirror] [--group NOM]
+insitu place remove <projet.insitu> <id>…
+insitu place set <projet.insitu> <placements.json>
+```

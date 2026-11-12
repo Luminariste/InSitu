@@ -2,6 +2,8 @@
 // pour que l'interface n'appelle jamais `invoke` directement.
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { Pyramid, TileSource } from "./viewer";
+import type { Placement } from "./compose/placement";
+export type { Placement };
 
 export interface EngineInfo {
   name: string;
@@ -144,6 +146,8 @@ export interface Project {
   fresco?: FrescoImage | null;
   /** Réglages d'export des diapositives (tâche 3.5). */
   export?: ExportSettings;
+  /** Dessins posés sur la façade, du fond vers l'avant (tâche 4.2). */
+  placements?: Placement[];
   /** Assemblage de photos de façade (tâche 6.4). */
   facadeAssembly?: FacadeAssembly | null;
 }
@@ -517,6 +521,14 @@ export async function saveRegistration(
     pairs,
   });
   return { project, report };
+}
+
+// --- Dessins posés sur la façade (tâche 4.2) ------------------------------------
+
+/** Remplace tous les dessins posés ; le moteur les contrôle et les enregistre. */
+export async function savePlacements(folder: string, placements: Placement[]): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("placements_set", { folder, placements });
 }
 
 // --- Bibliothèque de dessins (tâche 4.1) ---------------------------------------

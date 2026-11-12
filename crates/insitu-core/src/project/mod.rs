@@ -33,8 +33,8 @@ pub use lock::{
 pub use migrate::CURRENT_FORMAT_VERSION;
 pub use model::{
     AssemblyOutput, AssemblyPair, AssemblyPhoto, Drawing, ExportSettings, ExtraFields, Facade,
-    FacadeAssembly, FacadeScale, FrescoImage, Mirror, PointMm, Project, Projector, RectMm,
-    Rectification, RectificationMethod, RectificationPoint, RegistrationPair, SourcePoint,
+    FacadeAssembly, FacadeScale, FrescoImage, Mirror, Placement, PointMm, Project, Projector,
+    RectMm, Rectification, RectificationMethod, RectificationPoint, RegistrationPair, SourcePoint,
     VectorSettings,
 };
 pub use path::RelativePath;

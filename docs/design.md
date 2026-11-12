@@ -198,10 +198,17 @@ Un raccourci ajouté à la barre de menus doit donc exister dans un
 | ⌫ | Supprimer l'objet choisi |
 | Échap | Annuler le geste en cours, fermer un menu ou un dialogue |
 | ↩ | Valider un dialogue |
+| ⌘A / ⇧⌘A | Façade : choisir tous les dessins posés / aucun |
+| ⌘C ⌘X ⌘V | Façade : copier, couper, coller au centre de la vue |
+| ⌘F / ⌘B | Façade : coller devant / derrière, à la même place |
+| ⌘D | Façade : répéter le dernier geste (dupliquer, avec ⌥-glisser) |
+| ⌘G / ⇧⌘G | Façade : grouper / dégrouper |
+| ⌘] ⌘[ (⇧ : tout au bout) | Façade : avancer, reculer, premier plan, arrière-plan |
+| ← → ↑ ↓ (⇧ : × 10) | Façade : déplacer les dessins choisis de 10 mm |
+| Espace + glisser | Façade : déplacer la vue (quand des dessins sont posés) |
 
 Réservés pour la suite (ne pas les prendre pour autre chose) : ⌘Z / ⇧⌘Z
-annuler / rétablir (4.3), ⌘D dupliquer, ⌘G grouper, ⌘A tout choisir (4.2),
-⌘+ / ⌘− zoomer, ⌘, préférences (6.5).
+annuler / rétablir (4.3), ⌘+ / ⌘− zoomer, ⌘, préférences (6.5).
 
 Un raccourci se branche par `useShortcuts([{ keys: "mod+i", run, enabled }])`
 dans l'écran qui l'offre, s'affiche par la propriété `shortcut` du bouton,

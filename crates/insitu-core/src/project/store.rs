@@ -587,13 +587,13 @@ mod tests {
         let (dir, _) =
             ProjectDir::create(temp.path().join("Essai.insitu"), None).expect("création");
         // Un fichier comme l'écrirait une version qui connaît déjà les
-        // placements de dessins et un réglage de plus par projecteur.
+        // fiches de calepinage et un réglage de plus par projecteur.
         let document = json!({
             "formatVersion": 1,
             "id": "0123456789abcdef",
             "name": "Essai",
             "createdAt": "2026-11-11T10:00:00Z",
-            "placements": [{ "id": "p1", "drawing": "d1" }],
+            "sheets": [{ "id": "p1", "title": "Fiche" }],
             "projectors": [{
                 "id": "aaaaaaaaaaaaaaaa",
                 "label": "A",
@@ -612,7 +612,7 @@ mod tests {
         assert_eq!(
             loaded.unknown_fields,
             vec![
-                "placements",
+                "sheets",
                 "projectors[0].lens",
                 "projectors[0].registration[0].note",
                 "export.dither",
@@ -624,7 +624,7 @@ mod tests {
 
         let text = fs::read_to_string(dir.project_file()).expect("lecture");
         let written: Value = serde_json::from_str(&text).expect("JSON");
-        assert_eq!(written["placements"], document["placements"]);
+        assert_eq!(written["sheets"], document["sheets"]);
         assert_eq!(
             written["projectors"][0]["lens"],
             json!({ "focalMm": 320.0 })

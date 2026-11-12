@@ -91,6 +91,10 @@ pub struct Project {
     /// est vide.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub library: Vec<Drawing>,
+    /// Dessins posés sur la façade (tâche 4.2), du plus au fond au plus en
+    /// avant. Absent du fichier tant qu'il est vide.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub placements: Vec<Placement>,
     /// Assemblage de photos de façade (tâche 6.4). Absent tant qu'aucune
     /// photo n'a été ajoutée.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -112,6 +116,7 @@ impl Project {
             fresco: None,
             export: ExportSettings::default(),
             library: Vec::new(),
+            placements: Vec::new(),
             facade_assembly: None,
             extra: ExtraFields::new(),
         }
@@ -203,6 +208,9 @@ impl Project {
         for (i, drawing) in self.library.iter().enumerate() {
             collect(&format!("library[{i}]."), &drawing.extra);
         }
+        for (i, placement) in self.placements.iter().enumerate() {
+            collect(&format!("placements[{i}]."), &placement.extra);
+        }
         found
     }
 
@@ -257,6 +265,13 @@ impl Project {
         for (i, drawing) in self.library.iter().enumerate() {
             out.push((format!("library[{i}].width"), drawing.width));
             out.push((format!("library[{i}].height"), drawing.height));
+        }
+        for (i, p) in self.placements.iter().enumerate() {
+            out.push((format!("placements[{i}].center.x"), p.center.x));
+            out.push((format!("placements[{i}].center.y"), p.center.y));
+            out.push((format!("placements[{i}].width"), p.width));
+            out.push((format!("placements[{i}].height"), p.height));
+            out.push((format!("placements[{i}].rotation"), p.rotation));
         }
         out
     }
@@ -603,6 +618,87 @@ impl Drawing {
         let path = self.source.as_str();
         let inside = path.split_once('/').map_or("", |(_, rest)| rest);
         inside.rsplit_once('/').map_or("", |(folder, _)| folder)
+    }
+}
+
+/// Un dessin posé sur la façade (tâche 4.2).
+///
+/// Le dessin est d'abord mis à la taille `width` × `height` (mm réels), son
+/// centre à l'origine ; il est ensuite retourné de gauche à droite si
+/// `mirrored`, tourné de `rotation` degrés (sens des aiguilles d'une montre à
+/// l'écran, puisque y descend), puis posé en `center`. Une symétrie de haut
+/// en bas s'écrit `mirrored` plus un demi-tour.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Placement {
+    /// Identifiant stable de ce placement.
+    pub id: String,
+    /// Le dessin posé : identifiant d'un dessin de la bibliothèque.
+    pub drawing: String,
+    /// Centre du dessin sur la façade, en mm réels.
+    pub center: PointMm,
+    /// Largeur et hauteur du dessin posé, en mm réels, avant rotation.
+    pub width: f64,
+    pub height: f64,
+    /// Rotation en degrés, sens des aiguilles d'une montre.
+    #[serde(default)]
+    pub rotation: f64,
+    /// Retourné de gauche à droite.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub mirrored: bool,
+    /// Groupe auquel appartient le dessin ; les dessins d'un même groupe se
+    /// sélectionnent et se transforment ensemble.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
+    #[serde(flatten)]
+    pub extra: ExtraFields,
+}
+
+impl Placement {
+    /// Point de la façade où tombe le point (`u`, `v`) du dessin, en
+    /// fractions de sa largeur et de sa hauteur : (0, 0) est le coin
+    /// haut-gauche du fichier, (1, 1) le coin bas-droit.
+    pub fn facade_point(&self, u: f64, v: f64) -> PointMm {
+        let mut x = (u - 0.5) * self.width;
+        let y = (v - 0.5) * self.height;
+        if self.mirrored {
+            x = -x;
+        }
+        let (sin, cos) = self.rotation.to_radians().sin_cos();
+        PointMm::new(
+            self.center.x + x * cos - y * sin,
+            self.center.y + x * sin + y * cos,
+        )
+    }
+
+    /// Les quatre coins du fichier sur la façade : haut-gauche, haut-droit,
+    /// bas-droit, bas-gauche (coins du fichier, pas de l'écran).
+    pub fn corners(&self) -> [PointMm; 4] {
+        [
+            self.facade_point(0.0, 0.0),
+            self.facade_point(1.0, 0.0),
+            self.facade_point(1.0, 1.0),
+            self.facade_point(0.0, 1.0),
+        ]
+    }
+
+    /// Rectangle droit qui contient le dessin posé.
+    pub fn bounds(&self) -> RectMm {
+        let corners = self.corners();
+        let (mut x0, mut y0) = (f64::INFINITY, f64::INFINITY);
+        let (mut x1, mut y1) = (f64::NEG_INFINITY, f64::NEG_INFINITY);
+        for c in corners {
+            x0 = x0.min(c.x);
+            y0 = y0.min(c.y);
+            x1 = x1.max(c.x);
+            y1 = y1.max(c.y);
+        }
+        RectMm {
+            x: x0,
+            y: y0,
+            width: x1 - x0,
+            height: y1 - y0,
+        }
     }
 }
 
