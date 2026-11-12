@@ -27,6 +27,7 @@ fn two_projectors() -> Project {
         height: 100.0,
         vector: None,
         silhouette: None,
+        retouch: Vec::new(),
         extra: Default::default(),
     });
     project

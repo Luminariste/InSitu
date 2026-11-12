@@ -35,6 +35,7 @@ tableau à jour.
 | 4.5 Affectation | Fusionnée (version 0.1.23), **non validée** : essai sur Mac à faire par Benjamin (`docs/composition.md`, « Diapositive de chaque dessin ») ; critères prouvés par test (D-4.5-d) |
 | 4.6 Ajustement par diapositive | Fusionnée (version 0.1.24), **non validée** : essai sur Mac à faire par Benjamin (`docs/vue-diapositive.md`, « Retoucher un dessin ») ; critère prouvé par test (retouche à l'export, retirée d'un clic) |
 | 4.7 Silhouettes et superposition | Fusionnée (version 0.1.25), **non validée** : essai sur Mac à faire par Benjamin (`docs/bibliotheque.md`, « Silhouettes ») ; masquage dans le PNG prouvé par test ; partie SVG faite avec la 5.3 (D-5.3-c) |
+| 4.8 Gomme et crayon (demande de Benjamin) | Version 0.1.30, **non validée** : essai sur Mac à faire par Benjamin (`docs/bibliotheque.md`, « Gomme et crayon ») ; prouvé par test : fichier importé intact, dessin retouché lu par vignette, aperçu, silhouette, vecteurs et export (export identique à celui du dessin retouché importé tel quel), retour à l'origine ; décisions D-4.8-a à d |
 | 5.3 Export SVG | Version 0.1.26, **non validée** : critère prouvé par test (courbes du SVG posées sur le PNG à 1 400 dpi : écart sous 0,02 mm, avec et sans miroir) ; ouverture dans LightBurn à essayer par Benjamin, réglages de gravure avec la 5.4 (`docs/export.md`, « SVG en millimètres ») ; décisions D-5.3-a à e |
 | 6.2 Fiche de calepinage | Version 0.1.28, **non validée** : impression A3 et lecture sur site à essayer par Benjamin (`docs/calepinage.md`) ; prouvé par test : PDF A3 relu par un lecteur PDF, plan et diapositives six par page, aucun texte sous 3 mm, vignettes visibles ; décisions D-6.2-a à d |
 | 6.1 Simulation | Version 0.1.27, **non validée** : essai sur Mac à faire par Benjamin (`docs/simulation.md`) ; critère prouvé par test (chaque alerte donne le dessin concerné et un rectangle qui le contient ; un clic choisit le dessin et cadre la vue) ; décisions D-6.1-a à d |
@@ -215,7 +216,8 @@ avant de lancer le suivant.
    Illustrator, mais sur la façade entière, sans déformation manuelle.*
 4. **Composition.** Bibliothèque, placement et transformations, déformation
    quatre coins et grille, calques, affectation automatique, ajustement par
-   diapositive, silhouettes. *Illustrator devient facultatif.*
+   diapositive, silhouettes, gomme et crayon. *Illustrator devient
+   facultatif.*
 5. **Vectorisation et SVG.** Vectorisation en bibliothèque, export SVG par
    diapositive, essai de gravure vectorielle dans LightBurn.
 6. **Contrôle et finitions.** Simulation de tous les projecteurs, alertes,
@@ -271,6 +273,7 @@ les tâches « interface » demandent un essai sur Mac.
 | 4.5 | Affectation | Proposition automatique dessin vers diapositive (aucun dessin coupé), correction manuelle, couleur par diapositive | Sur la composition d'essai, aucun dessin n'est à cheval ; un changement manuel est conservé | 4.2 |
 | 4.6 | Ajustement par diapositive | Dans la vue diapositive, retouche locale d'un dessin sur la photo, sans toucher à la fresque | L'ajustement apparaît à l'export et se réinitialise d'un clic | 3.6, 4.4 |
 | 4.7 | Silhouette et superposition | Détection du contour extérieur de chaque dessin, fond noir à l'intérieur, retouche manuelle du contour ; un dessin au-dessus masque ceux du dessous | Deux dessins superposés : celui de devant cache l'autre à l'écran, dans le PNG et dans le SVG | 4.1, 4.3 |
+| 4.8 | Gomme et crayon (demande de Benjamin, 12 novembre) | Dans la bibliothèque : gomme pour effacer des traits du dessin d'origine, crayon pour en ajouter, en trait ou en zone remplie ; le fichier importé reste intact | Une retouche apparaît dans la vignette, sur la façade, dans les vecteurs, la silhouette et l'export, s'annule et se défait d'un clic | 4.1, 4.7 |
 
 ### Jalon 5 — Vectorisation et SVG
 

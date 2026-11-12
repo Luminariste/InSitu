@@ -18,10 +18,12 @@
 //! - [`list`] : la bibliothèque, vignettes comprises ;
 //! - [`ensure_rendition`] : une vignette ou un aperçu dans le cache ;
 //! - [`vectors`] : les vecteurs de chaque dessin (tâche 5.2) ;
-//! - [`silhouette`] : la silhouette de chaque dessin (tâche 4.7).
+//! - [`silhouette`] : la silhouette de chaque dessin (tâche 4.7) ;
+//! - [`retouch`] : gomme et crayon sur un dessin (tâche 4.8).
 
 pub mod psd;
 pub mod read;
+pub mod retouch;
 pub mod silhouette;
 pub mod vectors;
 
@@ -87,6 +89,8 @@ pub enum LibraryError {
     Settings(String),
     /// Silhouette retouchée refusée.
     Silhouette(String),
+    /// Retouches à la gomme ou au crayon refusées.
+    Retouch(String),
     /// Écriture d'une vignette impossible.
     Cache {
         path: PathBuf,
@@ -115,6 +119,7 @@ impl fmt::Display for LibraryError {
             Self::UnknownDrawing(id) => write!(f, "Aucun dessin « {id} » dans la bibliothèque."),
             Self::Settings(reason) => write!(f, "Réglages de vectorisation refusés : {reason}."),
             Self::Silhouette(reason) => write!(f, "Silhouette refusée : {reason}."),
+            Self::Retouch(reason) => write!(f, "Retouches refusées : {reason}."),
             Self::Cache { path, reason } => {
                 write!(
                     f,
@@ -552,6 +557,7 @@ pub fn import_folder(
                     height,
                     vector: None,
                     silhouette: None,
+                    retouch: Vec::new(),
                     extra: ExtraFields::new(),
                 });
             }
@@ -670,10 +676,11 @@ pub fn entries(
         &project.library,
         thread_count(threads),
         |drawing| {
-            let path = dir.resolve(&drawing.source);
-            let (thumbnail, problem) = if !path.is_file() {
+            let (thumbnail, problem) = if !dir.resolve(&drawing.source).is_file() {
                 (None, Some("fichier absent du dossier projet".to_string()))
             } else {
+                // Le dessin retouché à la gomme ou au crayon (tâche 4.8).
+                let path = retouch::readable_file(dir, drawing);
                 match cache_root.map(|cache| ensure_rendition(&path, cache, THUMBNAIL_SIDE)) {
                     None => (None, None),
                     Some(Ok(request)) => (Some(request), None),
@@ -699,6 +706,24 @@ pub fn entries(
 /// L'aperçu (1 024 px au plus, fond transparent) d'un dessin, fabriqué dans
 /// le cache s'il n'y est pas.
 pub fn preview(dir: &ProjectDir, id: &str, cache_root: &Path) -> Result<String, LibraryError> {
+    let project = dir.load()?.project;
+    let drawing = project
+        .drawing(id)
+        .ok_or_else(|| LibraryError::UnknownDrawing(id.to_string()))?;
+    ensure_rendition(
+        &retouch::readable_file(dir, drawing),
+        cache_root,
+        PREVIEW_SIDE,
+    )
+}
+
+/// L'aperçu du dessin tel qu'importé, sans ses retouches (tâche 4.8) :
+/// l'éditeur de retouches y peint les siennes.
+pub fn original_preview(
+    dir: &ProjectDir,
+    id: &str,
+    cache_root: &Path,
+) -> Result<String, LibraryError> {
     let project = dir.load()?.project;
     let drawing = project
         .drawing(id)

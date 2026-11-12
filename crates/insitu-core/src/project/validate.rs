@@ -236,6 +236,9 @@ pub fn check_model(project: &Project, report: &mut ValidationReport) {
         {
             report.error(format!("library[{i}].silhouette"), problem);
         }
+        if let Some(problem) = super::model::retouch_problem(&drawing.retouch) {
+            report.error(format!("library[{i}].retouch"), problem);
+        }
     }
 }
 

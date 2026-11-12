@@ -161,6 +161,20 @@ export interface ProjectDrawing {
   id: string;
   /** Silhouette retouchée à la main (tâche 4.7) ; absente : détectée. */
   silhouette?: SilhouettePolygon[] | null;
+  /** Gomme et crayon (tâche 4.8), dans l'ordre ; absent : dessin d'origine. */
+  retouch?: RetouchStroke[];
+}
+
+/**
+ * Une retouche à la gomme (`erase` : du noir) ou au crayon (`draw` : du
+ * blanc), en fractions du dessin. `fill` : une zone fermée remplie ;
+ * sinon un trait d'épaisseur `size` (fraction du plus grand côté).
+ */
+export interface RetouchStroke {
+  tool: "erase" | "draw";
+  fill?: boolean;
+  size: number;
+  points: [number, number][];
 }
 
 /** Un contour de silhouette : points `[u, v]` en fractions du dessin. */
@@ -720,10 +734,21 @@ export async function removeDrawing(folder: string, drawing: string): Promise<[P
   return invoke<[Project, number]>("library_remove", { folder, drawing });
 }
 
-/** Adresse de l'aperçu (1 024 px, fond transparent) d'un dessin. */
-export async function fetchDrawingPreview(folder: string, drawing: string): Promise<string> {
+/** Adresse de l'aperçu (1 024 px, fond transparent) d'un dessin ; `original` : sans ses retouches. */
+export async function fetchDrawingPreview(folder: string, drawing: string, original = false): Promise<string> {
   requireEngine();
-  return cacheFileUrl(await invoke<string>("library_preview", { folder, drawing }));
+  return cacheFileUrl(await invoke<string>("library_preview", { folder, drawing, original }));
+}
+
+/** Remplace les retouches à la gomme et au crayon d'un dessin (liste vide : dessin d'origine) ; le projet est enregistré. */
+export async function saveRetouch(
+  folder: string,
+  drawing: string,
+  strokes: RetouchStroke[],
+): Promise<{ project: Project; entry: LibraryEntry }> {
+  requireEngine();
+  const [project, entry] = await invoke<[Project, LibraryEntry]>("library_set_retouch", { folder, drawing, strokes });
+  return { project, entry };
 }
 
 export interface VectorizeReport {

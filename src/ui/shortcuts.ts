@@ -148,6 +148,19 @@ export const APP_SHORTCUTS: { group: string; items: { keys: ShortcutSpec; label:
     ],
   },
   {
+    group: "Gomme et crayon (Bibliothèque)",
+    items: [
+      { keys: "e", label: "Gomme" },
+      { keys: "n", label: "Crayon" },
+      { keys: "t", label: "Peindre un trait" },
+      { keys: "z", label: "Remplir une zone entourée" },
+      { keys: "[", label: "Trait plus fin" },
+      { keys: "]", label: "Trait plus épais" },
+      { keys: "mod+z", label: "Annuler la dernière retouche" },
+      { keys: "space", label: "Espace + glisser : déplacer la vue" },
+    ],
+  },
+  {
     group: "Sélection",
     items: [
       { keys: "arrowup", label: "Élément précédent de la liste" },

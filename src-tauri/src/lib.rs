@@ -19,7 +19,7 @@ use insitu_core::placement;
 use insitu_core::project::history::{self, HistoryState};
 use insitu_core::project::{
     AssemblyPair, ExportSettings, Layer, Mirror, Placement, Project, ProjectDir, RegistrationPair,
-    SilhouettePolygon, SlideAdjustment, SourcePoint, VectorSettings,
+    RetouchStroke, SilhouettePolygon, SlideAdjustment, SourcePoint, VectorSettings,
 };
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
@@ -331,11 +331,40 @@ fn library_remove(folder: String, drawing: String) -> Result<(Project, usize), S
     library::remove_drawing(&project_dir(&folder)?, &drawing).map_err(|e| e.to_string())
 }
 
-/// L'aperçu (1 024 px, fond transparent) d'un dessin.
+/// L'aperçu (1 024 px, fond transparent) d'un dessin ; `original` : sans
+/// ses retouches à la gomme et au crayon (tâche 4.8).
 #[tauri::command(async)]
-fn library_preview(app: AppHandle, folder: String, drawing: String) -> Result<String, String> {
-    library::preview(&project_dir(&folder)?, &drawing, &tile_cache_dir(&app)?)
-        .map_err(|e| e.to_string())
+fn library_preview(
+    app: AppHandle,
+    folder: String,
+    drawing: String,
+    original: Option<bool>,
+) -> Result<String, String> {
+    let (dir, cache) = (project_dir(&folder)?, tile_cache_dir(&app)?);
+    if original == Some(true) {
+        library::original_preview(&dir, &drawing, &cache)
+    } else {
+        library::preview(&dir, &drawing, &cache)
+    }
+    .map_err(|e| e.to_string())
+}
+
+/// Remplace les retouches à la gomme et au crayon d'un dessin (tâche 4.8) ;
+/// liste vide : le dessin d'origine.
+#[tauri::command(async)]
+fn library_set_retouch(
+    app: AppHandle,
+    folder: String,
+    drawing: String,
+    strokes: Vec<RetouchStroke>,
+) -> Result<(Project, LibraryEntry), String> {
+    library::retouch::set_retouch(
+        &project_dir(&folder)?,
+        &drawing,
+        strokes,
+        Some(&tile_cache_dir(&app)?),
+    )
+    .map_err(|e| e.to_string())
 }
 
 // --- Dessins posés sur la façade (tâche 4.2) ----------------------------------
@@ -620,6 +649,7 @@ pub fn run() {
             library_list,
             library_remove,
             library_preview,
+            library_set_retouch,
             placements_set,
             placements_assignment,
             placement_adjust,

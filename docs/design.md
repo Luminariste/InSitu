@@ -209,7 +209,8 @@ Un raccourci ajouté à la barre de menus doit donc exister dans un
 | ⌘G / ⇧⌘G | Façade : grouper / dégrouper |
 | ⌘] ⌘[ (⇧ : tout au bout) | Façade : avancer, reculer, premier plan, arrière-plan |
 | ← → ↑ ↓ (⇧ : × 10) | Façade : déplacer les dessins choisis de 10 mm |
-| Espace + glisser | Façade : déplacer la vue (quand des dessins sont posés) |
+| Espace + glisser | Façade : déplacer la vue (quand des dessins sont posés) ; Gomme et crayon : déplacer la vue |
+| E / N, T / Z, [ ] | Gomme et crayon (Bibliothèque, tâche 4.8) : gomme / crayon, trait / zone, épaisseur ; ⌘Z y annule la dernière retouche |
 
 Réservés pour la suite (ne pas les prendre pour autre chose) : ⌘+ / ⌘− zoomer, ⌘, préférences (6.5).
 

@@ -429,6 +429,7 @@ fn project_with_placed_drawing(label: &str, frame: &RectMm) -> (TempDir, Project
         height: f64::from(verre.height),
         vector: None,
         silhouette: None,
+        retouch: Vec::new(),
         extra: Default::default(),
     });
     project.placements.push(Placement {
@@ -864,6 +865,7 @@ fn the_front_drawing_hides_the_one_behind_under_its_silhouette() {
             height: f64::from(side),
             vector: None,
             silhouette: None,
+            retouch: Vec::new(),
             extra: Default::default(),
         });
     }

@@ -4,6 +4,50 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 4.8 : gomme et crayon
+
+Demande de Benjamin (12 novembre) : une gomme pour enlever des traits
+inutiles venus du dessin d'origine, un crayon pour ajouter des zones. Module
+`crates/insitu-core/src/library/retouch.rs` ; écran
+`src/library/RetouchEditor.tsx`, ouvert depuis l'inspecteur de la
+Bibliothèque ; `insitu library retouch`.
+
+**D-4.8-a. Retouches écrites dans le projet, fichier importé intact.** Le
+champ `library[].retouch` garde chaque retouche dans l'ordre : l'outil
+(gomme = noir, crayon = blanc) et ses points en fractions du dessin, comme
+la silhouette (D-4.7-b). Soit un trait rond d'une épaisseur en fraction du
+plus grand côté, soit une zone fermée remplie (pair-impair). Bord adouci
+sur un pixel. La règle de la 4.1 (« le fichier copié n'est jamais
+modifié ») tient : on revient toujours au dessin d'origine.
+
+**D-4.8-b. Un dessin retouché fabriqué une fois, lu partout.** Le moteur
+peint les retouches à pleine résolution et écrit un PNG dans le dossier
+`retouches/` du projet, sous un nom qui dépend des retouches. Vignettes,
+aperçus, vecteurs, silhouette détectée, export (PNG et SVG), vue
+Diapositive, simulation et fiche lisent ce fichier à la place de
+l'original (`retouch::retouched_file`) : leurs caches, rangés par fichier,
+se refont d'eux-mêmes. Il est dans le projet (et pas dans le cache de
+l'app) pour que l'export, qui n'a pas de cache, le trouve, et pour que
+l'autre Mac le reçoive par Dropbox ; s'il manque, il est refait à
+l'identique. Les anciens fichiers d'un dessin sont effacés à chaque
+enregistrement.
+
+**D-4.8-c. Un SVG retouché devient une image de 4 096 px**, la taille où la
+vectorisation le rend déjà (D-5.2-d). Un SVG non retouché garde son rendu à
+la taille du placement à l'export.
+
+**D-4.8-d. Enregistrement à chaque geste, annulation dans l'éditeur.** Pas
+de bouton « Enregistrer » (docs/design.md, § 3) : chaque retouche part au
+moteur au lâcher ; un seul enregistrement à la fois, le dernier état
+gagne. Dans l'éditeur, ⌘Z retire la dernière retouche : les raccourcis du
+menu Projet (dont l'annulation de l'historique du projet, 4.3) y sont
+suspendus, comme sous les autres éditeurs plein écran de la Bibliothèque
+(où ⌫ ouvrait sinon « Retirer le dessin »). Hors de l'éditeur, ⌘Z de
+l'historique du projet annule aussi les retouches, enregistrement par
+enregistrement. L'éditeur peint sur l'aperçu d'origine (1 024 px) avec le
+canevas du navigateur ; le rendu final est celui du moteur, aux mêmes
+fractions.
+
 ## 2026-11-12 — Tâche 6.2 : fiche de calepinage
 
 Module `crates/insitu-core/src/sheet/` ; bouton « Fiche de calepinage… » sous

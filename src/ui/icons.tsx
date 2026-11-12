@@ -142,6 +142,9 @@ const PATHS = {
       <path d="M6 3v10" />
     </>
   ),
+  eraser: <path d="M9.5 3l4 4-6 6H4.5l-2-2zM6.5 6l4 4M7.5 13H14" />,
+  undo: <path d="M5.5 4L3 6.5 5.5 9M3 6.5h6.5a3.5 3.5 0 0 1 0 7H7" />,
+  redo: <path d="M10.5 4L13 6.5 10.5 9M13 6.5H6.5a3.5 3.5 0 0 0 0 7H9" />,
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof PATHS;

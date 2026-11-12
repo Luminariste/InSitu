@@ -4,6 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+use insitu_core::library::retouch::{retouched_file, set_retouch};
 use insitu_core::library::silhouette::{load_silhouettes, rasterize, set_silhouette};
 use insitu_core::library::vectors::{
     drawing_vectors, set_vector_settings, vectorize_drawings, VectorSummary,
@@ -11,7 +12,7 @@ use insitu_core::library::vectors::{
 use insitu_core::library::{
     self, decode, encode_png, import_folder, rendition, ImportOptions, THUMBNAIL_SIDE,
 };
-use insitu_core::project::{ProjectDir, SilhouettePolygon, VectorSettings};
+use insitu_core::project::{ProjectDir, RetouchStroke, SilhouettePolygon, VectorSettings};
 
 /// Ce qui peut mal tourner.
 pub enum Problem {
@@ -29,6 +30,8 @@ pub const USAGE: &str = r#"Usage :
          [--default]
   insitu library silhouette <projet.insitu> <dessin> --cache DOSSIER
          [--from CONTOURS.json | --none | --default] [--mask SORTIE.png]
+  insitu library retouch <projet.insitu> <dessin>
+         [--from RETOUCHES.json | --clear] [--out SORTIE.png]
 
 Bibliothèque de dessins (traits blancs sur fond noir ; PNG, JPEG, TIFF, BMP,
 PSD aplati, SVG).
@@ -61,6 +64,14 @@ PSD aplati, SVG).
              à la détection automatique. Ces trois options enregistrent le
              projet. --mask écrit la silhouette en image (blanc dedans), au
              côté --size (1 024 par défaut).
+  retouch    Gomme et crayon d'un dessin (tâche 4.8) en JSON : les
+             retouches et le fichier lu à la place de l'original. --from
+             les remplace par celles d'un fichier JSON (une liste de
+             { "tool": "erase" ou "draw", "fill": vrai pour une zone,
+             "size": épaisseur en fraction du plus grand côté, "points":
+             [[u, v], …] }) ; --clear revient au dessin d'origine. Ces deux
+             options enregistrent le projet. --out écrit le dessin retouché
+             (pleine résolution) dans un fichier PNG.
 
   --cache DOSSIER  Où ranger vignettes et vecteurs (comme le cache de
                    l'app). Sans cette option, import et list n'en font pas.
@@ -80,6 +91,8 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
     let mut from: Option<String> = None;
     let mut none = false;
     let mut mask: Option<String> = None;
+    let mut out: Option<String> = None;
+    let mut clear = false;
     let mut words = Vec::new();
     let mut rest = args.iter().copied();
     while let Some(arg) = rest.next() {
@@ -105,18 +118,19 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                     .ok_or_else(|| usage("--size attend un nombre de pixels."))?;
                 size_given = true;
             }
-            "--from" | "--mask" => {
+            "--from" | "--mask" | "--out" => {
                 let value = rest
                     .next()
                     .ok_or_else(|| usage(&format!("{arg} attend un fichier.")))?
                     .to_string();
-                if arg == "--from" {
-                    from = Some(value);
-                } else {
-                    mask = Some(value);
+                match arg {
+                    "--from" => from = Some(value),
+                    "--out" => out = Some(value),
+                    _ => mask = Some(value),
                 }
             }
             "--none" => none = true,
+            "--clear" => clear = true,
             "--threshold" | "--tolerance" | "--corner" | "--min-area" => {
                 let value: f64 = rest
                     .next()
@@ -272,6 +286,46 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                 })?;
             }
             Ok(serde_json::to_string_pretty(&current).expect("sérialisable"))
+        }
+        ["retouch", folder, drawing] => {
+            if from.is_some() && clear {
+                return Err(usage("--from et --clear s'excluent."));
+            }
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let mut project = dir.load().map_err(failed)?.project;
+            let id = library::find(&project, drawing).map_err(failed)?.id.clone();
+            if from.is_some() || clear {
+                let wanted: Vec<RetouchStroke> = match &from {
+                    Some(file) => {
+                        let text = std::fs::read_to_string(file).map_err(|e| {
+                            Problem::Failed(format!("Impossible de lire « {file} » : {e}"))
+                        })?;
+                        serde_json::from_str(&text).map_err(|e| {
+                            Problem::Failed(format!("Retouches illisibles dans « {file} » : {e}"))
+                        })?
+                    }
+                    None => Vec::new(),
+                };
+                project = set_retouch(&dir, &id, wanted, cache.as_deref())
+                    .map_err(failed)?
+                    .0;
+            }
+            let d = project.drawing(&id).expect("trouvé plus haut");
+            let file = retouched_file(&dir, d).map_err(failed)?;
+            if let Some(output) = &out {
+                let image = decode(&file, 4096).map_err(failed)?.raster;
+                let bytes =
+                    encode_png(&library::flatten_on_black(image)).map_err(Problem::Failed)?;
+                std::fs::write(output, bytes).map_err(|e| {
+                    Problem::Failed(format!("Impossible d'écrire « {output} » : {e}"))
+                })?;
+            }
+            Ok(serde_json::to_string_pretty(&serde_json::json!({
+                "drawing": id,
+                "retouch": d.retouch,
+                "file": file.display().to_string(),
+            }))
+            .expect("sérialisable"))
         }
         _ => Err(usage("Commande de bibliothèque incomplète ou inconnue.")),
     }
