@@ -6,8 +6,9 @@ use std::path::{Path, PathBuf};
 
 use insitu_core::facade::{self, FacadeDisplay, SourceInfo};
 use insitu_core::geometry::Point;
-use insitu_core::project::{Project, ProjectDir, SourcePoint};
+use insitu_core::project::{Project, ProjectDir, RegistrationPair, SourcePoint};
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
+use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
 use insitu_core::tiles;
 use tauri::http::{header, Request, Response, StatusCode};
 use tauri::{AppHandle, Manager, Runtime, UriSchemeContext, UriSchemeResponder};
@@ -158,6 +159,35 @@ fn projector_export(
     .map_err(|e| e.to_string())
 }
 
+// --- Recalage sur la façade (tâche 3.2) ---------------------------------------
+
+/// Compte rendu du recalage enregistré d'un projecteur.
+#[tauri::command(async)]
+fn registration_show(folder: String, projector: String) -> Result<RegistrationReport, String> {
+    registration::projector_report(
+        &project_dir(&folder)?,
+        &projector,
+        &RegistrationOptions::default(),
+    )
+    .map_err(|e| e.to_string())
+}
+
+/// Remplace les paires de points d'un projecteur et rend le compte rendu.
+#[tauri::command(async)]
+fn registration_set(
+    folder: String,
+    projector: String,
+    pairs: Vec<RegistrationPair>,
+) -> Result<(Project, RegistrationReport), String> {
+    registration::set_registration(
+        &project_dir(&folder)?,
+        &projector,
+        pairs,
+        &RegistrationOptions::default(),
+    )
+    .map_err(|e| e.to_string())
+}
+
 /// Dossier du jeu d'essai, pour l'écran de démonstration. Dans l'ordre :
 /// celui que désigne `INSITU_JEU_ESSAI`, celui du dépôt d'où l'app a été
 /// compilée (lancement depuis le code), puis les images embarquées dans
@@ -223,7 +253,9 @@ pub fn run() {
             projector_import_photo,
             projector_rectify,
             projector_view,
-            projector_export
+            projector_export,
+            registration_show,
+            registration_set
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement d'InSitu");

@@ -1,0 +1,110 @@
+// Ce que l'écran de recalage dessine sur chacune des deux vues : les points
+// communs numérotés (couleur selon leur écart), le point en attente de son
+// double, et, sur la façade, l'emprise du projecteur.
+// Tailles en pixels d'écran, quel que soit le zoom.
+
+import { Container, Graphics, Text } from "pixi.js";
+import type { FrameContext, Point, Rect, SceneNode } from "../viewer";
+import type { PairStatus } from "./logic";
+
+export const STATUS_COLORS: Record<PairStatus, number> = {
+  bon: 0x3ccf6e,
+  moyen: 0xe8b04a,
+  aberrant: 0xff4d4d,
+  inconnu: 0x4fb3ff,
+};
+const PENDING = 0xffe14d;
+const SELECTED = 0xffffff;
+const FOOTPRINT = 0x4fb3ff;
+
+export interface MarkersContent {
+  points: { x: number; y: number; status: PairStatus }[];
+  /** Indice du point sélectionné (à déplacer), ou rien. */
+  selected: number | null;
+  /** Point posé de ce côté, en attente de l'autre. */
+  pending: Point | null;
+  /** Contour de l'emprise du projecteur (façade seulement). */
+  footprint: Point[] | null;
+}
+
+export const EMPTY_MARKERS: MarkersContent = { points: [], selected: null, pending: null, footprint: null };
+
+export class PairMarkersNode implements SceneNode {
+  readonly container = new Container();
+  private readonly graphics = new Graphics();
+  private readonly labels: Text[] = [];
+  private content: MarkersContent = EMPTY_MARKERS;
+  private drawnZoom = 0;
+
+  constructor(name: string) {
+    this.container.label = `recalage:${name}`;
+    this.container.addChild(this.graphics);
+  }
+
+  set(content: MarkersContent): void {
+    this.content = content;
+    this.drawnZoom = 0; // redessiner à la prochaine image
+  }
+
+  bounds(): Rect | null {
+    return null; // les repères ne comptent pas dans « Tout voir »
+  }
+
+  finestDetail(): number | null {
+    return null;
+  }
+
+  private label(i: number): Text {
+    while (this.labels.length <= i) {
+      const text = new Text({ text: "" });
+      text.style = { fill: 0xffffff, fontSize: 13, fontWeight: "700", fontFamily: "-apple-system, sans-serif" };
+      this.labels.push(text);
+      this.container.addChild(text);
+    }
+    return this.labels[i];
+  }
+
+  update(frame: FrameContext): void {
+    const zoom = frame.view.zoom;
+    if (zoom === this.drawnZoom) return;
+    this.drawnZoom = zoom;
+    const { points, selected, pending, footprint } = this.content;
+    const px = 1 / zoom; // un pixel d'écran, en unités de la scène
+    const g = this.graphics;
+    g.clear();
+
+    if (footprint && footprint.length > 1) {
+      g.moveTo(footprint[0].x, footprint[0].y);
+      for (const p of footprint.slice(1)) g.lineTo(p.x, p.y);
+      g.stroke({ width: 1.5 * px, color: FOOTPRINT, alpha: 0.9 });
+    }
+
+    points.forEach((p, i) => {
+      const color = STATUS_COLORS[p.status];
+      const active = i === selected;
+      const r = (active ? 10 : 8) * px;
+      // Croix fine pour viser juste, cercle pour la voir de loin.
+      g.moveTo(p.x - 1.8 * r, p.y).lineTo(p.x + 1.8 * r, p.y).stroke({ width: 1 * px, color });
+      g.moveTo(p.x, p.y - 1.8 * r).lineTo(p.x, p.y + 1.8 * r).stroke({ width: 1 * px, color });
+      g.circle(p.x, p.y, r).stroke({ width: (active ? 3 : 2) * px, color: active ? SELECTED : color });
+      const label = this.label(i);
+      label.text = String(i + 1);
+      label.style.fill = active ? SELECTED : color;
+      label.visible = true;
+      label.scale.set(px);
+      label.position.set(p.x + r + 3 * px, p.y + r - 2 * px);
+    });
+    for (let i = points.length; i < this.labels.length; i++) this.labels[i].visible = false;
+
+    if (pending) {
+      const r = 9 * px;
+      g.moveTo(pending.x - 2 * r, pending.y).lineTo(pending.x + 2 * r, pending.y).stroke({ width: 1 * px, color: PENDING });
+      g.moveTo(pending.x, pending.y - 2 * r).lineTo(pending.x, pending.y + 2 * r).stroke({ width: 1 * px, color: PENDING });
+      g.circle(pending.x, pending.y, r).stroke({ width: 2 * px, color: PENDING });
+    }
+  }
+
+  destroy(): void {
+    this.container.destroy({ children: true });
+  }
+}

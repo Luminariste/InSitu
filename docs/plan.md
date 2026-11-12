@@ -23,6 +23,7 @@ tableau à jour.
 | 2.3 Géométrie | Faite ; seuils réglés sur simulation, à ajuster sur données réelles en 2.4a et 3.2 |
 | 5.1 Moteur de vectorisation | Faite : écart de 0,33 px au plus sur les quatre verres d'Épinal (critère : 0,5 px) ; reste à l'essayer sur des dessins de Marc (5.2) |
 | 2.5 Écran de redressement | Fusionnée (version 0.1.4), **non validée** : essai sur Mac à faire par Benjamin (`docs/redressement.md`) ; un HEIC d'iPhone récent reste à essayer |
+| 3.2 Recalage par points | Fusionnée (version 0.1.5), **non validée** : essai sur Mac à faire par Benjamin (`docs/recalage.md`) ; seuil des points aberrants réglé sur simulation, à reprendre sur ses premiers points cliqués ; photo « lum » pas encore prise en charge |
 | Toutes les autres | À faire |
 
 **Ce qui bloque la validation de la tâche 1.5.** Dans la version 0.1.1,
