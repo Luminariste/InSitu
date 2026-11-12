@@ -240,6 +240,7 @@ fn a_fresco_on_a_scaled_plan_blocks_the_turn() {
             width: 600.0,
             height: 400.0,
         },
+        vector: None,
         extra: ExtraFields::new(),
     });
     dir.save(&project).unwrap();

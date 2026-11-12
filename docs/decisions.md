@@ -58,6 +58,48 @@ dessins posés s'ajoutent à ceux de la façade, dans des calques repris par
 leur nom. ⌘Z annule l'import en deux pas : les dessins posés, puis
 l'ajout à la bibliothèque (deux enregistrements du projet).
 
+## 2026-11-12 — Fresque en .ai, PDF ou SVG (demande de Benjamin)
+
+Benjamin veut importer la fresque depuis un fichier Illustrator `.ai`, un PDF
+ou une image. Module `crates/insitu-core/src/export/fresco.rs`, champ
+`fresco.vector` du projet, option `insitu fresco --page`, bouton de l'écran
+Façade inchangé (il accepte les nouveaux fichiers). Ce n'est pas la tâche
+6.3 : celle-ci relira les images placées d'un `.ai` pour en faire des
+dessins posés un par un (voir plus haut).
+
+**D-3.5-h. Un `.ai` est lu comme un PDF.** Illustrator enregistre par défaut
+(« Créer un fichier compatible PDF ») une copie PDF de la composition dans
+le `.ai`. On la lit avec `hayro`, déjà utilisé pour les plans (D-3.1-a) :
+pas de nouvelle dépendance. Le format est reconnu au contenu (`%PDF-`), pas
+à l'extension. Un `.ai` sans cette copie (ancien format PostScript) est
+refusé avec un message qui dit quoi cocher. Le SVG est lu par `resvg`,
+comme pour les plans. Essayé sur deux vrais fichiers : « Epinal Coupe.ai »
+(Dropbox d'Épinal) et la composition PDF des Écuries de Trévarez.
+
+**D-3.5-i. Le fichier d'origine est gardé et relu pour chaque diapositive.**
+Une façade de 27 m rendue en une seule image à la finesse d'une diapositive
+(≈ 0,25 mm par pixel) ferait plus de 100 000 px de côté. On garde donc le
+PDF (ou `.ai`, ou SVG) dans `fresque/` et, à l'export, on ne rend que la
+partie de façade couverte par la diapositive, à un pixel de fresque par
+pixel de diapositive là où elle est la plus fine (24 000 px de côté au plus,
+576 Mo). Sur Trévarez, une diapositive de 15 433 px se calcule en 13 s en
+session cloud (4 cœurs). À côté, un aperçu en niveaux de gris de 8 192 px au
+plus grand côté (`fresque/<nom>-apercu.png`) sert à l'affichage, aux aperçus
+de diapositives et à la simulation : `fresco.source` garde donc son sens
+d'image, et rien ne change pour les écrans existants. Pas de changement de
+`formatVersion` : le champ est facultatif.
+
+**D-3.5-j. Ce qui n'est couvert par rien est noir.** La page est rendue sur
+du noir, comme une transparence d'image (D-3.5-c) : pas de lumière là où il
+n'y a pas de dessin. En contrepartie, tout ce qui est visible dans le
+fichier est gravé, plan de fond et textes compris : il faut masquer le
+calque du plan avant d'enregistrer (`docs/export.md`).
+
+**D-3.5-k. Première page par défaut.** Dans l'app, seule la première page
+d'un PDF (le premier plan de travail d'un `.ai`) est lue ; la ligne de
+commande accepte `--page N`, gardé dans `fresco.vector.page`. Un choix de
+page dans l'app viendra si Benjamin en a besoin.
+
 ## 2026-11-12 — Mise à jour automatique (hors plan, demande de Benjamin)
 
 **D16. L'app se met à jour toute seule, avec l'accord de l'utilisateur.**

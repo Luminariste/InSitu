@@ -15,8 +15,8 @@
 //!   d'un projet (détail : `insitu library --help`) ;
 //! - `insitu place list|add|remove|set …` : dessins posés sur la façade
 //!   (détail : `insitu place --help`) ;
-//! - `insitu fresco <dossier.insitu> <image>` : importe la fresque en une
-//!   image et la pose sur la façade (détail : `insitu fresco --help`) ;
+//! - `insitu fresco <dossier.insitu> <fichier>` : importe la fresque (image,
+//!   PDF, `.ai` ou SVG) et la pose sur la façade (détail : `insitu fresco --help`) ;
 //! - `insitu illustrator inspect|import …` : images liées d'un `.ai`,
 //!   recréées en dessins posés (détail : `insitu illustrator --help`) ;
 //! - `insitu export <dossier.insitu> <dossier>` : une diapositive PNG par
@@ -457,7 +457,7 @@ fn usage() -> &'static str {
      geometry --help                               Décrit le fichier attendu et le résultat\n  \
      export --help                                 Export des diapositives en PNG pour la gravure\n  \
      facade --help                                 Import du plan de façade et mise à l'échelle\n  \
-     fresco --help                                 Import de la fresque en une image\n  \
+     fresco --help                                 Import de la fresque (image, PDF, .ai, SVG)\n  \
      illustrator --help                            Composition Illustrator (.ai) en dessins posés\n  \
      library --help                                Bibliothèque de dessins : import, liste, vignettes\n  \
      place --help                                  Dessins posés sur la façade : liste, ajout, retrait\n  \

@@ -16,7 +16,7 @@ Le code qui lit et écrit ce format est dans
   facade/              Le plan ou la photo de la façade
   photos-brutes/       Les photos de mire prises en chambre noire
   photos-redressees/   Les photos redressées
-  fresque/             La fresque importée en une image
+  fresque/             La fresque importée (image, ou PDF / .ai / SVG et son aperçu)
   bibliotheque/        Les dessins, rangés comme dans les dossiers importés
   projet.v<N>.json     Copie de l'ancien fichier après une mise à niveau
 ```
@@ -263,8 +263,9 @@ en millimètres réels. Le coin haut-gauche du fichier est l'origine.
 
 | Champ | Sens |
 | --- | --- |
-| `source` | Le fichier image, copié dans `fresque/` (tâche 3.5) |
+| `source` | Le fichier image, copié dans `fresque/` (tâche 3.5). Pour une fresque vectorielle, son aperçu en niveaux de gris (`fresque/<nom>-apercu.png`, 8 192 px au plus grand côté) |
 | `frame` | Le rectangle qu'elle occupe sur la façade, en mm réels : `x`, `y` (coin haut-gauche), `width`, `height` |
+| `vector` | Facultatif : le fichier vectoriel d'origine, `{ "source": "fresque/Composition.ai", "page": 2 }`. `source` : PDF, `.ai` compatible PDF ou SVG, copié dans `fresque/` ; `page` (à partir de 1) absente : la première. Présent, l'export relit ce fichier pour chaque diapositive au lieu de `source` (D-3.5-h à k) |
 
 ### `library[]` — un dessin de la bibliothèque
 

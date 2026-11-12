@@ -130,7 +130,13 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
   return {
     fresco: (
       <Section title="Fresque">
-        <p>{fresco ? fileName(fresco.source) : engine ? "Aucune fresque importée." : "Dans l'app seulement."}</p>
+        <p>
+          {fresco
+            ? fileName(fresco.vector?.source ?? fresco.source)
+            : engine
+              ? "Aucune fresque importée. Image, PDF, Illustrator (.ai) ou SVG."
+              : "Dans l'app seulement."}
+        </p>
         <div className="facade-export-row">
           <Button icon="import" onClick={() => void importOne()} disabled={!ready || !scaled}>
             {fresco ? "Remplacer…" : "Importer la fresque…"}

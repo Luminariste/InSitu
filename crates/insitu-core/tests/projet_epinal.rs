@@ -158,6 +158,7 @@ fn build_epinal(root: &Path) -> (ProjectDir, Project) {
             width: facade_width_mm,
             height: facade_height_mm,
         },
+        vector: None,
         extra: ExtraFields::new(),
     });
 

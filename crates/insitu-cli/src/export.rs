@@ -3,17 +3,24 @@
 
 use std::path::Path;
 
-use insitu_core::export::{export_slides, import_fresco};
+use insitu_core::export::{export_slides, import_fresco_page};
 use insitu_core::project::{ProjectDir, RectMm};
 use serde_json::json;
 
 pub const FRESCO_USAGE: &str = r#"Usage :
-  insitu fresco <projet.insitu> <image> [--frame X Y LARGEUR HAUTEUR]
+  insitu fresco <projet.insitu> <fichier> [--frame X Y LARGEUR HAUTEUR] [--page N]
 
-Copie l'image de la fresque dans le projet (dossier fresque/) et la pose sur
-la façade. Sans --frame, elle couvre toute la largeur de la façade à partir
-du coin haut-gauche, en gardant ses proportions : la façade doit alors être
-mise à l'échelle. --frame donne le rectangle de façade occupé, en mm."#;
+Copie la fresque dans le projet (dossier fresque/) et la pose sur la façade.
+Le fichier est une image (PNG, TIFF, JPEG, BMP), un PDF, un fichier
+Illustrator .ai enregistré « compatible PDF », ou un SVG. Un fichier
+vectoriel est gardé tel quel : l'export le relit à la résolution de chaque
+diapositive ; un aperçu en image est rangé à côté pour l'affichage.
+
+Sans --frame, la fresque couvre toute la largeur de la façade à partir du
+coin haut-gauche, en gardant ses proportions : la façade doit alors être
+mise à l'échelle. --frame donne le rectangle de façade occupé, en mm.
+--page choisit la page d'un PDF ou le plan de travail d'un .ai (1 par
+défaut)."#;
 
 pub const EXPORT_USAGE: &str = r#"Usage :
   insitu export <projet.insitu> <dossier> [options]
@@ -40,29 +47,44 @@ pub fn fresco(args: &[&str]) -> Result<String, (bool, String)> {
     match args {
         [] | ["--help" | "-h"] => Ok(FRESCO_USAGE.to_string()),
         [folder, image, rest @ ..] => {
-            let frame = match rest {
-                [] => None,
-                ["--frame", x, y, w, h] => {
-                    let n = |s: &str| {
-                        s.replace(',', ".")
-                            .parse::<f64>()
-                            .map_err(|_| usage("Nombre illisible."))
-                    };
-                    Some(RectMm {
-                        x: n(x)?,
-                        y: n(y)?,
-                        width: n(w)?,
-                        height: n(h)?,
-                    })
-                }
-                _ => return Err(usage("Option inconnue ou incomplète.")),
+            let n = |s: &str| {
+                s.replace(',', ".")
+                    .parse::<f64>()
+                    .map_err(|_| usage("Nombre illisible."))
             };
+            let mut frame = None;
+            let mut page = None;
+            let mut rest = rest;
+            loop {
+                match rest {
+                    [] => break,
+                    ["--frame", x, y, w, h, tail @ ..] => {
+                        frame = Some(RectMm {
+                            x: n(x)?,
+                            y: n(y)?,
+                            width: n(w)?,
+                            height: n(h)?,
+                        });
+                        rest = tail;
+                    }
+                    ["--page", p, tail @ ..] => {
+                        page = Some(
+                            p.parse::<u32>()
+                                .ok()
+                                .filter(|&p| p > 0)
+                                .ok_or_else(|| usage("Numéro de page illisible."))?,
+                        );
+                        rest = tail;
+                    }
+                    _ => return Err(usage("Option inconnue ou incomplète.")),
+                }
+            }
             let dir = ProjectDir::open(folder).map_err(|e| (false, e.to_string()))?;
-            let project =
-                import_fresco(&dir, Path::new(image), frame).map_err(|e| (false, e.to_string()))?;
+            let project = import_fresco_page(&dir, Path::new(image), frame, page)
+                .map_err(|e| (false, e.to_string()))?;
             Ok(serde_json::to_string_pretty(&project.fresco).expect("sérialisable"))
         }
-        _ => Err(usage("Il faut le projet et l'image.")),
+        _ => Err(usage("Il faut le projet et le fichier de la fresque.")),
     }
 }
 
