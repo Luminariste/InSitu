@@ -119,6 +119,28 @@ export interface Project {
   name: string;
   facade: Facade | null;
   projectors: Projector[];
+  /** La fresque importée en une image (tâche 3.5). */
+  fresco?: FrescoImage | null;
+  /** Réglages d'export des diapositives (tâche 3.5). */
+  export?: ExportSettings;
+}
+
+/** La fresque en une image et le rectangle de façade qu'elle couvre (mm). */
+export interface FrescoImage {
+  source: string;
+  frame: { x: number; y: number; width: number; height: number };
+}
+
+/** Réglages d'export des diapositives. */
+export interface ExportSettings {
+  dpi: number;
+  mirror: boolean;
+  negative: boolean;
+  /** Plaque de 300 mm avec nom et repères dans la marge ; sinon 280 mm. */
+  margin: boolean;
+  /** Noir et blanc pur (PNG 1 bit) ; sinon niveaux de gris. */
+  oneBit: boolean;
+  threshold: number;
 }
 
 export type PlanKind = "image" | "pdf" | "svg" | "dxf";
@@ -529,4 +551,75 @@ export interface FacadeOverview {
 export async function fetchFacadeOverview(folder: string): Promise<FacadeOverview> {
   requireEngine();
   return invoke<FacadeOverview>("facade_overview", { folder });
+}
+
+// --- Fresque et export des diapositives (tâche 3.5) -----------------------------
+
+export interface ExportProgress {
+  done: number;
+  total: number;
+  current: string | null;
+}
+
+export interface ExportedSlide {
+  projectorId: string;
+  label: string;
+  path: string;
+  sizePx: number;
+  sizeMm: number;
+  bytes: number;
+  seconds: number;
+}
+
+export interface ExportReport {
+  slides: ExportedSlide[];
+  skipped: { projectorId: string; label: string; reason: string }[];
+  settings: ExportSettings;
+}
+
+/** Extensions acceptées pour la fresque. */
+export const FRESCO_EXTENSIONS = ["png", "tif", "tiff", "jpg", "jpeg", "bmp"];
+
+/** Importe la fresque en une image, posée sur toute la largeur de la façade. */
+export async function importFresco(folder: string, path: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("fresco_import", { folder, path });
+}
+
+/** Écrit un PNG par projecteur recalé dans `destination`. */
+export async function exportSlides(
+  folder: string,
+  destination: string,
+  settings: ExportSettings,
+  onProgress: (progress: ExportProgress) => void,
+): Promise<ExportReport> {
+  requireEngine();
+  const { listen } = await import("@tauri-apps/api/event");
+  const stop = await listen<ExportProgress>("export-progression", (event) => onProgress(event.payload));
+  try {
+    return await invoke<ExportReport>("slides_export", { folder, destination, settings });
+  } finally {
+    stop();
+  }
+}
+
+/** Demande l'image de la fresque ; `null` si l'utilisateur renonce. */
+export async function chooseFrescoFile(): Promise<string | null> {
+  requireEngine();
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const chosen = await open({
+    multiple: false,
+    directory: false,
+    title: "Importer la fresque (une image de toute la façade)",
+    filters: [{ name: "Image", extensions: FRESCO_EXTENSIONS }],
+  });
+  return typeof chosen === "string" ? chosen : null;
+}
+
+/** Demande le dossier où écrire les diapositives ; `null` si l'utilisateur renonce. */
+export async function chooseExportFolder(): Promise<string | null> {
+  requireEngine();
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const chosen = await open({ directory: true, multiple: false, title: "Dossier des diapositives à graver" });
+  return typeof chosen === "string" ? chosen : null;
 }

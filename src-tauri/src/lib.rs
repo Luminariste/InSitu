@@ -4,11 +4,12 @@
 
 use std::path::{Path, PathBuf};
 
+use insitu_core::export::{self, ExportReport};
 use insitu_core::facade::{self, FacadeDisplay, SourceInfo};
 use insitu_core::geometry::Point;
 use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
 use insitu_core::overview::{self, FacadeOverview};
-use insitu_core::project::{Project, ProjectDir, RegistrationPair, SourcePoint};
+use insitu_core::project::{ExportSettings, Project, ProjectDir, RegistrationPair, SourcePoint};
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
 use insitu_core::tiles;
@@ -241,6 +242,38 @@ fn facade_overview(app: AppHandle, folder: String) -> Result<FacadeOverview, Str
         .map_err(|e| e.to_string())
 }
 
+// --- Fresque et export des diapositives (tâche 3.5) -------------------------------
+
+/// Événement d'avancement d'un export : `{ done, total, current }`.
+const EXPORT_PROGRESS_EVENT: &str = "export-progression";
+
+/// Importe la fresque en une image, posée sur toute la largeur de la façade.
+#[tauri::command(async)]
+fn fresco_import(folder: String, path: String) -> Result<Project, String> {
+    export::import_fresco(&project_dir(&folder)?, Path::new(&path), None).map_err(|e| e.to_string())
+}
+
+/// Écrit un PNG par projecteur recalé dans `destination`.
+#[tauri::command(async)]
+fn slides_export(
+    app: AppHandle,
+    folder: String,
+    destination: String,
+    settings: ExportSettings,
+) -> Result<ExportReport, String> {
+    export::export_slides(
+        &project_dir(&folder)?,
+        Path::new(&destination),
+        &settings,
+        None,
+        0,
+        &|progress| {
+            let _ = app.emit(EXPORT_PROGRESS_EVENT, progress);
+        },
+    )
+    .map_err(|e| e.to_string())
+}
+
 /// Dossier du jeu d'essai, pour l'écran de démonstration. Dans l'ordre :
 /// celui que désigne `INSITU_JEU_ESSAI`, celui du dépôt d'où l'app a été
 /// compilée (lancement depuis le code), puis les images embarquées dans
@@ -312,7 +345,9 @@ pub fn run() {
             library_import,
             library_list,
             library_preview,
-            facade_overview
+            facade_overview,
+            fresco_import,
+            slides_export
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement d'InSitu");

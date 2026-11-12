@@ -4,6 +4,63 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 3.5
+
+Export des diapositives : module `crates/insitu-core/src/export/`, commandes
+`insitu fresco` et `insitu export`, section « Fresque » du panneau de
+l'écran Façade (`src/facade/ExportPanel.tsx`), mode d'emploi
+`docs/export.md`, critère prouvé par `crates/insitu-core/tests/export.rs`.
+
+**D-3.5-a. Le PNG fait 280 mm par défaut ; une case donne la plaque de
+300 mm avec nom et repères.** Le plan demandait à la fois des repères gravés
+« dans la marge de 10 mm de la plaque de 300 mm » (décision du 11 novembre)
+et un PNG qui « s'ouvre dans LightBurn à 280 mm ». Les deux ne tiennent pas
+dans un même fichier. Benjamin a tranché le 12 novembre : **export à
+280 mm** (15 433 px à 1 400 dpi), comme Verre-A. La plaque de 300 mm
+(16 535 px), avec nom et repères dans la marge, reste disponible en option.
+
+**D-3.5-b. La fresque est posée sur toute la largeur de la façade.**
+À l'import, la fresque couvre la façade de son bord gauche à son bord
+droit, à partir du coin haut-gauche, en gardant ses proportions : c'est le
+cas d'une fresque exportée d'Illustrator sur le même plan de travail que la
+façade. La façade doit donc être à l'échelle. La ligne de commande accepte
+un autre rectangle (`--frame`). Recaler la fresque sur la façade par points
+n'est pas prévu par le plan.
+
+**D-3.5-c. La fresque est lue en niveaux de gris, rééchantillonnée une
+seule fois.** Une fresque en couleur devient sa luminance (Rec. 601) ; une
+transparence est posée sur du noir. Chaque pixel de la diapositive est
+envoyé sur la façade par le recalage (3.2), puis lu dans la fresque par le
+moteur de déformation (3.4), sans image intermédiaire. Le miroir est
+appliqué à l'image de 280 mm seulement : le nom gravé dans la marge reste
+lisible dans le fichier.
+
+**D-3.5-d. Nom et repères : une police de points intégrée, en capitales
+sans accents.** Pour ne dépendre d'aucune police du Mac, le texte est
+dessiné avec une police de 5 × 7 points (3,5 mm de haut). Repères : une
+équerre à chaque coin, qui prolonge les bords de l'image, et un trait au
+milieu de chaque côté, à 1 mm de l'image, en traits de 0,25 mm. Ils sont
+dessinés en blanc (gravés), avant le négatif éventuel. Légende : projet,
+diapositive, résolution, miroir et négatif s'ils sont demandés.
+
+**D-3.5-e. Noir et blanc pur : seuil simple, au choix.** Conformément à la
+décision du 11 novembre (pas de trame), le PNG 1 bit applique un seuil (128
+par défaut) ; le PNG en niveaux de gris reste le défaut, comme Verre-A.
+La résolution est inscrite dans le PNG (pHYs), au point par mètre près.
+
+**D-3.5-f. Les réglages utilisés deviennent ceux du projet.** Le format du
+projet gagne trois champs d'export (`margin`, `oneBit`, `threshold`), avec
+une valeur par défaut : pas de changement de `formatVersion`.
+
+**D-3.5-g. Le critère est vérifié en pleine résolution, en compilation
+optimisée.** Le vrai Verre-A (15 433 px) est posé sur une façade en trapèze
+avec du relief (fresque de 18 400 × 17 200 px, 0,25 mm par pixel), puis
+réexporté à 1 400 dpi sans marge. Mesuré en session cloud (4 cœurs) :
+calcul 12,6 s, PNG 0,3 s ; 100 % des traits exportés tombent sur un trait de
+Verre-A et 99,92 % des traits de Verre-A sont retrouvés, à un pixel près ;
+décalage local au pire 0,10 px (2 µm) ; le PNG annonce 280,0 mm. La
+vérification GitHub le relance à chaque fois.
+
 ## 2026-11-12 — Tâche 3.3
 
 Vue façade : module `crates/insitu-core/src/overview/`, commande

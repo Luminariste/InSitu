@@ -1,6 +1,7 @@
 // Panneau « Projecteurs » de l'écran Façade (tâche 3.3) : la liste des
 // projecteurs posés sur la façade, ce qu'on montre, et les recouvrements.
 
+import type { ReactNode } from "react";
 import type { FacadeOverview } from "../engine";
 import {
   cssColor,
@@ -18,9 +19,11 @@ interface Props {
   onDisplay: (display: OverviewDisplay) => void;
   onReload: (() => void) | null;
   busy: boolean;
+  /** Affiché en bas du panneau (fresque et export, tâche 3.5). */
+  children?: ReactNode;
 }
 
-export function OverviewPanel({ overview, display, onDisplay, onReload, busy }: Props) {
+export function OverviewPanel({ overview, display, onDisplay, onReload, busy, children }: Props) {
   const toggle = (id: string) => {
     const hidden = new Set(display.hidden);
     if (hidden.has(id)) hidden.delete(id);
@@ -129,6 +132,7 @@ export function OverviewPanel({ overview, display, onDisplay, onReload, busy }: 
           )}
         </>
       )}
+      {children}
     </aside>
   );
 }

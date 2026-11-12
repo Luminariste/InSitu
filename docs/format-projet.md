@@ -191,7 +191,10 @@ exactement ce que l'app écrit.
   "export": {
     "dpi": 1400.0,
     "mirror": false,
-    "negative": false
+    "negative": false,
+    "margin": false,
+    "oneBit": false,
+    "threshold": 128
   }
 }
 ```
@@ -255,7 +258,7 @@ en millimètres réels. Le coin haut-gauche du fichier est l'origine.
 
 | Champ | Sens |
 | --- | --- |
-| `source` | Le fichier image |
+| `source` | Le fichier image, copié dans `fresque/` (tâche 3.5) |
 | `frame` | Le rectangle qu'elle occupe sur la façade, en mm réels : `x`, `y` (coin haut-gauche), `width`, `height` |
 
 ### `library[]` — un dessin de la bibliothèque
@@ -278,6 +281,12 @@ range dans son cache et les refait au besoin.
 | `dpi` | Résolution, en points par pouce | 1 400 |
 | `mirror` | Image retournée gauche-droite | non |
 | `negative` | Noir et blanc inversés | non |
+| `margin` | PNG de la plaque entière (300 mm), nom et repères gravés dans la marge de 10 mm ; sinon l'image de 280 mm seule (tâche 3.5) | non |
+| `oneBit` | PNG en noir et blanc pur (1 bit) ; sinon en niveaux de gris (tâche 3.5) | non |
+| `threshold` | Seuil du noir et blanc, de 1 à 255 : un pixel au moins aussi clair devient blanc | 128 |
+
+Un fichier écrit avant la tâche 3.5 n'a pas ces trois champs : ils prennent
+leur valeur par défaut, sans changement de `formatVersion`.
 
 Les valeurs par défaut sont définies dans `crates/insitu-core/src/units.rs`.
 

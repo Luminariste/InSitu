@@ -26,7 +26,10 @@ import {
   type Project,
   type SourcePoint,
 } from "../engine";
-import { cacheFileUrl, fetchFacadeOverview, type FacadeOverview } from "../engine";
+import { cacheFileUrl, fetchFacadeOverview, openTiledImage, projectFile, type FacadeOverview } from "../engine";
+import type { TileSource } from "../viewer";
+import { ExportPanel } from "./ExportPanel";
+import { frescoPlacement } from "./exportLogic";
 import { DEFAULT_DISPLAY, overviewLayers, type OverviewDisplay } from "./overview";
 import { demoOverview } from "./overviewDemo";
 import { OverviewPanel } from "./OverviewPanel";
@@ -83,6 +86,9 @@ export function FacadeScreen() {
   const [overview, setOverview] = useState<FacadeOverview | null>(null);
   const [overviewBusy, setOverviewBusy] = useState(false);
   const [display, setDisplay] = useState<OverviewDisplay>(DEFAULT_DISPLAY);
+  /** Fresque en une image (tâche 3.5), affichée par tuiles sur la façade. */
+  const [frescoSource, setFrescoSource] = useState<TileSource | null>(null);
+  const [showFresco, setShowFresco] = useState(true);
 
   const facade = project?.facade ?? null;
   const scale = engine ? (facade?.scale ?? null) : browserScale;
@@ -193,6 +199,21 @@ export function FacadeScreen() {
     return () => window.clearTimeout(id);
   }, [k, view]);
 
+  // Tuiles de la fresque, refaites quand elle change.
+  const frescoPath = project?.fresco?.source ?? null;
+  useEffect(() => {
+    setFrescoSource(null);
+    if (!engine || !folder || !frescoPath) return;
+    let cancelled = false;
+    openTiledImage(projectFile(folder, frescoPath)).then(
+      (source) => !cancelled && setFrescoSource(source),
+      (failure: unknown) => !cancelled && setError(String(failure)),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [engine, folder, frescoPath]);
+
   const layers = useMemo<LayerSpec[]>(() => {
     const plan: LayerSpec[] = view
       ? [
@@ -206,8 +227,20 @@ export function FacadeScreen() {
       : [];
     // Les emprises sont dans le repère où le recalage a été fait : celui de
     // la visionneuse, le même que pour le plan.
+    const fresco = project?.fresco;
+    if (fresco && frescoSource) {
+      plan.push({
+        id: "fresque",
+        kind: "tiles",
+        source: frescoSource,
+        placement: frescoPlacement(fresco, frescoSource.pyramid.width),
+        visible: showFresco,
+        // Le noir de la fresque laisse voir le plan.
+        blend: "screen",
+      });
+    }
     return [...plan, ...overviewLayers(overview, display, engine ? cacheFileUrl : (request) => request)];
-  }, [view, k, overview, display, engine]);
+  }, [view, k, overview, display, engine, project?.fresco, frescoSource, showFresco]);
 
   // --- Actions -------------------------------------------------------------
 
@@ -438,7 +471,16 @@ export function FacadeScreen() {
           onDisplay={setDisplay}
           onReload={engine && folder ? () => void loadOverview(folder) : null}
           busy={overviewBusy}
-        />
+        >
+          <ExportPanel
+            engine={engine}
+            folder={folder}
+            project={project}
+            onProject={setProject}
+            showFresco={showFresco}
+            onShowFresco={setShowFresco}
+          />
+        </OverviewPanel>
       </div>
 
       <footer className="facade-foot">
