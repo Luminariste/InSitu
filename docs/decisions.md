@@ -19,6 +19,7 @@ sur la 0.1.1), pas la fluidité. Un geste n'est rapporté qu'à partir de
 « en retard ». Le calcul vit dans `src/viewer/frameMeter.ts`, testé sans
 écran. Le chiffre « calcul » ne compte que le travail de l'interface, pas
 celui de la carte graphique.
+
 ## 2026-11-12 — Tâche 2.2
 
 Nouvelle mire : module `crates/insitu-core/src/target/`, commande
