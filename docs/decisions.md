@@ -24,6 +24,15 @@ du projet, pas le moteur.
 « lum », les 93 autres dessins et la composition Illustrator restent dans
 le Dropbox (environ 5,9 Mo versés au total).
 
+## 2026-11-12 — Étude du pli (Trévarez, hors plan)
+
+**D-PLI-a. Constat, pas encore de changement du moteur.** Un projecteur qui
+éclaire deux surfaces à angle (mur et avant-toit à Trévarez) n'est pas bien
+recalé par le modèle actuel (un trapèze et une correction lisse) : 40 cm
+d'écart en simulation avec 20 points. Un recalage par surface, séparé par
+une arête tracée à la main, ramène l'écart à 10 cm. Détail :
+`docs/etudes/pli-trevarez.md`. Le coder demande l'accord de Benjamin.
+
 ## 2026-11-12 — Tâche 6.2 : fiche de calepinage
 
 Module `crates/insitu-core/src/sheet/` ; bouton « Fiche de calepinage… » sous
