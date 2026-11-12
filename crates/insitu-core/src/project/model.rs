@@ -163,6 +163,9 @@ impl Project {
         }
         if let Some(fresco) = &self.fresco {
             files.push(("fresco.source".to_string(), &fresco.source));
+            if let Some(vector) = &fresco.vector {
+                files.push(("fresco.vector.source".to_string(), &vector.source));
+            }
         }
         for (i, drawing) in self.library.iter().enumerate() {
             files.push((format!("library[{i}].source"), &drawing.source));
@@ -512,11 +515,29 @@ impl RegistrationPair {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FrescoImage {
+    /// L'image affichée et lue par les aperçus. Pour une fresque vectorielle
+    /// (PDF, Illustrator, SVG), c'est son rendu en niveaux de gris.
     pub source: RelativePath,
     /// Rectangle occupé sur la façade, en mm réels.
     pub frame: RectMm,
+    /// Le fichier vectoriel d'origine, s'il y en a un : l'export des
+    /// diapositives le relit à la résolution de chaque diapositive.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vector: Option<FrescoVector>,
     #[serde(flatten)]
     pub extra: ExtraFields,
+}
+
+/// Le fichier vectoriel d'origine d'une fresque.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FrescoVector {
+    /// Le fichier copié dans `fresque/` : PDF, Illustrator (`.ai`) ou SVG.
+    pub source: RelativePath,
+    /// Page lue (à partir de 1), pour un PDF ou un `.ai` ; absente : la
+    /// première.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub page: Option<u32>,
 }
 
 /// Un dessin de la bibliothèque : un fichier copié dans le dossier

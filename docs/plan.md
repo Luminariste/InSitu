@@ -46,6 +46,7 @@ tableau à jour.
 | Retirer un dessin de la bibliothèque, retirer le plan de la façade (hors plan, demande de Benjamin) | Version 0.1.19, **non validé** : essai sur Mac ; décision D15-h |
 | Jeu d'essai Trévarez (hors plan, demande de Benjamin) | Fait : projet réel de la 0.1.28 relu et diapositive C refaite à l'identique, prouvé par test (`jeu-essai/LISEZMOI.md`, D-JE-a à c) |
 | Panneau de droite de la Façade en onglets, outils des dessins en icônes dans la barre du haut (hors plan, demande de Benjamin) | Version 0.1.31, **non validé** : essai sur Mac ; décisions D15-i et D15-j |
+| Fresque en .ai, PDF ou SVG (hors plan, demande de Benjamin) | Version 0.1.36, **non validée** : import d'un vrai `.ai` dans l'app et gravure à essayer par Benjamin (`docs/export.md`) ; prouvé par test : bords nets et à leur place dans la diapositive, rendu à la résolution de la diapositive ; lu sans erreur sur « Epinal Coupe.ai » et la composition de Trévarez ; décisions D-3.5-h à k |
 | Mise à jour automatique (hors plan, demande de Benjamin) | **Non validée** : marche à suivre une fois (secret de signature, dépôt rendu public), puis installer à la main la première version qui la contient ; la mise à jour elle-même ne s'essaie qu'à la version suivante, sur Mac ; décision D16 |
 | Rotation du plan de façade par quarts de tour (hors plan, demande de Benjamin) | Version 0.1.34, **non validée** : essai sur Mac (`docs/facade.md`, point 5) ; prouvé par test : plan vectoriel et image tournés pixel pour pixel, échelle gardée, dessins et points de recalage qui suivent ; décision D15-k |
 | Toutes les autres | À faire |
@@ -189,6 +190,7 @@ premier essai réel.
 | --- | --- |
 | Plan ou photo de façade | PDF, PNG, JPEG, TIFF, HEIC, SVG, DXF. Le DWG est à convertir en PDF ou DXF avant import |
 | Dessins | PNG, BMP, TIFF, PSD aplati, SVG |
+| Fresque en un bloc | PNG, TIFF, JPEG, BMP ; PDF, Illustrator `.ai` compatible PDF, SVG, relus à la résolution de chaque diapositive (D-3.5-h à k) |
 | Composition existante | Fichier Illustrator `.ai` : positions des images et liens récupérés (jalon 6) |
 | Export gravure | PNG 1 bit ou niveaux de gris, SVG en millimètres, options miroir et négatif |
 | Documents | Mire imprimable en PDF, fiche de calepinage en PDF |

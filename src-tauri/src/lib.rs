@@ -494,7 +494,7 @@ fn facade_overview(app: AppHandle, folder: String) -> Result<FacadeOverview, Str
 /// Événement d'avancement d'un export : `{ done, total, current }`.
 const EXPORT_PROGRESS_EVENT: &str = "export-progression";
 
-/// Importe la fresque en une image, posée sur toute la largeur de la façade.
+/// Importe la fresque (image, PDF, .ai ou SVG), posée sur toute la largeur de la façade.
 #[tauri::command(async)]
 fn fresco_import(folder: String, path: String) -> Result<Project, String> {
     export::import_fresco(&project_dir(&folder)?, Path::new(&path), None).map_err(|e| e.to_string())
