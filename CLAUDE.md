@@ -78,6 +78,7 @@ src/ui/               Système de design : jetons, composants, icônes, raccourc
 src/viewer/           Visionneuse haute résolution (PixiJS), base des vues façade et diapositive.
 src/facade/           Écran Façade : projet, import du plan, mise à l'échelle.
 src/compose/          Dessins posés sur la façade : gestes, sélection, inspecteur (tâche 4.2).
+src/assembly/         Assemblage de photos de façade, ouvert depuis l'écran Façade.
 docs/                 Plan, décisions, notice d'installation, publication d'une version.
 jeu-essai/            Fichiers réels pour les tests (voir jeu-essai/LISEZMOI.md).
 etudes/               Scripts des études (hors moteur) ; rapports dans docs/etudes/.

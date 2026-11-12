@@ -19,6 +19,8 @@
 //!   image et la pose sur la façade (détail : `insitu fresco --help`) ;
 //! - `insitu export <dossier.insitu> <dossier>` : une diapositive PNG par
 //!   projecteur recalé, pour la gravure (options : `insitu export --help`) ;
+//! - `insitu assembly add|remove|pairs|show|render …` : assemblage de
+//!   photos de façade par points communs (détail : `insitu assembly --help`) ;
 //! - `insitu slides <dossier.insitu> --cache <dossier>` : aperçu de chaque
 //!   diapositive calculée, pour la vue diapositive (JSON) ;
 //! - `insitu overview <dossier.insitu>` : vue façade (emprises, maillages,
@@ -45,6 +47,7 @@
 //! Code de sortie : 0 si tout va bien, 1 en cas d'échec ou de projet
 //! invalide, 2 si la commande est mal écrite.
 
+mod assembly;
 mod export;
 mod facade;
 mod geometry;
@@ -144,6 +147,14 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             Err((false, message)) => Err(Failure::Failed(message)),
         },
         ["export", rest @ ..] => match export::export(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err((true, message)) => Err(Failure::Usage(message)),
+            Err((false, message)) => Err(Failure::Failed(message)),
+        },
+        ["assembly", rest @ ..] => match assembly::run(rest) {
             Ok(text) => {
                 println!("{text}");
                 Ok(ExitCode::SUCCESS)
@@ -379,6 +390,7 @@ fn usage() -> &'static str {
     "Usage : insitu <commande>\n\n\
      Commandes :\n  \
      info                                          Affiche la carte d'identité du moteur (JSON)\n  \
+     assembly --help                               Assemblage de photos de façade par points communs\n  \
      geometry fit <fichier.json>                   Ajuste une déformation sur des paires de points\n  \
      geometry --help                               Décrit le fichier attendu et le résultat\n  \
      export --help                                 Export des diapositives en PNG pour la gravure\n  \

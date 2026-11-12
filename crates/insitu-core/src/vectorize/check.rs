@@ -13,7 +13,7 @@
 //!   acceptable que s'il touche presque la courbe : sa distance à la courbe
 //!   est relevée.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::contour::{self, Field};
 use super::fit::{distance_to_segment, Segment};
@@ -21,7 +21,7 @@ use super::{GrayImage, Vectorization};
 use crate::geometry::Point;
 
 /// Résultat de [`compare`]. Distances en pixels de l'image source.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Comparison {
     /// Plus grand écart entre les courbes et le contour brut, dans un sens ou

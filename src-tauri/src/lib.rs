@@ -4,15 +4,18 @@
 
 use std::path::{Path, PathBuf};
 
+use insitu_core::assembly::{self, AssemblyReport, RenderOptions, RenderReport};
 use insitu_core::export::preview::{self as slide_preview, SlideView};
 use insitu_core::export::{self, ExportReport};
 use insitu_core::facade::{self, FacadeDisplay, SourceInfo};
 use insitu_core::geometry::Point;
+use insitu_core::library::vectors::{self, VectorSummary, VectorizeReport};
 use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
 use insitu_core::overview::{self, FacadeOverview};
 use insitu_core::placement;
 use insitu_core::project::{
-    ExportSettings, Mirror, Placement, Project, ProjectDir, RegistrationPair, SourcePoint,
+    AssemblyPair, ExportSettings, Mirror, Placement, Project, ProjectDir, RegistrationPair,
+    SourcePoint, VectorSettings,
 };
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
@@ -206,6 +209,48 @@ fn registration_set(
     .map_err(|e| e.to_string())
 }
 
+// --- Assemblage de photos de façade (tâche 6.4) -----------------------------
+
+/// Compte rendu de l'assemblage : chaque photo, ses points, sa place.
+#[tauri::command(async)]
+fn assembly_show(folder: String) -> Result<AssemblyReport, String> {
+    assembly::project_report(&project_dir(&folder)?).map_err(|e| e.to_string())
+}
+
+/// Ajoute une photo (copiée dans le projet) ; rend le projet et son id.
+#[tauri::command(async)]
+fn assembly_add(
+    folder: String,
+    path: String,
+    anchor: Option<String>,
+) -> Result<(Project, String), String> {
+    assembly::add_photo(&project_dir(&folder)?, Path::new(&path), anchor.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+/// Retire une photo de l'assemblage.
+#[tauri::command(async)]
+fn assembly_remove(folder: String, photo: String) -> Result<Project, String> {
+    assembly::remove_photo(&project_dir(&folder)?, &photo).map_err(|e| e.to_string())
+}
+
+/// Remplace la photo d'appui et les points communs d'une photo.
+#[tauri::command(async)]
+fn assembly_set_pairs(
+    folder: String,
+    photo: String,
+    anchor: String,
+    pairs: Vec<AssemblyPair>,
+) -> Result<(Project, AssemblyReport), String> {
+    assembly::set_pairs(&project_dir(&folder)?, &photo, &anchor, pairs).map_err(|e| e.to_string())
+}
+
+/// Calcule l'image assemblée et en fait la façade du projet.
+#[tauri::command(async)]
+fn assembly_render(folder: String) -> Result<(Project, RenderReport), String> {
+    assembly::render(&project_dir(&folder)?, &RenderOptions::default()).map_err(|e| e.to_string())
+}
+
 // --- Bibliothèque de dessins (tâche 4.1) --------------------------------------
 
 /// Événement d'avancement d'un import : `{ done, total }`.
@@ -255,6 +300,57 @@ fn library_preview(app: AppHandle, folder: String, drawing: String) -> Result<St
 #[tauri::command(async)]
 fn placements_set(folder: String, placements: Vec<Placement>) -> Result<Project, String> {
     placement::set_placements(&project_dir(&folder)?, placements).map_err(|e| e.to_string())
+}
+
+const VECTOR_PROGRESS_EVENT: &str = "vecteurs-progression";
+
+/// Vectorise les dessins `drawings` (tous si vide) qui ne le sont pas encore
+/// (tâche 5.2) ; l'avancement est envoyé à l'interface.
+#[tauri::command(async)]
+fn library_vectorize(
+    app: AppHandle,
+    folder: String,
+    drawings: Vec<String>,
+) -> Result<VectorizeReport, String> {
+    vectors::vectorize_drawings(
+        &project_dir(&folder)?,
+        &drawings,
+        &tile_cache_dir(&app)?,
+        0,
+        &|progress| {
+            let _ = app.emit(VECTOR_PROGRESS_EVENT, progress);
+        },
+    )
+    .map_err(|e| e.to_string())
+}
+
+/// Les vecteurs d'un dessin (tâche 5.2), calculés s'ils ne sont pas en
+/// cache, avec l'image de comparaison.
+#[tauri::command(async)]
+fn library_vectors(
+    app: AppHandle,
+    folder: String,
+    drawing: String,
+) -> Result<VectorSummary, String> {
+    vectors::drawing_vectors(&project_dir(&folder)?, &drawing, &tile_cache_dir(&app)?)
+        .map_err(|e| e.to_string())
+}
+
+/// Change les réglages de vectorisation d'un dessin (`None` : par défaut).
+#[tauri::command(async)]
+fn library_set_vector_settings(
+    app: AppHandle,
+    folder: String,
+    drawing: String,
+    settings: Option<VectorSettings>,
+) -> Result<(Project, VectorSummary), String> {
+    vectors::set_vector_settings(
+        &project_dir(&folder)?,
+        &drawing,
+        settings,
+        &tile_cache_dir(&app)?,
+    )
+    .map_err(|e| e.to_string())
 }
 
 // --- Vue façade (tâche 3.3) -------------------------------------------------------
@@ -384,10 +480,18 @@ pub fn run() {
             library_list,
             library_preview,
             placements_set,
+            library_vectorize,
+            library_vectors,
+            library_set_vector_settings,
             facade_overview,
             fresco_import,
             slides_export,
-            slide_views
+            slide_views,
+            assembly_show,
+            assembly_add,
+            assembly_remove,
+            assembly_set_pairs,
+            assembly_render
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement d'InSitu");

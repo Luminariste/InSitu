@@ -1,0 +1,18 @@
+/* Assemblage de photos de façade (tâche 6.4). Gabarit, panneaux et contrôles :
+   système de design (src/ui/) ; les deux vues côte à côte : celles de l'écran
+   Recalage (registration.css). Ici, seulement le calque plein écran. */
+
+.assembly-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+.assembly-title {
+  font-size: var(--ui-text-md);
+  font-weight: var(--ui-weight-bold);
+  white-space: nowrap;
+}

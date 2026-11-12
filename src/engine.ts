@@ -127,6 +127,27 @@ export interface Project {
   export?: ExportSettings;
   /** Dessins posés sur la façade, du fond vers l'avant (tâche 4.2). */
   placements?: Placement[];
+  /** Assemblage de photos de façade (tâche 6.4). */
+  facadeAssembly?: FacadeAssembly | null;
+}
+
+/** Assemblage de photos de façade, tel qu'enregistré dans `projet.json`. */
+export interface FacadeAssembly {
+  photos: AssemblyPhoto[];
+  output?: { source: string; origin: SourcePoint; scale: number } | null;
+}
+
+/** Une photo de l'assemblage ; la première est la référence. */
+export interface AssemblyPhoto {
+  id: string;
+  name: string;
+  /** Chemin relatif au projet. */
+  source: string;
+  width: number;
+  height: number;
+  /** La photo sur laquelle elle s'appuie (aucune pour la référence). */
+  anchor?: string | null;
+  pairs?: AssemblyPair[];
 }
 
 /** La fresque en une image et le rectangle de façade qu'elle couvre (mm). */
@@ -494,6 +515,59 @@ export interface LibraryEntry {
   thumbnail: string | null;
   /** Ce qui empêche de montrer le dessin (fichier absent, illisible). */
   problem: string | null;
+  /** Réglages de vectorisation propres au dessin ; `null` : par défaut. */
+  vector: VectorSettings | null;
+}
+
+/** Réglages de vectorisation d'un dessin (tâche 5.2). */
+export interface VectorSettings {
+  /** Seuil, de 1 à 255 : un pixel au moins aussi clair est dans le trait. */
+  threshold: number;
+  /** Écart toléré entre les courbes et le contour de l'image, en pixels. */
+  tolerancePx: number;
+  /** Au-delà de cet angle (degrés), un sommet est un angle vif. */
+  cornerAngleDeg: number;
+  /** Taches et trous plus petits (pixels carrés) ignorés. */
+  minAreaPx: number;
+}
+
+/** Réglages par défaut, les mêmes que ceux du moteur. */
+export const DEFAULT_VECTOR_SETTINGS: VectorSettings = {
+  threshold: 128,
+  tolerancePx: 0.3,
+  cornerAngleDeg: 70,
+  minAreaPx: 0,
+};
+
+/** Vecteurs d'un dessin, tels que le moteur les décrit (tâche 5.2). */
+export interface VectorSummary {
+  settings: VectorSettings;
+  defaultSettings: boolean;
+  /** Cadre des SVG : taille de l'image vectorisée, en pixels. */
+  width: number;
+  height: number;
+  stats: {
+    contours: number;
+    removedContours: number;
+    rawPoints: number;
+    lines: number;
+    cubics: number;
+    maxFitErrorPx: number;
+  };
+  comparison: {
+    maxDeviationPx: number;
+    rawToVectorPx: number;
+    vectorToRawPx: number;
+    sourcePixels: number;
+    vectorPixels: number;
+    mismatchedPixels: number;
+    maxMismatchDistancePx: number;
+  };
+  seconds: number;
+  /** Fichiers du cache, à passer à `cacheFileUrl`. */
+  filledSvg: string;
+  outlineSvg: string;
+  image: string;
 }
 
 export interface ImportProgress {
@@ -542,6 +616,49 @@ export async function fetchLibrary(folder: string): Promise<LibraryEntry[]> {
 export async function fetchDrawingPreview(folder: string, drawing: string): Promise<string> {
   requireEngine();
   return cacheFileUrl(await invoke<string>("library_preview", { folder, drawing }));
+}
+
+export interface VectorizeReport {
+  done: number;
+  failures: { file: string; reason: string }[];
+  seconds: number;
+}
+
+/** Vectorise les dessins donnés (tous si la liste est vide) qui ne le sont pas encore. */
+export async function vectorizeDrawings(
+  folder: string,
+  drawings: string[],
+  onProgress: (progress: ImportProgress) => void,
+): Promise<VectorizeReport> {
+  requireEngine();
+  const { listen } = await import("@tauri-apps/api/event");
+  const stop = await listen<ImportProgress>("vecteurs-progression", (event) => onProgress(event.payload));
+  try {
+    return await invoke<VectorizeReport>("library_vectorize", { folder, drawings });
+  } finally {
+    stop();
+  }
+}
+
+/** Vecteurs d'un dessin, calculés par le moteur s'ils ne sont pas en cache. */
+export async function fetchDrawingVectors(folder: string, drawing: string): Promise<VectorSummary> {
+  requireEngine();
+  return invoke<VectorSummary>("library_vectors", { folder, drawing });
+}
+
+/** Change les réglages de vectorisation d'un dessin (`null` : par défaut) ; le projet est enregistré. */
+export async function saveVectorSettings(
+  folder: string,
+  drawing: string,
+  settings: VectorSettings | null,
+): Promise<{ project: Project; vectors: VectorSummary }> {
+  requireEngine();
+  const [project, vectors] = await invoke<[Project, VectorSummary]>("library_set_vector_settings", {
+    folder,
+    drawing,
+    settings,
+  });
+  return { project, vectors };
 }
 
 /** Demande un dossier de dessins à importer ; `null` si l'utilisateur renonce. */
@@ -678,4 +795,96 @@ export interface SlideView {
 export async function fetchSlideViews(folder: string): Promise<SlideView[]> {
   requireEngine();
   return invoke<SlideView[]>("slide_views", { folder });
+}
+
+// --- Assemblage de photos de façade (tâche 6.4) -------------------------------
+
+/** Un point commun : dans la photo (`here`) et dans sa photo d'appui (`there`), en pixels. */
+export interface AssemblyPair {
+  here: SourcePoint;
+  there: SourcePoint;
+}
+
+export interface AssemblyPairReport {
+  /** Écart en pixels de la photo d'appui ; `null` avec moins de 5 points. */
+  residualPx: number | null;
+  outlier: boolean;
+}
+
+export interface AssemblyPhotoReport {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  anchor: string | null;
+  pairs: AssemblyPairReport[];
+  placed: boolean;
+  /** Coins dans le repère de la photo de référence, en pixels. */
+  corners: [SourcePoint, SourcePoint, SourcePoint, SourcePoint] | null;
+  meanResidualPx: number | null;
+  problem: string | null;
+}
+
+export interface AssemblyReport {
+  photos: AssemblyPhotoReport[];
+  /** Toutes les photos sont placées : l'assemblage peut être calculé. */
+  ready: boolean;
+}
+
+export interface AssemblyRenderReport {
+  width: number;
+  height: number;
+  scale: number;
+  keptScale: boolean;
+  seconds: number;
+}
+
+export async function fetchAssembly(folder: string): Promise<AssemblyReport> {
+  requireEngine();
+  return invoke<AssemblyReport>("assembly_show", { folder });
+}
+
+/** Ajoute une photo ; elle s'appuie sur `anchor`, ou sur la dernière ajoutée. */
+export async function addAssemblyPhoto(folder: string, path: string, anchor: string | null): Promise<{ project: Project; id: string }> {
+  requireEngine();
+  const [project, id] = await invoke<[Project, string]>("assembly_add", { folder, path, anchor });
+  return { project, id };
+}
+
+export async function removeAssemblyPhoto(folder: string, photo: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("assembly_remove", { folder, photo });
+}
+
+/** Remplace la photo d'appui et les points communs d'une photo ; le projet est enregistré. */
+export async function saveAssemblyPairs(
+  folder: string,
+  photo: string,
+  anchor: string,
+  pairs: AssemblyPair[],
+): Promise<{ project: Project; report: AssemblyReport }> {
+  requireEngine();
+  const [project, report] = await invoke<[Project, AssemblyReport]>("assembly_set_pairs", { folder, photo, anchor, pairs });
+  return { project, report };
+}
+
+/** Calcule l'image assemblée ; elle devient la façade du projet. */
+export async function renderAssembly(folder: string): Promise<{ project: Project; report: AssemblyRenderReport }> {
+  requireEngine();
+  const [project, report] = await invoke<[Project, AssemblyRenderReport]>("assembly_render", { folder });
+  return { project, report };
+}
+
+/** Demande une ou plusieurs photos de façade ; liste vide si l'utilisateur renonce. */
+export async function chooseFacadePhotos(): Promise<string[]> {
+  requireEngine();
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const chosen = await open({
+    multiple: true,
+    directory: false,
+    title: "Ajouter des photos de la façade",
+    filters: [{ name: "Photo (HEIC, JPEG, PNG, TIFF)", extensions: PHOTO_EXTENSIONS }],
+  });
+  if (Array.isArray(chosen)) return chosen;
+  return typeof chosen === "string" ? [chosen] : [];
 }

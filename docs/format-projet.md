@@ -215,6 +215,7 @@ exactement ce que l'app écrit.
 | `export` | Les réglages d'export |
 | `library` | La bibliothèque de dessins ; absent tant qu'elle est vide (tâche 4.1) |
 | `placements` | Les dessins posés sur la façade, du plus au fond au plus en avant ; absent tant qu'il n'y en a pas (tâche 4.2) |
+| `facadeAssembly` | L'assemblage de photos de façade ; absent tant qu'aucune photo n'est ajoutée (tâche 6.4) |
 
 ### `facade` — la façade
 
@@ -271,10 +272,27 @@ en millimètres réels. Le coin haut-gauche du fichier est l'origine.
 | `name` | Nom affiché : celui du fichier, sans extension |
 | `source` | Le fichier, sous `bibliotheque/` : `bibliotheque/Oiseaux/Mer/goeland.png`. Le dossier importé et ses sous-dossiers sont conservés |
 | `width`, `height` | Taille du fichier : pixels pour une image, pixels CSS (1/96 de pouce) pour un SVG |
+| `vector` | Facultatif (tâche 5.2) : réglages de vectorisation propres au dessin, `threshold` (1 à 255), `tolerancePx`, `cornerAngleDeg`, `minAreaPx`. Absent : réglages par défaut (128 ; 0,3 px ; 70° ; 0) |
 
 Le fichier copié n'est jamais modifié : son fond noir est rendu transparent
-à l'affichage seulement. Les vignettes ne sont pas dans le projet : l'app les
-range dans son cache et les refait au besoin.
+à l'affichage seulement. Les vignettes et les vecteurs ne sont pas dans le
+projet : l'app les range dans son cache et les refait au besoin.
+
+### `facadeAssembly` — l'assemblage de photos de façade
+
+| Champ | Sens |
+| --- | --- |
+| `photos[]` | Les photos, dans l'ordre d'ajout ; la première est la référence |
+| `photos[].id`, `name` | Identifiant stable et nom affiché (celui du fichier, sans extension) |
+| `photos[].source` | Le fichier, copié dans `facade/assemblage/` |
+| `photos[].width`, `height` | Taille de la photo, en pixels |
+| `photos[].anchor` | L'`id` de la photo sur laquelle elle s'appuie ; absent pour la référence |
+| `photos[].pairs[]` | Points communs : `here` (pixels de cette photo) et `there` (pixels de la photo d'appui) |
+| `output` | L'image assemblée, une fois calculée : `source` (`facade/assemblage.jpg`), `origin` (son coin haut-gauche, en pixels de la référence) et `scale` (pixels de l'image par pixel de la référence) |
+
+L'image assemblée devient la `facade` du projet. Les pixels sont ceux du
+fichier, sans tenir compte de la rotation EXIF (comme pour `facade`).
+Absent d'un fichier plus ancien : aucun changement de `formatVersion`.
 
 ### `placements[]` — un dessin posé sur la façade
 

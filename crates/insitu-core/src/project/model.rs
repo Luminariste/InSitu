@@ -95,6 +95,10 @@ pub struct Project {
     /// avant. Absent du fichier tant qu'il est vide.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub placements: Vec<Placement>,
+    /// Assemblage de photos de façade (tâche 6.4). Absent tant qu'aucune
+    /// photo n'a été ajoutée.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub facade_assembly: Option<FacadeAssembly>,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }
@@ -113,6 +117,7 @@ impl Project {
             export: ExportSettings::default(),
             library: Vec::new(),
             placements: Vec::new(),
+            facade_assembly: None,
             extra: ExtraFields::new(),
         }
     }
@@ -155,6 +160,11 @@ impl Project {
         }
         for (i, drawing) in self.library.iter().enumerate() {
             files.push((format!("library[{i}].source"), &drawing.source));
+        }
+        if let Some(assembly) = &self.facade_assembly {
+            for (i, photo) in assembly.photos.iter().enumerate() {
+                files.push((format!("facadeAssembly.photos[{i}].source"), &photo.source));
+            }
         }
         files
     }
@@ -505,8 +515,100 @@ pub struct Drawing {
     /// (1/96 de pouce) pour un SVG.
     pub width: f64,
     pub height: f64,
+    /// Réglages de vectorisation propres à ce dessin (tâche 5.2) ; absent :
+    /// réglages par défaut.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vector: Option<VectorSettings>,
     #[serde(flatten)]
     pub extra: ExtraFields,
+}
+
+/// Assemblage de plusieurs photos de façade en une seule image (tâche 6.4).
+/// La première photo est la **référence** : l'image assemblée est dans son
+/// repère (ses pixels), agrandi pour contenir les autres. Chaque autre photo
+/// est recalée sur une photo déjà placée (son **appui**) par des paires de
+/// points communs.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FacadeAssembly {
+    pub photos: Vec<AssemblyPhoto>,
+    /// La dernière image assemblée ; absente tant qu'elle n'a pas été faite.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output: Option<AssemblyOutput>,
+    #[serde(flatten)]
+    pub extra: ExtraFields,
+}
+
+/// L'image assemblée et sa place dans le repère de la photo de référence.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssemblyOutput {
+    /// Le fichier, `facade/assemblage.jpg`.
+    pub source: RelativePath,
+    /// Coin haut-gauche de l'image, en pixels de la photo de référence.
+    pub origin: SourcePoint,
+    /// Pixels de l'image par pixel de la photo de référence (1 sauf
+    /// réduction).
+    pub scale: f64,
+}
+
+/// Une photo de l'assemblage.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AssemblyPhoto {
+    pub id: String,
+    /// Nom affiché : celui du fichier, sans son extension.
+    pub name: String,
+    /// Le fichier, sous `facade/assemblage/`.
+    pub source: RelativePath,
+    /// Taille du fichier en pixels (pixels tels qu'enregistrés : l'orientation
+    /// EXIF n'est pas appliquée, comme dans la visionneuse).
+    pub width: f64,
+    pub height: f64,
+    /// Photo d'appui (son identifiant) ; absente pour la référence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub anchor: Option<String>,
+    /// Points communs avec la photo d'appui.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pairs: Vec<AssemblyPair>,
+    #[serde(flatten)]
+    pub extra: ExtraFields,
+}
+
+/// Un point commun entre une photo (`here`) et sa photo d'appui (`there`),
+/// en pixels de chacune.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssemblyPair {
+    pub here: SourcePoint,
+    pub there: SourcePoint,
+}
+
+/// Réglages de vectorisation d'un dessin (tâche 5.2). Les mêmes que ceux du
+/// moteur de vectorisation (tâche 5.1), sans le nombre de fils de calcul.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct VectorSettings {
+    /// Seuil, de 1 à 255 : un pixel au moins aussi clair est dans le trait.
+    pub threshold: u8,
+    /// Écart maximal toléré entre les courbes et le contour de l'image, en
+    /// pixels du dessin.
+    pub tolerance_px: f64,
+    /// Au-delà de cet angle (degrés), un sommet est un angle vif.
+    pub corner_angle_deg: f64,
+    /// Taches et trous plus petits que cette aire (pixels carrés) ignorés.
+    pub min_area_px: f64,
+}
+
+impl Default for VectorSettings {
+    fn default() -> Self {
+        Self {
+            threshold: 128,
+            tolerance_px: 0.3,
+            corner_angle_deg: 70.0,
+            min_area_px: 0.0,
+        }
+    }
 }
 
 impl Drawing {

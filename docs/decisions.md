@@ -63,6 +63,110 @@ refuse sans rien écrire.
 (tâche 3.5) : les dessins posés dans l'app ne sont pas encore exportés. Le
 plan ne le range dans aucune tâche du jalon 4 explicitement (4.4 parle
 d'« export identique à l'aperçu ») : à décider avec Benjamin.
+## 2026-11-12 — Tâche 6.4
+
+Assemblage de photos de façade : `crates/insitu-core/src/assembly/`,
+commande `insitu assembly`, fenêtre « Assembler des photos… » de l'écran
+Façade (`src/assembly/`), mode d'emploi `docs/assemblage.md`.
+
+**D-6.4-a. Une homographie par photo : façade supposée plane.** Chaque
+photo est raccordée à sa photo d'appui par une homographie (trapèze), et de
+proche en proche à la référence. C'est exact pour des photos d'un même mur
+plat ; un relief marqué (avancée, porche) laissera des décalages dans les
+recouvrements. Pas de déformation par grille ici : un plan exact reste
+préférable quand il existe. Interdit : présenter l'assemblage comme un relevé.
+
+**D-6.4-b. Points douteux : celui dont le retrait améliore le plus les
+autres.** Avec 6 points ou plus, le moteur cherche le point dont l'absence
+réduit le plus l'écart des autres ; il est signalé si son écart dépasse
+4 fois l'écart médian des autres (au moins 4 px). On recommence tant qu'il
+reste plus de 5 points. Un simple « écart en laissant ce point de côté »
+désignait parfois le mauvais point. Rien n'est retiré d'office : le point
+douteux est montré en rouge et compté hors de l'écart moyen.
+
+**D-6.4-c. Image assemblée : JPEG de 12 000 px au plus, fondu sur les
+bords.** Au-delà, l'image est réduite (l'échelle est notée dans `output`).
+Dans les recouvrements, chaque photo pèse moins près de ses bords (fondu sur
+10 % de sa taille) : pas de couture nette. JPEG qualité 92 : une photo
+d'ensemble n'a pas besoin du sans-perte, et un PNG de cette taille pèserait
+des centaines de Mo dans le Dropbox.
+
+**D-6.4-d. Recalculer garde l'échelle et ce qui est posé.** Si la façade
+est déjà l'assemblage précédent et qu'elle est à l'échelle, l'échelle est
+reprise et les points de façade des recalages et le cadre de la fresque
+sont décalés de ce dont l'origine de l'image a bougé (ajout d'une photo à
+gauche, par exemple), en tenant compte d'une réduction différente. Retirer
+la photo de référence change le repère : l'échelle est alors à refaire.
+
+**D-6.4-e. Changer la photo d'appui efface ses points.** Ils sont en
+pixels de l'ancienne photo d'appui et n'ont pas de sens sur la nouvelle ;
+l'écran demande confirmation.
+
+**D-6.4-f. Rotation EXIF non appliquée.** Comme pour la façade (3.1) et
+la photo brute, les pixels sont ceux du fichier. Une photo prise iPhone
+tourné s'affiche couchée ; il faut l'enregistrer droite avant de l'ajouter.
+À reprendre en 6.5 (finitions) si c'est gênant.
+
+**D-6.4-g. Écran plein par-dessus l'écran Façade, pas une sixième étape.**
+L'assemblage remplace l'import d'un plan : il s'ouvre depuis la barre de
+l'écran Façade et y revient avec la nouvelle façade. Il reprend les deux
+vues côte à côte et les couleurs des points de l'écran Recalage.
+
+## 2026-11-12 — Tâche 5.2
+
+Vecteurs en bibliothèque : `crates/insitu-core/src/library/vectors.rs`,
+commande `insitu library vectors`, fenêtre « Comparer image et vecteurs »
+de l'écran Bibliothèque (`src/library/VectorCompare.tsx`,
+`src/library/vectorLogic.ts`), mode d'emploi `docs/bibliotheque.md`.
+
+**D-5.2-a. Les vecteurs vont dans le cache de l'app, seuls les réglages
+vont dans le projet.** Comme les vignettes (D-4.1-d) : la vectorisation se
+refait à l'identique depuis le fichier et ses réglages, elle n'a pas à
+voyager par Dropbox. Clé du cache : chemin, taille et date du fichier, et
+les quatre réglages. Un dessin aux réglages par défaut n'a rien d'écrit
+dans `projet.json` (champ `vector` absent) ; il suivra le défaut s'il change
+un jour. Champ facultatif : `formatVersion` ne change pas.
+
+**D-5.2-b. Vectorisé juste après l'import, pas pendant.** Mesuré en
+session cloud (4 cœurs) sur les 200 dessins de 4 096 px du test de 4.1 :
+vectoriser pendant l'import le faisait passer de 4 s à 26 s, ce qui ruinait
+le critère « importés sans attente ». L'import reste donc tel quel ; dès
+qu'il est fini, l'app vectorise les nouveaux dessins (8 à la fois au plus,
+un fil chacun) pendant qu'on parcourt déjà la bibliothèque, avec une ligne
+d'avancement (26 s pour les 200 dessins de 4 096 px sur 4 cœurs, mesure
+comprise ; sans doute moins de la moitié sur le M1 Max, non mesuré). Sur
+l'autre Mac, ou après un changement de réglage, les
+vecteurs d'un dessin sont faits quand on le choisit. La liste de la
+bibliothèque ne vectorise jamais : elle doit rester instantanée.
+
+**D-5.2-c. L'écart est mesuré à chaque vectorisation.** Le compte rendu
+garde la mesure indépendante de 5.1 (`compare`) : écart maximal en pixels
+et pixels classés autrement. Il est affiché en vert sous un demi-pixel, en
+rouge au-delà. Cela double à peu près le temps de calcul ; c'est le chiffre
+qui permet de valider un dessin sans tout regarder à la loupe.
+
+**D-5.2-d. Un SVG de la bibliothèque est vectorisé depuis son rendu à
+4 096 px**, comme un dessin dessiné. Raison : un seul chemin pour le
+transport des courbes (5.3), quelle que soit l'origine du dessin. Reprendre
+directement les courbes du SVG serait plus fidèle mais demande de convertir
+les traits (épaisseur, extrémités) en contours : à voir si un SVG de Marc le
+justifie.
+
+**D-5.2-e. Comparaison dans une fenêtre à part, en HTML, pas dans la
+visionneuse.** L'image (4 096 px au plus, le noir rendu transparent) et deux
+SVG (courbes remplies de blanc ; courbes au trait rouge d'un pixel d'écran)
+sont superposés dans le même cadre. À partir de 200 %, l'image est agrandie
+sans lissage : on voit les pixels du fichier et le contour qui les longe.
+Quatre affichages : image, vecteurs, contour sur l'image, rideau. La
+visionneuse PixiJS n'a pas de calque vectoriel ; un SVG de quelques
+mégaoctets se dessine bien dans la page. Non vérifié : la fluidité du zoom
+sur un dessin très chargé (des dizaines de milliers de contours) sur le Mac.
+
+**D-5.2-f. Réglages par dessin : les quatre de 5.1, bornes du moteur.**
+Seuil, tolérance, angle des coins, aire minimale. « Appliquer » enregistre
+le projet et refait les vecteurs ; des réglages refusés ne touchent pas au
+projet. Pas d'aperçu en direct pendant la frappe : un calcul coûte de
+quelques dixièmes de seconde à quelques secondes.
 
 ## 2026-11-12 — Système de design
 
@@ -114,6 +218,7 @@ corbeille). Quand l'annulation existera (4.3), plus de confirmation.
 **D15-e. L'écran de démonstration garde son ancien style.** Il est
 provisoire (D13) ; il profite des nouvelles couleurs par les anciens noms de
 variables, gardés comme alias dans `tokens.css`.
+
 ## 2026-11-12 — Tâche 3.6
 
 Vue diapositive : `crates/insitu-core/src/export/preview.rs`, commande

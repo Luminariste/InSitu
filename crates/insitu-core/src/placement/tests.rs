@@ -12,6 +12,7 @@ fn project_with_drawing(label: &str) -> (TempDir, ProjectDir) {
         source: RelativePath::new("bibliotheque/merle.png").unwrap(),
         width: 2_000.0,
         height: 1_000.0,
+        vector: None,
         extra: Default::default(),
     });
     dir.save(&project).expect("enregistrement");

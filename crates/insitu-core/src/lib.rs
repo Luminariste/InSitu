@@ -12,6 +12,7 @@
 //! - les pixels n'apparaissent qu'à l'entrée (images sources) et à la sortie
 //!   (exports), jamais dans le modèle.
 
+pub mod assembly;
 pub mod export;
 pub mod facade;
 pub mod geometry;
