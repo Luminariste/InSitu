@@ -64,6 +64,7 @@ Les verres d'Épinal mêlent hachures fines et aplats gris : beaucoup de
 petits contours (35 000 à 110 000 par verre, 0,5 à 1,6 million de morceaux).
 Aucun dessin de Marc n'a encore été essayé : les dix dessins de styles
 différents demandés pour 5.2 manquent.
+
 ## 2026-11-12 — Tâche 3.2
 
 Recalage par points : module `crates/insitu-core/src/registration/`,
