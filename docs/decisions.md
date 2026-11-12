@@ -4,6 +4,29 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Essai du 13 novembre : sens de la nouvelle mire
+
+**D-essai-a. Le sens de la mire version 2 se lit sur ses repères codés.**
+La mire version 2 n'a plus les six petits cercles (D-2.2-c). Conséquence
+constatée avant l'essai grandeur nature : la détection seule échouait
+toujours (« sens de la mire incertain »), et après la pose des coins la
+diapositive pouvait sortir tournée d'un quart de tour sans aucun
+avertissement, donc une plaque gravée de travers. Correction : quand les
+petits cercles ne tranchent pas, on lit chacun des 16 repères AprilTag à sa
+place connue (modules de 2 mm, seuil propre à chaque repère entre son
+pourtour noir et son module le plus clair), pour chacun des quatre sens ; le
+bon sens donne presque tous les modules justes, les autres environ la
+moitié. On garde la moyenne de la meilleure moitié des repères (un repère
+dans l'ombre ou un reflet ne compte pas) ; il faut 0,15 d'écart entre le
+meilleur sens et le suivant. Ce n'est pas la tâche 2.4b : l'amorce reste le
+cercle rouge et la croix (ou les coins), les repères ne servent qu'au sens.
+Raison : une lecture à position connue est simple, sans dépendance, et
+suffit pour l'essai ; le lecteur de repères complet (2.4b) reste à faire.
+Vérifié par `crates/insitu-core/tests/mire_v2_sens.rs` sur le PDF à
+imprimer rendu par le moteur, dans les quatre sens, détection seule et
+coins donnés dans le désordre ; pas encore sur une vraie photo de la mire
+imprimée.
+
 ## 2026-11-12 — Tâche 6.3 : import Illustrator
 
 Module `crates/insitu-core/src/illustrator/`, commande `insitu illustrator

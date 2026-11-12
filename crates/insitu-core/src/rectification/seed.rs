@@ -459,6 +459,103 @@ pub(crate) fn find_orientation(gray: &Plane, nodes: &[Measured]) -> Option<Orien
     })
 }
 
+/// Écart minimal entre le meilleur sens et le suivant, lu sur les repères
+/// codés de la mire version 2 (part des modules de données conformes).
+pub(crate) const MIN_MARKER_MARGIN: f64 = 0.15;
+
+/// Sens de la mire version 2, lu sur ses seize repères codés (D-essai-a) :
+/// pour chaque quart de tour, on compare la teinte de chaque module de
+/// données au dessin attendu. Le bon sens donne presque tout juste, les
+/// trois autres environ une moitié. `nodes` : croisements dans le repère de
+/// l'amorce, comme pour [`find_orientation`].
+pub(crate) fn find_orientation_by_markers(gray: &Plane, nodes: &[Measured]) -> Option<Orientation> {
+    use crate::target::apriltag::{marker_modules, DATA_MODULES, MARKER_MODULES};
+    use crate::target::{TargetLayout, MARKER_SIZE_MM};
+    let mm: Vec<Point> = nodes.iter().map(|m| m.node.position()).collect();
+    let px: Vec<Point> = nodes.iter().map(|m| m.photo).collect();
+    let model = LocalModel::fit(&mm, &px, 12.0, None)?;
+    let module = MARKER_SIZE_MM / MARKER_MODULES as f64;
+    let layout = TargetLayout::coded();
+    // Teinte moyenne autour d'un point de la mire (5 échantillons dans le
+    // module), dans le sens `quarters`.
+    let value = |p: Point, quarters: u8| -> Option<f64> {
+        let d = module * 0.25;
+        let offsets = [(0.0, 0.0), (d, 0.0), (-d, 0.0), (0.0, d), (0.0, -d)];
+        let mut sum = 0.0;
+        for (dx, dy) in offsets {
+            let q = model.predict(rotate_quarters(p + Point::new(dx, dy), quarters))?;
+            sum += f64::from(gray.sample(q.x, q.y, Border::Zero));
+        }
+        Some(sum / offsets.len() as f64)
+    };
+    let mut notes = [0.0; 4];
+    for (quarters, note) in notes.iter_mut().enumerate() {
+        let mut per_marker = Vec::with_capacity(layout.markers.len());
+        for marker in &layout.markers {
+            let expected = marker_modules(marker.id);
+            let origin = marker.corners[0];
+            let mut samples = Vec::with_capacity(MARKER_MODULES * MARKER_MODULES);
+            for (row, line) in expected.iter().enumerate() {
+                for (col, black) in line.iter().enumerate() {
+                    let centre = origin
+                        + Point::new((col as f64 + 0.5) * module, (row as f64 + 0.5) * module);
+                    if let Some(v) = value(centre, quarters as u8) {
+                        samples.push((row, col, *black, v));
+                    }
+                }
+            }
+            if samples.len() < MARKER_MODULES * MARKER_MODULES {
+                continue;
+            }
+            // Seuil propre au repère : milieu entre le pourtour (noir) et la
+            // zone blanche juste autour.
+            let border: Vec<f64> = samples
+                .iter()
+                .filter(|s| {
+                    s.0 == 0 || s.1 == 0 || s.0 == MARKER_MODULES - 1 || s.1 == MARKER_MODULES - 1
+                })
+                .map(|s| s.3)
+                .collect();
+            let dark = border.iter().sum::<f64>() / border.len() as f64;
+            let data: Vec<&(usize, usize, bool, f64)> = samples
+                .iter()
+                .filter(|s| s.0 >= 1 && s.1 >= 1 && s.0 <= DATA_MODULES && s.1 <= DATA_MODULES)
+                .collect();
+            let light = data.iter().map(|s| s.3).fold(f64::MIN, f64::max);
+            if light - dark < 10.0 {
+                continue;
+            }
+            let threshold = 0.5 * (dark + light);
+            let right = data.iter().filter(|s| (s.3 < threshold) == s.2).count();
+            per_marker.push(right as f64 / data.len() as f64);
+        }
+        if per_marker.len() < 4 {
+            return None;
+        }
+        // Les repères les mieux vus comptent : la moitié haute.
+        per_marker.sort_unstable_by(|a, b| b.total_cmp(a));
+        let keep = per_marker.len().div_ceil(2);
+        *note = per_marker[..keep].iter().sum::<f64>() / keep as f64;
+    }
+    let mut order = [0usize, 1, 2, 3];
+    order.sort_by(|a, b| notes[*b].total_cmp(&notes[*a]));
+    Some(Orientation {
+        quarters: order[0] as u8,
+        margin: notes[order[0]] - notes[order[1]],
+    })
+}
+
+/// Sens de la mire : par les six petits cercles (ancienne mire), sinon par
+/// les repères codés (mire version 2). `None` si aucun des deux n'est sûr.
+pub(crate) fn find_orientation_any(gray: &Plane, nodes: &[Measured]) -> Option<Orientation> {
+    if let Some(o) = find_orientation(gray, nodes) {
+        if o.margin >= MIN_ORIENTATION_MARGIN {
+            return Some(o);
+        }
+    }
+    find_orientation_by_markers(gray, nodes).filter(|o| o.margin >= MIN_MARKER_MARGIN)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
