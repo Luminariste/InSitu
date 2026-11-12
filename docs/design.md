@@ -103,9 +103,10 @@ Règle : **pas d'objet sans ses trois gestes.** Une session qui ajoute un
 nouveau type d'objet lui donne ajout, modification et suppression, ou note
 dans la demande de fusion ce qui manque. Exemple complet : les projecteurs
 de l'étape Redressement (« + », double-clic ou crayon pour renommer,
-corbeille ou ⌫ avec confirmation). Manquent à ce jour : retirer un dessin
-de la bibliothèque (prévu avec 4.2), retirer le plan de la façade (on peut
-le remplacer).
+corbeille ou ⌫ avec confirmation). Le dessin de la bibliothèque (« Retirer
+de la bibliothèque… » dans l'inspecteur, ou ⌫) et le plan de la façade
+(« Retirer le plan… » dans l'inspecteur Plan) ont aussi les trois gestes
+(D15-h). Retirer n'efface jamais un fichier du disque.
 
 ## 4. États vides, attente, messages, erreurs
 

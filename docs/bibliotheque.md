@@ -24,6 +24,10 @@ sur la façade à l'étape suivante (placement, tâche 4.2).
    dans son fichier.
 6. Les flèches du clavier passent d'un dessin à l'autre (cliquer d'abord
    dans les vignettes).
+7. **Retirer de la bibliothèque…** (en bas de l'inspecteur, ou ⌫) : après
+   confirmation, le dessin sort de la bibliothèque, ainsi que ses placements
+   sur la façade (la fenêtre dit combien). Le fichier reste dans le dossier
+   du projet ; réimporter le même dossier le remet dans la bibliothèque.
 
 ## Vecteurs (tâche 5.2)
 
@@ -64,6 +68,7 @@ Le fichier copié dans le projet n'est jamais modifié.
 ```
 insitu library import Épinal.insitu "Dessins de Marc" --cache /tmp/vignettes
 insitu library list Épinal.insitu --cache /tmp/vignettes
+insitu library remove Épinal.insitu merle
 insitu library thumbnail dessin.psd vignette.png --size 1024
 insitu library vectors Épinal.insitu --cache /tmp/vignettes
 insitu library vectors Épinal.insitu merle --cache /tmp/vignettes --threshold 90

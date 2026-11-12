@@ -21,6 +21,7 @@ pub enum Problem {
 pub const USAGE: &str = r#"Usage :
   insitu library import <projet.insitu> <dossier> [--cache DOSSIER] [--threads N]
   insitu library list <projet.insitu> [--cache DOSSIER]
+  insitu library remove <projet.insitu> <dessin>
   insitu library thumbnail <dessin> <sortie.png> [--size PX]
   insitu library vectors <projet.insitu> [<dessin>] --cache DOSSIER
          [--threshold N] [--tolerance PX] [--corner DEG] [--min-area PX2]
@@ -36,6 +37,8 @@ PSD aplati, SVG).
              ajoutés, déjà présents, fichiers illisibles) ; la durée est
              écrite sur la sortie d'erreur.
   list       Affiche la bibliothèque en JSON.
+  remove     Retire un dessin (identifiant ou nom) de la bibliothèque, et ses
+             placements sur la façade. Le fichier reste dans bibliotheque/.
   thumbnail  Écrit la vignette d'un fichier de dessin : réduit de moitié en
              moitié jusqu'à tenir dans --size (320 par défaut), le noir
              rendu transparent.
@@ -140,6 +143,16 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             let dir = ProjectDir::open(folder).map_err(failed)?;
             let entries = library::list(&dir, cache.as_deref(), threads).map_err(failed)?;
             Ok(serde_json::to_string_pretty(&entries).expect("sérialisable"))
+        }
+        ["remove", folder, drawing] => {
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let project = dir.load().map_err(failed)?.project;
+            let found = library::find(&project, drawing).map_err(failed)?;
+            let (id, name) = (found.id.clone(), found.name.clone());
+            let (_, placed) = library::remove_drawing(&dir, &id).map_err(failed)?;
+            Ok(format!(
+                "« {name} » retiré de la bibliothèque ({placed} placement(s) retiré(s)) ; le fichier reste dans le projet."
+            ))
         }
         ["thumbnail", file, output] => {
             let decoded = decode(Path::new(file), size).map_err(failed)?;
