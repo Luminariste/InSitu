@@ -173,10 +173,11 @@ les tâches « interface » demandent un essai sur Mac.
 | N° | Tâche | Livrable | Critère d'acceptation | Dépend de |
 | --- | --- | --- | --- | --- |
 | 2.1 | Étude de détection | Comparaison de deux ou trois types de repères sur des photos simulées (flou, biais, faible lumière, papier gondolé) ; choix argumenté | Rapport court avec taux de détection et précision mesurée | 1.3 |
-| 2.2 | Nouvelle mire | Générateur de mire PDF 280 mm : grille, croix, cercles, repères détectables, identifiant | PDF imprimé mesuré à 280 mm ; l'ancienne mire reste utilisable en mode manuel | 2.1 |
+| 2.2 | Nouvelle mire | Générateur de mire PDF 280 mm : grille, croix, cercle rouge, 16 repères codés AprilTag 36h11, identifiant (étude 2.1, candidat B) | PDF imprimé mesuré à 280 mm ; les 16 repères sont relus sur une photo de la mire imprimée ; l'ancienne mire reste utilisable | 2.1 |
 | 2.3 | Géométrie | Moteur : transformation en trapèze (4 points), déformation par grille de points, calcul d'écart résiduel | Tests numériques ; aller-retour exact à moins de 0,01 mm | 1.1 |
-| 2.4 | Détection et redressement | Moteur : photo vers image redressée 280 mm, avec carte de confiance | Sur la photo d'essai, résultat superposable à A.tiff à moins de 0,5 mm | 2.1, 2.3 |
-| 2.5 | Écran de redressement | Import de photos (HEIC compris), détection, poignées de correction, loupe, export TIFF ou PNG | Une photo réelle est redressée en moins d'une minute | 1.5, 2.4 |
+| 2.4a | Détection et redressement (grille) | Moteur : amorce par le cercle rouge et la croix (ancienne mire), mesure des croisements de la grille, trapèze et correction locale, image redressée 280 mm, carte de confiance | Sur les 8 photos d'Épinal, la détection réussit sans aide et les croisements de l'image redressée tombent à moins de 0,3 mm de leur place (95e centile) | 2.1, 2.3 |
+| 2.4b | Détection par repères codés | Moteur : amorce par les 16 repères de la nouvelle mire, puis même mesure de la grille que 2.4a | Sur des photos de la mire imprimée, mêmes critères que 2.4a | 2.2, 2.4a |
+| 2.5 | Écran de redressement | Import de photos (HEIC compris), détection, poignées de correction (quatre coins posés à la main servent d'amorce, la grille affine ensuite), loupe, export TIFF ou PNG | Une photo réelle est redressée en moins d'une minute | 1.5, 2.4a |
 
 ### Jalon 3 — Façade et déformation automatique
 
@@ -248,6 +249,13 @@ d'affichage ou de fluidité ne se découvrent qu'à l'essai.
 | Fluidité de l'affichage dans la fenêtre web | Composition moins agréable qu'Illustrator | Visionneuse testée dès 1.5 sur Mac ; repli possible : interface Swift sur le même moteur Rust |
 | Lecture des fichiers Illustrator | Import partiel | Placé en dernier ; l'import d'une image aplatie fonctionne dès le jalon 3 |
 | App non signée | Avertissement macOS au premier lancement | Accepté |
+
+## Décisions du 12 novembre 2026
+
+- **Mire et détection** (étude 2.1) : nouvelle mire à 16 repères codés
+  (2.2) ; la détection commence par l'ancienne mire (2.4a), les repères
+  codés suivent (2.4b). Le critère de 2.4 ne compare plus à A.tiff, qui
+  s'écarte lui-même de la grille de 0,6 mm en moyenne.
 
 ## Décisions du 11 novembre 2026
 

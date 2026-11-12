@@ -19,6 +19,66 @@ sur la 0.1.1), pas la fluidité. Un geste n'est rapporté qu'à partir de
 « en retard ». Le calcul vit dans `src/viewer/frameMeter.ts`, testé sans
 écran. Le chiffre « calcul » ne compte que le travail de l'interface, pas
 celui de la carte graphique.
+## 2026-11-12 — Tâche 2.2
+
+Nouvelle mire : module `crates/insitu-core/src/target/`, commande
+`insitu target`, PDF prêt à imprimer dans `docs/mire/`.
+
+**D-2.2-a. Le PDF est écrit par le moteur, à la main, sans dépendance.**
+Une page, uniquement des traits, des cercles (huit arcs de Bézier, écart au
+vrai cercle inférieur à 0,001 mm) et des rectangles pleins ; texte en
+Helvetica, police que tout lecteur PDF possède. Les coordonnées sont en mm
+avec 4 décimales, l'échelle mm → point avec 9 décimales (4 laisseraient
+5 µm d'erreur sur 280 mm). Le fichier ne contient ni date ni numéro de
+version de l'app : un même dessin donne le même fichier, ce qui permet de
+verser `docs/mire/mire-insitu-v2.pdf` et de tester qu'il est à jour. Une
+bibliothèque PDF aurait apporté des dépendances pour une seule page fixe.
+
+**D-2.2-b. Page A3 par défaut, mire au centre, pointillés de coupe à 297 mm.**
+L'étude 2.1 a mesuré sur les photos d'Épinal une feuille d'environ 297 mm,
+un A3 recoupé (marge blanche de 8,5 mm). Le PDF reprend ce format : la
+consigne d'impression et deux pointillés gris sont dans les bandes que l'on
+coupe ; l'identifiant reste dans la marge de 8,5 mm, sous la grille.
+`--page carre` donne une page de 297 × 297 mm sans consigne.
+
+**D-2.2-c. Les six petits cercles et le texte « Mire 280 x 280 mm » sont
+retirés.**
+Ils ne servaient qu'à trouver le sens de la mire ; n'importe quel repère lu
+le donne désormais (D-2.1-a). Le premier cercle tomberait en outre sur le
+repère 12. Le texte est remplacé par l'identifiant : « InSitu - mire 280 mm -
+version 2 - repères AprilTag 36h11 n° 0 à 15 ». La mire d'Épinal est la
+version 1. Conséquence pour la tâche 2.4 : sur la nouvelle mire, sans aucun
+repère lu, le cercle rouge et la croix donnent la position mais pas le sens.
+
+**D-2.2-d. Les codes des 16 repères sont recopiés d'OpenCV, dans l'ordre de
+l'image.**
+`apriltag.rs` les écrit ligne par ligne, 1 = module blanc ; l'ordre des bits
+diffère de celui de la bibliothèque AprilTag d'origine, le dessin est le
+même. Vérifié par un test (au moins 11 bits d'écart entre deux repères, dans
+les quatre sens) et, une fois, par deux lecteurs indépendants du moteur
+(OpenCV et `kornia-apriltag`, script `etudes/2.2-mire/verifier_reperes.py`) :
+16 repères relus sur 16, sans bit corrigé, sur le PDF rendu et sur une photo
+simulée en biais et floue.
+
+**D-2.2-e. Repères à 2 mm du pourtour de leur bloc ; rouge 230-30-40.**
+Comme dans l'étude : repère de 16 mm centré dans un bloc de 20 mm dont le
+pourtour reste tracé et les traits intérieurs sont coupés. La zone blanche
+autour du repère fait 1,8 mm (un module de 2 mm moins le demi-trait du
+pourtour) ; les deux lecteurs s'en accommodent. La couleur exacte du cercle
+de l'ancienne mire n'est pas connue (la référence du jeu d'essai est en
+gris) : on garde l'encre rouge de l'étude.
+
+**D-2.2-f. Ce que le moteur expose pour la détection.**
+`target::TargetLayout::coded()` donne, en mm dans le repère de la mire, les
+16 repères (numéro, quatre coins dans l'ordre haut-gauche, haut-droit,
+bas-droit, bas-gauche) et `grid_nodes()`, les 660 croisements mesurables :
+ni à moins de 34 mm du centre (disque et son bord), ni sur un bloc de repère,
+pourtour compris, comme dans l'étude. `insitu target info` les écrit en JSON.
+
+**D-2.2-g. Le module s'appelle `target`, malgré `.gitignore`.**
+Le vocabulaire impose `target` pour la mire, mais `.gitignore` excluait tout
+dossier `target/` (dossier de compilation de Cargo). Une exception y est
+ajoutée pour `crates/insitu-core/src/target/`.
 
 ## 2026-11-12 — Essai de la visionneuse
 
@@ -34,8 +94,9 @@ l'app sait ouvrir un projet (jalon 2), l'écran de démonstration avec.
 points D-2.1-a à D-2.1-d sont des **propositions** : ils ne deviennent des
 décisions qu'une fois validés par Benjamin, après l'essai d'une mire imprimée.
 
-**D-2.1-a (proposition). Nouvelle mire : la grille actuelle, plus 16 repères
-codés AprilTag.**
+**D-2.1-a (proposition, approuvée sur plan par Benjamin le 12 novembre 2026 ;
+à confirmer après impression). Nouvelle mire : la grille actuelle, plus 16
+repères codés AprilTag.**
 On garde la grille de 10 mm, la croix et le cercle rouge. On épaissit les
 traits fins (0,35 mm) et on ajoute 16 repères codés de 16 mm (famille
 AprilTag 36h11, numéros 0 à 15), répartis sur toute la feuille, chacun dans
