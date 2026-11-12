@@ -38,9 +38,6 @@ export function Loupe({ source, center, zoom, size, handles }: LoupeProps) {
         {marks.map(({ i, p }) => (
           <g key={i} className="loupe-handle">
             <circle cx={p.x} cy={p.y} r={14} />
-            <text x={p.x + 17} y={p.y + 16}>
-              {i + 1}
-            </text>
           </g>
         ))}
         {/* Croix de visée : le pixel visé est au centre. */}
