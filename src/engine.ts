@@ -123,6 +123,27 @@ export interface Project {
   fresco?: FrescoImage | null;
   /** Réglages d'export des diapositives (tâche 3.5). */
   export?: ExportSettings;
+  /** Assemblage de photos de façade (tâche 6.4). */
+  facadeAssembly?: FacadeAssembly | null;
+}
+
+/** Assemblage de photos de façade, tel qu'enregistré dans `projet.json`. */
+export interface FacadeAssembly {
+  photos: AssemblyPhoto[];
+  output?: { source: string; origin: SourcePoint; scale: number } | null;
+}
+
+/** Une photo de l'assemblage ; la première est la référence. */
+export interface AssemblyPhoto {
+  id: string;
+  name: string;
+  /** Chemin relatif au projet. */
+  source: string;
+  width: number;
+  height: number;
+  /** La photo sur laquelle elle s'appuie (aucune pour la référence). */
+  anchor?: string | null;
+  pairs?: AssemblyPair[];
 }
 
 /** La fresque en une image et le rectangle de façade qu'elle couvre (mm). */
@@ -737,4 +758,96 @@ export interface SlideView {
 export async function fetchSlideViews(folder: string): Promise<SlideView[]> {
   requireEngine();
   return invoke<SlideView[]>("slide_views", { folder });
+}
+
+// --- Assemblage de photos de façade (tâche 6.4) -------------------------------
+
+/** Un point commun : dans la photo (`here`) et dans sa photo d'appui (`there`), en pixels. */
+export interface AssemblyPair {
+  here: SourcePoint;
+  there: SourcePoint;
+}
+
+export interface AssemblyPairReport {
+  /** Écart en pixels de la photo d'appui ; `null` avec moins de 5 points. */
+  residualPx: number | null;
+  outlier: boolean;
+}
+
+export interface AssemblyPhotoReport {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  anchor: string | null;
+  pairs: AssemblyPairReport[];
+  placed: boolean;
+  /** Coins dans le repère de la photo de référence, en pixels. */
+  corners: [SourcePoint, SourcePoint, SourcePoint, SourcePoint] | null;
+  meanResidualPx: number | null;
+  problem: string | null;
+}
+
+export interface AssemblyReport {
+  photos: AssemblyPhotoReport[];
+  /** Toutes les photos sont placées : l'assemblage peut être calculé. */
+  ready: boolean;
+}
+
+export interface AssemblyRenderReport {
+  width: number;
+  height: number;
+  scale: number;
+  keptScale: boolean;
+  seconds: number;
+}
+
+export async function fetchAssembly(folder: string): Promise<AssemblyReport> {
+  requireEngine();
+  return invoke<AssemblyReport>("assembly_show", { folder });
+}
+
+/** Ajoute une photo ; elle s'appuie sur `anchor`, ou sur la dernière ajoutée. */
+export async function addAssemblyPhoto(folder: string, path: string, anchor: string | null): Promise<{ project: Project; id: string }> {
+  requireEngine();
+  const [project, id] = await invoke<[Project, string]>("assembly_add", { folder, path, anchor });
+  return { project, id };
+}
+
+export async function removeAssemblyPhoto(folder: string, photo: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("assembly_remove", { folder, photo });
+}
+
+/** Remplace la photo d'appui et les points communs d'une photo ; le projet est enregistré. */
+export async function saveAssemblyPairs(
+  folder: string,
+  photo: string,
+  anchor: string,
+  pairs: AssemblyPair[],
+): Promise<{ project: Project; report: AssemblyReport }> {
+  requireEngine();
+  const [project, report] = await invoke<[Project, AssemblyReport]>("assembly_set_pairs", { folder, photo, anchor, pairs });
+  return { project, report };
+}
+
+/** Calcule l'image assemblée ; elle devient la façade du projet. */
+export async function renderAssembly(folder: string): Promise<{ project: Project; report: AssemblyRenderReport }> {
+  requireEngine();
+  const [project, report] = await invoke<[Project, AssemblyRenderReport]>("assembly_render", { folder });
+  return { project, report };
+}
+
+/** Demande une ou plusieurs photos de façade ; liste vide si l'utilisateur renonce. */
+export async function chooseFacadePhotos(): Promise<string[]> {
+  requireEngine();
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const chosen = await open({
+    multiple: true,
+    directory: false,
+    title: "Ajouter des photos de la façade",
+    filters: [{ name: "Photo (HEIC, JPEG, PNG, TIFF)", extensions: PHOTO_EXTENSIONS }],
+  });
+  if (Array.isArray(chosen)) return chosen;
+  return typeof chosen === "string" ? [chosen] : [];
 }

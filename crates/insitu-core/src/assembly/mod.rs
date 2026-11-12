@@ -390,6 +390,11 @@ pub fn report(project: &Project) -> AssemblyReport {
     }
 }
 
+/// Diagnostic de l'assemblage du projet enregistré dans `dir`.
+pub fn project_report(dir: &ProjectDir) -> Result<AssemblyReport, AssemblyError> {
+    Ok(report(&dir.load()?.project))
+}
+
 // ---------------------------------------------------------------------------
 // Photos et points
 // ---------------------------------------------------------------------------
@@ -479,6 +484,9 @@ pub fn remove_photo(dir: &ProjectDir, id: &str) -> Result<Project, AssemblyError
         let new_reference = &mut assembly.photos[0];
         new_reference.anchor = None;
         new_reference.pairs.clear();
+        // Le repère change : l'image précédente ne permet plus de reporter
+        // l'échelle (elle sera à refaire après le prochain calcul).
+        assembly.output = None;
     }
     if assembly.photos.is_empty() {
         project.facade_assembly = None;

@@ -48,6 +48,7 @@ import {
   viewToSource,
   withProjectExtension,
 } from "./scale";
+import { AssemblyScreen } from "../assembly/AssemblyScreen";
 import { recalledProject as recalled, rememberProject as remember } from "../project/current";
 import { ProjectMenu } from "../project/ProjectMenu";
 import {
@@ -108,6 +109,9 @@ export function FacadeScreen() {
   /** Fresque en une image (tâche 3.5), affichée par tuiles sur la façade. */
   const [frescoSource, setFrescoSource] = useState<TileSource | null>(null);
   const [showFresco, setShowFresco] = useState(true);
+  /** Assemblage de photos (tâche 6.4), en plein écran par-dessus. */
+  const [assembling, setAssembling] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const facade = project?.facade ?? null;
   const scale = engine ? (facade?.scale ?? null) : browserScale;
@@ -372,9 +376,9 @@ export function FacadeScreen() {
   const canImport = engine && folder !== null && ready;
 
   useShortcuts([
-    { keys: "mod+i", run: () => void choosePlan(), enabled: canImport },
-    { keys: "mod+0", run: () => viewer.current?.fitAll(), enabled: view !== null },
-    { keys: "escape", run: () => setPicking("off"), enabled: picking !== "off" },
+    { keys: "mod+i", run: () => void choosePlan(), enabled: canImport && !assembling },
+    { keys: "mod+0", run: () => viewer.current?.fitAll(), enabled: view !== null && !assembling },
+    { keys: "escape", run: () => setPicking("off"), enabled: picking !== "off" && !assembling },
   ]);
 
   const toolbar = (
@@ -391,6 +395,14 @@ export function FacadeScreen() {
       <ToolSeparator />
       <Button icon="import" shortcut="mod+i" title="Importer le plan de la façade" onClick={() => void choosePlan()} disabled={!canImport}>
         {facade ? "Remplacer le plan…" : "Importer un plan…"}
+      </Button>
+      <Button
+        icon="image"
+        title="Sans plan : assembler plusieurs photos de face de la façade en une seule image"
+        onClick={() => setAssembling(true)}
+        disabled={(engine && folder === null) || !ready}
+      >
+        Assembler des photos…
       </Button>
       <ToolSpacer />
       <Button icon="fit" shortcut="mod+0" title="Voir toute la façade" onClick={() => viewer.current?.fitAll()} disabled={!view}>
@@ -506,7 +518,19 @@ export function FacadeScreen() {
     <Screen
       className="facade"
       toolbar={toolbar}
-      banner={error && <Banner tone="danger" onClose={() => setError(null)}>{error}</Banner>}
+      banner={
+        error ? (
+          <Banner tone="danger" onClose={() => setError(null)}>
+            {error}
+          </Banner>
+        ) : (
+          notice && (
+            <Banner tone="success" onClose={() => setNotice(null)}>
+              {notice}
+            </Banner>
+          )
+        )
+      }
       sidebar={
         <OverviewPanel
           overview={overview}
@@ -566,6 +590,21 @@ export function FacadeScreen() {
         )}
         {busy && <Busy>{busy}</Busy>}
       </div>
+      {assembling && (
+        <AssemblyScreen
+          folder={engine ? folder : null}
+          project={project}
+          onClose={(changed) => {
+            setAssembling(false);
+            if (changed) setProject(changed);
+          }}
+          onRendered={(next, message) => {
+            setAssembling(false);
+            if (folder) void load(folder, next);
+            setNotice(message);
+          }}
+        />
+      )}
       {pending && (
         <Dialog
           title="Quelle page est la façade ?"

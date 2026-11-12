@@ -418,6 +418,12 @@ fn a_new_photo_keeps_the_scale_and_the_registrations_in_place() {
     let moved = project.projectors[0].registration[0].facade;
     let after = reference_px(output.origin, moved);
     assert!(before.distance(after) < 1e-9, "le point de façade a bougé");
+
+    // Retirer la référence change le repère : l'échelle n'est plus reprise.
+    let project = remove_photo(&s.dir, &ids[0]).unwrap();
+    assert!(project.facade_assembly.as_ref().unwrap().output.is_none());
+    let (_, again) = render(&s.dir, &RenderOptions::default()).unwrap();
+    assert!(!again.kept_scale);
 }
 
 #[test]
