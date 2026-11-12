@@ -24,6 +24,9 @@ import {
 import type { FrameContext, LayerSpec, SceneNode } from "./nodes";
 import { TiledLayerNode } from "./tiledLayer";
 import { TileStore, type TileRequest, type TileStoreStatus } from "./tileStore";
+import { FrameMeter, GESTURE_TAIL_MS, type FrameStats } from "./frameMeter";
+
+export type { FrameStats } from "./frameMeter";
 
 export interface SceneOptions {
   /** Couleur du fond, hors de toute image. */
@@ -32,20 +35,6 @@ export interface SceneOptions {
   tileCapacity?: number;
   /** Chargements de tuiles simultanés. */
   tileConcurrency?: number;
-}
-
-/** Mesure de fluidité d'un geste (suite d'images dessinées sans pause). */
-export interface FrameStats {
-  /** Nombre d'images dessinées pendant le geste. */
-  frames: number;
-  /** Durée moyenne entre deux images, en ms (16,7 ms = 60 images par seconde). */
-  meanMs: number;
-  /** Pire durée entre deux images, en ms. */
-  worstMs: number;
-  /** Nombre d'images arrivées avec plus de 25 ms de retard (saccades visibles). */
-  slowFrames: number;
-  /** Temps de calcul moyen d'une image par l'interface, en ms. */
-  meanWorkMs: number;
 }
 
 export interface SceneStatus {
@@ -60,16 +49,9 @@ export interface SceneListeners {
   onFrame?: (status: SceneStatus) => void;
   /** Position du curseur dans le repère commun, en mm ; `null` quand il sort. */
   onCursor?: (mm: Point | null) => void;
-  /** Quand un geste se termine (plus aucune image depuis un quart de seconde). */
+  /** Quand un geste se termine (aucun mouvement depuis `GESTURE_TAIL_MS`). */
   onGestureEnd?: (stats: FrameStats) => void;
 }
-
-/** Une image dessinée après une pause plus longue ne compte pas dans le geste. */
-// Après le dernier mouvement, la scène continue d'être redessinée pendant ce
-// délai : la mesure porte ainsi sur le rythme réel de l'écran, pas sur le
-// rythme auquel les mouvements arrivent.
-const GESTURE_TAIL_MS = 180;
-const SLOW_FRAME_MS = 25;
 
 /** Événement de pincement propre à WebKit (Safari, fenêtre Tauri sur Mac). */
 interface GestureEvent extends UIEvent {
@@ -98,10 +80,9 @@ export class ViewerScene {
   private frameRequest = 0;
   private destroyed = false;
 
-  private lastFrameAt = 0;
-  private gesture = { frames: 0, total: 0, worst: 0, slow: 0, work: 0 };
+  /** Fin du geste en cours : un mouvement la repousse de `GESTURE_TAIL_MS`. */
   private activeUntil = 0;
-  private inGesture = false;
+  private readonly meter = new FrameMeter((stats) => this.listeners.onGestureEnd?.(stats));
 
   /** Crée la scène dans `host`, qui doit avoir une taille. */
   static async create(host: HTMLElement, options: SceneOptions = {}): Promise<ViewerScene> {
@@ -291,7 +272,7 @@ export class ViewerScene {
     // Pendant un geste, une image est dessinée à chaque rafraîchissement de
     // l'écran, même si aucun mouvement n'est arrivé entre-temps.
     const active = performance.now() < this.activeUntil;
-    this.recordFrame(time, performance.now() - started, active);
+    this.meter.frame(time, performance.now() - started, active);
     if (active) this.invalidate();
 
     const detail = this.finestDetail();
@@ -299,39 +280,6 @@ export class ViewerScene {
       view,
       zoomPercent: detail === null ? null : zoomPercent(view.zoom, detail, ratio),
       tiles: this.tiles.status(),
-    });
-  }
-
-  /**
-   * Mesure la fluidité d'un geste : l'écart entre deux images successives
-   * tant que le geste dure. Sur un écran à 60 Hz l'écart idéal est de
-   * 16,7 ms, sur un écran à 120 Hz de 8,3 ms.
-   */
-  private recordFrame(time: number, workMs: number, active: boolean): void {
-    const g = this.gesture;
-    if (active) {
-      if (this.inGesture) {
-        const gap = time - this.lastFrameAt;
-        g.frames += 1;
-        g.total += gap;
-        g.worst = Math.max(g.worst, gap);
-        g.work += workMs;
-        if (gap > SLOW_FRAME_MS) g.slow += 1;
-      }
-      this.inGesture = true;
-      this.lastFrameAt = time;
-      return;
-    }
-    if (!this.inGesture) return;
-    this.inGesture = false;
-    this.gesture = { frames: 0, total: 0, worst: 0, slow: 0, work: 0 };
-    if (g.frames < 5) return;
-    this.listeners.onGestureEnd?.({
-      frames: g.frames,
-      meanMs: g.total / g.frames,
-      worstMs: g.worst,
-      slowFrames: g.slow,
-      meanWorkMs: g.work / g.frames,
     });
   }
 
