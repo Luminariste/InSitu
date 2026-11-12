@@ -27,6 +27,7 @@ tableau à jour.
 | 4.1 Bibliothèque | Fusionnée (version 0.1.6), **non validée** : essai sur Mac à faire par Benjamin (`docs/bibliotheque.md`), si possible sur un vrai dossier de dessins de Marc |
 | 3.3 Vue façade | Fusionnée (version 0.1.8), **non validée** : essai sur Mac à faire par Benjamin (`docs/vue-facade.md`) ; le critère « dix projecteurs sans ralentissement » ne se vérifie que sur son Mac |
 | 3.5 Export des diapositives | Fusionnée (version 0.1.9), **non validée** : ouverture dans LightBurn à faire par Benjamin (`docs/export.md`) ; export à 280 mm par défaut, choix de Benjamin (D-3.5-a) |
+| 3.6 Vue diapositive | Fusionnée (version 0.1.10), **non validée** : essai sur Mac à faire par Benjamin (`docs/vue-diapositive.md`) sur un vrai projet recalé avec une fresque |
 | Toutes les autres | À faire |
 
 **Ce qui bloque la validation de la tâche 1.5.** Dans la version 0.1.1,

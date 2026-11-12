@@ -126,3 +126,30 @@ pub fn export(args: &[&str]) -> Result<String, (bool, String)> {
         _ => Err(usage("Il faut le projet et le dossier d'export.")),
     }
 }
+
+pub const SLIDES_USAGE: &str = r#"Usage :
+  insitu slides <projet.insitu> --cache DOSSIER [--side N]
+
+Vue diapositive : pour chaque projecteur, sa photo redressée et l'aperçu de
+sa diapositive calculée (PNG de N px, 2 048 par défaut, blanc à opacité
+variable), fabriqué dans DOSSIER s'il n'y est pas déjà. Résultat en JSON."#;
+
+pub fn slides(args: &[&str]) -> Result<String, (bool, String)> {
+    use insitu_core::export::preview::{slide_views, SLIDE_PREVIEW_SIDE};
+    let usage = |m: &str| (true, format!("{m} Voir : insitu slides --help"));
+    match args {
+        [] | ["--help" | "-h"] => Ok(SLIDES_USAGE.to_string()),
+        [folder, "--cache", cache, rest @ ..] => {
+            let side = match rest {
+                [] => SLIDE_PREVIEW_SIDE,
+                ["--side", n] => n.parse().map_err(|_| usage("Taille illisible."))?,
+                _ => return Err(usage("Option inconnue ou incomplète.")),
+            };
+            let dir = ProjectDir::open(folder).map_err(|e| (false, e.to_string()))?;
+            let views =
+                slide_views(&dir, Path::new(cache), side).map_err(|e| (false, e.to_string()))?;
+            Ok(serde_json::to_string_pretty(&views).expect("sérialisable"))
+        }
+        _ => Err(usage("Il faut le projet et --cache DOSSIER.")),
+    }
+}
