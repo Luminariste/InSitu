@@ -215,10 +215,21 @@ exactement ce que l'app écrit.
 | Champ | Sens |
 | --- | --- |
 | `source` | Le fichier importé (plan, déroulé ou photo d'ensemble) |
-| `sourceWidth`, `sourceHeight` | Dimensions du fichier, dans son unité (pixels pour une image) |
+| `sourceWidth`, `sourceHeight` | Dimensions du fichier, dans son unité (voir ci-dessous) |
 | `scale` | Mise à l'échelle « par deux points et une cote », ou `null` si elle n'est pas faite |
 | `scale.pointA`, `scale.pointB` | Les deux points, repérés dans le fichier |
 | `scale.distanceMm` | La distance réelle entre ces deux points, en mm |
+| `page` | PDF seulement : la page retenue, à partir de 1. Absent pour les autres formats |
+| `origin` | DXF seulement : le coin haut-gauche du repère du fichier, en coordonnées du DXF (y vers le haut). Absent sinon |
+
+L'unité du fichier dépend de son format (tâche 3.1) :
+
+| Format | Unité | Origine (x vers la droite, y vers le bas) |
+| --- | --- | --- |
+| Image (PNG, JPEG, TIFF) | pixel | coin haut-gauche de l'image |
+| PDF | point (1/72 de pouce) | coin haut-gauche de la page telle qu'elle s'affiche |
+| SVG | pixel CSS (1/96 de pouce) | coin haut-gauche du dessin |
+| DXF | unité de dessin | coin haut-gauche du rectangle qui englobe tout le dessin (`origin`) |
 
 Le repère de la façade se déduit de là : un point du fichier, multiplié par
 l'échelle (`distanceMm` ÷ distance entre les deux points), donne sa position

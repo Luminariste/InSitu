@@ -12,9 +12,11 @@
 //! - les pixels n'apparaissent qu'à l'entrée (images sources) et à la sortie
 //!   (exports), jamais dans le modèle.
 
+pub mod facade;
 pub mod geometry;
 pub mod project;
 pub mod rectification;
+pub mod resample;
 pub mod target;
 pub mod tiles;
 pub mod units;

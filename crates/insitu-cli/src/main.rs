@@ -15,15 +15,21 @@
 //!   une photo brute et la redresse (options : `insitu rectify --help`) ;
 //! - `insitu target pdf <fichier.pdf> [--page a3|carre]` : écrit la mire
 //!   imprimable ; `insitu target info` la décrit en JSON (repères, grille) ;
+//! - `insitu facade inspect|import|scale|tiles|render …` : import du plan de
+//!   façade et mise à l'échelle (détail : `insitu facade --help`) ;
 //! - `insitu tiles <image> <dossier>` : pyramide de tuiles d'une image, pour
-//!   la visionneuse (descripteur en JSON, durée sur la sortie d'erreur).
+//!   la visionneuse (descripteur en JSON, durée sur la sortie d'erreur) ;
+//! - `insitu warp <image> <sortie.png> <paires.json>` : déforme une image
+//!   vers une diapositive de 280 mm (format : `insitu warp --help`).
 //!
 //! Code de sortie : 0 si tout va bien, 1 en cas d'échec ou de projet
 //! invalide, 2 si la commande est mal écrite.
 
+mod facade;
 mod geometry;
 mod rectify;
 mod target;
+mod warp;
 
 use std::path::Path;
 use std::process::ExitCode;
@@ -77,6 +83,14 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             Err(geometry::Problem::Usage(message)) => Err(Failure::Usage(message)),
             Err(geometry::Problem::Failed(message)) => Err(Failure::Failed(message)),
         },
+        ["facade", rest @ ..] => match facade::run(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(facade::Problem::Usage(message)) => Err(Failure::Usage(message)),
+            Err(facade::Problem::Failed(message)) => Err(Failure::Failed(message)),
+        },
         ["project", rest @ ..] => run_project(rest),
         ["rectify", rest @ ..] => match rectify::run(rest) {
             Ok(text) => {
@@ -95,6 +109,14 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             Err(target::Problem::Failed(message)) => Err(Failure::Failed(message)),
         },
         ["tiles", rest @ ..] => run_tiles(rest),
+        ["warp", rest @ ..] => match warp::run(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(warp::Problem::Usage(message)) => Err(Failure::Usage(message)),
+            Err(warp::Problem::Failed(message)) => Err(Failure::Failed(message)),
+        },
         [] | ["--help"] | ["-h"] => {
             println!("{}", usage());
             Ok(ExitCode::SUCCESS)
@@ -260,6 +282,7 @@ fn usage() -> &'static str {
      info                                          Affiche la carte d'identité du moteur (JSON)\n  \
      geometry fit <fichier.json>                   Ajuste une déformation sur des paires de points\n  \
      geometry --help                               Décrit le fichier attendu et le résultat\n  \
+     facade --help                                 Import du plan de façade et mise à l'échelle\n  \
      project new <dossier.insitu> [--name <nom>]   Crée un projet vide\n  \
      project info <dossier.insitu>                 Affiche le résumé d'un projet (JSON)\n  \
      project validate <dossier.insitu>             Contrôle le projet et ses fichiers\n  \
@@ -269,5 +292,7 @@ fn usage() -> &'static str {
      tiles <image> <dossier>                       Fabrique la pyramide de tuiles d'une image\n      \
      --tile-size N                               côté des tuiles en pixels (512 par défaut)\n      \
      --format png|jpeg                           format imposé (sinon choisi d'après l'image)\n      \
-     --quality Q                                 qualité JPEG de 1 à 100 (88 par défaut)"
+     --quality Q                                 qualité JPEG de 1 à 100 (88 par défaut)\n  \
+     warp <image> <sortie.png> <paires.json>       Déforme une image vers une diapositive de 280 mm\n  \
+     warp --help                                   Décrit le fichier de paires et les options"
 }

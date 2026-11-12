@@ -1,0 +1,137 @@
+/* Écran Façade (tâche 3.1). Mêmes codes que l'écran de démonstration. */
+
+.facade {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.facade-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 28px;
+  padding: 8px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--filet);
+  user-select: none;
+}
+
+.facade-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.facade-label {
+  color: var(--texte-discret);
+}
+
+.facade-project,
+.facade-value {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.facade-zoom {
+  margin-left: auto;
+}
+
+.facade-bar button,
+.facade-pages button,
+.facade-pages select {
+  font: inherit;
+  color: var(--texte);
+  background: #222226;
+  border: 1px solid var(--filet);
+  border-radius: 5px;
+  padding: 4px 10px;
+}
+
+.facade-bar button:hover:not(:disabled) {
+  border-color: #4a4a50;
+}
+
+.facade-bar button:disabled {
+  opacity: 0.45;
+}
+
+.facade-bar button.actif {
+  border-color: var(--repere);
+  color: #fff;
+}
+
+.facade-distance {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--texte-discret);
+}
+
+.facade-distance input {
+  width: 96px;
+  font: inherit;
+  color: var(--texte);
+  background: #0f0f11;
+  border: 1px solid var(--filet);
+  border-radius: 5px;
+  padding: 4px 8px;
+}
+
+.facade-stage {
+  position: relative;
+  min-height: 0;
+}
+
+.facade-stage .viewer {
+  height: 100%;
+}
+
+.facade-picking .viewer-canvas {
+  cursor: crosshair;
+}
+
+.facade-message {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  height: fit-content;
+  max-width: 520px;
+  padding: 16px 20px;
+  text-align: center;
+  color: var(--texte-discret);
+  background: rgba(21, 21, 23, 0.92);
+  border: 1px solid var(--filet);
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.facade-pages {
+  pointer-events: auto;
+  color: var(--texte);
+}
+
+.facade-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+  padding: 6px 14px;
+  min-height: 30px;
+  color: var(--texte-discret);
+  background: var(--surface);
+  border-top: 1px solid var(--filet);
+}
+
+.facade-ok {
+  color: var(--texte);
+}
+
+.facade-warning {
+  color: #e8b04a;
+}
+
+.facade-error {
+  color: #ff6b6b;
+}
