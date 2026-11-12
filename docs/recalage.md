@@ -12,10 +12,12 @@ de fenêtre, le pied d'une colonne, la pointe d'un arc… visibles sur les deux.
 
 ## Dans l'app
 
-1. Onglet **Recalage**. L'écran reprend le projet ouvert dans les autres
-   onglets (**Relire** le recharge). La liste **Projecteur** ne montre que
-   les projecteurs redressés.
-2. À gauche, la photo redressée ; à droite, la façade. Chaque vue se
+1. Étape **Recalage** (⌘3). L'écran reprend le projet ouvert dans les
+   autres étapes (menu **Projet** → **Relire depuis le disque**, ⌘R, le
+   recharge). Le panneau **Projecteurs**, à gauche, ne montre que les
+   projecteurs redressés ; le panneau **Points communs**, à droite, liste
+   les points et leur écart.
+2. Au centre, la photo redressée à gauche et la façade à droite. Chaque vue se
    déplace et se zoome comme d'habitude (un glisser ne pose pas de point).
 3. **Cliquer un point sur la photo, puis le même sur la façade** (ou dans
    l'autre ordre). Le premier clic laisse une cible jaune en attente ; le
@@ -38,7 +40,8 @@ de fenêtre, le pied d'une colonne, la pointe d'un arc… visibles sur les deux.
    ou sur la façade, dans n'importe quel ordre. L'écart se recalcule au
    lâcher. Un simple clic sur un point (ou sur sa ligne dans la liste) le
    sélectionne : un clic ailleurs sur la photo ou sur la façade l'y amène.
-   Cliquer à nouveau (ou Échap) désélectionne. **×** retire le point.
+   Cliquer à nouveau (ou Échap) désélectionne. La corbeille de sa ligne
+   (visible au survol), ou ⌫ sur le point choisi, le supprime.
 
 Chaque modification est enregistrée aussitôt dans le projet.
 

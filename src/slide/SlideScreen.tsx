@@ -21,6 +21,25 @@ import { recalledProject } from "../project/current";
 import { Viewer, placementForWidth, type LayerSpec, type TileSource, type ViewerHandle } from "../viewer";
 import { demoSlideViews, demoImages } from "./demo";
 import { SLIDE_MM, SLIDE_SQUARE, TINTS, drawingsLayer, nextProjector, viewProblem } from "./logic";
+import { ProjectMenu } from "../project/ProjectMenu";
+import {
+  Banner,
+  Busy,
+  Button,
+  Dot,
+  EmptyState,
+  List,
+  ListRow,
+  Panel,
+  Screen,
+  StatusBar,
+  StatusText,
+  ToolGroup,
+  ToolSeparator,
+  ToolSpacer,
+  Toolbar,
+  useShortcuts,
+} from "../ui";
 import "./slide.css";
 
 export function SlideScreen() {
@@ -130,72 +149,107 @@ export function SlideScreen() {
 
   const problem = viewProblem(view);
 
-  return (
-    <main className="slide">
-      <header className="slide-bar">
-        <div className="slide-group">
-          <span className="slide-label">Projet</span>
-          <strong>{projectName ?? (engine ? "aucun" : "exemple")}</strong>
-          {engine && (
-            <button type="button" onClick={() => folder && void load(folder)} disabled={!folder || busy !== null}>
-              Relire
-            </button>
-          )}
-        </div>
-        <nav className="slide-group slide-projectors" aria-label="Projecteurs">
-          {views.map((v) => (
-            <button
-              type="button"
-              key={v.projectorId}
-              className={v.projectorId === current ? "actif" : v.preview ? "" : "slide-off"}
-              onClick={() => setCurrent(v.projectorId)}
-              title={v.problem ?? v.label}
-            >
-              {v.label}
-            </button>
+  const ready = busy === null;
+  useShortcuts([{ keys: "mod+0", run: () => viewer.current?.fitAll(), enabled: view !== null }]);
+
+  const toolbar = (
+    <Toolbar>
+      <ProjectMenu
+        name={projectName}
+        folder={folder}
+        ready={ready}
+        placeholder="Exemple sans moteur"
+        onOpen={(path) => void load(path)}
+        onReload={() => folder && void load(folder)}
+        onError={setError}
+      />
+      <ToolSpacer />
+      <ToolGroup label="Dessins">
+        <label className="ui-check">
+          <input type="checkbox" checked={showDrawings} onChange={(e) => setShowDrawings(e.target.checked)} />
+          Montrer
+        </label>
+        <select className="ui-select" value={tint} onChange={(e) => setTint(Number(e.target.value))} aria-label="Couleur des dessins">
+          {TINTS.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
           ))}
-        </nav>
-        <div className="slide-group">
-          <label>
-            <input type="checkbox" checked={showDrawings} onChange={(e) => setShowDrawings(e.target.checked)} />
-            Dessins
-          </label>
-          <select value={tint} onChange={(e) => setTint(Number(e.target.value))} aria-label="Couleur des dessins">
-            {TINTS.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={opacity}
-            onChange={(e) => setOpacity(Number(e.target.value))}
-            aria-label="Opacité des dessins"
-          />
-        </div>
-        <div className="slide-group slide-fit">
-          <button type="button" onClick={() => viewer.current?.fitAll()}>
-            Tout voir
-          </button>
-        </div>
-      </header>
+        </select>
+        <input
+          className="slide-opacity"
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={opacity}
+          onChange={(e) => setOpacity(Number(e.target.value))}
+          aria-label="Opacité des dessins"
+          title="Opacité des dessins"
+        />
+      </ToolGroup>
+      <ToolSeparator />
+      <Button icon="fit" shortcut="mod+0" title="Voir toute la diapositive" onClick={() => viewer.current?.fitAll()} disabled={!view}>
+        Tout voir
+      </Button>
+    </Toolbar>
+  );
+
+  const sidebar = (
+    <Panel side="left" title="Projecteurs">
+      {views.length > 0 ? (
+        <List label="Projecteurs" onMove={(step) => setCurrent((id) => nextProjector(views, id, step))}>
+          {views.map((v) => (
+            <ListRow
+              key={v.projectorId}
+              selected={v.projectorId === current}
+              onSelect={() => setCurrent(v.projectorId)}
+              leading={<Dot tone={v.preview ? "success" : v.problem ? "warning" : undefined} />}
+              title={v.label}
+              detail={v.problem ?? "diapositive calculée"}
+              tone={v.problem ? "warning" : undefined}
+              tooltip={v.problem ?? undefined}
+            />
+          ))}
+        </List>
+      ) : (
+        <p className="ui-list-empty">{engine && !folder ? "Pas de projet ouvert." : "Aucun projecteur."}</p>
+      )}
+    </Panel>
+  );
+
+  return (
+    <Screen
+      className="slide"
+      toolbar={toolbar}
+      banner={
+        error ? (
+          <Banner tone="danger" onClose={() => setError(null)}>
+            {error}
+          </Banner>
+        ) : problem ? (
+          <Banner tone="warning">{problem}</Banner>
+        ) : null
+      }
+      sidebar={sidebar}
+      status={
+        <StatusBar>
+          <StatusText>
+            {view ? `${view.label} : diapositive calculée sur la photo redressée (280 mm)` : "Aucun projecteur choisi"}
+          </StatusText>
+          <StatusText push>← → ou ↑ ↓ : projecteur précédent ou suivant</StatusText>
+        </StatusBar>
+      }
+    >
       <div className="slide-stage">
         <Viewer ref={viewer} layers={layers} cursorUnit="mm" />
-        {(busy || error || problem || (engine && !folder)) && (
-          <p className={error ? "slide-message erreur" : "slide-message"}>
-            {busy ?? error ?? problem ?? "Ouvrir un projet dans l'onglet Façade, puis revenir ici."}
-          </p>
+        {engine && !folder && !busy && (
+          <EmptyState icon="folder" title="Aucun projet ouvert">
+            <p>Ouvrir un projet avec le menu Projet (⌘O), ou en créer un (⌘N).</p>
+          </EmptyState>
         )}
+        {busy && <Busy>{busy}</Busy>}
       </div>
-      <footer className="slide-foot">
-        {view
-          ? `${view.label} : diapositive calculée sur la photo redressée (280 mm). Flèches ← → : projecteur précédent ou suivant.`
-          : "Aucun projecteur."}
-      </footer>
-    </main>
+    </Screen>
   );
 }

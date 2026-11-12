@@ -6,7 +6,8 @@ composition, déformation automatique vers chaque diapositive, export pour la
 gravure laser. Usage interne (Benjamin et Marc), pas un produit public.
 
 Avant toute tâche, lire `docs/plan.md` (le quoi et l'ordre) et
-`docs/decisions.md` (les choix déjà tranchés).
+`docs/decisions.md` (les choix déjà tranchés). Avant de toucher à
+l'interface (`src/`), lire aussi `docs/design.md` (le système de design).
 
 ## Règles de travail
 
@@ -73,6 +74,7 @@ crates/insitu-cli/    Binaire `insitu` : le moteur en ligne de commande.
 src-tauri/            Coque de bureau (Tauri 2). Appelle le moteur, ne calcule rien.
 src/                  Interface (React + TypeScript).
 src/engine.ts         Seul fichier de l'interface qui appelle le moteur.
+src/ui/               Système de design : jetons, composants, icônes, raccourcis (docs/design.md).
 src/viewer/           Visionneuse haute résolution (PixiJS), base des vues façade et diapositive.
 src/facade/           Écran Façade : projet, import du plan, mise à l'échelle.
 docs/                 Plan, décisions, notice d'installation, publication d'une version.
