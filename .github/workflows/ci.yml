@@ -1,5 +1,10 @@
 name: Vérifications
 
+# Économie de minutes GitHub (D14) : chaque partie ne tourne que si les
+# fichiers qui la concernent ont changé. Une partie sautée compte comme
+# réussie pour la fusion. La coque Mac coûte dix fois plus cher que Linux :
+# elle ne tourne que si la coque ou le moteur qu'elle embarque a changé.
+
 on:
   push:
     branches: [main]
@@ -9,16 +14,63 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
+  changements:
+    name: Qu'est-ce qui a changé ?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      moteur: ${{ steps.filtre.outputs.moteur }}
+      interface: ${{ steps.filtre.outputs.interface }}
+      coque: ${{ steps.filtre.outputs.coque }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filtre
+        with:
+          filters: |
+            moteur:
+              - "crates/**"
+              - "jeu-essai/**"
+              - "Cargo.toml"
+              - "Cargo.lock"
+              - ".github/workflows/ci.yml"
+            interface:
+              - "src/**"
+              - "index.html"
+              - "package.json"
+              - "package-lock.json"
+              - "tsconfig.json"
+              - "vite.config.ts"
+              - ".github/workflows/ci.yml"
+            coque:
+              - "src-tauri/**"
+              - "crates/insitu-core/**"
+              - "jeu-essai/epinal/references/**"
+              - "Cargo.toml"
+              - "Cargo.lock"
+              - ".github/workflows/ci.yml"
+
   moteur:
     name: Moteur (tests Rust)
+    needs: changements
+    if: needs.changements.outputs.moteur == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
+        with:
+          # Le cache n'est enregistré que sur `main` ; les demandes de fusion
+          # le relisent sans perdre de temps à le réécrire.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo fmt --all -- --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
@@ -28,7 +80,10 @@ jobs:
 
   interface:
     name: Interface (types, tests et construction)
+    needs: changements
+    if: needs.changements.outputs.interface == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,7 +96,10 @@ jobs:
 
   coque:
     name: Coque Mac (compilation Tauri)
+    needs: changements
+    if: needs.changements.outputs.coque == 'true'
     runs-on: macos-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -50,6 +108,8 @@ jobs:
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: npm ci
       # La coque embarque l'interface construite : elle doit exister avant.
       - run: npm run build

@@ -4,8 +4,11 @@ name: Fabrication de l'app Mac
 # - Quand le numéro de version change sur `main` : fabrique l'app et publie
 #   la version dans l'onglet « Releases » du dépôt. Il n'y a rien d'autre à
 #   faire : pas d'étiquette à poser à la main.
-# - Sur une demande de fusion qui touche à la fabrication : fabrique l'app
-#   sans la publier, pour vérifier que rien n'est cassé.
+# - Sur une demande de fusion qui touche à l'emballage de l'app (ce fichier,
+#   tauri.conf.json, icônes) : fabrique l'app sans la publier. Le code de la
+#   coque, lui, est vérifié par la compilation de ci.yml, bien moins chère
+#   (D14). Une app qui ne démarre pas est attrapée au plus tard ici, avant
+#   publication : la version n'est alors pas publiée.
 # - À la main (bouton « Run workflow ») : fabrique sans publier.
 
 on:
@@ -16,12 +19,7 @@ on:
     paths:
       - ".github/workflows/fabrication.yml"
       - "src-tauri/tauri.conf.json"
-      - "src-tauri/Cargo.toml"
-      - "src-tauri/build.rs"
-      - "src-tauri/capabilities/**"
       - "src-tauri/icons/**"
-      - "src-tauri/src/**"
-      - "Cargo.toml"
 
 permissions:
   contents: write
@@ -34,6 +32,7 @@ jobs:
   decider:
     name: Faut-il fabriquer ?
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       version: ${{ steps.version.outputs.version }}
       fabriquer: ${{ steps.choix.outputs.fabriquer }}
@@ -72,6 +71,7 @@ jobs:
     needs: decider
     if: needs.decider.outputs.fabriquer == 'true'
     runs-on: macos-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
