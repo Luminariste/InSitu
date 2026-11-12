@@ -92,12 +92,12 @@ calque…) :
 | **Renommer** | Double-clic sur le nom, ou icône crayon de la ligne | Champ en place ; ↩ valide, Échap annule |
 | **Supprimer** | Icône corbeille de la ligne (au survol) ou ⌫ sur l'objet choisi | Voir ci-dessous |
 
-Suppression : tant que l'annulation (⌘Z, tâche 4.3) n'existe pas, tout
-objet qui a demandé du travail (projecteur, plan, dessin) se supprime après
-une confirmation (`ConfirmDialog`) dont le bouton rouge dit ce qu'il fait
-(« Supprimer le projecteur B »). Un objet qui se refait en deux secondes (un
-point de recalage) se supprime sans confirmation. Quand l'annulation
-existera, plus aucune confirmation : on supprime, ⌘Z rattrape.
+Suppression : l'annulation (⌘Z, tâche 4.3) rattrape toute modification du
+projet. Un nouvel objet se supprime donc sans confirmation (les calques et
+les dessins posés, par exemple). Les confirmations déjà en place
+(`ConfirmDialog` : projecteur, plan, dessin de la bibliothèque) restent
+jusqu'à ce qu'une session les retire (voir D-4.3-d) ; une confirmation reste
+justifiée seulement si l'action efface un fichier, ce que ⌘Z ne rend pas.
 
 Règle : **pas d'objet sans ses trois gestes.** Une session qui ajoute un
 nouveau type d'objet lui donne ajout, modification et suppression, ou note
@@ -182,6 +182,7 @@ modification de la coque, voir D15).
 | Raccourci | Action |
 | --- | --- |
 | ⌘N / ⌘O / ⌘R | Nouveau projet / Ouvrir / Relire depuis le disque |
+| ⌘Z / ⇧⌘Z | Annuler / rétablir la dernière modification du projet, quel que soit l'écran (tâche 4.3) ; dans un champ de texte, la frappe |
 | ⌘I | Importer : le plan (Façade), la photo (Redressement), un dossier (Bibliothèque) |
 | ⌘E | Exporter : la photo redressée (Redressement), les diapositives (Façade, tâche 3.5) |
 | ⌘1 à ⌘5 | Étapes Façade, Redressement, Recalage, Diapositive, Bibliothèque |
@@ -200,8 +201,7 @@ modification de la coque, voir D15).
 | ← → ↑ ↓ (⇧ : × 10) | Façade : déplacer les dessins choisis de 10 mm |
 | Espace + glisser | Façade : déplacer la vue (quand des dessins sont posés) |
 
-Réservés pour la suite (ne pas les prendre pour autre chose) : ⌘Z / ⇧⌘Z
-annuler / rétablir (4.3), ⌘+ / ⌘− zoomer, ⌘, préférences (6.5).
+Réservés pour la suite (ne pas les prendre pour autre chose) : ⌘+ / ⌘− zoomer, ⌘, préférences (6.5).
 
 Un raccourci se branche par `useShortcuts([{ keys: "mod+i", run, enabled }])`
 dans l'écran qui l'offre, s'affiche par la propriété `shortcut` du bouton,

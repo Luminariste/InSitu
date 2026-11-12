@@ -1,11 +1,14 @@
 // Menu « Projet », le même en tête de la barre d'outils de chaque écran :
 // le nom du projet ouvert, et Nouveau / Ouvrir / Relire avec leurs
-// raccourcis (⌘N, ⌘O, ⌘R). L'écran garde la main sur l'ouverture : le menu
-// lui donne seulement le dossier choisi.
+// raccourcis (⌘N, ⌘O, ⌘R), et Annuler / Rétablir (⌘Z, ⇧⌘Z, tâche 4.3).
+// L'écran garde la main sur l'ouverture : le menu lui donne seulement le
+// dossier choisi, et lui fait relire le projet après une annulation.
 
-import { chooseNewProjectPath, chooseProjectFolder, createProject, hasEngine } from "../engine";
+import { useEffect, useRef } from "react";
+import { chooseNewProjectPath, chooseProjectFolder, createProject, hasEngine, historyStep } from "../engine";
 import { projectNameFromPath, withProjectExtension } from "../facade/scale";
 import { MenuButton, useShortcuts } from "../ui";
+import { isMac, isTextEntry, matchesShortcut } from "../ui/shortcuts";
 import { rememberProject } from "./current";
 
 interface Props {
@@ -50,6 +53,38 @@ export function ProjectMenu({ name, folder, onOpen, onReload, ready, placeholder
   const create = attempt(askNewProject);
   const open = attempt(chooseProjectFolder);
   const canReload = engine && folder !== null && ready && onReload !== undefined;
+  const canUndo = canReload;
+
+  // Annule ou rétablit la dernière action enregistrée, quel que soit l'écran
+  // qui l'a faite, puis l'écran relit le projet.
+  const step = (redo: boolean) => {
+    if (!folder || !canUndo) return;
+    historyStep(folder, redo).then(
+      () => onReload?.(),
+      (failure: unknown) => {
+        const message = String(failure).replace(/^Error: /, "");
+        // « Rien à annuler » n'est pas une erreur.
+        if (!message.startsWith("Rien à")) onError(message);
+      },
+    );
+  };
+  const latest = useRef(step);
+  latest.current = step;
+
+  // ⌘Z dans un champ de texte reste l'annulation de la frappe.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || isTextEntry(event.target as HTMLElement | null)) return;
+      if (document.querySelector(".ui-scrim")) return;
+      const mac = isMac();
+      const redo = matchesShortcut("mod+shift+z", event, mac);
+      if (!redo && !matchesShortcut("mod+z", event, mac)) return;
+      event.preventDefault();
+      latest.current(redo);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useShortcuts([
     { keys: "mod+n", run: create, enabled: engine && ready },
@@ -66,6 +101,9 @@ export function ProjectMenu({ name, folder, onOpen, onReload, ready, placeholder
       items={[
         { label: "Nouveau projet…", shortcut: "mod+n", onSelect: create, disabled: !engine || !ready },
         { label: "Ouvrir un projet…", shortcut: "mod+o", onSelect: open, disabled: !engine || !ready },
+        { separator: true },
+        { label: "Annuler", shortcut: "mod+z", onSelect: () => step(false), disabled: !canUndo },
+        { label: "Rétablir", shortcut: "mod+shift+z", onSelect: () => step(true), disabled: !canUndo },
         { separator: true },
         {
           label: "Relire depuis le disque",

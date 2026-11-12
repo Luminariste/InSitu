@@ -1,4 +1,4 @@
-# Poser des dessins sur la façade (tâche 4.2)
+# Poser des dessins sur la façade (tâches 4.2 et 4.3)
 
 Dans l'étape **Façade** (⌘1), les dessins de la bibliothèque se posent
 directement sur le plan, comme dans Illustrator. Il faut un plan **mis à
@@ -58,11 +58,32 @@ La rubrique **Dessins posés** apparaît quand un dessin est choisi :
   compte pour un seul bloc ;
 - grouper, dégrouper, premier plan, arrière-plan, retirer.
 
+## Calques (tâche 4.3)
+
+La rubrique « Calques », dans le panneau de gauche, au-dessus des dessins.
+Le calque du haut de la liste est devant.
+
+- **+** : nouveau calque, juste au-dessus du calque choisi.
+- **Clic** sur un calque : les dessins qu'on pose ensuite vont dessus.
+- **Œil** : masquer, réafficher. **Cadenas** : les dessins du calque ne se
+  choisissent plus (ni au clic, ni au cadre, ni par ⌘A).
+- **Double-clic** sur le nom : le renommer (↩ valide, Échap annule).
+- Au survol : **flèches** pour monter ou descendre le calque, **corbeille**
+  pour le supprimer avec ses dessins (⌘Z le rend).
+- Dans l'inspecteur, **Calque** range les dessins choisis sur un autre calque.
+
+Un projet sans calque en montre un seul, « Calque 1 ».
+
+## Annuler (tâche 4.3)
+
+⌘Z annule la dernière modification du projet, ⇧⌘Z la rétablit, sans limite
+de nombre et quel que soit l'écran (aussi dans le menu Projet). L'historique
+reste après la fermeture de l'app. Si le projet a été modifié ailleurs entre
+temps (l'autre Mac, par Dropbox), l'app refuse d'annuler plutôt que
+d'écraser ce changement.
+
 ## Ce qui n'est pas encore là
 
-- **Annuler (⌘Z)** : tâche 4.3. D'ici là, un dessin retiré par erreur se
-  repose depuis la liste.
-- **Calques, verrouillage, masquage** : tâche 4.3.
 - **Déformation** (quatre coins, grille) : tâche 4.4.
 - **Export** : les diapositives sont encore calculées depuis la fresque en une
   image (étape 3.5) ; les dessins posés ici n'y sont pas encore.
@@ -74,5 +95,8 @@ La rubrique **Dessins posés** apparaît quand un dessin est choisi :
 insitu place list <projet.insitu>
 insitu place add <projet.insitu> <dessin> --at X,Y --width MM [--rotation DEG] [--mirror] [--group NOM]
 insitu place remove <projet.insitu> <id>…
-insitu place set <projet.insitu> <placements.json>
+insitu place set <projet.insitu> <placements.json> [--history DIR]
+insitu project history <projet.insitu> --history DIR
+insitu project undo <projet.insitu> --history DIR
+insitu project redo <projet.insitu> --history DIR
 ```

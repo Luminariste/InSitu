@@ -32,6 +32,18 @@ export interface Placement {
   mirrored?: boolean;
   /** Groupe : les dessins d'un groupe se sélectionnent ensemble. */
   group?: string | null;
+  /** Calque du dessin posé ; absent : le premier calque. */
+  layer?: string | null;
+}
+
+/** Calque de composition : l'ordre de la liste est l'ordre d'empilement (le premier dessous). */
+export interface Layer {
+  id: string;
+  name: string;
+  /** Faux : calque masqué (absent : visible). */
+  visible?: boolean;
+  /** Vrai : calque verrouillé, ses dessins ne se sélectionnent plus. */
+  locked?: boolean;
 }
 
 /** Déplacement par les flèches : 10 mm, ou 100 mm avec Maj. */

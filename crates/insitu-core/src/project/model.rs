@@ -95,6 +95,11 @@ pub struct Project {
     /// avant. Absent du fichier tant qu'il est vide.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub placements: Vec<Placement>,
+    /// Calques de la composition (tâche 4.3), du fond vers l'avant. Absent
+    /// tant qu'il n'y en a pas : tous les dessins sont alors sur un seul
+    /// calque implicite.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub layers: Vec<Layer>,
     /// Assemblage de photos de façade (tâche 6.4). Absent tant qu'aucune
     /// photo n'a été ajoutée.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -117,6 +122,7 @@ impl Project {
             export: ExportSettings::default(),
             library: Vec::new(),
             placements: Vec::new(),
+            layers: Vec::new(),
             facade_assembly: None,
             extra: ExtraFields::new(),
         }
@@ -210,6 +216,9 @@ impl Project {
         }
         for (i, placement) in self.placements.iter().enumerate() {
             collect(&format!("placements[{i}]."), &placement.extra);
+        }
+        for (i, layer) in self.layers.iter().enumerate() {
+            collect(&format!("layers[{i}]."), &layer.extra);
         }
         found
     }
@@ -650,8 +659,52 @@ pub struct Placement {
     /// sélectionnent et se transforment ensemble.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
+    /// Calque du dessin (tâche 4.3) ; absent : le premier calque.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layer: Option<String>,
     #[serde(flatten)]
     pub extra: ExtraFields,
+}
+
+/// Un calque de la composition (tâche 4.3).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Layer {
+    pub id: String,
+    pub name: String,
+    /// Faux : ses dessins ne sont pas montrés.
+    #[serde(default = "yes", skip_serializing_if = "is_true")]
+    pub visible: bool,
+    /// Vrai : ses dessins ne se choisissent plus à la souris.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub locked: bool,
+    #[serde(flatten)]
+    pub extra: ExtraFields,
+}
+
+fn yes() -> bool {
+    true
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
+}
+
+impl Project {
+    /// Les dessins posés dans l'ordre d'empilement réel : calque par calque
+    /// (du fond vers l'avant), puis dans l'ordre de la liste. Un dessin sans
+    /// calque, ou d'un calque inconnu, compte dans le premier.
+    pub fn stacked_placements(&self) -> Vec<&Placement> {
+        let rank = |p: &Placement| {
+            p.layer
+                .as_deref()
+                .and_then(|id| self.layers.iter().position(|l| l.id == id))
+                .unwrap_or(0)
+        };
+        let mut out: Vec<&Placement> = self.placements.iter().collect();
+        out.sort_by_key(|p| rank(p));
+        out
+    }
 }
 
 impl Placement {

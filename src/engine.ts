@@ -2,8 +2,8 @@
 // pour que l'interface n'appelle jamais `invoke` directement.
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { Pyramid, TileSource } from "./viewer";
-import type { Placement } from "./compose/placement";
-export type { Placement };
+import type { Layer, Placement } from "./compose/placement";
+export type { Layer, Placement };
 
 export interface EngineInfo {
   name: string;
@@ -127,6 +127,8 @@ export interface Project {
   export?: ExportSettings;
   /** Dessins posés sur la façade, du fond vers l'avant (tâche 4.2). */
   placements?: Placement[];
+  /** Calques de la composition, du fond vers l'avant (tâche 4.3). */
+  layers?: Layer[];
   /** Assemblage de photos de façade (tâche 6.4). */
   facadeAssembly?: FacadeAssembly | null;
 }
@@ -496,6 +498,26 @@ export async function saveRegistration(
 export async function savePlacements(folder: string, placements: Placement[]): Promise<Project> {
   requireEngine();
   return invoke<Project>("placements_set", { folder, placements });
+}
+
+/** Remplace calques et dessins posés ensemble (tâche 4.3). */
+export async function saveComposition(folder: string, layers: Layer[], placements: Placement[]): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("composition_set", { folder, layers, placements });
+}
+
+// --- Annulation (tâche 4.3) -----------------------------------------------------
+
+/** Annule la dernière action (ou la rétablit) ; rend le projet et ce qui a changé. */
+export async function historyStep(folder: string, redo: boolean): Promise<[Project, string]> {
+  requireEngine();
+  return invoke<[Project, string]>("history_step", { folder, redo });
+}
+
+/** Ce que ⌘Z et ⇧⌘Z feraient. */
+export async function historyState(folder: string): Promise<{ undo: string | null; redo: string | null; depth: number }> {
+  requireEngine();
+  return invoke("history_state", { folder });
 }
 
 // --- Bibliothèque de dessins (tâche 4.1) ---------------------------------------

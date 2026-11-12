@@ -85,6 +85,9 @@ pub struct LoadedProject {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectDir {
     root: PathBuf,
+    /// Dossier de l'historique d'annulation (tâche 4.3), hors du projet ;
+    /// sans lui, rien n'est noté.
+    history: Option<PathBuf>,
 }
 
 impl ProjectDir {
@@ -118,7 +121,10 @@ impl ProjectDir {
             .map(|stem| stem.to_string_lossy().into_owned())
             .unwrap_or_default();
         let project = Project::new(name.map(str::to_string).unwrap_or(default_name));
-        let dir = Self { root };
+        let dir = Self {
+            root,
+            history: None,
+        };
         dir.save(&project)?;
         Ok((dir, project))
     }
@@ -129,7 +135,21 @@ impl ProjectDir {
         if !root.join(PROJECT_FILE).is_file() {
             return Err(ProjectError::NotAProject { path: root });
         }
-        Ok(Self { root })
+        Ok(Self {
+            root,
+            history: None,
+        })
+    }
+
+    /// Note désormais chaque enregistrement dans l'historique d'annulation
+    /// rangé sous `history_root` (un dossier de l'app, voir [`super::history`]).
+    pub fn with_history(mut self, history_root: impl Into<PathBuf>) -> Self {
+        self.history = Some(history_root.into());
+        self
+    }
+
+    pub(crate) fn history_root(&self) -> Option<&Path> {
+        self.history.as_deref()
     }
 
     pub fn root(&self) -> &Path {
@@ -210,7 +230,17 @@ impl ProjectDir {
         text.push('\n');
         self.back_up_older_format(&file)?;
         remove_stale_temp_files(&file);
-        write_atomic(&file, text.as_bytes())
+        let before = self
+            .history
+            .as_ref()
+            .and_then(|_| fs::read_to_string(&file).ok());
+        write_atomic(&file, text.as_bytes())?;
+        if let (Some(root), Some(before)) = (&self.history, before) {
+            // Au mieux : un historique impossible à écrire n'empêche pas de
+            // travailler, l'action n'est simplement pas annulable.
+            let _ = super::history::record(root, &before, &text);
+        }
+        Ok(())
     }
 
     /// Garde une copie du fichier en place s'il est d'un format plus ancien

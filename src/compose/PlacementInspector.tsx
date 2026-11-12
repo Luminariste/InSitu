@@ -5,7 +5,8 @@
 import { useEffect, useState } from "react";
 import { formatLength, parseDistanceMm } from "../facade/scale";
 import { Button, Property, Section } from "../ui";
-import { rectCenter, type Placement, type Rect } from "./placement";
+import { layerOf } from "./layers";
+import { rectCenter, type Layer, type Placement, type Rect } from "./placement";
 import type { CompositionActions, ComposeDrawing } from "./useComposition";
 
 interface Props {
@@ -13,6 +14,8 @@ interface Props {
   frame: Rect | null;
   drawings: ComposeDrawing[];
   actions: CompositionActions;
+  /** Calques du projet (tâche 4.3) ; le choix n'apparaît qu'à partir de deux. */
+  layers: Layer[];
 }
 
 /** Champ qui ne s'applique qu'à ↩ ou en quittant le champ ; Échap rétablit. */
@@ -67,7 +70,7 @@ function parseDegrees(text: string): number | null {
 
 const degrees = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
 
-export function PlacementInspector({ selected, frame, drawings, actions }: Props) {
+export function PlacementInspector({ selected, frame, drawings, actions, layers }: Props) {
   if (selected.length === 0 || !frame) return null;
   const center = rectCenter(frame);
   const single = selected.length === 1 ? selected[0] : null;
@@ -84,6 +87,25 @@ export function PlacementInspector({ selected, frame, drawings, actions }: Props
         {name}
         {grouped && groups.size === 1 ? " (groupe)" : ""}
       </p>
+      {layers.length > 1 && (
+        <Property label="Calque">
+          <select
+            className="ui-select"
+            aria-label="Calque de la sélection"
+            value={
+              new Set(selected.map((p) => layerOf(layers, p).id)).size === 1 ? layerOf(layers, selected[0]).id : ""
+            }
+            onChange={(e) => e.target.value && actions.moveToLayer(e.target.value)}
+          >
+            {new Set(selected.map((p) => layerOf(layers, p).id)).size > 1 && <option value="">Plusieurs</option>}
+            {[...layers].reverse().map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </Property>
+      )}
       <Property label="Centre X">
         <Field
           label="Centre, horizontalement"

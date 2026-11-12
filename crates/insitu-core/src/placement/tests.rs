@@ -34,6 +34,7 @@ fn corners_follow_size_rotation_and_mirror() {
         rotation: 0.0,
         mirrored: false,
         group: None,
+        layer: None,
         extra: Default::default(),
     };
     let c = p.corners();
@@ -119,4 +120,46 @@ fn wrong_placements_are_refused_and_nothing_is_saved() {
     ));
     assert!(remove(&dir, &["rien".into()]).is_err());
     assert_eq!(dir.load().unwrap().project.placements, vec![good]);
+}
+
+#[test]
+fn layers_order_the_stack_and_are_checked() {
+    let (_temp, dir) = project_with_drawing("pose-calques");
+    let project = dir.load().unwrap().project;
+    let mut front = new_placement(&project, "merle", PointMm::new(0.0, 0.0), 10.0).unwrap();
+    front.layer = Some("devant".into());
+    let back = new_placement(&project, "merle", PointMm::new(0.0, 0.0), 20.0).unwrap();
+    let layers = vec![
+        Layer {
+            id: String::new(),
+            name: "Fond".into(),
+            visible: true,
+            locked: true,
+            extra: Default::default(),
+        },
+        Layer {
+            id: "devant".into(),
+            name: "Devant".into(),
+            visible: false,
+            locked: false,
+            extra: Default::default(),
+        },
+    ];
+    let saved = set_composition(&dir, layers.clone(), vec![front.clone(), back.clone()]).unwrap();
+    assert!(!saved.layers[0].id.is_empty());
+    let reread = dir.load().unwrap().project;
+    assert_eq!(reread, saved);
+    assert!(!reread.layers[1].visible && reread.layers[0].locked);
+    // Le dessin sans calque est sur le premier (le fond) : il passe derrière.
+    let stack: Vec<f64> = reread
+        .stacked_placements()
+        .iter()
+        .map(|p| p.width)
+        .collect();
+    assert_eq!(stack, vec![20.0, 10.0]);
+
+    let mut lost = front.clone();
+    lost.layer = Some("nulle-part".into());
+    let error = set_composition(&dir, layers, vec![lost]).unwrap_err();
+    assert!(error.to_string().contains("aucun calque"), "{error}");
 }

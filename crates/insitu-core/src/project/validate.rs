@@ -251,6 +251,11 @@ pub(crate) fn placement_errors(project: &Project) -> Vec<(String, String)> {
                 ),
             ));
         }
+        if let Some(layer) = &placement.layer {
+            if !project.layers.iter().any(|l| &l.id == layer) {
+                out.push((format!("{here}.layer"), format!("aucun calque « {layer} »")));
+            }
+        }
         if project.drawing(&placement.drawing).is_none() {
             out.push((
                 format!("{here}.drawing"),
@@ -264,6 +269,23 @@ pub(crate) fn placement_errors(project: &Project) -> Vec<(String, String)> {
             out.push((
                 here,
                 "la largeur et la hauteur d'un dessin posé doivent être positives".to_string(),
+            ));
+        }
+    }
+    let mut layers: BTreeMap<&str, usize> = BTreeMap::new();
+    for (i, layer) in project.layers.iter().enumerate() {
+        if layer.id.trim().is_empty() {
+            out.push((
+                format!("layers[{i}].id"),
+                "le calque n'a pas d'identifiant".to_string(),
+            ));
+        } else if let Some(first) = layers.insert(&layer.id, i) {
+            out.push((
+                format!("layers[{i}].id"),
+                format!(
+                    "identifiant « {} » déjà utilisé par layers[{first}]",
+                    layer.id
+                ),
             ));
         }
     }

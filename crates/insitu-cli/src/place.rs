@@ -2,7 +2,7 @@
 //! Façade de l'app (tâche 4.2).
 
 use insitu_core::placement::{self, new_placement};
-use insitu_core::project::{Placement, PointMm, ProjectDir};
+use insitu_core::project::{Layer, Placement, PointMm, ProjectDir};
 
 /// Ce qui peut mal tourner.
 pub enum Problem {
@@ -14,7 +14,7 @@ pub const USAGE: &str = r#"Usage :
   insitu place list <projet.insitu>
   insitu place add <projet.insitu> <dessin> --at X,Y --width MM [--rotation DEG] [--mirror] [--group NOM]
   insitu place remove <projet.insitu> <id>…
-  insitu place set <projet.insitu> <placements.json>
+  insitu place set <projet.insitu> <placements.json> [--history DOSSIER]
 
 Dessins posés sur la façade. Longueurs en mm réels de façade, origine en haut
 à gauche, y vers le bas ; rotation en degrés, sens des aiguilles d'une montre.
@@ -26,7 +26,12 @@ Dessins posés sur la façade. Longueurs en mm réels de façade, origine en hau
   remove  Retire des dessins posés (la bibliothèque n'est pas touchée).
   set     Remplace tous les placements par ceux du fichier JSON (même forme
           que la sortie de list), comme l'app à la fin de chaque geste.
-          Rien n'est enregistré si un placement est incorrect."#;
+          Rien n'est enregistré si un placement est incorrect. Le fichier
+          peut aussi être {"layers": [...], "placements": [...]} : calques
+          et dessins posés remplacés ensemble.
+
+  --history DOSSIER  Note l'enregistrement dans l'historique d'annulation
+                     rangé là (voir insitu project undo)."#;
 
 pub fn run(args: &[&str]) -> Result<String, Problem> {
     if matches!(args, [] | ["--help" | "-h"]) {
@@ -44,6 +49,7 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
     let mut rotation = 0.0;
     let mut mirrored = false;
     let mut group: Option<String> = None;
+    let mut history: Option<String> = None;
     let mut words = Vec::new();
     let mut i = 0;
     while i < args.len() {
@@ -68,6 +74,14 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                 group = Some(
                     args.get(i + 1)
                         .ok_or_else(|| usage("--group attend un nom."))?
+                        .to_string(),
+                );
+                i += 1;
+            }
+            "--history" => {
+                history = Some(
+                    args.get(i + 1)
+                        .ok_or_else(|| usage("--history attend un dossier."))?
                         .to_string(),
                 );
                 i += 1;
@@ -108,13 +122,35 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             ))
         }
         ["set", folder, file] => {
-            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let mut dir = ProjectDir::open(folder).map_err(failed)?;
+            if let Some(root) = history {
+                dir = dir.with_history(root);
+            }
             let text = std::fs::read_to_string(file)
                 .map_err(|e| Problem::Failed(format!("Impossible de lire « {file} » : {e}")))?;
-            let placements: Vec<Placement> = serde_json::from_str(&text)
+            #[derive(serde::Deserialize)]
+            #[serde(untagged)]
+            enum Input {
+                Placements(Vec<Placement>),
+                Composition {
+                    layers: Vec<Layer>,
+                    placements: Vec<Placement>,
+                },
+            }
+            let input: Input = serde_json::from_str(&text)
                 .map_err(|e| Problem::Failed(format!("« {file} » est incorrect : {e}")))?;
-            let project = placement::set_placements(&dir, placements).map_err(failed)?;
-            Ok(format!("{} dessin(s) posé(s).", project.placements.len()))
+            let project = match input {
+                Input::Placements(placements) => placement::set_placements(&dir, placements),
+                Input::Composition { layers, placements } => {
+                    placement::set_composition(&dir, layers, placements)
+                }
+            }
+            .map_err(failed)?;
+            Ok(format!(
+                "{} dessin(s) posé(s), {} calque(s).",
+                project.placements.len(),
+                project.layers.len()
+            ))
         }
         _ => Err(usage("Commande de placement incomplète ou inconnue.")),
     }

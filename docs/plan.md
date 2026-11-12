@@ -30,6 +30,7 @@ tableau à jour.
 | 3.6 Vue diapositive | Fusionnée (version 0.1.10), **non validée** : essai sur Mac à faire par Benjamin (`docs/vue-diapositive.md`) sur un vrai projet recalé avec une fresque |
 | Système de design (hors plan, demande de Benjamin) | Fusionné (version 0.1.11), **non validé** : lisibilité et ergonomie à juger par Benjamin sur Mac ; règles dans `docs/design.md`, décision D15 |
 | 4.2 Placement | Fusionnée (version 0.1.17), **non validée** : essai sur Mac à faire par Benjamin (`docs/composition.md`) ; raccourcis à comparer avec son Illustrator ; les dessins posés ne sont pas encore exportés (voir D-4.2-f) |
+| 4.3 Calques et historique | Fusionnée (version 0.1.19), **non validée** : essai sur Mac à faire par Benjamin (`docs/composition.md`, « Calques » et « Annuler ») |
 | 5.2 Vecteurs en bibliothèque | Fusionnée (version 0.1.13), **non validée** : critère « dix dessins de styles différents validés à l'œil » à faire par Benjamin, idéalement sur des dessins de Marc (`docs/bibliotheque.md`) ; écart mesuré sous 0,5 px sur les dessins d'essai |
 | 6.4 Assemblage de photos | Fusionnée (version 0.1.16), **non validée** : essai sur Mac à faire par Benjamin avec trois vraies photos de façade (`docs/assemblage.md`) ; façade supposée plane (D-6.4-a), rotation EXIF non appliquée (D-6.4-f) |
 | Toutes les autres | À faire |
@@ -164,8 +165,8 @@ premier essai réel.
   ouvert. Il avertit, il ne garantit rien (Dropbox le transmet avec retard).
 - Écriture atomique ; un projet plus ancien est mis à niveau à l'ouverture, un
   projet plus récent que l'app est refusé.
-- Annulation illimitée et enregistrement automatique : à faire avec la
-  composition (tâche 4.3).
+- Annulation illimitée et enregistrement automatique : faits avec la
+  composition (tâche 4.3, D-4.3-a à d).
 
 ### Formats
 

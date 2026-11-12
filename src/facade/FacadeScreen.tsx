@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import { DrawingsSection } from "../compose/DrawingsSection";
+import { LayersSection } from "../compose/LayersSection";
 import { PlacementInspector } from "../compose/PlacementInspector";
 import { useComposition } from "../compose/useComposition";
 import "../compose/compose.css";
@@ -439,7 +440,13 @@ export function FacadeScreen() {
 
   const inspector = (
     <Panel side="right" title="Plan">
-      <PlacementInspector selected={composition.selected} frame={composition.frame} drawings={composition.drawings} actions={composition.actions} />
+      <PlacementInspector
+        selected={composition.selected}
+        frame={composition.frame}
+        drawings={composition.drawings}
+        actions={composition.actions}
+        layers={composition.composeLayers}
+      />
       <Section>
         {view ? (
           <dl className="ui-facts">
@@ -572,6 +579,13 @@ export function FacadeScreen() {
           onReload={engine && folder ? () => void loadOverview(folder) : null}
           busy={overviewBusy}
         >
+          <LayersSection
+            layers={composition.composeLayers}
+            active={composition.activeLayer}
+            counts={composition.layerCounts}
+            actions={composition.layerActions}
+            blocked={composeBlocked}
+          />
           <DrawingsSection drawings={composition.drawings} blocked={composeBlocked} onPlace={composition.actions.place} />
         </OverviewPanel>
       }

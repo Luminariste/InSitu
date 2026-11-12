@@ -2,8 +2,8 @@
 // les gestes à la souris et au clavier. L'écran Façade branche ce crochet sur
 // sa visionneuse ; les calculs sont dans `placement.ts` et `gesture.ts`.
 //
-// Chaque geste terminé envoie la liste complète au moteur, qui la contrôle et
-// l'enregistre. Dans un simple navigateur, les dessins posés restent en
+// Chaque geste terminé envoie calques et dessins posés au moteur, qui les
+// contrôle et les enregistre (et garde l'état d'avant pour ⌘Z, tâche 4.3). Dans un simple navigateur, les dessins posés restent en
 // mémoire (bibliothèque inventée), pour juger des gestes sans l'app.
 
 import {
@@ -20,7 +20,7 @@ import {
   cacheFileUrl,
   fetchDrawingPreview,
   fetchLibrary,
-  savePlacements,
+  saveComposition,
   type LibraryEntry,
   type Project,
 } from "../engine";
@@ -65,6 +65,21 @@ import {
   type Point,
   type Rect,
 } from "./placement";
+import {
+  addLayer,
+  effectiveLayers,
+  isLocked,
+  isShown,
+  layerOf,
+  moveLayer,
+  moveToLayer,
+  pickable,
+  removeLayer,
+  shown,
+  stack,
+  updateLayer,
+} from "./layers";
+import type { Layer } from "./placement";
 import { SelectionNode } from "./SelectionNode";
 
 /** Type des données glissées depuis la liste des dessins. */
@@ -102,6 +117,21 @@ export interface CompositionActions {
   setRotation(deg: number): void;
   /** Pose un dessin au centre de la vue. */
   place(drawing: string): void;
+  /** Range la sélection sur un calque. */
+  moveToLayer(layer: string): void;
+}
+
+/** Ce que la rubrique « Calques » peut faire (tâche 4.3). */
+export interface LayerActions {
+  /** Le calque où se posent les nouveaux dessins. */
+  activate(id: string): void;
+  add(): void;
+  remove(id: string): void;
+  rename(id: string, name: string): void;
+  toggleVisible(id: string): void;
+  toggleLocked(id: string): void;
+  /** +1 : vers l'avant. */
+  move(id: string, step: -1 | 1): void;
 }
 
 export interface Composition {
@@ -109,6 +139,13 @@ export interface Composition {
   placements: Placement[];
   selected: Placement[];
   frame: Rect | null;
+  /** Calques de la composition, du fond vers l'avant (un seul, implicite, s'il n'y en a pas). */
+  composeLayers: Layer[];
+  activeLayer: string;
+  /** Nombre de dessins posés par calque. */
+  layerCounts: Map<string, number>;
+  layerActions: LayerActions;
+  /** Ce que la visionneuse doit afficher. */
   layers: LayerSpec[];
   /** Consigne du geste possible, pour la barre d'état. */
   hint: string | null;
@@ -136,6 +173,8 @@ export function useComposition(options: Options): Composition {
   const { engine, folder, project, onProject, viewer, stage, enabled, onError } = options;
   const [drawings, setDrawings] = useState<ComposeDrawing[]>([]);
   const [placements, setPlacements] = useState<Placement[]>([]);
+  const [layerList, setLayerList] = useState<Layer[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [marquee, setMarquee] = useState<Rect | null>(null);
   const [previews, setPreviews] = useState<Map<string, string>>(new Map());
@@ -168,10 +207,12 @@ export function useComposition(options: Options): Composition {
 
   // Le projet fait foi, sauf pendant un geste.
   const projectPlacements = project?.placements;
+  const projectLayers = project?.layers;
   useEffect(() => {
     if (!engine || active.current) return;
     setPlacements(projectPlacements ?? []);
-  }, [engine, projectPlacements]);
+    setLayerList(projectLayers ?? []);
+  }, [engine, projectPlacements, projectLayers]);
 
   useEffect(() => {
     setSelection(new Set());
@@ -210,21 +251,76 @@ export function useComposition(options: Options): Composition {
     };
   }, [placements, previews, drawings, engine, folder, onError]);
 
-  /** Enregistre la liste (dans l'ordre des gestes) ; en cas de refus, revient au projet. */
+  /** Enregistre calques et dessins (rangés par calque) ; en cas de refus, revient au projet. */
   const commit = useCallback(
-    (next: Placement[], nextSelection?: Set<string>) => {
-      setPlacements(next);
+    (next: Placement[], nextSelection?: Set<string>, nextLayers: Layer[] = layerList) => {
+      const stacked = stack(next, nextLayers);
+      setPlacements(stacked);
+      setLayerList(nextLayers);
       if (nextSelection) setSelection(nextSelection);
       if (!engine || !folder) return;
       saving.current = saving.current.then(() =>
-        savePlacements(folder, next).then(onProject, (failure: unknown) => {
+        saveComposition(folder, nextLayers, stacked).then(onProject, (failure: unknown) => {
           onError(String(failure).replace(/^Error: /, ""));
           setPlacements(project?.placements ?? []);
+          setLayerList(project?.layers ?? []);
         }),
       );
     },
-    [engine, folder, onProject, onError, project?.placements],
+    [engine, folder, onProject, onError, project?.placements, project?.layers, layerList],
   );
+
+  // --- Calques ------------------------------------------------------------------------------
+
+  const composeLayers = useMemo(() => effectiveLayers(layerList), [layerList]);
+  const activeLayer = composeLayers.find((l) => l.id === activeId) ?? composeLayers[composeLayers.length - 1];
+  const picks = useMemo(() => pickable(placements, layerList), [placements, layerList]);
+  const layerCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of placements) {
+      const id = layerOf(layerList, p).id;
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    return counts;
+  }, [placements, layerList]);
+
+  // Un dessin masqué ou verrouillé sort de la sélection.
+  useEffect(() => {
+    setSelection((current) => {
+      const allowed = new Set(picks.map((p) => p.id));
+      const kept = [...current].filter((id) => allowed.has(id));
+      return kept.length === current.size ? current : new Set(kept);
+    });
+  }, [picks]);
+
+  const commitLayers = (c: { layers: Layer[]; placements: Placement[] }) => {
+    if (c.layers === layerList && c.placements === placements) return;
+    commit(c.placements, undefined, c.layers);
+  };
+  const current = { layers: layerList, placements };
+  const layerActions: LayerActions = {
+    activate: (id) => setActiveId(id),
+    add: () => {
+      const r = addLayer(current, activeLayer.id);
+      commitLayers(r);
+      setActiveId(r.added.id);
+    },
+    remove: (id) => commitLayers(removeLayer(current, id)),
+    rename: (id, name) => {
+      const trimmed = name.trim();
+      const layer = composeLayers.find((l) => l.id === id);
+      if (trimmed && layer && trimmed !== layer.name) commitLayers(updateLayer(current, id, { name: trimmed }));
+    },
+    toggleVisible: (id) => {
+      const layer = composeLayers.find((l) => l.id === id);
+      if (layer) commitLayers(updateLayer(current, id, { visible: !isShown(layer) }));
+    },
+    toggleLocked: (id) => {
+      const layer = composeLayers.find((l) => l.id === id);
+      if (layer) commitLayers(updateLayer(current, id, { locked: !isLocked(layer) }));
+    },
+    move: (id, step) => commitLayers(moveLayer(current, id, step)),
+  };
 
   // --- Affichage --------------------------------------------------------------------------
 
@@ -233,7 +329,7 @@ export function useComposition(options: Options): Composition {
 
   const layers = useMemo<LayerSpec[]>(
     () =>
-      placements.flatMap((p) => {
+      shown(placements, layerList).flatMap((p) => {
         const url = previews.get(p.drawing);
         if (!url) return [];
         const [tl, tr, br, bl] = corners(p);
@@ -241,7 +337,7 @@ export function useComposition(options: Options): Composition {
           { id: `pose:${p.id}`, kind: "mesh-image", url, divisions: 1, points: [tl, tr, bl, br] } satisfies LayerSpec,
         ];
       }),
-    [placements, previews],
+    [placements, layerList, previews],
   );
 
   // Le cadre de sélection, dessiné par-dessus tout.
@@ -302,7 +398,7 @@ export function useComposition(options: Options): Composition {
           ? { kind: "scale", start: at.mm, before: placements, ids: selection, frame, corner: handle.corner }
           : { kind: "rotate", start: at.mm, before: placements, ids: selection, pivot: rectCenter(frame) };
     } else {
-      const hit = hitTest(placements, at.mm);
+      const hit = hitTest(picks, at.mm);
       if (hit) {
         const unit = expandToGroups(placements, [hit.id]);
         if (event.shiftKey) {
@@ -321,7 +417,7 @@ export function useComposition(options: Options): Composition {
         const ids = selection.has(hit.id) ? selection : unit;
         setSelection(ids);
         gesture = { kind: "move", start: at.mm, before: placements, ids };
-      } else if (placements.length > 0) {
+      } else if (picks.length > 0) {
         gesture = { kind: "marquee", start: at.mm, before: placements, ids: event.shiftKey ? selection : new Set() };
       }
     }
@@ -347,7 +443,7 @@ export function useComposition(options: Options): Composition {
             : "nesw-resize"
           : handle?.kind === "rotate"
             ? "alias"
-            : hitTest(placements, at.mm)
+            : hitTest(picks, at.mm)
               ? "move"
               : "",
       );
@@ -359,7 +455,11 @@ export function useComposition(options: Options): Composition {
     const step = applyGesture(current.gesture, at.mm, { shift: event.shiftKey, alt: event.altKey }, makeId);
     current.step = step;
     setPlacements(step.placements);
-    setSelection(step.selection);
+    if (current.gesture.kind === "marquee") {
+      // Le cadre ne prend pas les dessins masqués ou verrouillés.
+      const allowed = new Set(picks.map((p) => p.id));
+      setSelection(new Set([...step.selection].filter((id) => allowed.has(id))));
+    } else setSelection(step.selection);
     setMarquee(step.marquee ?? null);
   };
 
@@ -418,7 +518,14 @@ export function useComposition(options: Options): Composition {
     const drawing = drawings.find((d) => d.id === id);
     const view = viewCenterAndWidth();
     if (!drawing || !view) return;
+    if (!isShown(activeLayer) || isLocked(activeLayer)) {
+      onError(
+        `Le calque « ${activeLayer.name} » est ${isShown(activeLayer) ? "verrouillé" : "masqué"} : choisir un autre calque pour poser le dessin.`,
+      );
+      return;
+    }
     const p = dropped(drawing, at ?? view.center, view.width);
+    if (layerList.length > 0) p.layer = activeLayer.id;
     commit([...placements, p], new Set([p.id]));
   };
 
@@ -484,13 +591,17 @@ export function useComposition(options: Options): Composition {
       apply(rotate(placements, selection, deg - p.rotation, p.center));
     },
     place: (id) => placeDrawing(id),
+    moveToLayer: (id) => {
+      const r = moveToLayer(current, selection, id);
+      if (r !== current) commit(r.placements, undefined, r.layers);
+    },
   };
 
   const shortcuts = [
     {
       keys: "mod+a",
-      run: () => setSelection(new Set(placements.map((p) => p.id))),
-      enabled: enabled && placements.length > 0,
+      run: () => setSelection(new Set(picks.map((p) => p.id))),
+      enabled: enabled && picks.length > 0,
     },
     { keys: "mod+shift+a", run: () => setSelection(new Set()), enabled: enabled && has },
     { keys: "escape", run: () => setSelection(new Set()), enabled: enabled && has },
@@ -536,7 +647,7 @@ export function useComposition(options: Options): Composition {
     ? null
     : has
       ? "Glisser : déplacer (⌥ copie, ⇧ droit) · coin : agrandir · près d'un coin, dehors : tourner · Espace : déplacer la vue"
-      : placements.length > 0
+      : picks.length > 0
         ? "Cliquer un dessin pour le choisir, ou glisser autour de plusieurs"
         : drawings.length > 0
           ? "Glisser un dessin de la liste sur la façade"
@@ -547,6 +658,10 @@ export function useComposition(options: Options): Composition {
     placements,
     selected,
     frame,
+    composeLayers,
+    activeLayer: activeLayer.id,
+    layerCounts,
+    layerActions,
     layers,
     hint,
     actions,

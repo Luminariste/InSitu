@@ -13,8 +13,9 @@ use insitu_core::library::vectors::{self, VectorSummary, VectorizeReport};
 use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
 use insitu_core::overview::{self, FacadeOverview};
 use insitu_core::placement;
+use insitu_core::project::history::{self, HistoryState};
 use insitu_core::project::{
-    AssemblyPair, ExportSettings, Mirror, Placement, Project, ProjectDir, RegistrationPair,
+    AssemblyPair, ExportSettings, Layer, Mirror, Placement, Project, ProjectDir, RegistrationPair,
     SourcePoint, VectorSettings,
 };
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
@@ -79,12 +80,7 @@ fn facade_inspect(path: String, page: Option<u32>) -> Result<SourceInfo, String>
 /// Copie le plan dans le projet et en fait sa façade.
 #[tauri::command(async)]
 fn facade_import(folder: String, path: String, page: Option<u32>) -> Result<Project, String> {
-    facade::import_facade(
-        &ProjectDir::open(&folder).map_err(|e| e.to_string())?,
-        Path::new(&path),
-        page,
-    )
-    .map_err(|e| e.to_string())
+    facade::import_facade(&project_dir(&folder)?, Path::new(&path), page).map_err(|e| e.to_string())
 }
 
 /// Met la façade du projet à l'échelle par deux points et une cote.
@@ -95,26 +91,44 @@ fn facade_set_scale(
     b: SourcePoint,
     distance_mm: f64,
 ) -> Result<Project, String> {
-    facade::set_scale(
-        &ProjectDir::open(&folder).map_err(|e| e.to_string())?,
-        a,
-        b,
-        distance_mm,
-    )
-    .map_err(|e| e.to_string())
+    facade::set_scale(&project_dir(&folder)?, a, b, distance_mm).map_err(|e| e.to_string())
 }
 
 /// Prépare l'affichage de la façade du projet (tuiles dans le cache).
 #[tauri::command(async)]
 fn facade_display(app: AppHandle, folder: String) -> Result<FacadeDisplay, String> {
-    let dir = ProjectDir::open(&folder).map_err(|e| e.to_string())?;
+    let dir = project_dir(&folder)?;
     facade::open_project_facade(&dir, &tile_cache_dir(&app)?).map_err(|e| e.to_string())
 }
 
 // --- Redressement des photos de mire (tâche 2.5) ------------------------------
 
+/// Dossier de l'historique d'annulation (tâche 4.3), dans le cache de l'app ;
+/// fixé au démarrage.
+static HISTORY_ROOT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
+/// Le projet, ouvert avec l'historique d'annulation : tout enregistrement
+/// fait par une commande s'annule par ⌘Z.
 fn project_dir(folder: &str) -> Result<ProjectDir, String> {
-    ProjectDir::open(folder).map_err(|e| e.to_string())
+    let dir = ProjectDir::open(folder).map_err(|e| e.to_string())?;
+    Ok(match HISTORY_ROOT.get() {
+        Some(root) => dir.with_history(root),
+        None => dir,
+    })
+}
+
+// --- Annulation (tâche 4.3) ---------------------------------------------------------
+
+/// Annule la dernière action (`redo` faux) ou rétablit la dernière annulée.
+#[tauri::command(async)]
+fn history_step(folder: String, redo: bool) -> Result<(Project, String), String> {
+    history::step(&project_dir(&folder)?, redo).map_err(|e| e.to_string())
+}
+
+/// Ce que ⌘Z et ⇧⌘Z feraient.
+#[tauri::command(async)]
+fn history_state(folder: String) -> Result<HistoryState, String> {
+    history::state(&project_dir(&folder)?).map_err(|e| e.to_string())
 }
 
 /// Ajoute un projecteur ; renvoie le projet et l'identifiant du nouveau.
@@ -295,8 +309,19 @@ fn library_preview(app: AppHandle, folder: String, drawing: String) -> Result<St
 
 // --- Dessins posés sur la façade (tâche 4.2) ----------------------------------
 
-/// Remplace tous les dessins posés, à la fin d'un geste ; rien n'est
-/// enregistré si l'un d'eux est incorrect.
+/// Remplace calques et dessins posés, à la fin d'un geste ; rien n'est
+/// enregistré si l'ensemble est incorrect.
+#[tauri::command(async)]
+fn composition_set(
+    folder: String,
+    layers: Vec<Layer>,
+    placements: Vec<Placement>,
+) -> Result<Project, String> {
+    placement::set_composition(&project_dir(&folder)?, layers, placements)
+        .map_err(|e| e.to_string())
+}
+
+/// Remplace tous les dessins posés (les calques ne changent pas).
 #[tauri::command(async)]
 fn placements_set(folder: String, placements: Vec<Placement>) -> Result<Project, String> {
     placement::set_placements(&project_dir(&folder)?, placements).map_err(|e| e.to_string())
@@ -458,6 +483,12 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .register_asynchronous_uri_scheme_protocol(TILE_SCHEME, serve_tile)
+        .setup(|app| {
+            if let Ok(cache) = app.path().app_cache_dir() {
+                let _ = HISTORY_ROOT.set(cache.join("historique"));
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             engine_info,
             open_tiled_image,
@@ -480,6 +511,9 @@ pub fn run() {
             library_list,
             library_preview,
             placements_set,
+            composition_set,
+            history_step,
+            history_state,
             library_vectorize,
             library_vectors,
             library_set_vector_settings,
