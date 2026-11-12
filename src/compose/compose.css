@@ -111,3 +111,9 @@
 .compose-layer:hover .ui-row-trailing {
   display: none;
 }
+
+/* Diapositive de la sélection (tâche 4.5). */
+.compose-swatch {
+  margin-right: var(--ui-space-1);
+  vertical-align: -1px;
+}

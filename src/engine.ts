@@ -545,6 +545,25 @@ export async function saveComposition(folder: string, layers: Layer[], placement
   return invoke<Project>("composition_set", { folder, layers, placements });
 }
 
+/** La diapositive d'un dessin posé (tâche 4.5). */
+export interface Assignment {
+  placement: string;
+  /** Projecteur dont la diapositive porte le dessin ; aucun hors de toute emprise. */
+  projector: string | null;
+  /** Choisi à la main. */
+  manual: boolean;
+  /** Le dessin tient en entier dans cette diapositive. */
+  whole: boolean;
+  /** Projecteurs dont la diapositive contient le dessin en entier. */
+  candidates: string[];
+}
+
+/** La diapositive de chaque dessin posé, proposée par le moteur ou choisie à la main. */
+export async function fetchAssignments(folder: string): Promise<Assignment[]> {
+  requireEngine();
+  return invoke<Assignment[]>("placements_assignment", { folder });
+}
+
 // --- Annulation (tâche 4.3) -----------------------------------------------------
 
 /** Annule la dernière action (ou la rétablit) ; rend le projet et ce qui a changé. */

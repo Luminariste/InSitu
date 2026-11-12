@@ -1,4 +1,4 @@
-# Poser des dessins sur la façade (tâches 4.2 à 4.4)
+# Poser des dessins sur la façade (tâches 4.2 à 4.5)
 
 Dans l'étape **Façade** (⌘1), les dessins de la bibliothèque se posent
 directement sur le plan, comme dans Illustrator. Il faut un plan **mis à
@@ -111,6 +111,38 @@ annule chaque geste. L'export suit exactement la forme vue à l'écran.
 5. Choisir deux dessins, « Quatre coins », tirer un coin : les deux se
    déforment ensemble. ⌘Z revient en arrière.
 
+## Diapositive de chaque dessin (tâche 4.5)
+
+Chaque dessin posé part dans **une seule** diapositive, jamais coupé entre
+deux projecteurs. Sur la façade, son contour a la couleur de son projecteur
+(les mêmes couleurs que les emprises). Un contour **rouge** : le dessin est
+à cheval, aucune diapositive ne le contient en entier, ou bien celle
+choisie à la main le coupe. Un contour gris : il ne tombe dans aucune
+emprise.
+
+La proposition est automatique : parmi les diapositives qui contiennent le
+dessin en entier, celle où il est le plus loin du bord. Elle suit le dessin
+quand on le déplace.
+
+Dans l'inspecteur, « Diapositive » montre où part la sélection et permet de
+la choisir à la main (les diapositives qui couperaient le dessin sont
+signalées). Ce choix reste, même si l'on déplace le dessin, jusqu'à ce
+qu'on revienne à « Automatique ». ⌘Z l'annule.
+
+### Essai sur Mac
+
+1. Ouvrir un projet dont plusieurs projecteurs sont recalés, avec des
+   dessins posés.
+2. Chaque dessin doit être entouré de la couleur d'un projecteur. Poser un
+   dessin dans une zone de recouvrement : une seule couleur.
+3. Exporter les diapositives : le dessin n'apparaît que dans la diapositive
+   de sa couleur, en entier.
+4. Choisir ce dessin, puis dans « Diapositive » l'autre projecteur :
+   la couleur change ; le déplacer un peu : le choix reste. Réexporter : il
+   a changé de diapositive.
+5. Agrandir un dessin jusqu'à dépasser de toutes les emprises : contour
+   rouge.
+
 ## Ce qui n'est pas encore là
 
 - **Export** : fait. Les dessins posés partent dans les diapositives et dans
@@ -125,6 +157,8 @@ insitu place add <projet.insitu> <dessin> --at X,Y --width MM [--rotation DEG] [
 insitu place remove <projet.insitu> <id>…
 insitu place set <projet.insitu> <placements.json> [--history DIR]
 insitu place deform <projet.insitu> <id>… (--corners | --grid CxR | --none)
+insitu place slides <projet.insitu>
+insitu place assign <projet.insitu> <id>… (--to PROJECTEUR | --auto)
 insitu project history <projet.insitu> --history DIR
 insitu project undo <projet.insitu> --history DIR
 insitu project redo <projet.insitu> --history DIR

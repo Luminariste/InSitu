@@ -1,4 +1,5 @@
 // Sélection des dessins posés, dessinée sur la visionneuse : le contour de
+// chaque dessin dans la couleur de sa diapositive (tâche 4.5), celui de
 // chaque dessin choisi, le cadre de la sélection avec ses quatre poignées,
 // la grille de déformation et ses nœuds (tâche 4.4), et le cadre de
 // sélection tracé à la souris. Mêmes épaisseurs à l'écran
@@ -12,7 +13,21 @@ import type { Point } from "./placement";
 /** Bleu de sélection du Mac (`--ui-accent`, thème sombre). */
 const ACCENT = 0x0a84ff;
 
+/** Rouge d'alerte du Mac : dessin à cheval sur deux diapositives. */
+const WARNING = 0xff453a;
+
+/** Contour d'un dessin posé dans la couleur de sa diapositive (tâche 4.5). */
+export interface SlideOutline {
+  outline: Point[];
+  /** Couleur du projecteur ; absente : le dessin ne tombe dans aucune emprise. */
+  color: number | null;
+  /** Faux : le dessin dépasse de sa diapositive. */
+  whole: boolean;
+}
+
 export interface SelectionDrawing {
+  /** Tous les dessins visibles, chacun dans la couleur de sa diapositive. */
+  slides: SlideOutline[];
   /** Contours des dessins choisis (quatre coins chacun). */
   outlines: Point[][];
   /** Cadre de la sélection, avec poignées ; absent si rien n'est choisi. */
@@ -26,7 +41,7 @@ export interface SelectionDrawing {
 export class SelectionNode implements SceneNode {
   readonly container = new Container();
   private readonly graphics = new Graphics();
-  private drawing: SelectionDrawing = { outlines: [], frame: null, marquee: null, mesh: null };
+  private drawing: SelectionDrawing = { slides: [], outlines: [], frame: null, marquee: null, mesh: null };
   private drawnZoom = 0;
 
   constructor() {
@@ -54,7 +69,17 @@ export class SelectionNode implements SceneNode {
     const px = 1 / zoom;
     const g = this.graphics;
     g.clear();
-    const { outlines, frame: box, marquee, mesh } = this.drawing;
+    const { slides, outlines, frame: box, marquee, mesh } = this.drawing;
+    for (const s of slides) {
+      g.poly(
+        s.outline.flatMap((p) => [p.x, p.y]),
+        true,
+      ).stroke({
+        width: (s.whole ? 1.5 : 2.5) * px,
+        color: s.whole ? (s.color ?? 0x8e8e93) : WARNING,
+        alpha: 0.9,
+      });
+    }
     for (const outline of outlines) {
       g.poly(
         outline.flatMap((p) => [p.x, p.y]),

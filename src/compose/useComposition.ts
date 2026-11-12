@@ -18,12 +18,15 @@ import {
 } from "react";
 import {
   cacheFileUrl,
+  fetchAssignments,
   fetchDrawingPreview,
   fetchLibrary,
   saveComposition,
+  type Assignment,
   type LibraryEntry,
   type Project,
 } from "../engine";
+import { projectorColor } from "../facade/overview";
 import { demoLibrary } from "../library/demo";
 import type { LayerSpec, ViewerHandle } from "../viewer";
 import { mmToScreen, screenToMm, visibleRect } from "../viewer/geometry";
@@ -43,6 +46,7 @@ import {
   PASTE_OFFSET_MM,
   align,
   arrange,
+  assignTo,
   bounds,
   copyOf,
   deform,
@@ -124,6 +128,8 @@ export interface CompositionActions {
   place(drawing: string): void;
   /** Range la sélection sur un calque. */
   moveToLayer(layer: string): void;
+  /** Choisit à la main la diapositive de la sélection ; `null` : la proposition du moteur (tâche 4.5). */
+  assignTo(projector: string | null): void;
   /**
    * Tend sur la sélection une grille au repos de `columns × rows` cases
    * (1 × 1 : quatre coins), d'un bloc ; 0 retire la déformation (tâche 4.4).
@@ -157,6 +163,8 @@ export interface Composition {
   layerActions: LayerActions;
   /** Ce que la visionneuse doit afficher. */
   layers: LayerSpec[];
+  /** Diapositive de chaque dessin posé, par identifiant (tâche 4.5) ; vide sans moteur. */
+  assignments: Map<string, Assignment>;
   /** Consigne du geste possible, pour la barre d'état. */
   hint: string | null;
   actions: CompositionActions;
@@ -198,6 +206,7 @@ export function useComposition(options: Options): Composition {
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [marquee, setMarquee] = useState<Rect | null>(null);
   const [previews, setPreviews] = useState<Map<string, string>>(new Map());
+  const [assignments, setAssignments] = useState<Map<string, Assignment>>(new Map());
   const active = useRef<Active | null>(null);
   const lastRepeat = useRef<Repeatable | null>(null);
   const clipboard = useRef<Placement[]>([]);
@@ -233,6 +242,24 @@ export function useComposition(options: Options): Composition {
     setPlacements(projectPlacements ?? []);
     setLayerList(projectLayers ?? []);
   }, [engine, projectPlacements, projectLayers]);
+
+  // Diapositive de chaque dessin : recalculée par le moteur à chaque
+  // enregistrement (dessins posés ou recalage des projecteurs).
+  const projectProjectors = project?.projectors;
+  useEffect(() => {
+    if (!engine || !folder) {
+      setAssignments(new Map());
+      return;
+    }
+    let cancelled = false;
+    fetchAssignments(folder).then(
+      (list) => !cancelled && setAssignments(new Map(list.map((a) => [a.placement, a]))),
+      (failure: unknown) => !cancelled && onError(String(failure)),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [engine, folder, projectPlacements, projectProjectors, onError]);
 
   useEffect(() => {
     setSelection(new Set());
@@ -382,14 +409,33 @@ export function useComposition(options: Options): Composition {
     };
   }, [viewer]);
   useEffect(() => {
+    const colors = new Map((project?.projectors ?? []).map((q, index) => [q.id, projectorColor(index)]));
+    const slides = shown(placements, layerList).flatMap((p) => {
+      const a = assignments.get(p.id);
+      if (!a) return [];
+      return [{ outline: outline(p), color: a.projector ? (colors.get(a.projector) ?? null) : null, whole: a.whole }];
+    });
     selectionNode.current?.set({
+      slides,
       outlines: selected.map((p) => outline(p)),
       frame,
       marquee,
       mesh: editable ? { lines: meshLines(editable), nodes: editableNodes } : null,
     });
     viewer.current?.scene()?.invalidate();
-  }, [selected, frame, marquee, viewer, layers, editable, editableNodes]);
+  }, [
+    selected,
+    frame,
+    marquee,
+    viewer,
+    layers,
+    editable,
+    editableNodes,
+    assignments,
+    placements,
+    layerList,
+    project?.projectors,
+  ]);
 
   // --- Pointeur ------------------------------------------------------------------------------
 
@@ -637,6 +683,7 @@ export function useComposition(options: Options): Composition {
       if (r !== current) commit(r.placements, undefined, r.layers);
     },
     deform: (columns, rows) => apply(deform(placements, selection, columns, rows)),
+    assignTo: (projector) => apply(assignTo(placements, selection, projector)),
   };
 
   const shortcuts = [
@@ -707,6 +754,7 @@ export function useComposition(options: Options): Composition {
     layerCounts,
     layerActions,
     layers,
+    assignments,
     hint,
     actions,
     onPointerDown,

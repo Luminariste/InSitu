@@ -36,6 +36,7 @@ fn corners_follow_size_rotation_and_mirror() {
         group: None,
         layer: None,
         deformation: None,
+        projector: None,
         extra: Default::default(),
     };
     let c = p.corners();
@@ -178,6 +179,7 @@ fn drawing_point_undoes_facade_point() {
         group: None,
         layer: None,
         deformation: None,
+        projector: None,
         extra: Default::default(),
     };
     for mirrored in [false, true] {
@@ -205,6 +207,7 @@ fn hidden_layers_are_not_exported() {
         group: None,
         layer: layer.map(str::to_string),
         deformation: None,
+        projector: None,
         extra: Default::default(),
     };
     let layer = |id: &str, visible: bool| Layer {
@@ -252,6 +255,7 @@ fn straight(rotation: f64, mirrored: bool) -> Placement {
         group: None,
         layer: None,
         deformation: None,
+        projector: None,
         extra: Default::default(),
     }
 }
@@ -481,4 +485,220 @@ fn preview_reference_cases_match_the_engine() {
             }
         }
     }
+}
+
+// --- Affectation aux diapositives (tâche 4.5) --------------------------------
+
+/// Composition d'essai de la tâche 4.5 : dix projecteurs sur deux rangées de
+/// cinq, en trapèze et un peu tournés, qui se recouvrent d'environ 0,8 m ;
+/// des dessins de toutes tailles posés au hasard (tirage fixe), certains
+/// tournés, retournés ou déformés.
+fn assignment_test_project(label: &str) -> (TempDir, ProjectDir) {
+    use crate::project::RegistrationPair;
+    let (temp, dir) = project_with_drawing(label);
+    let mut project = dir.load().unwrap().project;
+    for row in 0..2 {
+        for col in 0..5 {
+            let (x0, y0) = (f64::from(col) * 2_000.0, f64::from(row) * 2_000.0);
+            let tilt = f64::from((col + 2 * row) % 3) * 40.0 - 40.0;
+            // Coins de l'emprise : trapèze (haut plus étroit), un peu penché.
+            let quad = [
+                (x0 + 120.0, y0 + tilt),
+                (x0 + 2_680.0, y0 - tilt),
+                (x0 + 2_800.0, y0 + 2_800.0 - tilt),
+                (x0, y0 + 2_800.0 + tilt),
+            ];
+            let at = |s: f64, t: f64| {
+                let (u, v) = (s / 280.0, t / 280.0);
+                let top = (
+                    quad[0].0 + (quad[1].0 - quad[0].0) * u,
+                    quad[0].1 + (quad[1].1 - quad[0].1) * u,
+                );
+                let bottom = (
+                    quad[3].0 + (quad[2].0 - quad[3].0) * u,
+                    quad[3].1 + (quad[2].1 - quad[3].1) * u,
+                );
+                PointMm::new(
+                    top.0 + (bottom.0 - top.0) * v,
+                    top.1 + (bottom.1 - top.1) * v,
+                )
+            };
+            let pairs = [
+                (0.0, 0.0),
+                (280.0, 0.0),
+                (280.0, 280.0),
+                (0.0, 280.0),
+                (140.0, 140.0),
+                (70.0, 210.0),
+            ]
+            .iter()
+            .map(|&(s, t)| RegistrationPair::new(PointMm::new(s, t), at(s, t)))
+            .collect();
+            project
+                .add_projector(format!("P{}", row * 5 + col + 1))
+                .registration = pairs;
+        }
+    }
+    // Tirage pseudo-aléatoire fixe.
+    let mut seed = 12_345_u64;
+    let mut next = || {
+        seed = seed
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        (seed >> 11) as f64 / (1_u64 << 53) as f64
+    };
+    for k in 0..80 {
+        let width = 250.0 + 650.0 * next();
+        let mut p = Placement {
+            id: format!("d{k}"),
+            drawing: "merle".into(),
+            center: PointMm::new(10_800.0 * next(), 4_800.0 * next()),
+            width,
+            height: width * (0.5 + next()),
+            rotation: 360.0 * next() - 180.0,
+            mirrored: next() < 0.3,
+            group: None,
+            layer: None,
+            deformation: None,
+            projector: None,
+            extra: Default::default(),
+        };
+        if k % 5 == 0 {
+            // Une déformation : le coin haut-droit tiré vers l'extérieur.
+            let mut d = mesh::identity(deformation_frame(&[&p]).unwrap(), 1, 1);
+            d.nodes[1] = [1.15, -0.1];
+            p.deformation = Some(d);
+        }
+        project.placements.push(p);
+    }
+    // Et un dessin au milieu de chaque zone de recouvrement : le cas qui
+    // compte, là où il ne doit partir que dans une diapositive.
+    let mut overlap = |id: String, x: f64, y: f64| {
+        let mut p = project.placements[1].clone();
+        p.id = id;
+        p.center = PointMm::new(x, y);
+        (p.width, p.height, p.rotation, p.deformation) = (450.0, 350.0, 20.0, None);
+        project.placements.push(p);
+    };
+    for row in 0..2 {
+        for col in 0..4 {
+            overlap(
+                format!("h{row}{col}"),
+                f64::from(col) * 2_000.0 + 2_400.0,
+                f64::from(row) * 2_000.0 + 1_400.0,
+            );
+        }
+    }
+    for col in 0..5 {
+        overlap(
+            format!("v{col}"),
+            f64::from(col) * 2_000.0 + 1_400.0,
+            2_400.0,
+        );
+    }
+    dir.save(&project).unwrap();
+    (temp, dir)
+}
+
+/// Critère de la tâche 4.5 : sur la composition d'essai, aucun dessin n'est
+/// à cheval ; chacun part dans une seule diapositive.
+#[test]
+fn no_drawing_of_the_test_composition_straddles_two_slides() {
+    let (_temp, dir) = assignment_test_project("affectation");
+    let mut project = dir.load().unwrap().project;
+    // On ne garde que les dessins qui tiennent dans au moins une emprise : un
+    // dessin plus grand que toutes ne peut pas être posé sans coupe.
+    let first = assign::assignments(&project);
+    let too_big: Vec<String> = first
+        .iter()
+        .filter(|a| a.candidates.is_empty())
+        .map(|a| a.placement.clone())
+        .collect();
+    project.placements.retain(|p| !too_big.contains(&p.id));
+    assert!(
+        project.placements.len() >= 40,
+        "{} dessins",
+        project.placements.len()
+    );
+
+    let all = assign::assignments(&project);
+    let shared = all.iter().filter(|a| a.candidates.len() >= 2).count();
+    assert!(
+        shared >= 10,
+        "{shared} dessins dans une zone de recouvrement"
+    );
+    for a in &all {
+        assert!(a.whole, "{} à cheval ({:?})", a.placement, a.projector);
+        assert!(a.candidates.contains(a.projector.as_ref().unwrap()));
+        assert!(!a.manual);
+    }
+    // Chaque dessin est dans une et une seule diapositive.
+    for p in &project.placements {
+        let slides = project
+            .projectors
+            .iter()
+            .filter(|q| {
+                assign::slide_placements_in(&project, &all, &q.id)
+                    .iter()
+                    .any(|r| r.id == p.id)
+            })
+            .count();
+        assert_eq!(slides, 1, "{}", p.id);
+    }
+    // Un dessin trop grand pour toutes les diapositives est signalé.
+    let big = first
+        .iter()
+        .find(|a| a.candidates.is_empty())
+        .expect("un trop grand");
+    assert!(!big.whole && big.projector.is_some());
+}
+
+/// Critère de la tâche 4.5 : un changement manuel est conservé, même quand
+/// le dessin bouge ou que le projet est rouvert.
+#[test]
+fn a_manual_choice_is_kept() {
+    let (_temp, dir) = assignment_test_project("affectation-main");
+    let project = dir.load().unwrap().project;
+    let all = assign::assignments(&project);
+    let a = all
+        .iter()
+        .find(|a| a.candidates.len() >= 2)
+        .expect("un dessin partagé");
+    let other = a
+        .candidates
+        .iter()
+        .find(|c| Some(*c) != a.projector.as_ref())
+        .unwrap()
+        .clone();
+    let label = project.projector(&other).unwrap().label.clone();
+    assign(&dir, std::slice::from_ref(&a.placement), Some(&label)).unwrap();
+
+    // Rouvert, puis déplacé de quelques centimètres par l'interface.
+    let mut project = dir.load().unwrap().project;
+    let p = project
+        .placements
+        .iter_mut()
+        .find(|p| p.id == a.placement)
+        .unwrap();
+    p.center.x += 30.0;
+    let project = set_placements(&dir, project.placements.clone()).unwrap();
+    let now = assign::assignments(&project);
+    let b = now.iter().find(|b| b.placement == a.placement).unwrap();
+    assert_eq!(b.projector.as_ref(), Some(&other));
+    assert!(b.manual);
+
+    // Rendu au moteur : la proposition revient.
+    let project = assign(&dir, std::slice::from_ref(&a.placement), None).unwrap();
+    let c = assign::assignments(&project)
+        .into_iter()
+        .find(|c| c.placement == a.placement)
+        .unwrap();
+    assert!(!c.manual);
+    assert_eq!(c.projector, a.projector);
+
+    // Un projecteur inconnu est refusé.
+    assert!(matches!(
+        assign(&dir, std::slice::from_ref(&a.placement), Some("Z9")),
+        Err(PlacementError::UnknownProjector(_))
+    ));
 }
