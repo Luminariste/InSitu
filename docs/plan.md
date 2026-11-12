@@ -25,6 +25,7 @@ tableau à jour.
 | 2.5 Écran de redressement | Fusionnée (version 0.1.4), **non validée** : essai sur Mac à faire par Benjamin (`docs/redressement.md`) ; un HEIC d'iPhone récent reste à essayer |
 | 3.2 Recalage par points | Fusionnée (version 0.1.5 ; points déplaçables au glisser depuis la 0.1.7, demande de Benjamin), **non validée** : essai sur Mac à faire par Benjamin (`docs/recalage.md`) ; seuil des points aberrants réglé sur simulation, à reprendre sur ses premiers points cliqués ; photo « lum » pas encore prise en charge |
 | 4.1 Bibliothèque | Fusionnée (version 0.1.6), **non validée** : essai sur Mac à faire par Benjamin (`docs/bibliotheque.md`), si possible sur un vrai dossier de dessins de Marc |
+| 3.3 Vue façade | Fusionnée (version 0.1.8), **non validée** : essai sur Mac à faire par Benjamin (`docs/vue-facade.md`) ; le critère « dix projecteurs sans ralentissement » ne se vérifie que sur son Mac |
 | Toutes les autres | À faire |
 
 **Ce qui bloque la validation de la tâche 1.5.** Dans la version 0.1.1,

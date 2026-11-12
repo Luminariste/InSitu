@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use insitu_core::facade::{self, FacadeDisplay, SourceInfo};
 use insitu_core::geometry::Point;
 use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
+use insitu_core::overview::{self, FacadeOverview};
 use insitu_core::project::{Project, ProjectDir, RegistrationPair, SourcePoint};
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
@@ -231,6 +232,15 @@ fn library_preview(app: AppHandle, folder: String, drawing: String) -> Result<St
         .map_err(|e| e.to_string())
 }
 
+// --- Vue façade (tâche 3.3) -------------------------------------------------------
+
+/// Emprises, maillages des photos, recouvrements de tous les projecteurs.
+#[tauri::command(async)]
+fn facade_overview(app: AppHandle, folder: String) -> Result<FacadeOverview, String> {
+    overview::project_overview(&project_dir(&folder)?, Some(&tile_cache_dir(&app)?))
+        .map_err(|e| e.to_string())
+}
+
 /// Dossier du jeu d'essai, pour l'écran de démonstration. Dans l'ordre :
 /// celui que désigne `INSITU_JEU_ESSAI`, celui du dépôt d'où l'app a été
 /// compilée (lancement depuis le code), puis les images embarquées dans
@@ -301,7 +311,8 @@ pub fn run() {
             registration_set,
             library_import,
             library_list,
-            library_preview
+            library_preview,
+            facade_overview
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement d'InSitu");

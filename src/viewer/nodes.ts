@@ -44,8 +44,37 @@ export interface TiledLayerSpec extends LayerBase {
   placement: Placement;
 }
 
+/**
+ * Image tendue sur un maillage : `points` est une grille de
+ * `(divisions + 1)²` points (mm), ligne par ligne ; le coin haut-gauche de
+ * l'image va au premier, le coin bas-droit au dernier (tâche 3.3).
+ */
+export interface MeshImageLayerSpec extends LayerBase {
+  kind: "mesh-image";
+  url: string;
+  divisions: number;
+  points: { x: number; y: number }[];
+}
+
+/** Un polygone fermé (mm), son trait et son remplissage. */
+export interface PolygonShape {
+  points: { x: number; y: number }[];
+  color: number;
+  /** Épaisseur du trait, en pixels d'écran (1,5 par défaut). */
+  widthPx?: number;
+  strokeAlpha?: number;
+  /** Opacité du remplissage ; pas de remplissage si absente ou nulle. */
+  fillAlpha?: number;
+}
+
+/** Des polygones : emprises, zones de recouvrement (tâche 3.3). */
+export interface PolygonsLayerSpec extends LayerBase {
+  kind: "polygons";
+  shapes: PolygonShape[];
+}
+
 /** Tous les types de calques. Les prochains s'ajoutent à cette union. */
-export type LayerSpec = TiledLayerSpec;
+export type LayerSpec = TiledLayerSpec | MeshImageLayerSpec | PolygonsLayerSpec;
 
 /** Ce qu'un objet de la scène reçoit avant chaque image. */
 export interface FrameContext {

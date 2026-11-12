@@ -26,6 +26,10 @@ import {
   type Project,
   type SourcePoint,
 } from "../engine";
+import { cacheFileUrl, fetchFacadeOverview, type FacadeOverview } from "../engine";
+import { DEFAULT_DISPLAY, overviewLayers, type OverviewDisplay } from "./overview";
+import { demoOverview } from "./overviewDemo";
+import { OverviewPanel } from "./OverviewPanel";
 import { Viewer, type LayerSpec, type ViewerHandle } from "../viewer";
 import { screenToMm } from "../viewer/geometry";
 import { ScaleMarkersNode } from "./markers";
@@ -75,6 +79,10 @@ export function FacadeScreen() {
   const [distanceText, setDistanceText] = useState("");
   /** Échelle en mémoire seulement, dans le navigateur sans moteur. */
   const [browserScale, setBrowserScale] = useState<FacadeScale | null>(null);
+  /** Vue façade (tâche 3.3) : les projecteurs recalés posés sur le plan. */
+  const [overview, setOverview] = useState<FacadeOverview | null>(null);
+  const [overviewBusy, setOverviewBusy] = useState(false);
+  const [display, setDisplay] = useState<OverviewDisplay>(DEFAULT_DISPLAY);
 
   const facade = project?.facade ?? null;
   const scale = engine ? (facade?.scale ?? null) : browserScale;
@@ -89,6 +97,19 @@ export function FacadeScreen() {
       setError(String(failure).replace(/^Error: /, ""));
     } finally {
       setBusy(null);
+    }
+  }, []);
+
+  // Emprises, photos et recouvrements de tous les projecteurs.
+  const loadOverview = useCallback(async (path: string) => {
+    setOverviewBusy(true);
+    try {
+      setOverview(await fetchFacadeOverview(path));
+    } catch (failure) {
+      setOverview(null);
+      setError(String(failure).replace(/^Error: /, ""));
+    } finally {
+      setOverviewBusy(false);
     }
   }, []);
 
@@ -108,8 +129,10 @@ export function FacadeScreen() {
           setBusy("Préparation de l'affichage du plan…");
           setView(await openFacadeView(path));
         }
+        setOverview(null);
+        void loadOverview(path);
       }),
-    [run],
+    [run, loadOverview],
   );
 
   // Au lancement : le dernier projet dans l'app, le plan d'essai sinon.
@@ -119,6 +142,7 @@ export function FacadeScreen() {
       if (last) void load(last).catch(() => remember(null));
       return;
     }
+    setOverview(demoOverview());
     void openTileFolder("/tuiles/facade").then((source) => {
       if (!source) return;
       setView({
@@ -170,16 +194,20 @@ export function FacadeScreen() {
   }, [k, view]);
 
   const layers = useMemo<LayerSpec[]>(() => {
-    if (!view) return [];
-    return [
-      {
-        id: "facade-plan",
-        kind: "tiles",
-        source: view.source,
-        placement: facadePlacement(view.sourceUnitsPerPixel, k),
-      },
-    ];
-  }, [view, k]);
+    const plan: LayerSpec[] = view
+      ? [
+          {
+            id: "facade-plan",
+            kind: "tiles",
+            source: view.source,
+            placement: facadePlacement(view.sourceUnitsPerPixel, k),
+          },
+        ]
+      : [];
+    // Les emprises sont dans le repère où le recalage a été fait : celui de
+    // la visionneuse, le même que pour le plan.
+    return [...plan, ...overviewLayers(overview, display, engine ? cacheFileUrl : (request) => request)];
+  }, [view, k, overview, display, engine]);
 
   // --- Actions -------------------------------------------------------------
 
@@ -347,61 +375,70 @@ export function FacadeScreen() {
         </div>
       </header>
 
-      <div
-        className={`facade-stage${picking !== "off" ? " facade-picking" : ""}`}
-        ref={stage}
-        onPointerDownCapture={onPointerDown}
-        onPointerUpCapture={onPointerUp}
-      >
-        <Viewer ref={viewer} layers={layers} />
-        {!view && !busy && (
-          <div className="facade-message">
-            {!engine ? (
+      <div className="facade-body">
+        <div
+          className={`facade-stage${picking !== "off" ? " facade-picking" : ""}`}
+          ref={stage}
+          onPointerDownCapture={onPointerDown}
+          onPointerUpCapture={onPointerUp}
+        >
+          <Viewer ref={viewer} layers={layers} />
+          {!view && !busy && (
+            <div className="facade-message">
+              {!engine ? (
+                <p>
+                  Dans un simple navigateur, le moteur n'est pas là : ouvrir l'app pour importer un plan.
+                  <br />
+                  <small>
+                    Pour essayer l'écran ici, tuiler un plan dans <code>tuiles-demo/facade</code> (voir{" "}
+                    <code>docs/facade.md</code>).
+                  </small>
+                </p>
+              ) : !folder ? (
+                <p>Créer un projet ou ouvrir un projet existant, puis importer le plan de la façade.</p>
+              ) : (
+                <p>
+                  Importer le plan de la façade : PDF d'architecte, image (PNG, JPEG, TIFF), SVG ou DXF.
+                  <br />
+                  <small>Un DWG est à exporter d'abord en PDF ou en DXF.</small>
+                </p>
+              )}
+            </div>
+          )}
+          {busy && <p className="facade-message">{busy}</p>}
+          {pending && (
+            <div className="facade-message facade-pages">
               <p>
-                Dans un simple navigateur, le moteur n'est pas là : ouvrir l'app pour importer un plan.
-                <br />
-                <small>
-                  Pour essayer l'écran ici, tuiler un plan dans <code>tuiles-demo/facade</code> (voir{" "}
-                  <code>docs/facade.md</code>).
-                </small>
+                Ce PDF a {pending.info.pageCount} pages. Laquelle est la façade ?
               </p>
-            ) : !folder ? (
-              <p>Créer un projet ou ouvrir un projet existant, puis importer le plan de la façade.</p>
-            ) : (
               <p>
-                Importer le plan de la façade : PDF d'architecte, image (PNG, JPEG, TIFF), SVG ou DXF.
-                <br />
-                <small>Un DWG est à exporter d'abord en PDF ou en DXF.</small>
+                <select
+                  value={pending.page}
+                  onChange={(event) => setPending({ ...pending, page: Number(event.target.value) })}
+                >
+                  {Array.from({ length: pending.info.pageCount ?? 1 }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      Page {i + 1}
+                    </option>
+                  ))}
+                </select>{" "}
+                <button type="button" onClick={() => void importPlan(pending.path, pending.page)}>
+                  Importer cette page
+                </button>{" "}
+                <button type="button" onClick={() => setPending(null)}>
+                  Annuler
+                </button>
               </p>
-            )}
-          </div>
-        )}
-        {busy && <p className="facade-message">{busy}</p>}
-        {pending && (
-          <div className="facade-message facade-pages">
-            <p>
-              Ce PDF a {pending.info.pageCount} pages. Laquelle est la façade ?
-            </p>
-            <p>
-              <select
-                value={pending.page}
-                onChange={(event) => setPending({ ...pending, page: Number(event.target.value) })}
-              >
-                {Array.from({ length: pending.info.pageCount ?? 1 }, (_, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    Page {i + 1}
-                  </option>
-                ))}
-              </select>{" "}
-              <button type="button" onClick={() => void importPlan(pending.path, pending.page)}>
-                Importer cette page
-              </button>{" "}
-              <button type="button" onClick={() => setPending(null)}>
-                Annuler
-              </button>
-            </p>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
+        <OverviewPanel
+          overview={overview}
+          display={display}
+          onDisplay={setDisplay}
+          onReload={engine && folder ? () => void loadOverview(folder) : null}
+          busy={overviewBusy}
+        />
       </div>
 
       <footer className="facade-foot">

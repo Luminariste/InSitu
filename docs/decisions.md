@@ -4,6 +4,52 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 3.3
+
+Vue façade : module `crates/insitu-core/src/overview/`, commande
+`insitu overview`, panneau « Projecteurs » de l'écran Façade
+(`src/facade/OverviewPanel.tsx`, `src/facade/overview.ts`), deux nouveaux
+calques de la visionneuse (`src/viewer/overlays.ts`), mode d'emploi
+`docs/vue-facade.md`.
+
+**D-3.3-a. La vue façade est intégrée à l'écran Façade, pas un onglet de
+plus.** Le plan, les emprises et les photos partagent la même visionneuse ;
+un panneau à droite liste les projecteurs. Raison : c'est la vue sur
+laquelle on composera la fresque (4.2) ; un onglet séparé dédoublerait le
+plan. Ce que cela interdit : rien ; l'écran de composition pourra reprendre
+le panneau tel quel.
+
+**D-3.3-b. Les photos redressées sont montrées par un aperçu de 1 024 px
+tendu sur un maillage de 16 × 16 cases.** Le moteur envoie chaque nœud d'une
+grille régulière de la diapositive sur la façade (la même transformation que
+l'emprise, relief compris) ; l'interface y tend l'aperçu (JPEG, qualité 85).
+Raison : dix photos pleine résolution (5 512 px) ne tiennent pas en mémoire
+graphique pour une vue d'ensemble, et 1 024 px suffisent à juger d'un
+recalage à l'échelle de la façade. Une maille de 16 cases (17,5 mm de
+diapositive) suit les déformations du recalage sans écart visible ; la
+pleine résolution viendra, si besoin, par les tuiles de la visionneuse.
+
+**D-3.3-c. Les aperçus vont dans le cache de l'app (`apercus/<clé>.jpg`),
+pas dans le projet.** La clé tient compte du chemin, de la taille et de la
+date du fichier : un nouveau redressement refait l'aperçu. Raison : comme
+les tuiles (D-1.5), ils se refont à la demande et n'ont pas à voyager par
+Dropbox.
+
+**D-3.3-d. Les recouvrements sont calculés sur une grille de 400 cases,
+puis détourés.** Chaque emprise est remplie ligne par ligne sur une grille
+dont le grand côté (boîte commune aux deux emprises) a 400 cases ; les cases
+communes sont détourées par le traceur de contours de la vectorisation
+(5.1). Raison : une emprise n'est pas forcément convexe (relief), et un
+calcul exact d'intersection de polygones quelconques est beaucoup plus
+fragile. Précision : 1/400 du recouvrement, soit environ 1 cm sur 4 m, assez
+pour juger d'un chevauchement. La surface affichée est celle de la grille.
+
+**D-3.3-e. Photos en mode « écran », emprises et recouvrements à trait
+constant.** Les photos s'éclaircissent l'une l'autre au lieu de se cacher
+(leur fond noir devient transparent, comme D-4.1-b) ; une photo masquée
+reste chargée pour revenir sans délai. Le trait des emprises garde la même
+épaisseur à l'écran à tous les zooms.
+
 ## 2026-11-12 — Tâche 4.1
 
 Bibliothèque de dessins : module `crates/insitu-core/src/library/`, commande
