@@ -289,20 +289,27 @@ pub fn render_level_tile(
 }
 
 fn is_gray(rgba: &[u8]) -> bool {
-    rgba.chunks_exact(4).all(|p| p[0] == p[1] && p[1] == p[2])
+    rgba.as_chunks::<4>()
+        .0
+        .iter()
+        .all(|p| p[0] == p[1] && p[1] == p[2])
 }
 
 fn to_channels(rgba: &[u8], channels: u8) -> Vec<u8> {
     match channels {
         1 => rgba
-            .chunks_exact(4)
+            .as_chunks::<4>()
+            .0
+            .iter()
             .map(|p| {
                 ((u32::from(p[0]) * 54 + u32::from(p[1]) * 183 + u32::from(p[2]) * 19 + 128) >> 8)
                     as u8
             })
             .collect(),
         _ => rgba
-            .chunks_exact(4)
+            .as_chunks::<4>()
+            .0
+            .iter()
             .flat_map(|p| [p[0], p[1], p[2]])
             .collect(),
     }
