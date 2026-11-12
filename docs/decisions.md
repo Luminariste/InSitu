@@ -58,6 +58,48 @@ dessins posés s'ajoutent à ceux de la façade, dans des calques repris par
 leur nom. ⌘Z annule l'import en deux pas : les dessins posés, puis
 l'ajout à la bibliothèque (deux enregistrements du projet).
 
+## 2026-11-12 — Mise à jour automatique (hors plan, demande de Benjamin)
+
+**D16. L'app se met à jour toute seule, avec l'accord de l'utilisateur.**
+Demande de Benjamin : ne plus réinstaller le `.dmg` à chaque version. Revient
+sur la fin de D12 (« pas de mise à jour automatique ») avec son accord. Au
+lancement, l'app cherche une version plus récente ; si elle en trouve une, un
+dialogue propose « Installer et relancer » ou « Plus tard » (la question
+revient au lancement suivant). Une recherche ratée (pas de réseau) ne dit
+rien. Code : `src-tauri/src/updates.rs`, `src/update/`.
+
+**D16-a. Module de mise à jour de Tauri (`tauri-plugin-updater`), appelé
+depuis la coque.** Deux commandes (`update_check`, `update_install`) passent
+par `src/engine.ts` comme le reste ; l'interface n'utilise pas le module
+JavaScript du greffon. Après installation, la coque relance l'app.
+
+**D16-b. Les mises à jour sont signées par une clé à nous.** Indépendante de
+la signature Apple (toujours « ad hoc », D12). Clé publique dans
+`tauri.conf.json`, clé privée dans le secret GitHub
+`TAURI_SIGNING_PRIVATE_KEY` (sans mot de passe), nulle part ailleurs. L'app
+refuse une archive qui n'est pas signée par cette clé. La fabrication
+contrôle, avant de publier, que la signature vient bien de la clé attendue
+(`.github/scripts/mise_a_jour.py`). Si la clé privée était perdue : en créer
+une autre, et réinstaller une fois l'app à la main.
+
+**D16-c. Le dépôt devient public.** Choix de Benjamin (12 novembre 2026),
+plutôt qu'une clé GitHub en lecture seule gravée dans l'app : les Releases
+d'un dépôt privé ne se téléchargent pas sans identification. Le code et le
+jeu d'essai (images d'Épinal comprises) deviennent visibles de tous ; en
+échange, plus de jeton à renouveler, et les minutes GitHub Actions d'un dépôt
+public sont gratuites. Tant que le dépôt reste privé, la recherche de mise à
+jour échoue sans bruit.
+
+**D16-d. Le manifeste est joint à chaque version.** La fabrication écrit
+`latest.json` (version, signature, adresse de l'archive) et le joint à la
+version avec l'archive `InSitu-X.Y.Z-mac.app.tar.gz`. L'app le lit à
+l'adresse fixe `…/releases/latest/download/latest.json`, qui suit toujours la
+dernière version publiée. Sans le secret de signature, la fabrication publie
+comme avant, sans archive ni manifeste.
+
+**D16-e. La première version qui sait se mettre à jour s'installe à la
+main.** Les versions déjà installées n'ont pas ce module.
+
 ## 2026-11-12 — Jeu d'essai Trévarez (hors plan, demande de Benjamin)
 
 Deuxième projet réel, `jeu-essai/trevarez`, tests dans
@@ -832,6 +874,33 @@ ordre, groupe ; chaque icône a sa bulle d'aide (avec son raccourci) et se
 grise quand elle ne s'applique pas à la sélection. L'inspecteur garde les
 mesures (centre, largeur, rotation, calque, diapositive). Pour la place,
 « Assembler des photos… » et « Tout voir » passent aussi en icônes.
+
+**D15-k. Le plan de façade tourne par quarts de tour, et ce qui est posé
+tourne avec lui.** Demande de Benjamin : « import plan : ajouter fonction de
+rotation ». `facade.rotation` (0 à 3 quarts de tour, sens des aiguilles
+d'une montre) dit comment afficher le fichier ; le repère de la façade (et
+donc les mm) est celui du plan tourné, si bien que tout le reste du moteur
+(export, simulation, recalage) n'a rien à savoir. Choix :
+- *Quarts de tour seulement.* Ils sont exacts : une image est tournée pixel
+  pour pixel, un plan vectoriel est rendu tel quel puis ses tuiles tournées,
+  sans perte de netteté. Un angle libre demanderait de rééchantillonner une
+  photo (perte de netteté), d'agrandir le cadre (coins vides) et de tourner
+  chaque moteur de rendu vectoriel : écarté tant qu'aucun cas réel ne le
+  demande. Pour une photo d'ensemble penchée, la piste serait plutôt
+  « redresser par deux points de l'horizontale ».
+- *Ce qui est posé suit le plan.* La mise à l'échelle est gardée (ses deux
+  points tournent) ; dessins posés (centre, rotation + 90°), cadres de
+  déformation et points de recalage côté façade tournent autour du coin
+  haut-gauche du plan, pour rester au même endroit du dessin
+  d'architecte. Les retouches par diapositive (en mm de diapositive) ne
+  bougent pas. Sans mise à l'échelle, rien n'est en mm et seul le plan
+  tourne.
+- *Une fresque importée bloque la rotation* (message clair) : c'est une
+  image dans un cadre droit, qui ne sait pas tourner.
+- Pyramides : une autre clé de cache par orientation (les plans déjà
+  affichés gardent la leur). Un assemblage de photos recalculé sur un plan
+  tourné repart sans échelle (l'image assemblée n'est pas tournée).
+- Commande : `insitu facade rotate <projet> <quarts>`.
 
 **D15-h. Retirer un dessin ou le plan n'efface aucun fichier.** Comme
 pour un projecteur (D15-f), l'élément sort de `projet.json` et son fichier
@@ -1888,7 +1957,8 @@ une dépendance du moteur (elle n'était utilisée que par ses tests).
 puce Apple ne se lance pas. Avec cette signature locale, elle se lance mais
 macOS la bloque au premier lancement après téléchargement ; la marche à
 suivre est dans `docs/installer.md`. Pas de notarisation, pas de mise à jour
-automatique.
+automatique (mise à jour automatique ajoutée depuis, avec l'accord de
+Benjamin : D16).
 
 **D11. Le numéro de version n'est écrit qu'à un endroit.**
 `Cargo.toml` à la racine, rubrique `[workspace.package]`. `tauri.conf.json`

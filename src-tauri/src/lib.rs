@@ -3,6 +3,7 @@
 //! renvoie le résultat à l'interface.
 
 mod menu;
+mod updates;
 
 use std::path::{Path, PathBuf};
 
@@ -94,6 +95,12 @@ fn facade_import(folder: String, path: String, page: Option<u32>) -> Result<Proj
 #[tauri::command(async)]
 fn facade_remove(folder: String) -> Result<Project, String> {
     facade::remove_facade(&project_dir(&folder)?).map_err(|e| e.to_string())
+}
+
+/// Tourne le plan de la façade de quarts de tour (D15-k).
+#[tauri::command(async)]
+fn facade_rotate(folder: String, quarter_turns: i32) -> Result<Project, String> {
+    facade::rotate_facade(&project_dir(&folder)?, quarter_turns).map_err(|e| e.to_string())
 }
 
 /// Met la façade du projet à l'échelle par deux points et une cote.
@@ -627,6 +634,8 @@ fn serve_tile<R: Runtime>(
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updates::PendingUpdate::default())
         .register_asynchronous_uri_scheme_protocol(TILE_SCHEME, serve_tile)
         .setup(|app| {
             if let Ok(cache) = app.path().app_cache_dir() {
@@ -638,6 +647,8 @@ pub fn run() {
         .on_menu_event(menu::on_event)
         .invoke_handler(tauri::generate_handler![
             engine_info,
+            updates::update_check,
+            updates::update_install,
             open_tiled_image,
             test_set_dir,
             project_create,
@@ -645,6 +656,7 @@ pub fn run() {
             facade_inspect,
             facade_import,
             facade_remove,
+            facade_rotate,
             facade_set_scale,
             facade_display,
             projector_add,

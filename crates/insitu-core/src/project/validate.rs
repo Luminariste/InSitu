@@ -395,6 +395,7 @@ mod tests {
             }),
             page: None,
             origin: None,
+            rotation: 0,
             extra: ExtraFields::new(),
         });
         let first = project.add_projector("A").id.clone();

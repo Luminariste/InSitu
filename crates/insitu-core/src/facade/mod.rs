@@ -37,7 +37,7 @@ use crate::project::ProjectError;
 use crate::tiles::TileError;
 
 pub use display::{open_for_display, open_project_facade, read_or_render, FacadeDisplay};
-pub use import::{import_facade, remove_facade, set_scale};
+pub use import::{import_facade, remove_facade, rotate_facade, set_scale};
 
 /// Côté, en pixels, du niveau le plus fin d'un plan vectoriel. Sur un plan
 /// A0 en PDF, c'est 19 pixels par point, soit environ 1 400 dpi sur le
@@ -132,6 +132,8 @@ pub enum FacadeError {
     NoFacade,
     /// Mise à l'échelle impossible ; la raison complète la phrase.
     BadScale(&'static str),
+    /// Le plan ne peut pas tourner ; la raison complète la phrase.
+    CannotRotate(&'static str),
 }
 
 impl fmt::Display for FacadeError {
@@ -160,6 +162,7 @@ impl fmt::Display for FacadeError {
             Self::Tiles(error) => write!(f, "Préparation de l'affichage impossible : {error}"),
             Self::NoFacade => f.write_str("Le projet n'a pas encore de façade : importer d'abord un plan."),
             Self::BadScale(reason) => write!(f, "Mise à l'échelle impossible : {reason}."),
+            Self::CannotRotate(reason) => write!(f, "Le plan ne peut pas tourner : {reason}."),
         }
     }
 }
