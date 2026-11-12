@@ -52,6 +52,8 @@ mire.**
 Ce fichier (et ses deux réduits) montre une frise de seize fleurs, sans
 grille. La vraie mire est la page 2 de `mire/mire-280.ai`. L'étude s'appuie
 sur cette page. Le jeu d'essai est à corriger dans une tâche à part.
+Corrigé le 12 novembre 2026 : la référence `mire/mire-280-page2.png` est
+fabriquée à partir de cette page ; les deux PNG fautifs sont retirés.
 
 ## 2026-11-11 — Tâche 1.5
 

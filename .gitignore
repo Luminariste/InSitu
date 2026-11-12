@@ -8,3 +8,5 @@ __pycache__/
 
 # Tuiles fabriquées à la main pour la démonstration de la visionneuse
 tuiles-demo/
+# Copies de travail des agents lancés en parallèle
+.claude/worktrees/

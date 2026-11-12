@@ -759,49 +759,28 @@
       "role": "target",
       "projecteur": null,
       "original": {
-        "chemin": "Mires/InSitu-MireProjections280x280.png",
-        "octets": 3520043,
-        "sha256": "c3ddf1f9fc9e65b2050af102f958aef9a4c407c1bb693e3530f5d6d25fe23102",
-        "largeur": 26458,
-        "hauteur": 26458
+        "chemin": "Mires/InSitu-MireProjections280x280.ai, page 2, rendue à 600 dpi en niveaux de gris",
+        "octets": 361850,
+        "sha256": "83027c9c6a1ca03491d020992d8d2686447d089205480fe13af9f76cc898548b",
+        "largeur": 6615,
+        "hauteur": 6615
       },
-      "note": "Mire actuelle, 280 mm à 2 400 dpi.",
+      "note": "La mire actuelle : grille de 10 mm, croix, cercle rouge. Image fabriquée à partir de la page 2 du fichier Illustrator (les fichiers PNG du dossier Mires du Dropbox ne contiennent pas la mire mais une frise de fleurs).",
       "reference": {
-        "chemin": "references/mire/mire-280.png",
-        "octets": 3520043,
-        "sha256": "c3ddf1f9fc9e65b2050af102f958aef9a4c407c1bb693e3530f5d6d25fe23102",
-        "largeur": 26458,
-        "hauteur": 26458,
+        "chemin": "references/mire/mire-280-page2.png",
+        "octets": 361850,
+        "sha256": "83027c9c6a1ca03491d020992d8d2686447d089205480fe13af9f76cc898548b",
+        "largeur": 6615,
+        "hauteur": 6615,
         "fidelite": "identique"
       },
       "reduit": {
-        "chemin": "reduits/mire/mire-280.png",
-        "octets": 56112,
-        "sha256": "db65c39f76bc5ede240779beed13316d61a1f9b933778f80a339e193f35a19a6",
+        "chemin": "reduits/mire/mire-280-page2.png",
+        "octets": 64024,
+        "sha256": "6198bc781130817c5d60b5cbe78341ebc087d1de713ddb6003bda26578b13caf",
         "largeur": 1654,
         "hauteur": 1654,
-        "echelle": 16
-      }
-    },
-    {
-      "id": "mire-variante",
-      "role": "target",
-      "projecteur": null,
-      "original": {
-        "chemin": "Mires/InSitu-MireProjections280x280dpi.png",
-        "octets": 2821093,
-        "sha256": "0aab2895e4ed158a70b1b34606cc40d515ad89577e90a6cb72556de0cafaf6ac",
-        "largeur": 26458,
-        "hauteur": 26458
-      },
-      "note": "Variante de la mire actuelle.",
-      "reduit": {
-        "chemin": "reduits/mire/mire-280-dpi.png",
-        "octets": 53824,
-        "sha256": "d9c7693d1d217555f0d66d64788f4058aac5267d1de08fe45f6dc8620b35c828",
-        "largeur": 1654,
-        "hauteur": 1654,
-        "echelle": 16
+        "echelle": 4
       }
     },
     {
@@ -813,7 +792,7 @@
         "octets": 1215334,
         "sha256": "e9c64bcab85ec827bc8c0584161fb962807b351e4c9a1e501069dfd3f2de057c"
       },
-      "note": "Source Illustrator de la mire.",
+      "note": "Source Illustrator de la mire actuelle. Page 1 : la mire sur une feuille A3 ; page 2 : la mire seule, carré de 280 mm.",
       "reference": {
         "chemin": "references/mire/mire-280.ai",
         "octets": 1215334,

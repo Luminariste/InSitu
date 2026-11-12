@@ -76,6 +76,7 @@ src/engine.ts         Seul fichier de l'interface qui appelle le moteur.
 src/viewer/           Visionneuse haute résolution (PixiJS), base des vues façade et diapositive.
 docs/                 Plan, décisions, notice d'installation, publication d'une version.
 jeu-essai/            Fichiers réels pour les tests (voir jeu-essai/LISEZMOI.md).
+etudes/               Scripts des études (hors moteur) ; rapports dans docs/etudes/.
 ```
 
 Le jeu d'essai contient des références pleine résolution et des versions

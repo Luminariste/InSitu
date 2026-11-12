@@ -288,21 +288,11 @@
       "id": "mire",
       "role": "target",
       "projecteur": null,
-      "fichier": "mire/mire-280.png",
-      "nomDorigine": "Mires/InSitu-MireProjections280x280.png",
-      "note": "Mire actuelle, 280 mm à 2 400 dpi.",
+      "fichier": "mire/mire-280-page2.png",
+      "nomDorigine": "Mires/InSitu-MireProjections280x280.ai, page 2, rendue à 600 dpi en niveaux de gris",
+      "note": "La mire actuelle : grille de 10 mm, croix, cercle rouge. Image fabriquée à partir de la page 2 du fichier Illustrator (les fichiers PNG du dossier Mires du Dropbox ne contiennent pas la mire mais une frise de fleurs).",
       "reference": "identique",
-      "reduction": 16
-    },
-    {
-      "id": "mire-variante",
-      "role": "target",
-      "projecteur": null,
-      "fichier": "mire/mire-280-dpi.png",
-      "nomDorigine": "Mires/InSitu-MireProjections280x280dpi.png",
-      "note": "Variante de la mire actuelle.",
-      "reference": null,
-      "reduction": 16
+      "reduction": 4
     },
     {
       "id": "mire-ai",
@@ -310,7 +300,7 @@
       "projecteur": null,
       "fichier": "mire/mire-280.ai",
       "nomDorigine": "Mires/InSitu-MireProjections280x280.ai",
-      "note": "Source Illustrator de la mire.",
+      "note": "Source Illustrator de la mire actuelle. Page 1 : la mire sur une feuille A3 ; page 2 : la mire seule, carré de 280 mm.",
       "reference": "identique",
       "reduction": null
     },
