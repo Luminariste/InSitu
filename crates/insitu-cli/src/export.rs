@@ -29,6 +29,8 @@ projet, et ceux utilisés y sont enregistrés.
   --no-margin       Image de 280 mm seule (par défaut)
   --one-bit         Noir et blanc pur (PNG 1 bit)       (--gray : niveaux de gris)
   --threshold N     Seuil du noir et blanc, de 1 à 255 (128 par défaut)
+  --svg             Un SVG en mm à côté de chaque PNG : les courbes des
+                    dessins posés (--no-svg)
   --only NOM        Ce projecteur seulement (répétable)
 
 Compte rendu en JSON ; l'avancement s'écrit sur la sortie d'erreur."#;
@@ -87,6 +89,8 @@ pub fn export(args: &[&str]) -> Result<String, (bool, String)> {
                     "--no-margin" => settings.margin = false,
                     "--one-bit" => settings.one_bit = true,
                     "--gray" => settings.one_bit = false,
+                    "--svg" => settings.svg = true,
+                    "--no-svg" => settings.svg = false,
                     "--dpi" | "--threshold" | "--only" => {
                         let value = rest.next().ok_or_else(|| usage("Valeur manquante."))?;
                         match option {

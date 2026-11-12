@@ -38,5 +38,7 @@ describe("export des diapositives", () => {
     expect(exportSummary(report, "/Users/b/Gravure")).toBe(
       "2 diapositives écrites dans « Gravure » en 24 s. Non exporté (recalage incomplet) : C.",
     );
+    const withSvg = { ...report, slides: report.slides.map((s) => ({ ...s, svg: s.path.replace(".png", ".svg") })) };
+    expect(exportSummary(withSvg, "/Users/b/Gravure")).toMatch(/^2 diapositives écrites \(PNG et SVG\) dans/);
   });
 });

@@ -12,6 +12,7 @@ export const DEFAULT_EXPORT: ExportSettings = {
   margin: false,
   oneBit: false,
   threshold: 128,
+  svg: false,
 };
 
 const SLIDE_MM = 280;
@@ -50,7 +51,8 @@ export function fileName(path: string): string {
 /** Ce qu'on dit après un export. */
 export function exportSummary(report: ExportReport, destination: string): string {
   const n = report.slides.length;
-  const written = `${n} diapositive${n > 1 ? "s" : ""} écrite${n > 1 ? "s" : ""} dans « ${fileName(destination)} »`;
+  const formats = report.slides.some((s) => s.svg) ? " (PNG et SVG)" : "";
+  const written = `${n} diapositive${n > 1 ? "s" : ""} écrite${n > 1 ? "s" : ""}${formats} dans « ${fileName(destination)} »`;
   const seconds = report.slides.reduce((sum, s) => sum + s.seconds, 0);
   const time = ` en ${seconds.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} s`;
   if (report.skipped.length === 0) return `${written}${time}.`;

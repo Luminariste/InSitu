@@ -4,6 +4,47 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 5.3 : export SVG
+
+Module `crates/insitu-core/src/export/svg.rs`.
+
+**D-5.3-a. Le SVG est écrit à côté du PNG, sur option.** Réglage d'export
+`svg` (case « SVG en plus », `insitu export --svg`), désactivé par défaut :
+le PNG reste la voie sûre (risque « SVG trop lourd » du plan). Même nom que
+le PNG, extension `.svg`.
+
+**D-5.3-b. Transport des courbes par morceaux, à 0,002 mm près.** La chaîne
+est celle du PNG prise à l'envers : position dans le dessin → façade
+(placement et déformation) → diapositive (inverse du recalage) → retouche de
+diapositive → miroir. Chaque droite est transportée par ses extrémités ;
+chaque cubique aussi, ses points de contrôle suivant la dérivée de la chaîne
+(différences finies). Le morceau est comparé à trois points du morceau
+d'origine transportés un à un ; au-delà de 0,002 mm, il est coupé en deux.
+Les courbes restent des courbes (moins de quatre morceaux par morceau
+d'origine dans le test). Les dessins sont vectorisés au moment de l'export,
+avec leurs réglages de la Bibliothèque, depuis le même fichier qu'en
+bibliothèque (un SVG rendu à 4 096 px, D-5.2-d).
+
+**D-5.3-c. Silhouettes : différence de polygones (`i_overlay`).** Un dessin
+dont une silhouette de devant touche le rectangle est aplati (0,002 mm) et
+découpé par la réunion de ces silhouettes ; ses contours deviennent des
+segments, remplis « pair-impair ». Les autres gardent leurs courbes,
+remplies « non nul ». `i_overlay` (licence MIT, Rust pur, quatre petites
+dépendances) est le moteur des opérations booléennes de `geo`.
+
+**D-5.3-d. Contenu : courbes remplies de noir, sans fond, en mm.**
+`width`/`height` en mm et `viewBox` de 280 (ou 300 avec la plaque, image
+décalée de 10 mm). Un chemin par dessin posé. Pas de fresque (elle n'est
+qu'une image), pas de nom ni de repères (ils ne sont que dans le PNG). Le
+négatif et le noir et blanc pur ne concernent que le PNG. Couleur et réglages
+de gravure à confirmer par l'essai LightBurn (5.4).
+
+**D-5.3-e. Mesure du critère.** Le test pose un dessin tourné et déformé à
+1 400 dpi, calcule la partie utile du PNG, ramène les courbes du SVG en
+pixels de diapositive et applique la mesure indépendante de la tâche 5.1
+(écart entre courbes et bord du trait seuillé). L'écart doit rester sous
+0,02 mm, avec et sans miroir.
+
 ## 2026-11-12 — Tâche 4.7 : silhouettes et superposition
 
 Module `crates/insitu-core/src/library/silhouette.rs` ; écran

@@ -22,6 +22,7 @@
 pub mod drawings;
 pub mod marks;
 pub mod preview;
+pub mod svg;
 #[cfg(test)]
 mod tests;
 
@@ -374,6 +375,8 @@ pub struct ExportedSlide {
     /// Côté du PNG, en mm, à la résolution inscrite.
     pub size_mm: f64,
     pub bytes: u64,
+    /// Le SVG écrit à côté (tâche 5.3), si demandé.
+    pub svg: Option<PathBuf>,
     pub seconds: f64,
 }
 
@@ -532,6 +535,22 @@ pub fn export_slides(
         let bytes = encode_png(&rendered, settings)?;
         let path = destination.join(slide_file_name(&project.name, label));
         write_atomic(&path, &bytes).map_err(|e| ExportError::Destination(e.to_string()))?;
+        let svg = if settings.svg {
+            cache.load_vectors(dir, &project, &seen, threads)?;
+            let place = svg::SvgPlacing {
+                warp,
+                mirror: settings.mirror,
+                projector: Some(id),
+            };
+            let paths = svg::slide_paths(&cache.vector_drawings(&seen), &place, threads);
+            let document = svg::write_svg(&paths, settings.margin, &text);
+            let svg_path = path.with_extension("svg");
+            write_atomic(&svg_path, document.as_bytes())
+                .map_err(|e| ExportError::Destination(e.to_string()))?;
+            Some(svg_path)
+        } else {
+            None
+        };
         slides.push(ExportedSlide {
             projector_id: id.clone(),
             label: label.clone(),
@@ -539,6 +558,7 @@ pub fn export_slides(
             size_px: rendered.width,
             size_mm: f64::from(rendered.width) * units::px_size_mm(settings.dpi),
             bytes: bytes.len() as u64,
+            svg,
             seconds: start.elapsed().as_secs_f64(),
         });
         progress(ExportProgress {

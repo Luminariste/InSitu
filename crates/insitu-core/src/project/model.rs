@@ -919,6 +919,10 @@ pub struct ExportSettings {
     /// Seuil du noir et blanc, de 1 à 255 : un pixel au moins aussi clair
     /// devient blanc.
     pub threshold: u8,
+    /// Un SVG en millimètres à côté de chaque PNG : les courbes des dessins
+    /// posés (tâche 5.3). La fresque importée en une image n'y est pas.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub svg: bool,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }
@@ -932,6 +936,7 @@ impl Default for ExportSettings {
             margin: units::DEFAULT_EXPORT_MARGIN,
             one_bit: false,
             threshold: units::DEFAULT_EXPORT_THRESHOLD,
+            svg: false,
             extra: ExtraFields::new(),
         }
     }
