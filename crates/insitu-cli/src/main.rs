@@ -14,13 +14,16 @@
 //! - `insitu target pdf <fichier.pdf> [--page a3|carre]` : écrit la mire
 //!   imprimable ; `insitu target info` la décrit en JSON (repères, grille) ;
 //! - `insitu tiles <image> <dossier>` : pyramide de tuiles d'une image, pour
-//!   la visionneuse (descripteur en JSON, durée sur la sortie d'erreur).
+//!   la visionneuse (descripteur en JSON, durée sur la sortie d'erreur) ;
+//! - `insitu warp <image> <sortie.png> <paires.json>` : déforme une image
+//!   vers une diapositive de 280 mm (format : `insitu warp --help`).
 //!
 //! Code de sortie : 0 si tout va bien, 1 en cas d'échec ou de projet
 //! invalide, 2 si la commande est mal écrite.
 
 mod geometry;
 mod target;
+mod warp;
 
 use std::path::Path;
 use std::process::ExitCode;
@@ -84,6 +87,14 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             Err(target::Problem::Failed(message)) => Err(Failure::Failed(message)),
         },
         ["tiles", rest @ ..] => run_tiles(rest),
+        ["warp", rest @ ..] => match warp::run(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(warp::Problem::Usage(message)) => Err(Failure::Usage(message)),
+            Err(warp::Problem::Failed(message)) => Err(Failure::Failed(message)),
+        },
         [] | ["--help"] | ["-h"] => {
             println!("{}", usage());
             Ok(ExitCode::SUCCESS)
@@ -257,5 +268,7 @@ fn usage() -> &'static str {
      tiles <image> <dossier>                       Fabrique la pyramide de tuiles d'une image\n      \
      --tile-size N                               côté des tuiles en pixels (512 par défaut)\n      \
      --format png|jpeg                           format imposé (sinon choisi d'après l'image)\n      \
-     --quality Q                                 qualité JPEG de 1 à 100 (88 par défaut)"
+     --quality Q                                 qualité JPEG de 1 à 100 (88 par défaut)\n  \
+     warp <image> <sortie.png> <paires.json>       Déforme une image vers une diapositive de 280 mm\n  \
+     warp --help                                   Décrit le fichier de paires et les options"
 }

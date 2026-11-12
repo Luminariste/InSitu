@@ -14,6 +14,7 @@
 
 pub mod geometry;
 pub mod project;
+pub mod resample;
 pub mod target;
 pub mod tiles;
 pub mod units;

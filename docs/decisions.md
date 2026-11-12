@@ -4,6 +4,67 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 3.4
+
+Moteur de déformation : `crates/insitu-core/src/resample/`, commande
+`insitu warp`.
+
+**D-3.4-a. Une déformation d'image part d'une correspondance quelconque
+« pixel de sortie → pixel source », évaluée sur un treillis.**
+`warp_raster` ne connaît ni la façade ni les millimètres : l'appelant lui
+donne une fonction (par exemple pixels de diapositive → mm de diapositive →
+mm de façade → pixels de la fresque, pour la tâche 3.5). Elle n'est évaluée
+exactement qu'un pixel sur 8 dans chaque sens ; position et dérivée sont
+interpolées entre ces nœuds. Écart mesuré sur une diapositive de 15 433 px
+(trapèze marqué et ondulation de 2 mm) : 0,014 px au plus, soit 0,25 µm. Les
+nœuds ne sortent jamais de l'image de sortie : au-delà, une grille de
+déformation change d'allure et fausserait les derniers pixels.
+
+**D-3.4-b. Filtre : cubique de Catmull-Rom, étiré là où l'image est réduite.**
+Sans réduction, c'est une interpolation bicubique : une transformation
+identité ou une translation entière recopie la source au niveau près. Là où
+la transformation réduit l'image, le noyau est étiré selon la direction et
+la force de la réduction (calculées à partir de la dérivée locale), pour
+couvrir tout ce que le pixel voit ; au-delà d'une réduction de 2, on lit une
+version de la source réduite par moitiés (calculée seulement si besoin).
+L'étirement est plafonné à 4 : sous un trapèze extrême, la direction la
+moins réduite est un peu plus floue que nécessaire. Mesures des tests : le
+centre d'un trait tourné de 3° s'écarte d'une droite de 0,03 px (0,28 px
+sans filtre) ; des hachures d'un pixel réduites de 3,3 donnent un gris
+uniforme (écart type 0 au lieu de 127). Limite connue : agrandi 3,8 fois, un
+trait d'un pixel reçoit 8 % de lumière en plus au pied de ses flancs, et son
+épaisseur au seuil de 50 % dépasse l'idéal d'un quart de pixel de sortie
+(5 µm). Les niveaux de la pyramide ne sont pas mélangés : une couture très
+légère est possible là où la réduction franchit 2, 4, 8.
+
+**D-3.4-c. Le calcul porte sur les valeurs enregistrées, pas sur la
+lumière.**
+Contrairement aux vues d'ensemble de la visionneuse (D-1.5-e), la
+déformation moyenne les valeurs telles quelles. Raison : la gravure
+applique un seuil (LightBurn en mode seuil) ; moyenner en lumière
+rendrait le bord d'un trait blanc plus clair qu'il n'est, donc le trait plus
+épais une fois seuillé. Conséquence à surveiller pour l'export (3.5) : un
+trait plus fin qu'un pixel de sortie (18 µm à 1 400 dpi) devient gris et
+peut disparaître au seuil.
+
+**D-3.4-d. Calcul en parallèle par bandes de 256 lignes, sans dépendance.**
+Les fils de la bibliothèque standard se partagent les bandes ; pas de
+`rayon`. Le temps ne dépend pas du contenu (un fond noir coûte autant qu'un
+dessin). Hors de la source, la sortie vaut 0 (noir : rien n'est gravé).
+
+**D-3.4-e. Le critère des 30 s est vérifié par un test en compilation
+optimisée.**
+`cargo test --release --test deformation` déforme le vrai Verre A
+(15 433 px) ; la tâche « Moteur » des vérifications GitHub le lance. En
+compilation de mise au point (`cargo test`), ce test est ignoré, car il y
+serait dix fois plus lent sans rien dire de l'app. Mesuré en session cloud :
+9,3 s sur 4 cœurs, lecture du fichier non comprise.
+
+**D-3.4-f. `insitu warp` : paires diapositive (mm) → image (pixels).**
+Même format de fichier que `insitu geometry fit`. La déformation est
+échantillonnée sur une grille de 2,5 mm (D-2.3-b). Le PNG est écrit sans
+réglage (ni marge, ni miroir, ni négatif, ni résolution inscrite) : l'export
+des diapositives est l'objet de la tâche 3.5.
 ## 2026-11-12 — Mesure de fluidité de la visionneuse
 
 **D-1.5-k. Pendant un geste, la scène redessine à chaque rafraîchissement de
