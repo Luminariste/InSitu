@@ -163,3 +163,74 @@ fn layers_order_the_stack_and_are_checked() {
     let error = set_composition(&dir, layers, vec![lost]).unwrap_err();
     assert!(error.to_string().contains("aucun calque"), "{error}");
 }
+
+#[test]
+fn drawing_point_undoes_facade_point() {
+    let mut p = Placement {
+        id: "p".into(),
+        drawing: "merle".into(),
+        center: PointMm::new(1_000.0, 500.0),
+        width: 200.0,
+        height: 100.0,
+        rotation: 37.0,
+        mirrored: true,
+        group: None,
+        layer: None,
+        extra: Default::default(),
+    };
+    for mirrored in [false, true] {
+        p.mirrored = mirrored;
+        for (u, v) in [(0.0, 0.0), (1.0, 0.0), (0.25, 0.75), (1.3, -0.2)] {
+            let (a, b) = p.drawing_point(p.facade_point(u, v));
+            assert!(
+                (a - u).abs() < 1e-12 && (b - v).abs() < 1e-12,
+                "{u},{v} → {a},{b}"
+            );
+        }
+    }
+}
+
+#[test]
+fn hidden_layers_are_not_exported() {
+    let placed = |id: &str, layer: Option<&str>| Placement {
+        id: id.into(),
+        drawing: "merle".into(),
+        center: PointMm::new(0.0, 0.0),
+        width: 10.0,
+        height: 10.0,
+        rotation: 0.0,
+        mirrored: false,
+        group: None,
+        layer: layer.map(str::to_string),
+        extra: Default::default(),
+    };
+    let layer = |id: &str, visible: bool| Layer {
+        id: id.into(),
+        name: id.into(),
+        visible,
+        locked: false,
+        extra: Default::default(),
+    };
+    let mut project = Project::new("Essai");
+    project.placements = vec![
+        placed("a", Some("devant")),
+        placed("b", None),
+        placed("c", Some("fond")),
+    ];
+    let ids = |p: &Project| {
+        p.visible_placements()
+            .iter()
+            .map(|p| p.id.clone())
+            .collect::<Vec<_>>()
+    };
+    // Sans calque : tout, dans l'ordre de la liste.
+    assert_eq!(ids(&project), ["a", "b", "c"]);
+    project.layers = vec![layer("fond", true), layer("devant", true)];
+    assert_eq!(ids(&project), ["b", "c", "a"]);
+    // Le premier calque masqué emporte les dessins sans calque.
+    project.layers[0].visible = false;
+    assert_eq!(ids(&project), ["a"]);
+    project.layers[0].visible = true;
+    project.layers[1].visible = false;
+    assert_eq!(ids(&project), ["b", "c"]);
+}

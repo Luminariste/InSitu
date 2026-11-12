@@ -85,8 +85,8 @@ d'écraser ce changement.
 ## Ce qui n'est pas encore là
 
 - **Déformation** (quatre coins, grille) : tâche 4.4.
-- **Export** : les diapositives sont encore calculées depuis la fresque en une
-  image (étape 3.5) ; les dessins posés ici n'y sont pas encore.
+- **Export** : fait. Les dessins posés partent dans les diapositives et dans
+  la vue Diapositive, sauf ceux des calques masqués (`docs/export.md`).
 - Les dessins sont affichés par leur aperçu de 1 024 px : flous de très près.
 
 ## Sans écran

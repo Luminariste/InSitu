@@ -10,10 +10,16 @@
 //! Chaîne d'un pixel de sortie : pixel de la diapositive → mm de
 //! diapositive (miroir éventuel) → mm de façade → pixel de la fresque.
 //!
+//! Les dessins posés sur la façade (tâche 4.2), sauf ceux des calques
+//! masqués, s'ajoutent à la fresque par la même chaîne, depuis leur fichier
+//! d'origine (voir [`drawings`]). Un projet peut n'avoir que des dessins
+//! posés, sans fresque.
+//!
 //! Options (réglages d'export du projet) : résolution, miroir, négatif,
 //! plaque entière avec nom et repères dans la marge, ou image de 280 mm
 //! seule ; niveaux de gris ou noir et blanc pur (1 bit) seuillé.
 
+pub mod drawings;
 pub mod marks;
 pub mod preview;
 #[cfg(test)]
@@ -29,7 +35,9 @@ use crate::geometry::{Point, PointWarp, Transform};
 use crate::library::flatten_on_black;
 use crate::project::model::RectMm;
 use crate::project::store::write_atomic;
-use crate::project::{AssetKind, ExportSettings, FrescoImage, Project, ProjectDir, ProjectError};
+use crate::project::{
+    AssetKind, ExportSettings, FrescoImage, Placement, Project, ProjectDir, ProjectError,
+};
 use crate::registration::slide_to_facade;
 use crate::resample::{warp_raster, WarpOptions};
 use crate::tiles::{self, Raster};
@@ -44,7 +52,7 @@ pub enum ExportError {
     Project(ProjectError),
     /// La façade n'est pas importée ou pas mise à l'échelle.
     NoFacadeScale,
-    /// Aucune fresque n'est importée.
+    /// Ni fresque importée, ni dessin posé (visible) sur la façade.
     NoFresco,
     /// Le fichier de la fresque est illisible.
     Image(String),
@@ -65,8 +73,10 @@ impl fmt::Display for ExportError {
             Self::NoFacadeScale => f.write_str(
                 "la façade doit être importée et mise à l'échelle avant d'importer la fresque",
             ),
-            Self::NoFresco => f.write_str("aucune fresque n'est importée dans ce projet"),
-            Self::Image(m) => write!(f, "image de la fresque illisible : {m}"),
+            Self::NoFresco => {
+                f.write_str("ce projet n'a ni fresque importée ni dessin posé sur la façade")
+            }
+            Self::Image(m) => write!(f, "image illisible : {m}"),
             Self::UnknownProjector(p) => write!(f, "aucun projecteur « {p} » dans ce projet"),
             Self::BadSettings(m) => write!(f, "réglage d'export invalide : {m}"),
             Self::Destination(m) => write!(f, "dossier d'export inutilisable : {m}"),
@@ -148,7 +158,7 @@ pub fn read_fresco(path: &Path) -> Result<Raster, ExportError> {
     Ok(to_gray(flatten_on_black(raster)))
 }
 
-fn to_gray(raster: Raster) -> Raster {
+pub(crate) fn to_gray(raster: Raster) -> Raster {
     if raster.channels == 1 {
         return raster;
     }
@@ -191,6 +201,14 @@ pub fn sizes_px(dpi: f64) -> (u32, u32) {
     )
 }
 
+/// Ce qui est vu par un projecteur : la fresque en une image (avec son
+/// rectangle sur la façade), et les dessins posés avec leur image.
+#[derive(Default)]
+pub struct Artwork<'a> {
+    pub fresco: Option<(&'a Raster, &'a RectMm)>,
+    pub drawings: Vec<(&'a Placement, &'a Raster)>,
+}
+
 /// Calcule l'image d'une diapositive, en niveaux de gris : la fresque vue
 /// par le projecteur dont `warp` est le recalage (mm de diapositive → mm de
 /// façade), puis le miroir, la marge avec ses repères et `caption`, et le
@@ -204,26 +222,48 @@ pub fn render_slide(
     settings: &ExportSettings,
     threads: usize,
 ) -> Result<Raster, ExportError> {
+    let art = Artwork {
+        fresco: Some((fresco, frame)),
+        drawings: Vec::new(),
+    };
+    render_artwork(&art, warp, caption, settings, threads)
+}
+
+/// Comme [`render_slide`], avec la fresque (s'il y en a une) et les dessins
+/// posés.
+pub fn render_artwork(
+    art: &Artwork,
+    warp: &PointWarp,
+    caption: &str,
+    settings: &ExportSettings,
+    threads: usize,
+) -> Result<Raster, ExportError> {
     let px_mm = check_settings(settings)?;
-    assert_eq!(fresco.channels, 1, "fresque en niveaux de gris");
     let (side, margin) = sizes_px(settings.dpi);
-    let to_fresco_x = f64::from(fresco.width) / frame.width;
-    let to_fresco_y = f64::from(fresco.height) / frame.height;
     let mirror = settings.mirror;
-    let map = |p: Point| {
-        let x = if mirror { f64::from(side) - p.x } else { p.x };
-        let facade = warp.apply(Point::new(x * px_mm, p.y * px_mm))?;
-        Some(Point::new(
-            (facade.x - frame.x) * to_fresco_x,
-            (facade.y - frame.y) * to_fresco_y,
-        ))
+    let mut slide = match art.fresco {
+        Some((fresco, frame)) => {
+            assert_eq!(fresco.channels, 1, "fresque en niveaux de gris");
+            let to_fresco_x = f64::from(fresco.width) / frame.width;
+            let to_fresco_y = f64::from(fresco.height) / frame.height;
+            let map = |p: Point| {
+                let x = if mirror { f64::from(side) - p.x } else { p.x };
+                let facade = warp.apply(Point::new(x * px_mm, p.y * px_mm))?;
+                Some(Point::new(
+                    (facade.x - frame.x) * to_fresco_x,
+                    (facade.y - frame.y) * to_fresco_y,
+                ))
+            };
+            let options = WarpOptions {
+                threads,
+                ..WarpOptions::default()
+            };
+            warp_raster(fresco, side, side, map, &options)
+                .map_err(|e| ExportError::BadSettings(e.to_string()))?
+        }
+        None => Raster::new(side, side, 1, vec![0; side as usize * side as usize]),
     };
-    let options = WarpOptions {
-        threads,
-        ..WarpOptions::default()
-    };
-    let slide = warp_raster(fresco, side, side, map, &options)
-        .map_err(|e| ExportError::BadSettings(e.to_string()))?;
+    drawings::draw(&mut slide, &art.drawings, warp, px_mm, mirror, threads)?;
     let mut image = if settings.margin {
         let n = side + 2 * margin;
         let mut plate = Raster::new(n, n, 1, vec![0; n as usize * n as usize]);
@@ -392,7 +432,10 @@ pub fn export_slides(
 ) -> Result<ExportReport, ExportError> {
     check_settings(settings)?;
     let mut project = dir.load()?.project;
-    let fresco = project.fresco.clone().ok_or(ExportError::NoFresco)?;
+    let fresco = project.fresco.clone();
+    if fresco.is_none() && project.visible_placements().is_empty() {
+        return Err(ExportError::NoFresco);
+    }
     if let Some(keys) = only {
         for key in keys {
             if !project
@@ -440,12 +483,30 @@ pub fn export_slides(
         total,
         current: Some(todo[0].1.clone()),
     });
-    let image = read_fresco(&dir.resolve(&fresco.source))?;
+    let image = match &fresco {
+        Some(f) => Some(read_fresco(&dir.resolve(&f.source))?),
+        None => None,
+    };
+    let px_mm = units::px_size_mm(settings.dpi);
+    let (side, _) = sizes_px(settings.dpi);
+    let placements = project.visible_placements();
+    let mut cache = drawings::DrawingCache::default();
     let mut slides = Vec::new();
     for (k, (id, label, warp)) in todo.iter().enumerate() {
         let start = Instant::now();
         let text = caption(&project.name, label, settings);
-        let rendered = render_slide(&image, &fresco.frame, warp, &text, settings, threads)?;
+        // Seuls les dessins qui tombent dans la diapositive sont lus.
+        let seen: Vec<&Placement> = placements
+            .iter()
+            .copied()
+            .filter(|p| drawings::slide_rect(p, warp, px_mm, side, settings.mirror).is_some())
+            .collect();
+        cache.load(dir, &project, &seen, px_mm)?;
+        let art = Artwork {
+            fresco: image.as_ref().zip(fresco.as_ref().map(|f| &f.frame)),
+            drawings: cache.pair(&seen),
+        };
+        let rendered = render_artwork(&art, warp, &text, settings, threads)?;
         let bytes = encode_png(&rendered, settings)?;
         let path = destination.join(slide_file_name(&project.name, label));
         write_atomic(&path, &bytes).map_err(|e| ExportError::Destination(e.to_string()))?;

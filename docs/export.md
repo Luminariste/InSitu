@@ -34,7 +34,19 @@ la façade. Un PNG par projecteur, prêt pour LightBurn.
    projecteur : `<projet>-<diapositive>.png`. Un projecteur pas encore
    recalé est signalé, pas exporté. Les réglages sont gardés dans le projet.
 
-Compter une quinzaine de secondes par diapositive à 1 400 dpi.
+Compter une quinzaine de secondes par diapositive à 1 400 dpi, un peu plus
+avec beaucoup de dessins posés.
+
+## Les dessins posés dans l'app
+
+Les dessins posés sur la façade (étape Façade, `docs/composition.md`)
+partent aussi dans les diapositives, chacun depuis son fichier d'origine en
+pleine résolution, avec sa taille, sa rotation et sa symétrie. Les dessins
+d'un calque masqué ne partent pas. Un projet peut n'avoir que des dessins
+posés, sans fresque. Là où un dessin croise la fresque ou un autre dessin,
+le plus clair l'emporte : un trait n'en efface jamais un autre (le masquage
+par silhouette viendra avec la tâche 4.7). La vue Diapositive (⌘4) les
+montre de la même façon.
 
 ## Dans LightBurn
 
@@ -55,6 +67,9 @@ insitu export Mon-projet.insitu Gravure/ --dpi 1000 --no-margin
 - Vérifié par les tests : le vrai Verre-A, posé sur une façade puis
   réexporté à 1 400 dpi, ressort à la même place à 2 µm près, avec tous ses
   traits ; le PNG annonce 280 mm (300 mm avec la marge) ; repères et nom
-  restent dans la marge.
+  restent dans la marge. Un dessin posé sort à l'identique de la même image
+  importée en fresque sur le même rectangle (à 2 niveaux de gris près),
+  miroir compris ; un dessin d'un calque masqué ne sort pas ; un dessin hors
+  de la diapositive n'est pas lu.
 - **Pas vérifié** : l'ouverture dans LightBurn elle-même, et une gravure
   réelle. Pas encore essayé sur une vraie fresque composée sur la façade.

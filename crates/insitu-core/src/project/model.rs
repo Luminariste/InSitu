@@ -705,6 +705,24 @@ impl Project {
         out.sort_by_key(|p| rank(p));
         out
     }
+
+    /// Les dessins posés à exporter : dans l'ordre d'affichage, sans ceux
+    /// des calques masqués (un dessin sans calque, ou sur un calque inconnu,
+    /// suit le premier calque).
+    pub fn visible_placements(&self) -> Vec<&Placement> {
+        let shown = |p: &Placement| {
+            let layer = p
+                .layer
+                .as_deref()
+                .and_then(|id| self.layers.iter().find(|l| l.id == id))
+                .or(self.layers.first());
+            layer.is_none_or(|l| l.visible)
+        };
+        self.stacked_placements()
+            .into_iter()
+            .filter(|p| shown(p))
+            .collect()
+    }
 }
 
 impl Placement {
@@ -722,6 +740,20 @@ impl Placement {
             self.center.x + x * cos - y * sin,
             self.center.y + x * sin + y * cos,
         )
+    }
+
+    /// Inverse de [`Self::facade_point`] : la position (`u`, `v`) dans le
+    /// dessin, en fractions de sa largeur et de sa hauteur, du point `p` de
+    /// la façade. Hors du dessin, `u` ou `v` sort de [0, 1].
+    pub fn drawing_point(&self, p: PointMm) -> (f64, f64) {
+        let (dx, dy) = (p.x - self.center.x, p.y - self.center.y);
+        let (sin, cos) = self.rotation.to_radians().sin_cos();
+        let mut x = dx * cos + dy * sin;
+        let y = -dx * sin + dy * cos;
+        if self.mirrored {
+            x = -x;
+        }
+        (x / self.width + 0.5, y / self.height + 0.5)
     }
 
     /// Les quatre coins du fichier sur la façade : haut-gauche, haut-droit,
