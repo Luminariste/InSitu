@@ -99,6 +99,15 @@
   cursor: crosshair;
 }
 
+/* Au-dessus d'un point : on peut le saisir ; pendant le glisser : saisi. */
+.registration-grab .viewer-canvas {
+  cursor: grab;
+}
+
+.registration-dragging .viewer-canvas {
+  cursor: grabbing;
+}
+
 .registration-message {
   position: absolute;
   inset: 40% 10% auto;

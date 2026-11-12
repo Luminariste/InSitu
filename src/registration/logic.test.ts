@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { RegistrationReport } from "../engine";
-import { NO_PENDING, click, formatFacadeCm, formatSlideMm, hint, onSlide, pairStatus, removePair, summary } from "./logic";
+import {
+  NO_PENDING,
+  SLIDE_MM,
+  click,
+  formatFacadeCm,
+  formatSlideMm,
+  hint,
+  movePoint,
+  onSlide,
+  pairStatus,
+  removePair,
+  summary,
+} from "./logic";
 
 const p = (x: number, y: number) => ({ x, y });
 
@@ -102,5 +114,23 @@ describe("textes", () => {
     expect(hint({ slide: p(1, 1), facade: null }, null)).toMatch(/sur la façade/);
     expect(hint({ slide: null, facade: p(1, 1) }, null)).toMatch(/sur la photo/);
     expect(hint(NO_PENDING, 2)).toMatch(/^Point 3/);
+  });
+});
+
+describe("glisser un point", () => {
+  const pairs = [
+    { slide: { x: 10, y: 10 }, facade: { x: 100, y: 100 } },
+    { slide: { x: 20, y: 20 }, facade: { x: 200, y: 200 } },
+  ];
+
+  it("déplace le seul point voulu, du seul côté voulu", () => {
+    const moved = movePoint(pairs, 1, "facade", { x: 250, y: 260 });
+    expect(moved[1]).toEqual({ slide: { x: 20, y: 20 }, facade: { x: 250, y: 260 } });
+    expect(moved[0]).toBe(pairs[0]);
+    expect(pairs[1].facade).toEqual({ x: 200, y: 200 });
+  });
+
+  it("garde un point de diapositive dans le carré", () => {
+    expect(movePoint(pairs, 0, "slide", { x: -5, y: 300 })[0].slide).toEqual({ x: 0, y: SLIDE_MM });
   });
 });

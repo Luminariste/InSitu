@@ -50,6 +50,18 @@ export function click(
   return { pairs, pending: placed, changed: false };
 }
 
+/** Déplace le point d'une paire, d'un côté ; sur la diapositive, il reste dans le carré. */
+export function movePoint(pairs: RegistrationPair[], index: number, side: Side, at: XYPoint): RegistrationPair[] {
+  const point =
+    side === "slide"
+      ? { x: Math.min(Math.max(at.x, 0), SLIDE_MM), y: Math.min(Math.max(at.y, 0), SLIDE_MM) }
+      : { x: at.x, y: at.y };
+  return pairs.map((pair, i) => (i === index ? { ...pair, [side]: point } : pair));
+}
+
+/** Rayon, en pixels d'écran, dans lequel on saisit un point pour le glisser. */
+export const GRAB_RADIUS_PX = 14;
+
 export function removePair(pairs: RegistrationPair[], index: number): RegistrationPair[] {
   return pairs.filter((_, i) => i !== index);
 }
@@ -103,7 +115,8 @@ export function summary(report: RegistrationReport | null, count: number): strin
 
 /** Consigne selon ce qui reste à poser. */
 export function hint(pending: Pending, selected: number | null): string | null {
-  if (selected !== null) return `Point ${selected + 1} : cliquer sur la photo ou sur la façade pour le déplacer.`;
+  if (selected !== null)
+    return `Point ${selected + 1} : le glisser, ou cliquer sur la photo ou sur la façade pour l'y amener.`;
   if (pending.slide && !pending.facade) return "Cliquer maintenant le même point sur la façade.";
   if (pending.facade && !pending.slide) return "Cliquer maintenant le même point sur la photo.";
   return null;
