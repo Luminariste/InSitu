@@ -11,7 +11,7 @@
    ou DXF. Pour un PDF de plusieurs pages, l'app demande laquelle est la
    façade. Le fichier est copié dans le dossier `facade/` du projet. Un DWG
    est à exporter d'abord en PDF ou en DXF.
-3. Dans l'inspecteur **Plan**, à droite, rubrique **Échelle** : **Poser A
+3. Dans le panneau de droite, onglet **Plan**, rubrique **Mise en plan** : **Poser A
    et B**, puis cliquer deux points du plan dont on connaît la
    distance réelle (deux repères d'une ligne de cote, deux angles du
    bâtiment). Zoomer avant de cliquer donne un point plus juste : le plan
@@ -20,7 +20,7 @@
    défaut) et **Valider l'échelle**. La barre d'état affiche alors les dimensions de
    la façade en mètres ; les coordonnées de la barre d'état sont en mm réels.
 
-5. **Retirer le plan…** (inspecteur Plan) : après confirmation, le plan et
+5. **Retirer le plan…** (onglet **Plan**, à droite) : après confirmation, le plan et
    sa mise à l'échelle sortent du projet ; le fichier reste dans `facade/`.
    Dessins posés, points de recalage et fresque sont gardés en mm : ils
    retrouvent leur place sur le plan suivant une fois mis à l'échelle. Pour

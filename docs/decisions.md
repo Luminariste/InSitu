@@ -702,6 +702,28 @@ et ne connaît pas l'état des écrans ; une seule liste d'actions, celle des
 raccourcis. Limite : une entrée ne se grise pas quand son action est
 indisponible ; la choisir ne fait alors rien.
 
+**D15-i. L'inspecteur de la Façade est un panneau en onglets.** Demande de
+Benjamin (12 novembre au soir) : un panneau de propriétés contextuel, par
+onglets. Après son premier retour, quatre onglets : Plan (fichier, mise en
+plan c'est-à-dire l'échelle, fresque, retrait), Dessins (dessins à poser,
+mesures des dessins choisis), Calques (rangement des dessins posés ;
+l'arborescence par diapositive y vient), Export (simulation, export des
+diapositives, fiche de calepinage). Le panneau de gauche ne garde que les
+projecteurs et l'affichage. Tous les onglets restent montés, cachés : ⌘E
+exporte quel que soit l'onglet affiché. L'onglet change seul sur un
+évènement (dessins choisis : Dessins ; pose de A et B : Plan ; plan
+disparu : Plan), jamais en continu ; le dernier choisi est retenu
+(`localStorage`, une commodité, pas une donnée du projet).
+
+**D15-j. Les outils des dessins sont des icônes dans la barre d'outils.**
+Demande de Benjamin : « les outils (déformation, etc.) sur la barre
+horizontale en haut, sous forme d'icônes ». `CompositionToolbar` : tourner,
+symétries, déformer (quatre coins, grille, redresser), aligner, répartir,
+ordre, groupe ; chaque icône a sa bulle d'aide (avec son raccourci) et se
+grise quand elle ne s'applique pas à la sélection. L'inspecteur garde les
+mesures (centre, largeur, rotation, calque, diapositive). Pour la place,
+« Assembler des photos… » et « Tout voir » passent aussi en icônes.
+
 **D15-h. Retirer un dessin ou le plan n'efface aucun fichier.** Comme
 pour un projecteur (D15-f), l'élément sort de `projet.json` et son fichier
 reste dans `bibliotheque/` ou `facade/` ; un nouvel import du même fichier

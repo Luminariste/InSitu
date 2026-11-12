@@ -44,7 +44,8 @@ tableau à jour.
 | 6.6 Assemblage automatique (demande de Benjamin après essai de la 6.4) | Version 0.1.30, **non validée** : essai sur Mac à faire par Benjamin avec ses vraies photos (`docs/assemblage.md`) ; prouvé par test : trois photos raccordées sans aucun clic, coins à moins de 1 px de leur place (photos simulées), et deux vraies photos d'Épinal raccordées (écart moyen 0,65 px) ; décisions D-6.6-a à e |
 | Renommer / supprimer un projecteur, barre de menus du Mac (hors plan, demande de Benjamin) | Fusionné (version 0.1.18), **non validé** : essai sur Mac ; décisions D15-f et D15-g |
 | Retirer un dessin de la bibliothèque, retirer le plan de la façade (hors plan, demande de Benjamin) | Version 0.1.19, **non validé** : essai sur Mac ; décision D15-h |
-| Fresque en .ai, PDF ou SVG (hors plan, demande de Benjamin) | Version 0.1.31, **non validée** : import d'un vrai `.ai` dans l'app et gravure à essayer par Benjamin (`docs/export.md`) ; prouvé par test : bords nets et à leur place dans la diapositive, rendu à la résolution de la diapositive ; lu sans erreur sur « Epinal Coupe.ai » et la composition de Trévarez ; décisions D-3.5-h à k |
+| Panneau de droite de la Façade en onglets, outils des dessins en icônes dans la barre du haut (hors plan, demande de Benjamin) | Version 0.1.31, **non validé** : essai sur Mac ; décisions D15-i et D15-j |
+| Fresque en .ai, PDF ou SVG (hors plan, demande de Benjamin) | Version 0.1.32, **non validée** : import d'un vrai `.ai` dans l'app et gravure à essayer par Benjamin (`docs/export.md`) ; prouvé par test : bords nets et à leur place dans la diapositive, rendu à la résolution de la diapositive ; lu sans erreur sur « Epinal Coupe.ai » et la composition de Trévarez ; décisions D-3.5-h à k |
 | Toutes les autres | À faire |
 
 **Ce qui bloque la validation de la tâche 1.5.** Dans la version 0.1.1,
