@@ -77,6 +77,9 @@ jobs:
       # Critère de la tâche 3.4 : une diapositive de 15 433 px en moins de
       # 30 s. Mesure de temps, donc en compilation optimisée (D-3.4-e).
       - run: cargo test --release -p insitu-core --test deformation -- --nocapture
+      # Critère de la tâche 4.1 : 200 dessins de 4 096 px importés et
+      # parcourus sans attente (mesure de temps, même raison).
+      - run: cargo test --release -p insitu-core --test bibliotheque -- --nocapture
 
   interface:
     name: Interface (types, tests et construction)

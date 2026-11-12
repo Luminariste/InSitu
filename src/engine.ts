@@ -417,3 +417,78 @@ export async function saveRegistration(
   });
   return { project, report };
 }
+
+// --- Bibliothèque de dessins (tâche 4.1) ---------------------------------------
+
+/** Un dessin de la bibliothèque, tel que le moteur le décrit. */
+export interface LibraryEntry {
+  id: string;
+  name: string;
+  /** Dossier dans la bibliothèque (`Oiseaux/Grands`), ou vide. */
+  folder: string;
+  /** Fichier, relatif au dossier projet (`bibliotheque/Oiseaux/merle.png`). */
+  source: string;
+  /** Taille du fichier : pixels (pixels CSS pour un SVG). */
+  width: number;
+  height: number;
+  /** Vignette dans le cache, à passer à `cacheFileUrl`. */
+  thumbnail: string | null;
+  /** Ce qui empêche de montrer le dessin (fichier absent, illisible). */
+  problem: string | null;
+}
+
+export interface ImportProgress {
+  done: number;
+  total: number;
+}
+
+export interface ImportReport {
+  /** Dossier qui a reçu les dessins, par exemple `bibliotheque/Oiseaux`. */
+  folder: string;
+  /** Identifiants des dessins ajoutés. */
+  added: string[];
+  alreadyPresent: number;
+  failures: { file: string; reason: string }[];
+}
+
+/** Adresse d'un fichier du cache de l'app (vignette, aperçu). */
+export function cacheFileUrl(request: string): string {
+  return `${TILE_SCHEME_ROOT}/${request}`;
+}
+
+/** Importe un dossier de dessins ; `onProgress` suit l'avancement. */
+export async function importDrawingFolder(
+  folder: string,
+  source: string,
+  onProgress: (progress: ImportProgress) => void,
+): Promise<{ project: Project; report: ImportReport }> {
+  requireEngine();
+  const { listen } = await import("@tauri-apps/api/event");
+  const stop = await listen<ImportProgress>("bibliotheque-progression", (event) => onProgress(event.payload));
+  try {
+    const [project, report] = await invoke<[Project, ImportReport]>("library_import", { folder, source });
+    return { project, report };
+  } finally {
+    stop();
+  }
+}
+
+/** La bibliothèque du projet ; les vignettes manquantes sont refaites. */
+export async function fetchLibrary(folder: string): Promise<LibraryEntry[]> {
+  requireEngine();
+  return invoke<LibraryEntry[]>("library_list", { folder });
+}
+
+/** Adresse de l'aperçu (1 024 px, fond transparent) d'un dessin. */
+export async function fetchDrawingPreview(folder: string, drawing: string): Promise<string> {
+  requireEngine();
+  return cacheFileUrl(await invoke<string>("library_preview", { folder, drawing }));
+}
+
+/** Demande un dossier de dessins à importer ; `null` si l'utilisateur renonce. */
+export async function chooseDrawingFolder(): Promise<string | null> {
+  requireEngine();
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const chosen = await open({ directory: true, multiple: false, title: "Importer un dossier de dessins" });
+  return typeof chosen === "string" ? chosen : null;
+}

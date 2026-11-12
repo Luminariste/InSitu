@@ -32,8 +32,9 @@ pub use lock::{
 };
 pub use migrate::CURRENT_FORMAT_VERSION;
 pub use model::{
-    ExportSettings, ExtraFields, Facade, FacadeScale, FrescoImage, PointMm, Project, Projector,
-    RectMm, Rectification, RectificationMethod, RectificationPoint, RegistrationPair, SourcePoint,
+    Drawing, ExportSettings, ExtraFields, Facade, FacadeScale, FrescoImage, PointMm, Project,
+    Projector, RectMm, Rectification, RectificationMethod, RectificationPoint, RegistrationPair,
+    SourcePoint,
 };
 pub use path::RelativePath;
 pub use store::{AssetKind, LoadedProject, ProjectDir, PROJECT_EXTENSION, PROJECT_FILE};

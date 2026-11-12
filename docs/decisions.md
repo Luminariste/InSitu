@@ -4,6 +4,71 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 4.1
+
+Bibliothèque de dessins : module `crates/insitu-core/src/library/`, commande
+`insitu library`, écran `src/library/`, mode d'emploi `docs/bibliotheque.md`,
+critère prouvé par `crates/insitu-core/tests/bibliotheque.rs`.
+
+**D-4.1-a. « Liens relatifs » : les dessins sont copiés dans le projet.**
+Le plan parle de liens relatifs ; D-1.4-b interdit de citer un fichier resté
+hors du dossier projet. Les deux se concilient ainsi : un dossier importé est
+copié sous `bibliotheque/<nom du dossier>/`, sous-dossiers compris, et chaque
+dessin est inscrit dans `projet.json` (champ `library`) par son chemin
+relatif. Le projet s'ouvre donc tel quel sur l'autre Mac. Un dessin déjà
+importé à l'identique n'est pas recopié ; un fichier modifié depuis arrive à
+côté, avec un suffixe (`merle-2.png`). Rien n'est encore retiré de la
+bibliothèque (pas de bouton : à prévoir avec les placements, 4.2, pour ne pas
+retirer un dessin posé sur la façade).
+
+**D-4.1-b. Fond noir rendu transparent, à l'affichage seulement.**
+Chaque pixel devient la couleur qui, posée sur du noir, redonne le pixel
+d'origine : l'opacité est la plus forte des trois composantes, la couleur est
+divisée par elle. Un trait blanc reste blanc et opaque, un gris devient un
+blanc à demi transparent, le noir disparaît. Affiché sur du noir, le dessin
+est donc identique au fichier ; sur la façade, seul le trait se voit. Un
+fichier qui a déjà de la transparence est d'abord posé sur du noir. Le
+fichier n'est jamais modifié. Limite : un dessin noir sur fond blanc
+deviendrait un aplat blanc ; ce n'est pas l'usage de Luminariste.
+
+**D-4.1-c. Formats : PNG, JPEG, TIFF, BMP, PSD aplati, SVG ; PSD lu par le
+moteur lui-même.**
+Le BMP est lu par la bibliothèque `image` (fonction ajoutée). Pour le PSD,
+la bibliothèque Rust essayée (`zune-psd` 0.5) lisait mal les fichiers non
+compressés et les 16 bits : le moteur lit lui-même l'image aplatie que
+Photoshop enregistre toujours à la fin du fichier (`library/psd.rs`, une
+centaine de lignes, testée en 8 et 16 bits, bitmap, compressée ou non). Les
+calques ne sont pas lus. Refusés avec un message : CMJN, couleurs indexées,
+32 bits, image aplatie compressée en ZIP (rare). Si Photoshop a enregistré
+le fichier sans « compatibilité maximale », l'image aplatie peut manquer :
+non vérifié sur un vrai fichier de Marc. Un SVG est rendu depuis ses
+vecteurs à la taille de la vignette ; sa taille est en pixels CSS. Le JPEG,
+hors liste du plan, est admis parce qu'il ne coûte rien.
+
+**D-4.1-d. Vignettes (320 px) et aperçus (1 024 px) dans le cache de l'app.**
+Une image est réduite de moitié en moitié, avec la moyenne en lumière des
+pyramides (un trait fin reste visible), jusqu'à tenir dans le côté voulu :
+256 px pour un dessin de 4 096 px. Elles sont rangées dans le cache de l'app
+(`vignettes/`, servies par le schéma `tuiles://`), pas dans le projet : rien
+de calculé ne passe par Dropbox. Clé : chemin, taille et date du fichier.
+L'import les fabrique au passage ; à la première ouverture sur l'autre Mac,
+la liste les refait avant de répondre (quelques secondes pour 200 dessins).
+L'aperçu est fait à la première demande. La pleine résolution servira aux
+placements (4.2).
+
+**D-4.1-e. Import en parallèle, 8 dessins à la fois au plus.**
+Un dessin est lu une seule fois : contrôle, dimensions et vignette. Un
+fichier illisible est signalé et n'est pas copié ; les autres continuent.
+Plafond de 8 fils parce qu'un dessin de 4 096 px en couleur occupe 64 Mo une
+fois lu. Mesure (session cloud, 4 cœurs) : 200 dessins de 4 096 px importés
+en 2,7 s, puis relus avec leurs vignettes en 1 ms. Les fichiers cachés
+(`.DS_Store`) sont ignorés ; un « : » dans un nom devient « - ».
+
+**D-4.1-f. Recherche et dossiers : dans l'interface.**
+Filtrer une liste déjà chargée n'est pas un calcul du moteur : la recherche
+(chaque mot dans le nom ou le dossier, sans tenir compte des accents ni des
+majuscules) et l'arbre des dossiers sont dans `src/library/logic.ts`, testés.
+
 ## 2026-11-12 — Tâche 5.1
 
 Moteur de vectorisation : `crates/insitu-core/src/vectorize/`, commande

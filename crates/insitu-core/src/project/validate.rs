@@ -359,12 +359,12 @@ mod tests {
         let (dir, _) =
             ProjectDir::create(temp.path().join("Essai.insitu"), None).expect("création");
         let text = fs::read_to_string(dir.project_file()).expect("lecture");
-        let text = text.replacen('{', "{\n  \"library\": [],", 1);
+        let text = text.replacen('{', "{\n  \"placements\": [],", 1);
         fs::write(dir.project_file(), text).expect("écriture");
         let report = validate(&dir);
         assert!(report.is_valid());
         let warnings: Vec<&Issue> = report.warnings().collect();
         assert_eq!(warnings.len(), 1);
-        assert_eq!(warnings[0].location, "library");
+        assert_eq!(warnings[0].location, "placements");
     }
 }
