@@ -65,6 +65,9 @@ function eventKey(event: KeyInput): string {
   // Avec ⌥, la touche produit un autre caractère : on lit sa position.
   if (event.code?.startsWith("Key")) return event.code.slice(3).toLowerCase();
   if (event.code?.startsWith("Digit")) return event.code.slice(5);
+  // Crochets : la touche, pas le caractère (⇧ ou un clavier AZERTY le changent).
+  if (event.code === "BracketLeft") return "[";
+  if (event.code === "BracketRight") return "]";
   if (event.key === " ") return "space";
   return event.key.toLowerCase();
 }
@@ -120,6 +123,26 @@ export const APP_SHORTCUTS: { group: string; items: { keys: ShortcutSpec; label:
     items: [
       { keys: "mod+0", label: "Tout voir" },
       { keys: "mod+/", label: "Raccourcis clavier" },
+    ],
+  },
+  {
+    group: "Dessins posés (Façade)",
+    items: [
+      { keys: "mod+a", label: "Choisir tous les dessins posés" },
+      { keys: "mod+shift+a", label: "Ne rien choisir" },
+      { keys: "mod+c", label: "Copier" },
+      { keys: "mod+x", label: "Couper" },
+      { keys: "mod+v", label: "Coller au centre de la vue" },
+      { keys: "mod+f", label: "Coller devant, à la même place" },
+      { keys: "mod+b", label: "Coller derrière, à la même place" },
+      { keys: "mod+d", label: "Répéter le dernier geste (dupliquer)" },
+      { keys: "mod+g", label: "Grouper" },
+      { keys: "mod+shift+g", label: "Dégrouper" },
+      { keys: "mod+]", label: "Avancer d'un cran" },
+      { keys: "mod+[", label: "Reculer d'un cran" },
+      { keys: "mod+shift+]", label: "Mettre au premier plan" },
+      { keys: "mod+shift+[", label: "Mettre à l'arrière-plan" },
+      { keys: "shift+arrowright", label: "Déplacer de 100 mm (flèches seules : 10 mm)" },
     ],
   },
   {

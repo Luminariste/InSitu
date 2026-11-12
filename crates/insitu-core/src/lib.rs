@@ -19,6 +19,7 @@ pub mod geometry;
 pub mod library;
 pub mod overview;
 pub mod photo;
+pub mod placement;
 pub mod project;
 pub mod rectification;
 pub mod registration;

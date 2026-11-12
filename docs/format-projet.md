@@ -214,6 +214,7 @@ exactement ce que l'app écrit.
 | `fresco` | La fresque importée en une image, ou `null` |
 | `export` | Les réglages d'export |
 | `library` | La bibliothèque de dessins ; absent tant qu'elle est vide (tâche 4.1) |
+| `placements` | Les dessins posés sur la façade, du plus au fond au plus en avant ; absent tant qu'il n'y en a pas (tâche 4.2) |
 | `facadeAssembly` | L'assemblage de photos de façade ; absent tant qu'aucune photo n'est ajoutée (tâche 6.4) |
 
 ### `facade` — la façade
@@ -292,6 +293,22 @@ projet : l'app les range dans son cache et les refait au besoin.
 L'image assemblée devient la `facade` du projet. Les pixels sont ceux du
 fichier, sans tenir compte de la rotation EXIF (comme pour `facade`).
 Absent d'un fichier plus ancien : aucun changement de `formatVersion`.
+
+### `placements[]` — un dessin posé sur la façade
+
+| Champ | Sens |
+| --- | --- |
+| `id` | Identifiant stable du placement |
+| `drawing` | Identifiant du dessin dans `library` |
+| `center` | Centre du dessin sur la façade, en mm réels : `x`, `y` |
+| `width`, `height` | Taille du dessin posé, en mm réels, avant rotation |
+| `rotation` | Rotation en degrés, sens des aiguilles d'une montre ; 0 si absent |
+| `mirrored` | Retourné de gauche à droite (avant la rotation) ; absent si non |
+| `group` | Groupe : les dessins de même groupe se manipulent ensemble ; absent si seul |
+
+Une symétrie de haut en bas s'écrit `mirrored` plus 180° de rotation. Le
+contrôle refuse un placement dont le dessin n'est pas dans la bibliothèque,
+de taille nulle, ou d'identifiant déjà pris.
 
 ### `export` — les réglages d'export
 

@@ -36,6 +36,13 @@ describe("raccourcis", () => {
     expect(matchesShortcut("backspace", key("Delete"))).toBe(true);
   });
 
+  it("lisent les crochets par la touche, quel que soit le caractère (⇧, clavier français)", () => {
+    const front = { key: "}", code: "BracketRight", metaKey: true, ctrlKey: false, shiftKey: true, altKey: false };
+    expect(matchesShortcut("mod+shift+]", front)).toBe(true);
+    expect(matchesShortcut("mod+]", front)).toBe(false);
+    expect(matchesShortcut("mod+[", { ...front, key: "^", code: "BracketLeft", shiftKey: false })).toBe(true);
+  });
+
   it("ne volent pas la frappe d'un champ de texte", () => {
     expect(isTextEntry({ tagName: "INPUT", type: "text" })).toBe(true);
     expect(isTextEntry({ tagName: "INPUT", type: "search" })).toBe(true);

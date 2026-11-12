@@ -13,6 +13,8 @@
 //!   présence des fichiers référencés ;
 //! - `insitu library import|list|thumbnail …` : bibliothèque de dessins
 //!   d'un projet (détail : `insitu library --help`) ;
+//! - `insitu place list|add|remove|set …` : dessins posés sur la façade
+//!   (détail : `insitu place --help`) ;
 //! - `insitu fresco <dossier.insitu> <image>` : importe la fresque en une
 //!   image et la pose sur la façade (détail : `insitu fresco --help`) ;
 //! - `insitu export <dossier.insitu> <dossier>` : une diapositive PNG par
@@ -51,6 +53,7 @@ mod facade;
 mod geometry;
 mod library;
 mod overview;
+mod place;
 mod projector;
 mod rectify;
 mod registration;
@@ -126,6 +129,14 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             }
             Err(library::Problem::Usage(message)) => Err(Failure::Usage(message)),
             Err(library::Problem::Failed(message)) => Err(Failure::Failed(message)),
+        },
+        ["place", rest @ ..] => match place::run(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(place::Problem::Usage(message)) => Err(Failure::Usage(message)),
+            Err(place::Problem::Failed(message)) => Err(Failure::Failed(message)),
         },
         ["fresco", rest @ ..] => match export::fresco(rest) {
             Ok(text) => {
@@ -386,6 +397,7 @@ fn usage() -> &'static str {
      facade --help                                 Import du plan de façade et mise à l'échelle\n  \
      fresco --help                                 Import de la fresque en une image\n  \
      library --help                                Bibliothèque de dessins : import, liste, vignettes\n  \
+     place --help                                  Dessins posés sur la façade : liste, ajout, retrait\n  \
      overview <dossier.insitu>                     Vue façade : emprises, maillages, recouvrements (JSON)\n  \
      project new <dossier.insitu> [--name <nom>]   Crée un projet vide\n  \
      project info <dossier.insitu>                 Affiche le résumé d'un projet (JSON)\n  \
