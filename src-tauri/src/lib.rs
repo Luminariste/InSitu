@@ -36,15 +36,24 @@ fn open_tiled_image(app: AppHandle, path: String) -> Result<tiles::CachedPyramid
     .map_err(|e| e.to_string())
 }
 
-/// Dossier du jeu d'essai, pour l'écran de démonstration : celui du dépôt
-/// d'où l'app a été compilée, ou celui que désigne `INSITU_JEU_ESSAI`.
+/// Dossier du jeu d'essai, pour l'écran de démonstration. Dans l'ordre :
+/// celui que désigne `INSITU_JEU_ESSAI`, celui du dépôt d'où l'app a été
+/// compilée (lancement depuis le code), puis les images embarquées dans
+/// l'app installée (voir `bundle.resources` dans `tauri.conf.json`).
 #[tauri::command]
-fn test_set_dir() -> Option<String> {
-    let dir = std::env::var_os("INSITU_JEU_ESSAI")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../jeu-essai"));
-    let dir = dir.canonicalize().ok()?;
-    Some(dir.to_string_lossy().into_owned())
+fn test_set_dir(app: AppHandle) -> Option<String> {
+    let from_env = std::env::var_os("INSITU_JEU_ESSAI").map(PathBuf::from);
+    let from_repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../jeu-essai");
+    let bundled = app
+        .path()
+        .resource_dir()
+        .ok()
+        .map(|dir| dir.join("jeu-essai"));
+    [from_env, Some(from_repository), bundled]
+        .into_iter()
+        .flatten()
+        .find_map(|dir| dir.canonicalize().ok())
+        .map(|dir| dir.to_string_lossy().into_owned())
 }
 
 /// Répond à une demande de tuile en lisant le cache par le moteur.
