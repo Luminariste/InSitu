@@ -17,6 +17,7 @@ import {
   hasEngine,
   importDrawingFolder,
   openProject,
+  removeDrawing,
   saveVectorSettings,
   vectorizeDrawings,
   type ImportProgress,
@@ -35,6 +36,7 @@ import {
   Banner,
   Busy,
   Button,
+  ConfirmDialog,
   EmptyState,
   Icon,
   List,
@@ -86,6 +88,7 @@ export function LibraryScreen() {
   const [vectorBusy, setVectorBusy] = useState(false);
   const [comparing, setComparing] = useState(false);
   const [vectorProgress, setVectorProgress] = useState<ImportProgress | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
   const grid = useRef<HTMLDivElement>(null);
 
   const run = useCallback(async (label: string | null, task: () => Promise<void>) => {
@@ -233,6 +236,29 @@ export function LibraryScreen() {
       .finally(() => setVectorBusy(false));
   };
 
+  // Retirer un dessin (D15-h) : avec confirmation ; ses placements sur la
+  // façade partent avec lui, le fichier reste dans le projet.
+  const removingEntry = entries.find((e) => e.id === removing) ?? null;
+  const removingPlaced = removing ? (project?.placements ?? []).filter((p) => p.drawing === removing).length : 0;
+
+  const confirmRemove = () =>
+    run(null, async () => {
+      if (!folder || !removingEntry) return;
+      const entry = removingEntry;
+      setRemoving(null);
+      const index = visible.findIndex((e) => e.id === entry.id);
+      const [updated, placed] = await removeDrawing(folder, entry.id);
+      setProject(updated);
+      setEntries((list) => list.filter((e) => e.id !== entry.id));
+      const rest = visible.filter((e) => e.id !== entry.id);
+      setSelected(rest.length ? rest[Math.min(index, rest.length - 1)].id : null);
+      setMessage(
+        placed > 0
+          ? `« ${entry.name} » retiré de la bibliothèque, avec ${placed === 1 ? "son placement" : `ses ${placed} placements`} sur la façade.`
+          : `« ${entry.name} » retiré de la bibliothèque.`,
+      );
+    });
+
   const onKey = (event: KeyboardEvent<HTMLDivElement>) => {
     if (visible.length === 0) return;
     const index = visible.findIndex((e) => e.id === selected);
@@ -250,7 +276,10 @@ export function LibraryScreen() {
 
   const ready = busy === null && progress === null;
 
-  useShortcuts([{ keys: "mod+i", run: () => void importFolder(), enabled: engine && !!folder && ready }]);
+  useShortcuts([
+    { keys: "mod+i", run: () => void importFolder(), enabled: engine && !!folder && ready },
+    { keys: "backspace", run: () => chosen && setRemoving(chosen.id), enabled: engine && !!folder && ready && !!chosen },
+  ]);
 
   const toolbar = (
     <Toolbar>
@@ -363,6 +392,13 @@ export function LibraryScreen() {
               </Button>
             </Section>
           )}
+          {engine && folder && (
+            <Section title="Retirer">
+              <Button variant="danger" icon="trash" shortcut="backspace" onClick={() => setRemoving(chosen.id)} disabled={!ready}>
+                Retirer de la bibliothèque…
+              </Button>
+            </Section>
+          )}
         </>
       ) : (
         <p className="ui-list-empty">Cliquer un dessin pour le voir en grand. Les flèches du clavier passent d'un dessin à l'autre.</p>
@@ -430,6 +466,21 @@ export function LibraryScreen() {
         </EmptyState>
       )}
       {busy && <Busy>{busy}</Busy>}
+      {removingEntry && (
+        <ConfirmDialog
+          title={`Retirer « ${removingEntry.name} » de la bibliothèque ?`}
+          confirmLabel="Retirer"
+          onConfirm={() => void confirmRemove()}
+          onCancel={() => setRemoving(null)}
+        >
+          {removingPlaced > 0 && (
+            <p>
+              Ce dessin est posé {removingPlaced === 1 ? "une fois" : `${removingPlaced} fois`} sur la façade : {removingPlaced === 1 ? "ce placement sera retiré" : "ces placements seront retirés"} aussi.
+            </p>
+          )}
+          <p>Le fichier reste dans le dossier du projet ; un nouvel import du même dossier le remet dans la bibliothèque.</p>
+        </ConfirmDialog>
+      )}
       {comparing && chosen && (
         <VectorCompare
           name={chosen.name}

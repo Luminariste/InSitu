@@ -232,6 +232,16 @@ et ne connaît pas l'état des écrans ; une seule liste d'actions, celle des
 raccourcis. Limite : une entrée ne se grise pas quand son action est
 indisponible ; la choisir ne fait alors rien.
 
+**D15-h. Retirer un dessin ou le plan n'efface aucun fichier.** Comme
+pour un projecteur (D15-f), l'élément sort de `projet.json` et son fichier
+reste dans `bibliotheque/` ou `facade/` ; un nouvel import du même fichier
+le reprend sans copie en double. Un dessin retiré emporte ses placements
+sur la façade (un placement cite toujours un dessin de la bibliothèque, la
+confirmation dit combien). Le plan retiré emporte sa mise à l'échelle ; ce
+qui est en mm de façade (dessins posés, points de recalage, fresque) est
+gardé et retrouve sa place sur le plan suivant une fois mis à l'échelle.
+Commandes : `insitu library remove`, `insitu facade remove`.
+
 **D15-e. L'écran de démonstration garde son ancien style.** Il est
 provisoire (D13) ; il profite des nouvelles couleurs par les anciens noms de
 variables, gardés comme alias dans `tokens.css`.

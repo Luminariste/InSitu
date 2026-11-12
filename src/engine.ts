@@ -236,6 +236,12 @@ export async function importFacade(folder: string, path: string, page?: number):
   return invoke<Project>("facade_import", { folder, path, page: page ?? null });
 }
 
+/** Retire le plan de la façade ; le fichier reste dans le projet. */
+export async function removeFacade(folder: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("facade_remove", { folder });
+}
+
 export async function setFacadeScale(
   folder: string,
   a: SourcePoint,
@@ -643,6 +649,12 @@ export async function importDrawingFolder(
 export async function fetchLibrary(folder: string): Promise<LibraryEntry[]> {
   requireEngine();
   return invoke<LibraryEntry[]>("library_list", { folder });
+}
+
+/** Retire un dessin de la bibliothèque, et ses placements ; rend le projet et le nombre de placements retirés. */
+export async function removeDrawing(folder: string, drawing: string): Promise<[Project, number]> {
+  requireEngine();
+  return invoke<[Project, number]>("library_remove", { folder, drawing });
 }
 
 /** Adresse de l'aperçu (1 024 px, fond transparent) d'un dessin. */

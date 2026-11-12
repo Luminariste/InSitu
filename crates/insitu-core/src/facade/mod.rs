@@ -37,7 +37,7 @@ use crate::project::ProjectError;
 use crate::tiles::TileError;
 
 pub use display::{open_for_display, open_project_facade, read_or_render, FacadeDisplay};
-pub use import::{import_facade, set_scale};
+pub use import::{import_facade, remove_facade, set_scale};
 
 /// Côté, en pixels, du niveau le plus fin d'un plan vectoriel. Sur un plan
 /// A0 en PDF, c'est 19 pixels par point, soit environ 1 400 dpi sur le

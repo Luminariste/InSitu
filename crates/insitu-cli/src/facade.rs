@@ -57,6 +57,11 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             let project = facade::import_facade(&dir, Path::new(plan), page).map_err(failed)?;
             Ok(json(&project.facade))
         }
+        ["remove", project] => {
+            let dir = ProjectDir::open(project).map_err(failed)?;
+            facade::remove_facade(&dir).map_err(failed)?;
+            Ok("Plan retiré du projet ; le fichier reste dans facade/.".to_string())
+        }
         ["scale", project, xa, ya, xb, yb, distance] => {
             let dir = ProjectDir::open(project).map_err(failed)?;
             let a = SourcePoint::new(number(xa)?, number(ya)?);
@@ -114,6 +119,10 @@ pub const USAGE: &str = r#"Usage : insitu facade <commande>
   import <projet.insitu> <plan> [--page N]
       Copie le plan dans le dossier facade/ du projet et en fait la façade.
       La mise à l'échelle précédente est oubliée.
+
+  remove <projet.insitu>
+      Retire le plan (et sa mise à l'échelle) du projet. Le fichier reste
+      dans facade/ ; dessins posés et points de recalage sont gardés.
 
   scale <projet.insitu> <xA> <yA> <xB> <yB> <cote en mm>
       Met la façade à l'échelle : deux points du plan, dans son unité

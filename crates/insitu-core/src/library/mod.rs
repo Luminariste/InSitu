@@ -700,6 +700,25 @@ pub fn preview(dir: &ProjectDir, id: &str, cache_root: &Path) -> Result<String, 
     ensure_rendition(&dir.resolve(&drawing.source), cache_root, PREVIEW_SIDE)
 }
 
+/// Retire le dessin `id` de la bibliothèque, ainsi que ses placements sur
+/// la façade (un placement cite toujours un dessin de la bibliothèque), et
+/// enregistre le projet. Le fichier reste dans `bibliotheque/` : rien n'est
+/// effacé du disque, et un nouvel import du même fichier le reprend tel quel
+/// (D15-h). Rend le projet et le nombre de placements retirés.
+pub fn remove_drawing(dir: &ProjectDir, id: &str) -> Result<(Project, usize), LibraryError> {
+    let mut project = dir.load()?.project;
+    let before = project.library.len();
+    project.library.retain(|d| d.id != id);
+    if project.library.len() == before {
+        return Err(LibraryError::UnknownDrawing(id.to_string()));
+    }
+    let placed = project.placements.len();
+    project.placements.retain(|p| p.drawing != id);
+    let removed = placed - project.placements.len();
+    dir.save(&project)?;
+    Ok((project, removed))
+}
+
 /// Trouve un dessin par son identifiant, ou à défaut par son nom.
 pub fn find<'a>(project: &'a Project, id_or_name: &str) -> Result<&'a Drawing, LibraryError> {
     project
