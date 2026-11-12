@@ -390,8 +390,8 @@ fn footprint(warp: &PointWarp, px_mm: f64) -> Option<((f64, f64, f64, f64), f64)
 
 /// RVBA opaque → gris (Rec. 601, comme le reste de l'export).
 fn to_gray_into(rgba: &[u8], out: &mut [u8]) {
-    for (v, px) in out.iter_mut().zip(rgba.chunks_exact(4)) {
-        let (r, g, b) = (u32::from(px[0]), u32::from(px[1]), u32::from(px[2]));
+    for (v, &[r, g, b, _]) in out.iter_mut().zip(rgba.as_chunks::<4>().0) {
+        let (r, g, b) = (u32::from(r), u32::from(g), u32::from(b));
         *v = ((299 * r + 587 * g + 114 * b + 500) / 1000) as u8;
     }
 }
