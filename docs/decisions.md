@@ -33,9 +33,15 @@ de la simulation (6.1) et une légende. Pages suivantes : six diapositives
 par page. Couleurs des projecteurs : les teintes de l'écran, plus foncées
 pour le papier blanc.
 
-**D-6.2-c. Vignettes en traits noirs sur blanc.** La diapositive gravée est
+**D-6.2-c. Vignettes en traits noirs sur blanc** (remplacé par D-6.2-e). La diapositive gravée est
 blanche sur noir ; à l'impression, des carrés noirs useraient l'encre et se
 liraient mal. La vignette est donc inversée.
+
+**D-6.2-e. Vignettes sur fond noir (remplace D-6.2-c).** Demande de
+Benjamin après l'essai de la 0.1.28 (12 novembre 2026) : les diapositives
+de la fiche sont montrées comme la plaque gravée, traits blancs sur noir,
+pour que les tracés se voient. L'encre noire des six carrés par page est
+acceptée.
 
 **D-6.2-d. « Lisible sur site » = corps de 3 mm au moins.** Aucun texte de
 la fiche sous 3 mm (environ 8,5 points), vérifié par test ; les noms des
@@ -238,6 +244,39 @@ tombe dans aucune emprise. Le choix à la main se fait dans l'inspecteur
 (« Diapositive »). Sans moteur (navigateur seul), rien de tout cela ne
 s'affiche.
 
+**D-4.5-f. Arborescence des dessins par diapositive.** Demande de Benjamin
+(12 novembre 2026), « comme les calques d'Illustrator ». Rubrique
+« Diapositives » (`src/compose/SlidesSection.tsx`, logique dans
+`slideTree.ts`) : un groupe par projecteur recalé, dans l'ordre du projet,
+plus « Hors de toute diapositive » ; dans un groupe, le dessin de devant en
+haut (ordre des calques puis de la liste, D-4.3-e). Glisser une ligne sur
+un titre de groupe fait un choix à la main (`placements[].projector`,
+D-4.5-b) sans changer l'ordre ; la glisser sur un dessin la place juste
+devant lui dans `placements[]` et sur son calque, pour que l'ordre affiché
+soit celui de la liste. On ne lâche rien sur « Hors de toute diapositive »
+(ce n'est pas un choix possible). La rubrique est en tête de l'onglet
+« Calques » du panneau de droite (D15-i).
+
+**D-4.5-g. L'arborescence suit le panneau Calques d'Illustrator.** Demande
+de Benjamin (12 novembre 2026) : « afficher masqué un dessin, clic sur
+plusieurs dessins, clic droit grouper etc. ». Chaque dessin posé peut être
+**masqué** (`placements[].hidden`) ou **verrouillé** (`placements[].locked`),
+un à un, en plus de son calque ; ces champs ne s'écrivent que vrais, un
+projet ancien se relit tel quel. Masqué, un dessin ne s'affiche pas et ne
+part ni dans l'export ni dans la fiche ni dans la simulation (même règle
+que les calques masqués, `Project::visible_placements`). Verrouillé, il
+s'affiche et s'exporte mais ne se choisit plus sur la façade. Dans
+l'arborescence : clic = ce dessin seul, ⌘-clic = l'ajouter ou le retirer,
+⇧-clic = toutes les lignes jusqu'à la dernière cliquée, dans l'ordre affiché
+(`treeClick`) ; un groupe se choisit en entier, comme sur la façade ; un
+dessin masqué ou verrouillé n'entre pas dans la sélection. Le clic droit
+ouvre un menu (`ContextMenu`, ajouté au système de design) : Grouper,
+Dégrouper, Masquer/Afficher, Verrouiller, ordre (premier plan… arrière-plan),
+envoi vers une diapositive ou « Automatique », Supprimer. Il porte sur la
+sélection si la ligne en fait partie, sinon sur la ligne seule. Écart
+assumé avec Illustrator : on ne peut pas choisir un dessin masqué depuis
+l'arborescence (seuls l'œil et le cadenas s'y appliquent).
+
 ## 2026-11-12 — Tâche 4.4 : déformation libre
 
 Modules `crates/insitu-core/src/placement/mesh.rs` (moteur) et
@@ -325,6 +364,19 @@ glissé est aussi gardé en mémoire au départ du geste et porté en texte
 simple, pour le cas où la vue web du Mac ne rendrait pas le type maison.
 Le double-clic sur une vignette pose toujours le dessin au centre de la
 vue. Non vérifiable en session cloud : seul l'essai sur Mac le prouve.
+
+**D-4.2-l. Poignées du cadre comme Illustrator : étirer en x et en y.**
+Demande de Benjamin (12 novembre 2026). Le cadre de sélection a huit
+poignées : un coin étire en largeur et en hauteur à la fois (⇧ garde les
+proportions, ce qui était le comportement par défaut depuis D-4.2-c), le
+milieu d'un côté étire seulement en largeur ou en hauteur ; ⌥ part du
+centre ; ⌘D répète l'étirement. Les axes sont ceux de la façade, comme le
+cadre. Un dessin droit ou tourné d'un quart change de largeur et de
+hauteur ; un dessin tourné d'un autre angle, ou déjà déformé, ne peut pas
+rester un rectangle tourné (il serait cisaillé) : il reçoit une déformation
+(D-4.4) qui porte l'étirement exactement, sans approximation, puisque
+l'interpolation de la grille suit une transformation affine. Prouvé par
+test sur un dessin tourné de 30°.
 
 **Limite.** Les fichiers des dessins utilisés par une diapositive restent
 en mémoire pendant l'export (en niveaux de gris, un dessin de 4 096 px pèse

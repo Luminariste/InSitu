@@ -444,6 +444,8 @@ fn project_with_placed_drawing(label: &str, frame: &RectMm) -> (TempDir, Project
         deformation: None,
         projector: None,
         adjustment: None,
+        hidden: false,
+        locked: false,
         extra: Default::default(),
     });
     dir.save(&project).unwrap();

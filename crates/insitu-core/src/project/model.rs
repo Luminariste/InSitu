@@ -704,6 +704,14 @@ pub struct Placement {
     /// la façade ; absente : aucune retouche.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub adjustment: Option<SlideAdjustment>,
+    /// Masqué dans l'arborescence des diapositives : ni affiché, ni exporté,
+    /// comme un dessin d'un calque masqué (D-4.5-g).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hidden: bool,
+    /// Verrouillé : affiché et exporté, mais on ne peut plus le choisir sur
+    /// la façade (D-4.5-g).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub locked: bool,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }
@@ -792,8 +800,8 @@ impl Project {
     }
 
     /// Les dessins posés à exporter : dans l'ordre d'affichage, sans ceux
-    /// des calques masqués (un dessin sans calque, ou sur un calque inconnu,
-    /// suit le premier calque).
+    /// des calques masqués ni ceux masqués un à un (un dessin sans calque,
+    /// ou sur un calque inconnu, suit le premier calque).
     pub fn visible_placements(&self) -> Vec<&Placement> {
         let shown = |p: &Placement| {
             let layer = p
@@ -801,7 +809,7 @@ impl Project {
                 .as_deref()
                 .and_then(|id| self.layers.iter().find(|l| l.id == id))
                 .or(self.layers.first());
-            layer.is_none_or(|l| l.visible)
+            !p.hidden && layer.is_none_or(|l| l.visible)
         };
         self.stacked_placements()
             .into_iter()
