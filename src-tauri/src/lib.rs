@@ -6,12 +6,13 @@ use std::path::{Path, PathBuf};
 
 use insitu_core::facade::{self, FacadeDisplay, SourceInfo};
 use insitu_core::geometry::Point;
+use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
 use insitu_core::project::{Project, ProjectDir, RegistrationPair, SourcePoint};
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
 use insitu_core::tiles;
 use tauri::http::{header, Request, Response, StatusCode};
-use tauri::{AppHandle, Manager, Runtime, UriSchemeContext, UriSchemeResponder};
+use tauri::{AppHandle, Emitter, Manager, Runtime, UriSchemeContext, UriSchemeResponder};
 
 /// Schéma d'adresse des tuiles : l'interface les lit à
 /// `tuiles://localhost/<clé>/<niveau>/<colonne>_<ligne>.png`.
@@ -188,6 +189,48 @@ fn registration_set(
     .map_err(|e| e.to_string())
 }
 
+// --- Bibliothèque de dessins (tâche 4.1) --------------------------------------
+
+/// Événement d'avancement d'un import : `{ done, total }`.
+const LIBRARY_PROGRESS_EVENT: &str = "bibliotheque-progression";
+
+/// Importe un dossier de dessins (vignettes comprises) ; l'avancement est
+/// envoyé à l'interface au fil de l'eau.
+#[tauri::command(async)]
+fn library_import(
+    app: AppHandle,
+    folder: String,
+    source: String,
+) -> Result<(Project, ImportReport), String> {
+    let options = ImportOptions {
+        cache_root: Some(tile_cache_dir(&app)?),
+        threads: 0,
+    };
+    library::import_folder(
+        &project_dir(&folder)?,
+        Path::new(&source),
+        &options,
+        &|progress| {
+            let _ = app.emit(LIBRARY_PROGRESS_EVENT, progress);
+        },
+    )
+    .map_err(|e| e.to_string())
+}
+
+/// La bibliothèque du projet, avec la vignette de chaque dessin.
+#[tauri::command(async)]
+fn library_list(app: AppHandle, folder: String) -> Result<Vec<LibraryEntry>, String> {
+    library::list(&project_dir(&folder)?, Some(&tile_cache_dir(&app)?), 0)
+        .map_err(|e| e.to_string())
+}
+
+/// L'aperçu (1 024 px, fond transparent) d'un dessin.
+#[tauri::command(async)]
+fn library_preview(app: AppHandle, folder: String, drawing: String) -> Result<String, String> {
+    library::preview(&project_dir(&folder)?, &drawing, &tile_cache_dir(&app)?)
+        .map_err(|e| e.to_string())
+}
+
 /// Dossier du jeu d'essai, pour l'écran de démonstration. Dans l'ordre :
 /// celui que désigne `INSITU_JEU_ESSAI`, celui du dépôt d'où l'app a été
 /// compilée (lancement depuis le code), puis les images embarquées dans
@@ -255,7 +298,10 @@ pub fn run() {
             projector_view,
             projector_export,
             registration_show,
-            registration_set
+            registration_set,
+            library_import,
+            library_list,
+            library_preview
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement d'InSitu");

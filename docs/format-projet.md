@@ -17,6 +17,7 @@ Le code qui lit et écrit ce format est dans
   photos-brutes/       Les photos de mire prises en chambre noire
   photos-redressees/   Les photos redressées
   fresque/             La fresque importée en une image
+  bibliotheque/        Les dessins, rangés comme dans les dossiers importés
   projet.v<N>.json     Copie de l'ancien fichier après une mise à niveau
 ```
 
@@ -209,6 +210,7 @@ exactement ce que l'app écrit.
 | `projectors` | La liste des projecteurs, dans l'ordre d'affichage |
 | `fresco` | La fresque importée en une image, ou `null` |
 | `export` | Les réglages d'export |
+| `library` | La bibliothèque de dessins ; absent tant qu'elle est vide (tâche 4.1) |
 
 ### `facade` — la façade
 
@@ -255,6 +257,19 @@ en millimètres réels. Le coin haut-gauche du fichier est l'origine.
 | --- | --- |
 | `source` | Le fichier image |
 | `frame` | Le rectangle qu'elle occupe sur la façade, en mm réels : `x`, `y` (coin haut-gauche), `width`, `height` |
+
+### `library[]` — un dessin de la bibliothèque
+
+| Champ | Sens |
+| --- | --- |
+| `id` | Identifiant stable, que citeront les placements sur la façade |
+| `name` | Nom affiché : celui du fichier, sans extension |
+| `source` | Le fichier, sous `bibliotheque/` : `bibliotheque/Oiseaux/Mer/goeland.png`. Le dossier importé et ses sous-dossiers sont conservés |
+| `width`, `height` | Taille du fichier : pixels pour une image, pixels CSS (1/96 de pouce) pour un SVG |
+
+Le fichier copié n'est jamais modifié : son fond noir est rendu transparent
+à l'affichage seulement. Les vignettes ne sont pas dans le projet : l'app les
+range dans son cache et les refait au besoin.
 
 ### `export` — les réglages d'export
 

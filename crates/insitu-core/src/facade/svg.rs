@@ -18,7 +18,7 @@ pub struct SvgPlan {
 }
 
 /// Polices de la machine, chargées une seule fois par lancement.
-fn system_fonts() -> Arc<fontdb::Database> {
+pub(crate) fn system_fonts() -> Arc<fontdb::Database> {
     static FONTS: OnceLock<Arc<fontdb::Database>> = OnceLock::new();
     FONTS
         .get_or_init(|| {

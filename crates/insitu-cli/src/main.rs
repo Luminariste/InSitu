@@ -11,6 +11,8 @@
 //! - `insitu project info <dossier.insitu>` : résumé d'un projet, en JSON ;
 //! - `insitu project validate <dossier.insitu>` : contrôle le JSON et la
 //!   présence des fichiers référencés ;
+//! - `insitu library import|list|thumbnail …` : bibliothèque de dessins
+//!   d'un projet (détail : `insitu library --help`) ;
 //! - `insitu registration show|set …` : recalage d'un projecteur sur la
 //!   façade par points communs (détail : `insitu registration --help`) ;
 //! - `insitu projector add|photo|rectify|show|export …` : redressement de la
@@ -35,6 +37,7 @@
 
 mod facade;
 mod geometry;
+mod library;
 mod projector;
 mod rectify;
 mod registration;
@@ -103,6 +106,14 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             Err(facade::Problem::Failed(message)) => Err(Failure::Failed(message)),
         },
         ["project", rest @ ..] => run_project(rest),
+        ["library", rest @ ..] => match library::run(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(library::Problem::Usage(message)) => Err(Failure::Usage(message)),
+            Err(library::Problem::Failed(message)) => Err(Failure::Failed(message)),
+        },
         ["registration", rest @ ..] => match registration::run(rest) {
             Ok(text) => {
                 println!("{text}");
@@ -318,6 +329,7 @@ fn usage() -> &'static str {
      geometry fit <fichier.json>                   Ajuste une déformation sur des paires de points\n  \
      geometry --help                               Décrit le fichier attendu et le résultat\n  \
      facade --help                                 Import du plan de façade et mise à l'échelle\n  \
+     library --help                                Bibliothèque de dessins : import, liste, vignettes\n  \
      project new <dossier.insitu> [--name <nom>]   Crée un projet vide\n  \
      project info <dossier.insitu>                 Affiche le résumé d'un projet (JSON)\n  \
      project validate <dossier.insitu>             Contrôle le projet et ses fichiers\n  \

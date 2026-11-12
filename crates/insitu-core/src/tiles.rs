@@ -643,7 +643,7 @@ fn cache_key(image_path: &Path, options: &TileOptions) -> Result<String, TileErr
 
 /// Empreinte FNV-1a sur 64 bits : courte, et stable d'une version de Rust à
 /// l'autre (contrairement à celle de la bibliothèque standard).
-fn fnv1a_64(bytes: &[u8]) -> u64 {
+pub(crate) fn fnv1a_64(bytes: &[u8]) -> u64 {
     bytes.iter().fold(0xcbf2_9ce4_8422_2325, |hash, &byte| {
         (hash ^ u64::from(byte)).wrapping_mul(0x0000_0100_0000_01b3)
     })

@@ -44,14 +44,17 @@ pub enum AssetKind {
     RawPhoto,
     RectifiedPhoto,
     Fresco,
+    /// Les dessins de la bibliothèque (tâche 4.1).
+    Drawing,
 }
 
 impl AssetKind {
-    pub const ALL: [AssetKind; 4] = [
+    pub const ALL: [AssetKind; 5] = [
         AssetKind::Facade,
         AssetKind::RawPhoto,
         AssetKind::RectifiedPhoto,
         AssetKind::Fresco,
+        AssetKind::Drawing,
     ];
 
     /// Nom du sous-dossier, tel qu'on le voit dans le Finder.
@@ -61,6 +64,7 @@ impl AssetKind {
             AssetKind::RawPhoto => "photos-brutes",
             AssetKind::RectifiedPhoto => "photos-redressees",
             AssetKind::Fresco => "fresque",
+            AssetKind::Drawing => "bibliotheque",
         }
     }
 }
@@ -240,6 +244,17 @@ impl ProjectDir {
         source: &Path,
         kind: AssetKind,
     ) -> Result<RelativePath, ProjectError> {
+        self.import_file_into(source, kind.directory())
+    }
+
+    /// Comme [`Self::import_file`], dans le sous-dossier `directory` du
+    /// projet (chemin relatif, par exemple `bibliotheque/Oiseaux`).
+    pub fn import_file_into(
+        &self,
+        source: &Path,
+        directory: &str,
+    ) -> Result<RelativePath, ProjectError> {
+        let folder = RelativePath::new(directory)?;
         if !source.is_file() {
             return Err(ProjectError::ImportSourceMissing {
                 path: source.to_path_buf(),
@@ -253,7 +268,7 @@ impl ProjectDir {
             Some((stem, extension)) if !stem.is_empty() => (stem, format!(".{extension}")),
             _ => (file_name.as_str(), String::new()),
         };
-        let directory = self.root.join(kind.directory());
+        let directory = folder.resolve(&self.root);
         fs::create_dir_all(&directory)
             .map_err(ProjectError::io("de créer le dossier", &directory))?;
         let mut attempt = 1u32;
@@ -263,7 +278,7 @@ impl ProjectDir {
             } else {
                 format!("{stem}-{attempt}{extension}")
             };
-            let relative = RelativePath::new(format!("{}/{candidate}", kind.directory()))?;
+            let relative = RelativePath::new(format!("{folder}/{candidate}"))?;
             let destination = directory.join(&candidate);
             if !destination.exists() {
                 copy_atomic(source, &destination)?;
@@ -571,14 +586,14 @@ mod tests {
         let temp = TempDir::new("inconnus");
         let (dir, _) =
             ProjectDir::create(temp.path().join("Essai.insitu"), None).expect("création");
-        // Un fichier comme l'écrirait une version qui connaît déjà la
-        // bibliothèque de dessins et un réglage de plus par projecteur.
+        // Un fichier comme l'écrirait une version qui connaît déjà les
+        // placements de dessins et un réglage de plus par projecteur.
         let document = json!({
             "formatVersion": 1,
             "id": "0123456789abcdef",
             "name": "Essai",
             "createdAt": "2026-11-11T10:00:00Z",
-            "library": [{ "id": "d1", "source": "dessins/lion.png" }],
+            "placements": [{ "id": "p1", "drawing": "d1" }],
             "projectors": [{
                 "id": "aaaaaaaaaaaaaaaa",
                 "label": "A",
@@ -597,7 +612,7 @@ mod tests {
         assert_eq!(
             loaded.unknown_fields,
             vec![
-                "library",
+                "placements",
                 "projectors[0].lens",
                 "projectors[0].registration[0].note",
                 "export.threshold",
@@ -609,7 +624,7 @@ mod tests {
 
         let text = fs::read_to_string(dir.project_file()).expect("lecture");
         let written: Value = serde_json::from_str(&text).expect("JSON");
-        assert_eq!(written["library"], document["library"]);
+        assert_eq!(written["placements"], document["placements"]);
         assert_eq!(
             written["projectors"][0]["lens"],
             json!({ "focalMm": 320.0 })

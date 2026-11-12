@@ -87,6 +87,10 @@ pub struct Project {
     pub fresco: Option<FrescoImage>,
     #[serde(default)]
     pub export: ExportSettings,
+    /// Bibliothèque de dessins (tâche 4.1). Absente du fichier tant qu'elle
+    /// est vide.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub library: Vec<Drawing>,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }
@@ -103,8 +107,13 @@ impl Project {
             projectors: Vec::new(),
             fresco: None,
             export: ExportSettings::default(),
+            library: Vec::new(),
             extra: ExtraFields::new(),
         }
+    }
+
+    pub fn drawing(&self, id: &str) -> Option<&Drawing> {
+        self.library.iter().find(|d| d.id == id)
     }
 
     /// Ajoute un projecteur vide et le renvoie pour qu'on le remplisse.
@@ -138,6 +147,9 @@ impl Project {
         }
         if let Some(fresco) = &self.fresco {
             files.push(("fresco.source".to_string(), &fresco.source));
+        }
+        for (i, drawing) in self.library.iter().enumerate() {
+            files.push((format!("library[{i}].source"), &drawing.source));
         }
         files
     }
@@ -178,6 +190,9 @@ impl Project {
             collect("fresco.", &fresco.extra);
         }
         collect("export.", &self.export.extra);
+        for (i, drawing) in self.library.iter().enumerate() {
+            collect(&format!("library[{i}]."), &drawing.extra);
+        }
         found
     }
 
@@ -229,6 +244,10 @@ impl Project {
             out.push(("fresco.frame.height".to_string(), fresco.frame.height));
         }
         out.push(("export.dpi".to_string(), self.export.dpi));
+        for (i, drawing) in self.library.iter().enumerate() {
+            out.push((format!("library[{i}].width"), drawing.width));
+            out.push((format!("library[{i}].height"), drawing.height));
+        }
         out
     }
 }
@@ -421,6 +440,37 @@ pub struct FrescoImage {
     pub frame: RectMm,
     #[serde(flatten)]
     pub extra: ExtraFields,
+}
+
+/// Un dessin de la bibliothèque : un fichier copié dans le dossier
+/// `bibliotheque/` du projet (tâche 4.1). Son fond noir est rendu
+/// transparent à l'affichage ; le fichier n'est jamais modifié.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Drawing {
+    /// Identifiant stable, que citeront les placements sur la façade.
+    pub id: String,
+    /// Nom affiché : celui du fichier, sans son extension.
+    pub name: String,
+    /// Le fichier, par exemple `bibliotheque/Oiseaux/merle.png`. Le dossier
+    /// d'origine est conservé sous `bibliotheque/`.
+    pub source: RelativePath,
+    /// Taille du fichier dans son unité : pixels pour une image, pixels CSS
+    /// (1/96 de pouce) pour un SVG.
+    pub width: f64,
+    pub height: f64,
+    #[serde(flatten)]
+    pub extra: ExtraFields,
+}
+
+impl Drawing {
+    /// Dossier du dessin dans la bibliothèque, sans `bibliotheque/` ni le
+    /// nom du fichier : `Oiseaux/Grands`, ou vide.
+    pub fn folder(&self) -> &str {
+        let path = self.source.as_str();
+        let inside = path.split_once('/').map_or("", |(_, rest)| rest);
+        inside.rsplit_once('/').map_or("", |(folder, _)| folder)
+    }
 }
 
 /// Réglages d'export des diapositives.
