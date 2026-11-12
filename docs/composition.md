@@ -7,8 +7,8 @@ l'échelle** : les dessins sont posés en vraies dimensions (mm de façade).
 ## Poser un dessin
 
 1. Importer des dessins dans l'étape Bibliothèque (⌘5) si ce n'est pas fait.
-2. Dans l'étape Façade, la rubrique **Dessins** (panneau de gauche, sous les
-   projecteurs) montre la bibliothèque ; un champ permet de chercher.
+2. Dans l'étape Façade, l'onglet **Dessins** du panneau de droite montre la
+   bibliothèque (rubrique **Dessins**) ; un champ permet de chercher.
 3. Glisser une vignette sur le plan. Le dessin arrive au point de chute, large
    du quart de ce qu'on voit, aux proportions du fichier. Un double-clic sur
    la vignette le pose au centre de la vue.
@@ -45,22 +45,27 @@ Tout s'enregistre dans le projet à la fin de chaque geste.
 Sur un clavier français, les « crochets » sont les deux touches à droite du P
 (^ et $).
 
-## Inspecteur (à droite)
+## Outils (barre du haut) et mesures (à droite)
 
-La rubrique **Dessins posés** apparaît quand un dessin est choisi :
+Les outils sont des icônes dans la barre d'outils, en haut de l'écran
+Façade ; ils agissent sur les dessins choisis (bulle d'aide au survol) :
 
-- centre X et Y, largeur (la hauteur suit) : taper par exemple `2,5 m`,
-  `250 cm` ou `2500`, puis ↩ ;
-- rotation en degrés (un seul dessin) ; boutons ↺ 90° et ↻ 90° ;
-- symétries ⇆ (gauche-droite) et ⇅ (haut-bas) ;
+- tourner d'un quart de tour à gauche ou à droite ; symétries gauche-droite
+  et haut-bas ;
+- déformer : quatre coins, grille (menu), redresser ;
 - avec plusieurs dessins : aligner à gauche, au centre, à droite, en haut, au
   milieu, en bas ; répartir l'espacement (trois dessins ou plus) ; un groupe
   compte pour un seul bloc ;
-- grouper, dégrouper, premier plan, arrière-plan, retirer.
+- premier plan, avancer, reculer, arrière-plan ; grouper, dégrouper.
+
+La rubrique **Dessins posés** (onglet **Dessins**, qui s'ouvre seul) apparaît
+quand un dessin est choisi : centre X et Y, largeur (la hauteur suit ; taper
+par exemple `2,5 m`, `250 cm` ou `2500`, puis ↩), rotation en degrés (un seul
+dessin), calque, diapositive, retirer.
 
 ## Calques (tâche 4.3)
 
-La rubrique « Calques », dans le panneau de gauche, au-dessus des dessins.
+L'onglet « Calques », dans le panneau de droite.
 Le calque du haut de la liste est devant.
 
 - **+** : nouveau calque, juste au-dessus du calque choisi.
@@ -84,7 +89,7 @@ d'écraser ce changement.
 
 ## Déformer (tâche 4.4)
 
-Dans l'inspecteur, rubrique « Déformation » :
+Dans la barre d'outils, groupe des déformations :
 
 - **Quatre coins** : quatre points bleus aux coins du dessin ; on les tire
   comme les coins d'un trapèze (les droites restent droites).
