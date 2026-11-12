@@ -20,6 +20,8 @@ on:
       - "src-tauri/build.rs"
       - "src-tauri/capabilities/**"
       - "src-tauri/icons/**"
+      - "src-tauri/src/**"
+      - "Cargo.toml"
 
 permissions:
   contents: write
@@ -103,6 +105,10 @@ jobs:
           codesign -dv "$APP" 2>&1 | grep -E "Identifier|Signature"
           /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist" \
             | grep -x "${{ needs.decider.outputs.version }}"
+
+          # Les images de démonstration sont-elles embarquées ?
+          test -f "$APP/Contents/Resources/jeu-essai/epinal/references/verres/verre-a.png"
+          test -f "$APP/Contents/Resources/jeu-essai/epinal/references/photos-redressees/a.jpg"
 
           # L'app démarre-t-elle ? On la lance dix secondes : si elle s'est
           # arrêtée toute seule entre-temps, c'est qu'elle plante au lancement.

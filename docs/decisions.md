@@ -4,6 +4,14 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Essai de la visionneuse
+
+**D13. L'app installée embarque les images de démonstration d'Épinal.**
+Les quatre Verres et les quatre photos redressées (environ 55 Mo) sont
+ajoutés aux ressources de l'app, pour que Benjamin essaie la visionneuse
+depuis la version téléchargée, sans Terminal. Provisoire : à retirer dès que
+l'app sait ouvrir un projet (jalon 2), l'écran de démonstration avec.
+
 ## 2026-11-11 — Tâche 2.1
 
 Étude de détection de la mire : `docs/etudes/2.1-detection-mire.md`. Les
