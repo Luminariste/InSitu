@@ -1,0 +1,215 @@
+/* Écran Redressement (tâche 2.5). Mêmes codes que l'écran Façade. */
+
+.rectification {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.rectification-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  padding: 8px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--filet);
+  user-select: none;
+}
+
+.rectification-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rectification-label {
+  color: var(--texte-discret);
+}
+
+.rectification-value {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rectification-export {
+  margin-left: auto;
+}
+
+.rectification-bar button,
+.rectification-bar select {
+  font: inherit;
+  color: var(--texte);
+  background: #222226;
+  border: 1px solid var(--filet);
+  border-radius: 5px;
+  padding: 4px 10px;
+}
+
+.rectification-bar button:hover:not(:disabled) {
+  border-color: #4a4a50;
+}
+
+.rectification-bar button:disabled,
+.rectification-bar select:disabled {
+  opacity: 0.45;
+}
+
+.rectification-bar button.actif {
+  border-color: var(--repere);
+  color: #fff;
+}
+
+.rectification-switch {
+  display: flex;
+}
+
+.rectification-switch button:first-child {
+  border-radius: 5px 0 0 5px;
+}
+
+.rectification-switch button:last-child {
+  border-radius: 0 5px 5px 0;
+  margin-left: -1px;
+}
+
+.rectification-stage {
+  position: relative;
+  min-height: 0;
+}
+
+.rectification-stage > .viewer {
+  height: 100%;
+}
+
+.rectification-editing .rectification-main .viewer-canvas {
+  cursor: crosshair;
+}
+
+.rectification-dragging .rectification-main .viewer-canvas {
+  cursor: move;
+}
+
+/* Loupe : la photo à pleine résolution autour de la poignée déplacée ou du
+   curseur. Elle ne reçoit aucun geste. */
+.rectification-loupe {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: 2px solid var(--repere);
+  border-radius: 6px;
+  overflow: hidden;
+  pointer-events: none;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+
+.loupe {
+  position: relative;
+  overflow: hidden;
+  background: #000;
+}
+
+.loupe img {
+  position: absolute;
+  max-width: none;
+  /* Les pixels de la photo restent nets, sans lissage. */
+  image-rendering: pixelated;
+}
+
+.loupe svg {
+  position: absolute;
+  inset: 0;
+}
+
+.loupe-cross path {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.5;
+  paint-order: stroke;
+  filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000);
+}
+
+.loupe-handle circle {
+  fill: none;
+  stroke: var(--repere);
+  stroke-width: 2;
+}
+
+.loupe-handle text {
+  fill: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: #000;
+  stroke-width: 3px;
+}
+
+.rectification-message {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  height: fit-content;
+  max-width: 520px;
+  padding: 16px 20px;
+  text-align: center;
+  color: var(--texte-discret);
+  background: rgba(21, 21, 23, 0.92);
+  border: 1px solid var(--filet);
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.rectification-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 24px;
+  padding: 6px 14px;
+  min-height: 30px;
+  color: var(--texte-discret);
+  background: var(--surface);
+  border-top: 1px solid var(--filet);
+}
+
+.rectification-ok,
+.rectification-quality-bon {
+  color: var(--texte);
+}
+
+.rectification-hint,
+.rectification-quality-moyen {
+  color: #e8b04a;
+}
+
+.rectification-error,
+.rectification-quality-mauvais {
+  color: #ff6b6b;
+}
+
+.rectification-legend {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.pastille {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin: 0 4px 0 10px;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+
+.pastille.bon {
+  background: #3ccf6e;
+}
+
+.pastille.moyen {
+  background: #e8b04a;
+}
+
+.pastille.mauvais {
+  background: #ff4d4d;
+}

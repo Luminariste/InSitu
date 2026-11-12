@@ -1,0 +1,67 @@
+# Redressement des photos de mire (tâche 2.5)
+
+## Dans l'app
+
+1. Onglet **Redressement**. L'écran reprend le projet ouvert dans l'onglet
+   Façade (ou **Ouvrir…** un autre projet). Un projet se crée dans l'onglet
+   Façade.
+2. **Ajouter** crée un projecteur, nommé par la première lettre libre (A,
+   B, C…). La liste déroulante passe d'un projecteur à l'autre et dit où en
+   est chacun.
+3. **Importer la photo…** : la photo de la mire prise en chambre noire, en
+   HEIC (format des iPhone), JPEG, PNG ou TIFF. Elle est copiée dans le
+   dossier `photos-brutes/` du projet, et la mire y est cherchée aussitôt.
+4. Si la mire est trouvée : les croisements retenus s'affichent en couleur
+   sur la photo (vert : moins de 0,15 mm d'écart ; orange : moins de 0,3 mm ;
+   rouge : au-delà), le contour bleu montre le carré de 280 mm, et le bas de
+   l'écran résume le résultat. La photo redressée est enregistrée dans
+   `photos-redressees/` ; **Photo redressée** l'affiche.
+5. Si la mire n'est pas trouvée (ou si le résultat est faux) : **Poser les
+   coins**, puis cliquer les quatre coins de la mire dans l'ordre demandé en
+   bas de l'écran (1 haut-gauche, 2 haut-droit, 3 bas-droit, 4 bas-gauche,
+   **de la diapositive** : sur l'ancienne mire, les petits cercles et le
+   texte sont en bas à gauche). Les poignées se glissent ensuite pour viser
+   plus juste ; la loupe, en haut à droite, montre les pixels de la photo
+   autour de la poignée. **Détecter depuis les coins** : les coins n'ont pas
+   besoin d'être exacts (1 ou 2 mm suffisent), la grille affine ensuite.
+6. **Exporter…** : la photo redressée en TIFF ou en PNG, à 300, 500, 1 000
+   ou 1 400 dpi. La résolution est inscrite dans le fichier : il s'ouvre à
+   280 mm dans Illustrator, Photoshop ou LightBurn. L'image est recalculée
+   depuis la photo brute à chaque export (ce n'est pas un agrandissement de
+   la photo redressée du projet).
+
+En vue « Photo brute », la barre d'état compte en pixels de la photo ; en
+vue « Photo redressée », en mm de diapositive. Une photo d'iPhone en JPEG
+peut apparaître couchée : l'app ne tourne pas les pixels (décision D9), la
+détection n'en a pas besoin. Un HEIC apparaît droit (décision D-2.5-a).
+
+## En ligne de commande
+
+```
+insitu project new Essai.insitu
+insitu projector add Essai.insitu A
+insitu projector photo Essai.insitu A IMG_1234.HEIC
+insitu projector rectify Essai.insitu A                  # détection automatique
+insitu projector rectify Essai.insitu A --corners 2500,420,2540,2600,750,2610,720,430
+insitu projector show Essai.insitu A                     # relit le résultat enregistré
+insitu projector export Essai.insitu A A.tif --dpi 500
+```
+
+`insitu rectify <photo>` reste disponible pour une photo hors projet.
+
+## Essayer l'écran dans un navigateur, sans l'app
+
+Le moteur n'est pas joignable depuis `npm run dev` : l'écran montre alors un
+exemple déjà préparé, et rien n'y est calculé (les poignées et la loupe
+fonctionnent, pas la détection). Pour le préparer :
+
+```
+I="cargo run --release -q -p insitu-cli --"
+$I project new /tmp/essai.insitu && $I projector add /tmp/essai.insitu A
+$I projector photo /tmp/essai.insitu A jeu-essai/heic/a-brut.heic
+$I projector rectify /tmp/essai.insitu A
+$I tiles jeu-essai/heic/a-brut.heic tuiles-demo/redressement-brute
+$I tiles /tmp/essai.insitu/photos-redressees/a.png tuiles-demo/redressement-redressee
+$I projector show /tmp/essai.insitu A --nodes > tuiles-demo/redressement-vue.json
+npm run dev
+```

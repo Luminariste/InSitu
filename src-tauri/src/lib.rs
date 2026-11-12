@@ -5,7 +5,9 @@
 use std::path::{Path, PathBuf};
 
 use insitu_core::facade::{self, FacadeDisplay, SourceInfo};
+use insitu_core::geometry::Point;
 use insitu_core::project::{Project, ProjectDir, SourcePoint};
+use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::tiles;
 use tauri::http::{header, Request, Response, StatusCode};
 use tauri::{AppHandle, Manager, Runtime, UriSchemeContext, UriSchemeResponder};
@@ -98,6 +100,64 @@ fn facade_display(app: AppHandle, folder: String) -> Result<FacadeDisplay, Strin
     facade::open_project_facade(&dir, &tile_cache_dir(&app)?).map_err(|e| e.to_string())
 }
 
+// --- Redressement des photos de mire (tâche 2.5) ------------------------------
+
+fn project_dir(folder: &str) -> Result<ProjectDir, String> {
+    ProjectDir::open(folder).map_err(|e| e.to_string())
+}
+
+/// Ajoute un projecteur ; renvoie le projet et l'identifiant du nouveau.
+#[tauri::command(async)]
+fn projector_add(folder: String, label: String) -> Result<(Project, String), String> {
+    projectors::add_projector(&project_dir(&folder)?, &label).map_err(|e| e.to_string())
+}
+
+/// Copie une photo de mire dans le projet et la donne au projecteur.
+#[tauri::command(async)]
+fn projector_import_photo(
+    folder: String,
+    projector: String,
+    path: String,
+) -> Result<Project, String> {
+    projectors::import_raw_photo(&project_dir(&folder)?, &projector, Path::new(&path))
+        .map_err(|e| e.to_string())
+}
+
+/// Détecte la mire (seule, ou à partir de quatre coins) et enregistre la
+/// photo redressée.
+#[tauri::command(async)]
+fn projector_rectify(
+    folder: String,
+    projector: String,
+    corners: Option<[Point; 4]>,
+) -> Result<(Project, RectificationView), String> {
+    projectors::rectify_projector(&project_dir(&folder)?, &projector, corners)
+        .map_err(|e| e.to_string())
+}
+
+/// Relit le redressement enregistré d'un projecteur.
+#[tauri::command(async)]
+fn projector_view(folder: String, projector: String) -> Result<Option<RectificationView>, String> {
+    projectors::projector_view(&project_dir(&folder)?, &projector).map_err(|e| e.to_string())
+}
+
+/// Exporte la photo redressée en TIFF ou en PNG.
+#[tauri::command(async)]
+fn projector_export(
+    folder: String,
+    projector: String,
+    destination: String,
+    dpi: f64,
+) -> Result<ExportedImage, String> {
+    projectors::export_rectified(
+        &project_dir(&folder)?,
+        &projector,
+        Path::new(&destination),
+        dpi,
+    )
+    .map_err(|e| e.to_string())
+}
+
 /// Dossier du jeu d'essai, pour l'écran de démonstration. Dans l'ordre :
 /// celui que désigne `INSITU_JEU_ESSAI`, celui du dépôt d'où l'app a été
 /// compilée (lancement depuis le code), puis les images embarquées dans
@@ -158,7 +218,12 @@ pub fn run() {
             facade_inspect,
             facade_import,
             facade_set_scale,
-            facade_display
+            facade_display,
+            projector_add,
+            projector_import_photo,
+            projector_rectify,
+            projector_view,
+            projector_export
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement d'InSitu");

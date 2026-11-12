@@ -8,7 +8,8 @@
 2. **Importer un plan…** : PDF d'architecte, image (PNG, JPEG, TIFF), SVG ou
    DXF. Pour un PDF de plusieurs pages, l'app demande laquelle est la
    façade. Le fichier est copié dans le dossier `facade/` du projet. Un DWG
-   est à exporter d'abord en PDF ou en DXF ; une photo HEIC, en JPEG.
+   est à exporter d'abord en PDF ou en DXF ; une photo HEIC, en JPEG (le
+   moteur lit le HEIC depuis la tâche 2.5, mais pas encore pour la façade).
 3. **Poser A et B**, puis cliquer deux points du plan dont on connaît la
    distance réelle (deux repères d'une ligne de cote, deux angles du
    bâtiment). Zoomer avant de cliquer donne un point plus juste : le plan
