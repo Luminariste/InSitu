@@ -20,6 +20,12 @@
    défaut) et **Valider l'échelle**. La barre d'état affiche alors les dimensions de
    la façade en mètres ; les coordonnées de la barre d'état sont en mm réels.
 
+5. **Retirer le plan…** (inspecteur Plan) : après confirmation, le plan et
+   sa mise à l'échelle sortent du projet ; le fichier reste dans `facade/`.
+   Dessins posés, points de recalage et fresque sont gardés en mm : ils
+   retrouvent leur place sur le plan suivant une fois mis à l'échelle. Pour
+   changer de plan sans le retirer : **Remplacer le plan…** (⌘I).
+
 Avant la mise à l'échelle, la barre d'état compte dans l'unité du fichier
 (points pour un PDF) : le bas de l'écran le rappelle en orange.
 
@@ -30,6 +36,7 @@ insitu facade inspect plan.pdf                       # nature, dimensions, pages
 insitu project new Essai.insitu
 insitu facade import Essai.insitu plan.pdf --page 2  # copie dans le projet
 insitu facade scale Essai.insitu 200 1484 1200 1484 35277.8
+insitu facade remove Essai.insitu                    # retire le plan du projet
 insitu facade render plan.pdf apercu.png --width 4000
 insitu facade tiles plan.pdf cache/                  # comme le fait l'app
 ```

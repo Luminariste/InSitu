@@ -35,6 +35,19 @@ pub fn import_facade(
     Ok(project)
 }
 
+/// Retire le plan de la façade, et sa mise à l'échelle, et enregistre le
+/// projet. Le fichier reste dans `facade/`. Ce qui est en millimètres de
+/// façade (dessins posés, points de recalage, fresque) est gardé : il
+/// retrouve sa place sur le prochain plan, une fois mis à l'échelle (D15-h).
+pub fn remove_facade(dir: &ProjectDir) -> Result<Project, FacadeError> {
+    let mut project = dir.load()?.project;
+    if project.facade.take().is_none() {
+        return Err(FacadeError::NoFacade);
+    }
+    dir.save(&project)?;
+    Ok(project)
+}
+
 /// Met la façade à l'échelle : deux points du fichier (dans son unité) et
 /// la distance réelle qui les sépare, en mm. Le projet est enregistré.
 pub fn set_scale(

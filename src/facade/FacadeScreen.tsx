@@ -19,6 +19,7 @@ import {
   createProject,
   hasEngine,
   importFacade,
+  removeFacade,
   inspectPlan,
   openFacadeView,
   openProject,
@@ -59,6 +60,7 @@ import {
   Banner,
   Busy,
   Button,
+  ConfirmDialog,
   Dialog,
   Dot,
   EmptyState,
@@ -116,6 +118,7 @@ export function FacadeScreen() {
   /** Assemblage de photos (tâche 6.4), en plein écran par-dessus. */
   const [assembling, setAssembling] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [removingPlan, setRemovingPlan] = useState(false);
 
   const facade = project?.facade ?? null;
   const scale = engine ? (facade?.scale ?? null) : browserScale;
@@ -313,6 +316,17 @@ export function FacadeScreen() {
       await load(folder, next);
     });
 
+  // Retirer le plan (D15-h) : le fichier reste dans facade/ ; ce qui est en
+  // mm de façade (dessins posés, recalage, fresque) est gardé.
+  const confirmRemovePlan = () =>
+    run("Retrait du plan…", async () => {
+      setRemovingPlan(false);
+      if (!folder) return;
+      const next = await removeFacade(folder);
+      await load(folder, next);
+      setNotice("Plan retiré du projet. Le fichier reste dans le dossier facade/ du projet.");
+    });
+
   const choosePlan = () =>
     run("Lecture du plan…", async () => {
       const path = await choosePlanFile();
@@ -462,6 +476,11 @@ export function FacadeScreen() {
           </dl>
         ) : (
           <p>Aucun plan pour l'instant.</p>
+        )}
+        {engine && facade && (
+          <Button variant="danger" size="sm" icon="trash" onClick={() => setRemovingPlan(true)} disabled={!ready}>
+            Retirer le plan…
+          </Button>
         )}
       </Section>
       <Section title="Échelle">
@@ -642,6 +661,17 @@ export function FacadeScreen() {
             setNotice(message);
           }}
         />
+      )}
+      {removingPlan && (
+        <ConfirmDialog
+          title="Retirer le plan de la façade ?"
+          confirmLabel="Retirer le plan"
+          onConfirm={() => void confirmRemovePlan()}
+          onCancel={() => setRemovingPlan(false)}
+        >
+          <p>Le plan et sa mise à l'échelle sortent du projet. Le fichier reste dans le dossier facade/ du projet.</p>
+          <p>Les dessins posés, les points de recalage et la fresque sont gardés, en millimètres : ils retrouvent leur place sur le prochain plan une fois mis à l'échelle.</p>
+        </ConfirmDialog>
       )}
       {pending && (
         <Dialog

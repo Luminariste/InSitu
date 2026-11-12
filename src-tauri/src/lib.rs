@@ -89,6 +89,12 @@ fn facade_import(folder: String, path: String, page: Option<u32>) -> Result<Proj
     .map_err(|e| e.to_string())
 }
 
+/// Retire le plan de la façade ; le fichier reste dans le projet.
+#[tauri::command(async)]
+fn facade_remove(folder: String) -> Result<Project, String> {
+    facade::remove_facade(&project_dir(&folder)?).map_err(|e| e.to_string())
+}
+
 /// Met la façade du projet à l'échelle par deux points et une cote.
 #[tauri::command(async)]
 fn facade_set_scale(
@@ -301,6 +307,13 @@ fn library_list(app: AppHandle, folder: String) -> Result<Vec<LibraryEntry>, Str
         .map_err(|e| e.to_string())
 }
 
+/// Retire un dessin de la bibliothèque, et ses placements ; le fichier reste
+/// dans le projet. Rend aussi le nombre de placements retirés.
+#[tauri::command(async)]
+fn library_remove(folder: String, drawing: String) -> Result<(Project, usize), String> {
+    library::remove_drawing(&project_dir(&folder)?, &drawing).map_err(|e| e.to_string())
+}
+
 /// L'aperçu (1 024 px, fond transparent) d'un dessin.
 #[tauri::command(async)]
 fn library_preview(app: AppHandle, folder: String, drawing: String) -> Result<String, String> {
@@ -483,6 +496,7 @@ pub fn run() {
             project_open,
             facade_inspect,
             facade_import,
+            facade_remove,
             facade_set_scale,
             facade_display,
             projector_add,
@@ -497,6 +511,7 @@ pub fn run() {
             registration_set,
             library_import,
             library_list,
+            library_remove,
             library_preview,
             placements_set,
             library_vectorize,
