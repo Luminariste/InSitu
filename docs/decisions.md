@@ -4,6 +4,24 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Économie de minutes GitHub
+
+**D14. Les vérifications ne tournent que sur ce qui a changé.**
+Le quota gratuit de GitHub Actions a été épuisé le 12 novembre ; une minute
+de machine Mac y compte pour dix. Désormais, dans `ci.yml`, une première
+étape Linux regarde les fichiers modifiés : le moteur n'est testé que si le
+Rust ou le jeu d'essai change, l'interface que si `src/` ou ses réglages
+changent, la coque Mac que si la coque, le moteur qu'elle embarque, les
+images embarquées ou les réglages Cargo changent. Une partie sautée compte
+comme réussie. Les caches Rust ne sont réécrits que sur `main`. Chaque
+tâche a une durée maximale, pour qu'un blocage ne consomme pas d'heures.
+Précise D10 : la fabrication d'essai du `.dmg` sur une demande de fusion
+n'a plus lieu que si l'emballage change (`fabrication.yml`,
+`tauri.conf.json`, icônes) ; le code de la coque est vérifié par la
+compilation de `ci.yml`. Conséquence : une app qui compile mais plante au
+démarrage n'est attrapée qu'à la fabrication de la version sur `main`, qui
+alors ne publie rien.
+
 ## 2026-11-12 — Tâche 3.1
 
 Import du plan de façade. Les décisions de cette tâche portent un numéro
@@ -558,7 +576,7 @@ Dropbox de Luminariste ; le manifeste garde leur empreinte.
 
 **D6. Une vérification GitHub existe dès la tâche 1.1.**
 `.github/workflows/ci.yml` teste le moteur et l'interface sous Linux, et
-compile la coque Tauri sous macOS. Raison : la coque ne peut pas être compilée
+compile la coque Tauri sous macOS (seulement si elle peut être touchée, D14). Raison : la coque ne peut pas être compilée
 dans une session cloud (voir D2), GitHub est donc le seul endroit où elle est
 vérifiée. La fabrication du `.dmg` reste l'objet de la tâche 1.2.
 
