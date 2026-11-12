@@ -167,6 +167,22 @@ export function rotateDeformation(d: Deformation, deg: number, pivot: Point): De
   };
 }
 
+/**
+ * Étire la déformation de `sx` en x et `sy` en y depuis `anchor` (axes de la
+ * façade). Le cadre est agrandi de `k` comme le dessin (même agrandissement
+ * proportionnel des deux) ; ce qui n'est pas proportionnel passe dans les
+ * nœuds, exactement : l'interpolation de la grille suit une transformation
+ * affine.
+ */
+export function stretchDeformation(d: Deformation, sx: number, sy: number, k: number, anchor: Point): Deformation {
+  const frame = scaleDeformation(d, k, anchor).frame;
+  const nodes = d.nodes.map(([s, t]) => {
+    const q = framePoint(d.frame, s, t);
+    return frameFractions(frame, { x: anchor.x + (q.x - anchor.x) * sx, y: anchor.y + (q.y - anchor.y) * sy });
+  });
+  return { ...d, frame, nodes };
+}
+
 export function scaleDeformation(d: Deformation, factor: number, anchor: Point): Deformation {
   const f = d.frame;
   return {

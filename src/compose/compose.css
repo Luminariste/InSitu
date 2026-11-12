@@ -117,3 +117,84 @@
   margin-right: var(--ui-space-1);
   vertical-align: -1px;
 }
+
+/* Arborescence « Diapositives » : dessins rangés par diapositive. */
+.compose-tree {
+  display: grid;
+  gap: 2px;
+}
+
+.compose-tree-head,
+.compose-tree-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+  min-height: var(--ui-row-h);
+  padding: 2px 6px;
+  border-radius: var(--ui-radius-md);
+  font-size: var(--ui-text-sm);
+  cursor: default;
+}
+
+.compose-tree-head {
+  font-weight: var(--ui-weight-bold);
+}
+
+.compose-tree-row {
+  padding-left: 26px;
+}
+
+.compose-tree-head:hover,
+.compose-tree-row:hover {
+  background: var(--ui-hover);
+}
+
+.compose-tree-row.is-selected {
+  background: var(--ui-accent-soft);
+}
+
+/* Cible du lâcher : un trait au-dessus d'un dessin, un cadre autour d'un groupe. */
+.compose-tree-head.is-over {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: -2px;
+}
+
+.compose-tree-row.is-over {
+  box-shadow: inset 0 2px 0 var(--ui-accent);
+}
+
+.compose-tree-row img,
+.compose-tree-thumb {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  object-fit: contain;
+  background: #000;
+  border-radius: 3px;
+}
+
+.compose-tree-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compose-tree-count,
+.compose-tree-note {
+  flex: none;
+  font-weight: normal;
+  font-size: var(--ui-text-xs);
+  color: var(--ui-text-tertiary);
+}
+
+.compose-tree-row.is-cut .compose-tree-note {
+  color: var(--ui-danger);
+}
+
+.compose-tree-empty {
+  margin: 2px 0 2px 26px;
+  font-size: var(--ui-text-xs);
+  color: var(--ui-text-tertiary);
+}

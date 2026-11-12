@@ -25,7 +25,8 @@ Tout s'enregistre dans le projet à la fin de chaque geste.
 | Cliquer dans le vide | Plus rien de choisi |
 | Glisser un dessin choisi | Le déplacer ; ⇧ : à l'horizontale, à la verticale ou à 45° |
 | ⌥-glisser | Déplacer une copie |
-| Poignée de coin (carré blanc) | Agrandir ou réduire, proportions gardées ; ⌥ : depuis le centre |
+| Poignée de coin (carré blanc) | Étirer en largeur et en hauteur à la fois ; ⇧ : proportions gardées ; ⌥ : depuis le centre |
+| Poignée au milieu d'un côté | Étirer seulement en largeur (côtés gauche et droit) ou en hauteur (haut et bas) ; ⌥ : depuis le centre |
 | Juste au-delà d'un coin | Tourner autour du centre ; ⇧ : par pas de 45° |
 | Espace + glisser, ou défiler à deux doigts | Déplacer la vue |
 
@@ -134,6 +135,21 @@ la choisir à la main (les diapositives qui couperaient le dessin sont
 signalées). Ce choix reste, même si l'on déplace le dessin, jusqu'à ce
 qu'on revienne à « Automatique ». ⌘Z l'annule.
 
+### Arborescence « Diapositives »
+
+La rubrique **Diapositives** range les dessins posés par diapositive, comme
+les calques d'Illustrator : un groupe par projecteur recalé (même couleur
+que son emprise), et « Hors de toute diapositive » pour les dessins qui ne
+tombent dans aucune emprise. Dans un groupe, le dessin du haut est devant.
+
+- Cliquer une ligne choisit le dessin sur la façade.
+- **Glisser une ligne sur le titre d'une autre diapositive** : le dessin y
+  part, choisi à la main (comme dans l'inspecteur).
+- **Glisser une ligne au-dessus d'un autre dessin** : il passe juste devant
+  lui (et sur son calque), et dans sa diapositive si elle est différente.
+- « choisie à la main » et « à cheval » (en rouge) s'affichent à droite.
+- La flèche d'un titre replie ou déplie le groupe. ⌘Z annule.
+
 ### Essai sur Mac
 
 1. Ouvrir un projet dont plusieurs projecteurs sont recalés, avec des
@@ -147,6 +163,8 @@ qu'on revienne à « Automatique ». ⌘Z l'annule.
    a changé de diapositive.
 5. Agrandir un dessin jusqu'à dépasser de toutes les emprises : contour
    rouge.
+6. Rubrique Diapositives : glisser un dessin d'un groupe à l'autre, puis
+   au-dessus d'un autre dessin. Sa couleur suit, et il passe devant.
 
 ## Ce qui n'est pas encore là
 

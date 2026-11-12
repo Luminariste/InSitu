@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { applyGesture, frameCorners, handleAt, repeatGesture, type Gesture } from "./gesture";
-import { bounds, type Placement } from "./placement";
+import { applyGesture, frameCorners, frameHandles, handleAt, repeatGesture, type Gesture } from "./gesture";
+import { bounds, facadePoint, type Placement } from "./placement";
 
 const placed = (id: string, x: number, y: number): Placement => ({
   id,
@@ -44,6 +44,83 @@ describe("gestes sur les dessins posés", () => {
     expect(step.placements[0]).toMatchObject({ width: 400, height: 200, center: { x: 200, y: 100 } });
     const centered = applyGesture(g, { x: 300, y: 150 }, { shift: false, alt: true });
     expect(centered.placements[0]).toMatchObject({ width: 400, center: { x: 100, y: 50 } });
+  });
+
+  it("poignées du cadre comme Illustrator : coin en x et y, côté en x ou en y (D-4.2-l)", () => {
+    const before = [placed("a", 100, 50)];
+    const frame = bounds(before)!; // 0,0 → 200,100
+    const handles = frameHandles(frame);
+    expect(handles[5]).toEqual({ x: 200, y: 50 });
+    expect(handleAt(handles, { x: 202, y: 52 })).toEqual({ kind: "scale", corner: 5 });
+    expect(handleAt(handles, { x: 100, y: -3 })).toEqual({ kind: "scale", corner: 4 });
+    // Coin bas-droit tiré en (400, 150) : 2 fois en x, 1,5 fois en y.
+    const corner: Gesture = { kind: "scale", start: { x: 200, y: 100 }, before, ids: new Set(["a"]), frame, corner: 2 };
+    expect(applyGesture(corner, { x: 400, y: 150 }, none).placements[0]).toMatchObject({
+      width: 400,
+      height: 150,
+      center: { x: 200, y: 75 },
+    });
+    // ⇧ : proportions gardées.
+    expect(applyGesture(corner, { x: 400, y: 200 }, { shift: true, alt: false }).placements[0]).toMatchObject({
+      width: 400,
+      height: 200,
+    });
+    // Côté droit : en x seulement, même si le pointeur monte.
+    const right: Gesture = { kind: "scale", start: { x: 200, y: 50 }, before, ids: new Set(["a"]), frame, corner: 5 };
+    const wide = applyGesture(right, { x: 300, y: 10 }, none);
+    expect(wide.placements[0]).toMatchObject({ width: 300, height: 100, center: { x: 150, y: 50 } });
+    expect(wide.repeat).toEqual({ kind: "stretch", sx: 1.5, sy: 1, copy: false });
+    // Côté haut avec ⌥ : depuis le centre, en y seulement.
+    const top: Gesture = { kind: "scale", start: { x: 100, y: 0 }, before, ids: new Set(["a"]), frame, corner: 4 };
+    expect(applyGesture(top, { x: 100, y: -50 }, { shift: false, alt: true }).placements[0]).toMatchObject({
+      width: 200,
+      height: 200,
+      center: { x: 100, y: 50 },
+    });
+  });
+
+  it("étire exactement un dessin tourné : il reçoit une déformation", () => {
+    const tilted = [{ ...placed("a", 0, 0), rotation: 30 }];
+    const frame = bounds(tilted)!;
+    const right: Gesture = {
+      kind: "scale",
+      start: { x: frame.x + frame.width, y: 0 },
+      before: tilted,
+      ids: new Set(["a"]),
+      frame,
+      corner: 5,
+    };
+    const step = applyGesture(right, { x: frame.x + 2 * frame.width, y: 0 }, none);
+    const p = step.placements[0];
+    expect(p.deformation).toBeTruthy();
+    // Chaque coin du dessin : x doublé depuis le bord gauche, y inchangé.
+    const left = frame.x;
+    for (const [u, v] of [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+      [0.3, 0.7],
+    ]) {
+      const was = facadePoint(tilted[0], u, v);
+      const now = facadePoint(p, u, v);
+      expect(now.x).toBeCloseTo(left + (was.x - left) * 2, 6);
+      expect(now.y).toBeCloseTo(was.y, 6);
+    }
+    // Un dessin droit tourné d'un quart : largeur et hauteur s'échangent, sans déformation.
+    const quarter = [{ ...placed("b", 0, 0), rotation: 90 }];
+    const qf = bounds(quarter)!; // 100 de large, 200 de haut
+    const qg: Gesture = {
+      kind: "scale",
+      start: { x: qf.x + qf.width, y: 0 },
+      before: quarter,
+      ids: new Set(["b"]),
+      frame: qf,
+      corner: 5,
+    };
+    const q = applyGesture(qg, { x: qf.x + 3 * qf.width, y: 0 }, none).placements[0];
+    expect(q.deformation).toBeUndefined();
+    expect(q).toMatchObject({ width: 200, height: 300 });
   });
 
   it("tourne autour du centre, par pas de 45° avec ⇧", () => {

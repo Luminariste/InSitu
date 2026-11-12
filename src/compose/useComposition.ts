@@ -34,7 +34,7 @@ import type { LayerSpec, ViewerHandle } from "../viewer";
 import { mmToScreen, screenToMm, visibleRect } from "../viewer/geometry";
 import {
   applyGesture,
-  frameCorners,
+  frameHandles,
   handleAt,
   nodeAt,
   repeatGesture,
@@ -92,6 +92,7 @@ import {
 import type { Layer } from "./placement";
 import { meshLines, nodePoints } from "./deformation";
 import { SelectionNode } from "./SelectionNode";
+import { dropInTree, type TreeDrop } from "./slideTree";
 import { DRAWING_DRAG_TYPE, draggedDrawing, droppedDrawingId, endDrawingDrag } from "./dragDrawing";
 
 export { DRAWING_DRAG_TYPE };
@@ -139,6 +140,8 @@ export interface CompositionActions {
   deform(columns: number, rows: number): void;
   /** Choisit ces dessins posés (ceux qui existent), par identifiant (tâche 6.1). */
   select(ids: string[]): void;
+  /** Un dessin lâché dans l'arborescence des diapositives : autre diapositive, ou devant un autre dessin. */
+  dropInTree(dragged: string, drop: TreeDrop): void;
 }
 
 /** Ce que la rubrique « Calques » peut faire (tâche 4.3). */
@@ -506,7 +509,7 @@ export function useComposition(options: Options): Composition {
   };
 
   const handleUnder = (at: NonNullable<ReturnType<typeof pointerAt>>) =>
-    frame ? handleAt(frameCorners(frame).map(at.toScreen), at.screen) : null;
+    frame ? handleAt(frameHandles(frame).map(at.toScreen), at.screen) : null;
 
   const nodeUnder = (at: NonNullable<ReturnType<typeof pointerAt>>) =>
     editable ? nodeAt(editableNodes.map(at.toScreen), at.screen) : null;
@@ -580,9 +583,16 @@ export function useComposition(options: Options): Composition {
         nodeUnder(at) !== null
           ? "crosshair"
           : handle?.kind === "scale"
-            ? handle.corner % 2 === 0
-              ? "nwse-resize"
-              : "nesw-resize"
+            ? ([
+                "nwse-resize",
+                "nesw-resize",
+                "nwse-resize",
+                "nesw-resize",
+                "ns-resize",
+                "ew-resize",
+                "ns-resize",
+                "ew-resize",
+              ][handle.corner] ?? "nwse-resize")
             : handle?.kind === "rotate"
               ? "alias"
               : hitTest(picks, at.mm)
@@ -742,6 +752,7 @@ export function useComposition(options: Options): Composition {
     deform: (columns, rows) => apply(deform(placements, selection, columns, rows)),
     assignTo: (projector) => apply(assignTo(placements, selection, projector)),
     select: (ids) => setSelection(new Set(ids.filter((id) => placements.some((p) => p.id === id)))),
+    dropInTree: (dragged, drop) => apply(dropInTree(placements, assignments, dragged, drop), new Set([dragged])),
   };
 
   const shortcuts = [
