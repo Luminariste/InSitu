@@ -43,6 +43,8 @@ export function ExportPanel({ engine, folder, project, onProject, showFresco, on
 
   const fresco = project?.fresco ?? null;
   const scaled = Boolean(project?.facade?.scale);
+  // De quoi graver : la fresque, ou des dessins posés (le moteur écarte les calques masqués).
+  const artwork = fresco !== null || (project?.placements?.length ?? 0) > 0;
   const ready = engine && folder !== null && busy === null;
   const set = (patch: Partial<ExportSettings>) => setSettings({ ...settings, ...patch });
 
@@ -83,7 +85,7 @@ export function ExportPanel({ engine, folder, project, onProject, showFresco, on
     });
 
   const dpiValue = Number(dpiText.replace(",", "."));
-  useShortcuts([{ keys: "mod+e", run: () => void exportAll(), enabled: ready && !!fresco }]);
+  useShortcuts([{ keys: "mod+e", run: () => void exportAll(), enabled: ready && artwork }]);
 
   return (
     <>
@@ -142,7 +144,7 @@ export function ExportPanel({ engine, folder, project, onProject, showFresco, on
           )}
         </fieldset>
         <div className="facade-export-go">
-          <Button variant="primary" icon="export" shortcut="mod+e" title="Un PNG par projecteur recalé" onClick={() => void exportAll()} disabled={!ready || !fresco}>
+          <Button variant="primary" icon="export" shortcut="mod+e" title="Un PNG par projecteur recalé : la fresque et les dessins posés" onClick={() => void exportAll()} disabled={!ready || !artwork}>
             Exporter les diapositives…
           </Button>
         </div>

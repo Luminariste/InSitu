@@ -10,8 +10,9 @@
 //!
 //! Les aperçus sont rangés dans le cache de l'app (`diapositives/<clé>.png`) ;
 //! la clé tient compte du fichier de la fresque (chemin, taille, date), de
-//! son rectangle, du recalage et de la taille : changer l'un d'eux refait
-//! l'aperçu, rien d'autre.
+//! son rectangle, du recalage, de la taille, et des dessins posés (leurs
+//! placements, calques masqués exclus, et leurs fichiers) : changer l'un
+//! d'eux refait l'aperçu, rien d'autre.
 
 use std::fs;
 use std::path::Path;
@@ -19,13 +20,14 @@ use std::time::UNIX_EPOCH;
 
 use serde::Serialize;
 
-use super::{read_fresco, render_slide, ExportError};
+use super::drawings::{slide_rect, DrawingCache};
+use super::{read_fresco, render_artwork, Artwork, ExportError};
 use crate::library::{black_to_alpha, encode_png};
 use crate::project::model::new_id;
 use crate::project::{ExportSettings, Project, ProjectDir};
 use crate::registration::slide_to_facade;
 use crate::tiles::{self, Raster};
-use crate::units::{MM_PER_INCH, SLIDE_SIZE_MM};
+use crate::units::{self, MM_PER_INCH, SLIDE_SIZE_MM};
 
 /// Côté des aperçus de diapositive, en pixels.
 pub const SLIDE_PREVIEW_SIDE: u32 = 2048;
@@ -48,7 +50,7 @@ pub struct SlideView {
 
 /// La vue diapositive de tous les projecteurs du projet : l'aperçu de
 /// chaque projecteur recalé est calculé s'il n'est pas déjà dans le cache.
-/// La fresque n'est lue que si un aperçu manque.
+/// La fresque et les dessins ne sont lus que si un aperçu manque.
 pub fn slide_views(
     dir: &ProjectDir,
     cache_root: &Path,
@@ -56,6 +58,17 @@ pub fn slide_views(
 ) -> Result<Vec<SlideView>, ExportError> {
     let project = dir.load()?.project;
     let mut fresco_image: Option<Raster> = None;
+    let placements = project.visible_placements();
+    let mut cache = DrawingCache::default();
+    let settings = ExportSettings {
+        dpi: f64::from(side) / SLIDE_SIZE_MM * MM_PER_INCH,
+        margin: false,
+        mirror: false,
+        negative: false,
+        one_bit: false,
+        ..ExportSettings::default()
+    };
+    let px_mm = units::px_size_mm(settings.dpi);
     let mut views = Vec::new();
     for p in &project.projectors {
         let mut view = SlideView {
@@ -66,30 +79,37 @@ pub fn slide_views(
             problem: None,
         };
         let warp = slide_to_facade(&p.registration);
-        match (&project.fresco, warp) {
-            (None, _) => view.problem = Some("aucune fresque importée".into()),
-            (_, None) => {
+        let nothing = project.fresco.is_none() && placements.is_empty();
+        match warp {
+            _ if nothing => {
+                view.problem = Some("ni fresque importée, ni dessin posé sur la façade".into())
+            }
+            None => {
                 view.problem = Some(format!(
                     "recalage incomplet : {} paire(s) de points sur 4 au moins",
                     p.registration.len()
                 ))
             }
-            (Some(fresco), Some(warp)) => {
+            Some(warp) => {
                 let request = preview_request(dir, &project, &p.id, side)?;
                 if !cache_root.join(&request).is_file() {
-                    if fresco_image.is_none() {
+                    if let (None, Some(fresco)) = (&fresco_image, &project.fresco) {
                         fresco_image = Some(read_fresco(&dir.resolve(&fresco.source))?);
                     }
-                    let image = fresco_image.as_ref().expect("fresque lue");
-                    let settings = ExportSettings {
-                        dpi: f64::from(side) / SLIDE_SIZE_MM * MM_PER_INCH,
-                        margin: false,
-                        mirror: false,
-                        negative: false,
-                        one_bit: false,
-                        ..ExportSettings::default()
+                    let (n, _) = super::sizes_px(settings.dpi);
+                    let seen: Vec<_> = placements
+                        .iter()
+                        .copied()
+                        .filter(|q| slide_rect(q, &warp, px_mm, n, false).is_some())
+                        .collect();
+                    cache.load(dir, &project, &seen, px_mm)?;
+                    let art = Artwork {
+                        fresco: fresco_image
+                            .as_ref()
+                            .zip(project.fresco.as_ref().map(|f| &f.frame)),
+                        drawings: cache.pair(&seen),
                     };
-                    let gray = render_slide(image, &fresco.frame, &warp, "", &settings, 0)?;
+                    let gray = render_artwork(&art, &warp, "", &settings, 0)?;
                     let rgba = Raster::new(gray.width, gray.height, 4, black_to_alpha(&gray));
                     store(cache_root, &request, &rgba)?;
                 }
@@ -108,33 +128,55 @@ fn preview_request(
     id: &str,
     side: u32,
 ) -> Result<String, ExportError> {
-    let fresco = project.fresco.as_ref().ok_or(ExportError::NoFresco)?;
-    let path = dir.resolve(&fresco.source);
+    let pairs = project
+        .projector(id)
+        .map(|p| serde_json::to_string(&p.registration).expect("sérialisable"))
+        .unwrap_or_default();
+    let mut identity = String::new();
+    if let Some(fresco) = &project.fresco {
+        let frame = &fresco.frame;
+        identity = format!(
+            "{}|{}|{}|{}|{}",
+            file_identity(&dir.resolve(&fresco.source))?,
+            frame.x,
+            frame.y,
+            frame.width,
+            frame.height
+        );
+    }
+    // Les dessins posés visibles, et le fichier de chacun.
+    let placements = project.visible_placements();
+    identity.push_str(&serde_json::to_string(&placements).expect("sérialisable"));
+    let mut used: Vec<&str> = placements.iter().map(|p| p.drawing.as_str()).collect();
+    used.sort_unstable();
+    used.dedup();
+    for drawing in used {
+        if let Some(d) = project.library.iter().find(|d| d.id == drawing) {
+            identity.push('|');
+            identity.push_str(&file_identity(&dir.resolve(&d.source)).unwrap_or_default());
+        }
+    }
+    let identity = format!("{identity}|{pairs}|{side}|d2");
+    Ok(format!(
+        "{SLIDE_PREVIEW_DIR}/{:016x}.png",
+        tiles::fnv1a_64(identity.as_bytes())
+    ))
+}
+
+/// Chemin, taille et date d'un fichier, pour reconnaître qu'il a changé.
+fn file_identity(path: &Path) -> Result<String, ExportError> {
     let describe = |e: std::io::Error| ExportError::Image(format!("{} : {e}", path.display()));
-    let canonical = fs::canonicalize(&path).map_err(describe)?;
+    let canonical = fs::canonicalize(path).map_err(describe)?;
     let metadata = fs::metadata(&canonical).map_err(describe)?;
     let modified = metadata
         .modified()
         .ok()
         .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
         .map_or(0, |d| d.as_nanos());
-    let pairs = project
-        .projector(id)
-        .map(|p| serde_json::to_string(&p.registration).expect("sérialisable"))
-        .unwrap_or_default();
-    let frame = &fresco.frame;
-    let identity = format!(
-        "{}|{}|{modified}|{}|{}|{}|{}|{pairs}|{side}|d1",
-        canonical.display(),
-        metadata.len(),
-        frame.x,
-        frame.y,
-        frame.width,
-        frame.height
-    );
     Ok(format!(
-        "{SLIDE_PREVIEW_DIR}/{:016x}.png",
-        tiles::fnv1a_64(identity.as_bytes())
+        "{}|{}|{modified}",
+        canonical.display(),
+        metadata.len()
     ))
 }
 

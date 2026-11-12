@@ -4,6 +4,40 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Export des dessins posés (après la tâche 4.3)
+
+Demande de Benjamin (réponse « oui » du 12 novembre) : lever la limite de la
+tâche 4.2, les dessins posés dans l'app partent dans les diapositives.
+Module `crates/insitu-core/src/export/drawings.rs`.
+
+**D-4.2-g. Chaque dessin est calculé depuis son fichier d'origine, par la
+chaîne de la fresque.** Pixel de la diapositive → mm de diapositive → mm de
+façade (recalage) → position dans le dessin (inverse du placement) → pixel
+du fichier. Mêmes filtres que la fresque (tâche 3.4) : un dessin posé sort
+comme la même image importée en fresque sur le même rectangle (test). Seul
+le rectangle de diapositive que le dessin peut toucher est calculé (son
+contour ramené dans la diapositive par l'inverse du recalage, 3 px de
+marge) ; un dessin qui ne tombe pas dans la diapositive n'est pas lu. Un
+SVG est rendu à la taille de son plus grand placement à la résolution
+d'export (entre 512 et 16 384 px).
+
+**D-4.2-h. Fresque et dessins se superposent en gardant le plus clair.**
+Traits blancs sur fond noir : un trait n'en efface jamais un autre. Le
+masquage d'un dessin par celui de devant est la tâche 4.7 ; l'ordre des
+calques est déjà suivi, pour elle.
+
+**D-4.2-i. Les calques masqués ne sont pas exportés, les verrouillés oui.**
+Masquer sert à ne pas graver ; verrouiller sert seulement à ne pas déplacer
+par erreur. Un projet sans fresque mais avec des dessins posés s'exporte.
+
+**D-4.2-j. La vue Diapositive suit la même règle.** Sa clé de cache tient
+compte des placements visibles et de la taille et de la date des fichiers
+des dessins : bouger un dessin refait l'aperçu.
+
+**Limite.** Les fichiers des dessins utilisés par une diapositive restent
+en mémoire pendant l'export (en niveaux de gris, un dessin de 4 096 px pèse
+16 Mo) ; à surveiller avec une très grande bibliothèque.
+
 ## 2026-11-12 — Tâche 4.3
 
 Calques de la composition (champ `layers`, `placement.layer`) et annulation
@@ -59,9 +93,7 @@ calque choisi dans la liste ; s'il est masqué ou verrouillé, l'app refuse et
 le dit.
 
 **Limite.** « Avancer » et « reculer » (⌘] ⌘[) ne font pas passer un dessin
-d'un calque à l'autre : on change son calque dans l'inspecteur. L'export des
-diapositives ne lit pas encore les dessins posés (limite de la tâche 4.2) ; quand il le
-fera, il devra suivre le même ordre et ignorer les calques masqués.
+d'un calque à l'autre : on change son calque dans l'inspecteur.
 
 ## 2026-11-12 — Tâche 4.2
 

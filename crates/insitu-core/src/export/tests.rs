@@ -401,3 +401,216 @@ fn slide_previews_are_computed_once_and_follow_the_registration() {
         .unwrap();
     assert_ne!(moved, request);
 }
+
+/// Projet avec un projecteur recalé, sans fresque, et le verre A réduit en
+/// dessin de bibliothèque, posé droit sur le rectangle `frame` de la façade.
+fn project_with_placed_drawing(label: &str, frame: &RectMm) -> (TempDir, ProjectDir, Raster) {
+    use crate::project::{Drawing, Placement, RelativePath};
+    let temp = TempDir::new(label);
+    let (dir, mut project) =
+        ProjectDir::create(temp.path().join("Essai.insitu"), Some("Essai")).unwrap();
+    project.add_projector("A").registration = pairs();
+    let verre = verre_a_reduit();
+    let file = dir.resolve(&RelativePath::new("bibliotheque/verre-a.png").unwrap());
+    std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+    image::save_buffer(
+        &file,
+        &verre.data,
+        verre.width,
+        verre.height,
+        image::ExtendedColorType::L8,
+    )
+    .unwrap();
+    project.library.push(Drawing {
+        id: "verre".into(),
+        name: "verre-a".into(),
+        source: RelativePath::new("bibliotheque/verre-a.png").unwrap(),
+        width: f64::from(verre.width),
+        height: f64::from(verre.height),
+        vector: None,
+        extra: Default::default(),
+    });
+    project.placements.push(Placement {
+        id: "p1".into(),
+        drawing: "verre".into(),
+        center: PointMm::new(frame.x + frame.width / 2.0, frame.y + frame.height / 2.0),
+        width: frame.width,
+        height: frame.height,
+        rotation: 0.0,
+        mirrored: false,
+        group: None,
+        layer: None,
+        extra: Default::default(),
+    });
+    dir.save(&project).unwrap();
+    (temp, dir, verre)
+}
+
+/// Un dessin posé sort dans la diapositive exactement comme la même image
+/// importée en fresque sur le même rectangle : même chaîne, mêmes filtres.
+#[test]
+fn a_placed_drawing_is_exported_like_the_same_image_as_a_fresco() {
+    let frame = RectMm {
+        x: 1_800.0,
+        y: 1_200.0,
+        width: 2_400.0,
+        height: 2_400.0 * 0.9,
+    };
+    let (temp, dir, verre) = project_with_placed_drawing("export-dessins", &frame);
+    let frame = RectMm {
+        height: 2_400.0 * f64::from(verre.height) / f64::from(verre.width),
+        ..frame
+    };
+    // Le dessin garde ses proportions : on le pose sur le bon rectangle.
+    let mut project = dir.load().unwrap().project;
+    project.placements[0].height = frame.height;
+    project.placements[0].center.y = frame.y + frame.height / 2.0;
+    dir.save(&project).unwrap();
+
+    let out = temp.path().join("export");
+    let s = settings(100.0);
+    let report = export_slides(&dir, &out, &s, None, 0, &|_| {}).unwrap();
+    let exported = to_gray(tiles::read_raster(&report.slides[0].path).unwrap());
+    let warp = slide_to_facade(&pairs()).unwrap();
+    let reference = render_slide(&verre, &frame, &warp, "", &s, 0).unwrap();
+    assert_eq!(
+        (exported.width, exported.height),
+        (reference.width, reference.height)
+    );
+    let lit = reference.data.iter().filter(|&&v| v >= 128).count();
+    assert!(
+        lit > 1_000,
+        "le dessin doit tomber dans la diapositive : {lit}"
+    );
+    let worst = exported
+        .data
+        .iter()
+        .zip(&reference.data)
+        .map(|(&a, &b)| a.abs_diff(b))
+        .max()
+        .unwrap();
+    assert!(worst <= 2, "écart maximal {worst} niveaux de gris");
+
+    // Retourné en miroir, l'export suit aussi la fresque.
+    let m = ExportSettings {
+        mirror: true,
+        ..s.clone()
+    };
+    let report = export_slides(&dir, &out, &m, None, 0, &|_| {}).unwrap();
+    let exported = to_gray(tiles::read_raster(&report.slides[0].path).unwrap());
+    let reference = render_slide(&verre, &frame, &warp, "", &m, 0).unwrap();
+    assert!(exported
+        .data
+        .iter()
+        .zip(&reference.data)
+        .all(|(&a, &b)| a.abs_diff(b) <= 2));
+
+    // Le dessin sur un calque masqué : plus rien à exporter.
+    let mut project = dir.load().unwrap().project;
+    project.layers.push(crate::project::Layer {
+        id: "fond".into(),
+        name: "Fond".into(),
+        visible: false,
+        locked: false,
+        extra: Default::default(),
+    });
+    dir.save(&project).unwrap();
+    let none = export_slides(&dir, &out, &s, None, 0, &|_| {});
+    assert!(matches!(none, Err(ExportError::NoFresco)), "{none:?}");
+}
+
+/// Dessins et fresque se superposent en gardant le plus clair ; un dessin
+/// hors de la diapositive n'est pas lu.
+#[test]
+fn drawings_add_to_the_fresco_and_outside_ones_are_ignored() {
+    let frame = RectMm {
+        x: 1_800.0,
+        y: 1_200.0,
+        width: 2_400.0,
+        height: 2_400.0,
+    };
+    let (temp, dir, _) = project_with_placed_drawing("export-dessins-fresque", &frame);
+    let warp = slide_to_facade(&pairs()).unwrap();
+    // Fresque : le verre A sur toute l'emprise.
+    let image = temp.path().join("fresque.png");
+    let verre = verre_a_reduit();
+    let fresco = fresco_from(&verre, &warp, 800);
+    image::save_buffer(
+        &image,
+        &fresco.data,
+        fresco.width,
+        fresco.height,
+        image::ExtendedColorType::L8,
+    )
+    .unwrap();
+    import_fresco(&dir, &image, Some(FRAME)).unwrap();
+    let mut project = dir.load().unwrap().project;
+    // Un second dessin, loin de la diapositive, dont le fichier manque :
+    // il n'est pas lu, donc pas d'erreur.
+    let mut far = project.placements[0].clone();
+    far.id = "p2".into();
+    far.drawing = "absent".into();
+    far.center = PointMm::new(50_000.0, 50_000.0);
+    project.library.push(crate::project::Drawing {
+        id: "absent".into(),
+        source: crate::project::RelativePath::new("bibliotheque/absent.png").unwrap(),
+        ..project.library[0].clone()
+    });
+    project.placements.push(far);
+    dir.save(&project).unwrap();
+
+    let s = settings(100.0);
+    let out = temp.path().join("export");
+    let report = export_slides(&dir, &out, &s, None, 0, &|_| {}).unwrap();
+    let both = to_gray(tiles::read_raster(&report.slides[0].path).unwrap());
+    let fresco_image = read_fresco(&dir.resolve(&project.fresco.unwrap().source)).unwrap();
+    let alone = render_slide(&fresco_image, &FRAME, &warp, "", &s, 0).unwrap();
+    // Jamais plus sombre que la fresque seule, et plus clair quelque part.
+    assert!(both.data.iter().zip(&alone.data).all(|(&b, &a)| b >= a));
+    let brighter = both
+        .data
+        .iter()
+        .zip(&alone.data)
+        .filter(|(&b, &a)| b > a.saturating_add(64))
+        .count();
+    assert!(brighter > 1_000, "{brighter}");
+
+    // Le dessin lointain, rapproché, est lu : son fichier manque.
+    let mut project = dir.load().unwrap().project;
+    project.placements[1].center = project.placements[0].center;
+    dir.save(&project).unwrap();
+    let missing = export_slides(&dir, &out, &s, None, 0, &|_| {});
+    assert!(
+        matches!(&missing, Err(ExportError::Image(m)) if m.contains("verre-a")),
+        "{missing:?}"
+    );
+}
+
+/// La vue diapositive montre aussi les dessins posés, sans fresque, et se
+/// refait quand un dessin bouge.
+#[test]
+fn slide_previews_show_placed_drawings() {
+    use super::preview::slide_views;
+    let frame = RectMm {
+        x: 1_800.0,
+        y: 1_200.0,
+        width: 2_400.0,
+        height: 2_400.0,
+    };
+    let (temp, dir, _) = project_with_placed_drawing("vue-diapositive-dessins", &frame);
+    let cache = temp.path().join("cache");
+    let views = slide_views(&dir, &cache, 600).unwrap();
+    assert!(views[0].problem.is_none(), "{:?}", views[0].problem);
+    let first = views[0].preview.clone().unwrap();
+    let png = image::open(cache.join(&first)).unwrap().into_rgba8();
+    assert!(png.pixels().filter(|p| p.0[3] >= 128).count() > 100);
+
+    let mut project = dir.load().unwrap().project;
+    project.placements[0].center.x += 100.0;
+    dir.save(&project).unwrap();
+    let moved = slide_views(&dir, &cache, 600).unwrap()[0]
+        .preview
+        .clone()
+        .unwrap();
+    assert_ne!(moved, first);
+}

@@ -1910,7 +1910,7 @@ dependencies = [
 
 [[package]]
 name = "insitu-app"
-version = "0.1.20"
+version = "0.1.21"
 dependencies = [
  "insitu-core",
  "serde",
@@ -1922,7 +1922,7 @@ dependencies = [
 
 [[package]]
 name = "insitu-cli"
-version = "0.1.20"
+version = "0.1.21"
 dependencies = [
  "image",
  "insitu-core",
@@ -1932,7 +1932,7 @@ dependencies = [
 
 [[package]]
 name = "insitu-core"
-version = "0.1.20"
+version = "0.1.21"
 dependencies = [
  "dxf",
  "hayro",

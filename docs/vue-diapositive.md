@@ -41,7 +41,8 @@ résultat en JSON.
 ## Ce qui est vérifié, et ce qui ne l'est pas
 
 - Vérifié par les tests : l'aperçu est exactement l'export à basse
-  résolution ; il n'est refait que si la fresque ou le recalage change.
+  résolution, dessins posés compris ; il n'est refait que si la fresque, le
+  recalage ou un dessin posé change.
 - Vérifié dans un navigateur : la bascule entre projecteurs, la couleur et
   l'opacité, sur des images inventées.
 - **Pas vérifié** : le critère du plan, « les dessins tombent sur
