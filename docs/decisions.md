@@ -64,6 +64,56 @@ Les verres d'Épinal mêlent hachures fines et aplats gris : beaucoup de
 petits contours (35 000 à 110 000 par verre, 0,5 à 1,6 million de morceaux).
 Aucun dessin de Marc n'a encore été essayé : les dix dessins de styles
 différents demandés pour 5.2 manquent.
+## 2026-11-12 — Tâche 3.2
+
+Recalage par points : module `crates/insitu-core/src/registration/`,
+commande `insitu registration`, écran `src/registration/`, mode d'emploi
+`docs/recalage.md`.
+
+**D-3.2-a. Le diagnostic est calculé de la façade vers la diapositive.**
+Les écarts et le seuil des points aberrants sont ainsi en mm de diapositive,
+quelle que soit l'échelle de la façade ; l'écart sur la façade est déduit
+(écart ramené côté source, D-2.3). La correspondance utilisée ensuite
+(emprise, export) va de la diapositive vers la façade, par les mêmes points.
+
+**D-3.2-b. Écart affiché selon le nombre de points.**
+4 points : trapèze exact, pas d'écart. 5 points : écart de chaque point au
+trapèze ajusté sur les cinq. 6 points et plus : écart de validation croisée
+(le point prédit par les autres), et recherche des points aberrants (D-2.3).
+Le résumé et la couleur d'un point (vert sous 1 mm) excluent les points
+aberrants de la moyenne.
+
+**D-3.2-c. Points aberrants : facteur 6 (inchangé), plancher 1 mm sur la
+diapositive.** En dessous de 1 mm d'écart sur la diapositive (environ 7 px
+de photo redressée à 500 dpi, et quelques centimètres sur la façade), un
+point n'est jamais déclaré aberrant. Réglage vérifié par simulation (test
+`a_misplaced_point_is_flagged_and_good_points_are_not`) : 16 points, erreur
+de pointage de 0,3 mm, relief de 60 mm ; aucune fausse alerte sur 40 essais,
+19 points faux sur 20 trouvés à 5 mm (le manqué est un point du bord), 20
+sur 20 à 10 mm. **Non réglé sur des points réels** : aucun recalage cliqué
+à la main n'existe encore. Un essai a été fait sur des correspondances
+réelles d'Épinal tirées automatiquement des verres et du déroulé (étude hors
+dépôt), mais ces verres ont été composés dessin par dessin dans Illustrator :
+ils ne suivent pas une seule déformation, et ne disent rien de la précision
+d'un clic. Le réglage sera repris sur les premiers points cliqués par
+Benjamin (`insitu registration show` les relit).
+
+**D-3.2-d. Un point de diapositive doit être dans le carré de 280 mm.**
+Le moteur refuse les paires hors du carré, et des paires qui ne permettent
+pas d'ajuster le trapèze (points confondus ou alignés) : le projet n'est
+alors pas modifié et l'écran revient à l'état précédent. Les points de
+façade ne sont pas bornés (le plan peut être plus petit que la façade).
+
+**D-3.2-e. Pose en deux clics, sans mode.**
+Un clic sur une vue pose le point de ce côté ; le clic sur l'autre vue
+complète la paire, dans n'importe quel ordre. Un glisser déplace la vue sans
+poser de point (même règle que la mise à l'échelle, `isClick`). Pour
+déplacer un point existant, on le sélectionne dans la liste. Pas de glisser
+des repères : à voir après l'essai de Benjamin.
+
+**D-3.2-f. Non fait : la photo « lum ».** Le plan prévoit qu'elle puisse
+servir de repère large ; le format de projet n'a pas encore de place pour
+elle (pas de champ `litPhoto`). Noté pour une tâche suivante.
 
 ## 2026-11-12 — Tâche 2.5
 

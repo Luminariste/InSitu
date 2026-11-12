@@ -17,6 +17,7 @@ pub mod geometry;
 pub mod photo;
 pub mod project;
 pub mod rectification;
+pub mod registration;
 pub mod resample;
 pub mod target;
 pub mod tiles;

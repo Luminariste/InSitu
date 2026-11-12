@@ -108,6 +108,8 @@ export interface Projector {
   rawPhoto: string | null;
   rectifiedPhoto: string | null;
   rectification: RectificationInfo | null;
+  /** Recalage sur la façade : points communs (tâche 3.2). */
+  registration?: RegistrationPair[];
 }
 
 /** Ce que l'interface lit d'un projet ; les autres champs sont ignorés ici. */
@@ -364,4 +366,54 @@ export async function chooseExportPath(defaultName: string): Promise<string | nu
     ],
   });
   return chosen ?? null;
+}
+
+// --- Recalage sur la façade (tâche 3.2) ----------------------------------------
+
+/** Un point commun : sur la diapositive (mm, 0 à 280) et sur la façade (mm réels). */
+export interface RegistrationPair {
+  slide: { x: number; y: number };
+  facade: { x: number; y: number };
+}
+
+/** Ce que le moteur dit d'une paire. */
+export interface PairReport {
+  /** Écart sur la diapositive, en mm ; `null` tant qu'il n'est pas mesurable. */
+  slideResidualMm: number | null;
+  /** Le même sur la façade, en mm. */
+  facadeResidualMm: number | null;
+  /** Point jugé aberrant : à vérifier, déplacer ou retirer. */
+  outlier: boolean;
+}
+
+export interface RegistrationReport {
+  projectorId: string;
+  stage: "incomplete" | "trapeze" | "corrected";
+  pairs: PairReport[];
+  rmsSlideMm: number | null;
+  rmsFacadeMm: number | null;
+  trapezeRmsSlideMm: number | null;
+  /** Contour de la diapositive posé sur la façade (mm), fermé. */
+  footprint: { x: number; y: number }[];
+}
+
+/** Compte rendu du recalage enregistré d'un projecteur. */
+export async function fetchRegistration(folder: string, projector: string): Promise<RegistrationReport> {
+  requireEngine();
+  return invoke<RegistrationReport>("registration_show", { folder, projector });
+}
+
+/** Remplace les points communs d'un projecteur ; le projet est enregistré. */
+export async function saveRegistration(
+  folder: string,
+  projector: string,
+  pairs: RegistrationPair[],
+): Promise<{ project: Project; report: RegistrationReport }> {
+  requireEngine();
+  const [project, report] = await invoke<[Project, RegistrationReport]>("registration_set", {
+    folder,
+    projector,
+    pairs,
+  });
+  return { project, report };
 }
