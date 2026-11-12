@@ -127,6 +127,22 @@ pixels de diapositive et applique la mesure indépendante de la tâche 5.1
 (écart entre courbes et bord du trait seuillé). L'écart doit rester sous
 0,02 mm, avec et sans miroir.
 
+**D-5.3-f. Cadre de la diapositive dans le SVG.** Demande de Benjamin
+après son essai LightBurn (12 novembre 2026). Chaque SVG porte, en plus des
+dessins, un carré de 280 mm (`id="cadre-diapositive"`), au bord de la
+diapositive (décalé de 10 mm avec la plaque) : trait rouge de 0,1 mm, sans
+remplissage. Il donne le contour de la diapositive, et sa couleur le met
+sur un calque à part dans LightBurn, à graver ou non. Il complète D-5.3-d,
+qui ne mettait que les dessins.
+
+**D-5.3-g. 279,999 mm dans LightBurn : la limite du pixel, pas une erreur.**
+À 1 400 dpi, 280 mm font 15 433,07 pixels ; l'image en a 15 433, soit
+279,9987 mm, et le PNG note sa résolution en pixels par mètre entiers
+(55 118), d'où 279,999 mm. L'écart (1 µm, moins d'un vingtième de pixel)
+est sous la finesse du laser. Il n'existe pas de nombre entier de pixels
+qui fasse exactement 280 mm à 1 400 dpi ; changer le chiffre de référence
+(15 433 px) demanderait l'accord de Benjamin, et n'est pas proposé.
+
 ## 2026-11-12 — Tâche 4.7 : silhouettes et superposition
 
 Module `crates/insitu-core/src/library/silhouette.rs` ; écran
