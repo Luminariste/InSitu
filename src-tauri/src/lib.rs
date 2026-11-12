@@ -195,6 +195,15 @@ fn projector_mirror(
         .map_err(|e| e.to_string())
 }
 
+/// Tourne la diapositive d'un projecteur d'un quart de tour.
+#[tauri::command(async)]
+fn projector_rotate(
+    folder: String,
+    projector: String,
+) -> Result<(Project, RectificationView), String> {
+    projectors::rotate_projector(&project_dir(&folder)?, &projector).map_err(|e| e.to_string())
+}
+
 /// Relit le redressement enregistré d'un projecteur.
 #[tauri::command(async)]
 fn projector_view(folder: String, projector: String) -> Result<Option<RectificationView>, String> {
@@ -614,6 +623,7 @@ pub fn run() {
             projector_view,
             projector_export,
             projector_mirror,
+            projector_rotate,
             registration_show,
             registration_set,
             library_import,

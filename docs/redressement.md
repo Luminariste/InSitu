@@ -28,6 +28,13 @@
    depuis les coins** : l'app retrouve seule quel coin est lequel (par les
    petits cercles de la mire), et les coins n'ont pas besoin d'être exacts
    (1 ou 2 mm suffisent), la grille affine ensuite.
+   **Si la grille ne se lit pas** (photo floue, sombre, mire mal éclairée),
+   la photo est quand même redressée, par les quatre coins seuls : le bas
+   de l'écran le dit en orange, avec la raison. C'est un simple trapèze,
+   dont la précision n'est pas mesurée : poser les coins avec soin (loupe)
+   et vérifier la photo redressée. Si les petits cercles ne se voient pas
+   non plus, le sens peut être faux : **↻ Quart de tour** (à côté du
+   miroir) tourne la photo redressée, autant de fois qu'il faut.
 6. **Miroir** : **↔ Gauche-droite** et **↕ Haut-bas** retournent la photo
    redressée (et donc l'export et les points du recalage) ; un second clic
    annule. Le réglage est gardé si la mire est détectée de nouveau.
@@ -50,6 +57,7 @@ insitu projector add Essai.insitu A
 insitu projector photo Essai.insitu A IMG_1234.HEIC
 insitu projector rectify Essai.insitu A                  # détection automatique
 insitu projector rectify Essai.insitu A --corners 2500,420,2540,2600,750,2610,720,430   # coins dans n'importe quel ordre
+insitu projector rotate Essai.insitu A    # quart de tour (redressement par les coins seuls)
 insitu projector show Essai.insitu A                     # relit le résultat enregistré
 insitu projector export Essai.insitu A A.tif --dpi 500
 ```

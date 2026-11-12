@@ -50,3 +50,12 @@
 .registration-dragging .viewer-canvas {
   cursor: grabbing;
 }
+
+/* Consigne des premiers points, en tête du panneau des points communs. */
+.registration-advice {
+  padding: var(--ui-space-2) var(--ui-space-1) 0;
+}
+
+.registration-opacity {
+  width: 90px;
+}

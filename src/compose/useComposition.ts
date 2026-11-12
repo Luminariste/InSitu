@@ -92,9 +92,9 @@ import {
 import type { Layer } from "./placement";
 import { meshLines, nodePoints } from "./deformation";
 import { SelectionNode } from "./SelectionNode";
+import { DRAWING_DRAG_TYPE, draggedDrawing, droppedDrawingId, endDrawingDrag } from "./dragDrawing";
 
-/** Type des données glissées depuis la liste des dessins. */
-export const DRAWING_DRAG_TYPE = "application/x-insitu-drawing";
+export { DRAWING_DRAG_TYPE };
 
 export type ComposeDrawing = LibraryEntry & { url?: string | null };
 
@@ -672,13 +672,15 @@ export function useComposition(options: Options): Composition {
   };
 
   const onDragOver = (event: DragEvent<HTMLDivElement>) => {
-    if (!enabled || !event.dataTransfer.types.includes(DRAWING_DRAG_TYPE)) return;
+    if (!enabled) return;
+    if (!event.dataTransfer.types.includes(DRAWING_DRAG_TYPE) && draggedDrawing() === null) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "copy";
   };
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
-    const id = event.dataTransfer.getData(DRAWING_DRAG_TYPE);
+    const id = droppedDrawingId(event.dataTransfer, draggedDrawing());
+    endDrawingDrag();
     if (!enabled || !id) return;
     event.preventDefault();
     const at = pointerAt(event);
