@@ -95,6 +95,12 @@ fn facade_remove(folder: String) -> Result<Project, String> {
     facade::remove_facade(&project_dir(&folder)?).map_err(|e| e.to_string())
 }
 
+/// Tourne le plan de la façade de quarts de tour (D15-k).
+#[tauri::command(async)]
+fn facade_rotate(folder: String, quarter_turns: i32) -> Result<Project, String> {
+    facade::rotate_facade(&project_dir(&folder)?, quarter_turns).map_err(|e| e.to_string())
+}
+
 /// Met la façade du projet à l'échelle par deux points et une cote.
 #[tauri::command(async)]
 fn facade_set_scale(
@@ -620,6 +626,7 @@ pub fn run() {
             facade_inspect,
             facade_import,
             facade_remove,
+            facade_rotate,
             facade_set_scale,
             facade_display,
             projector_add,

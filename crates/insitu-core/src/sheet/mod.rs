@@ -140,9 +140,18 @@ fn plan_image(dir: &ProjectDir, project: &Project) -> Option<PlanImage> {
     let size_mm = facade.size_mm()?;
     let path = dir.resolve(&facade.source);
     let rgba = match SourceKind::of(&path).ok()? {
-        SourceKind::Image => crate::photo::read(&path).ok()?.into_rgba8(),
+        SourceKind::Image => {
+            let image = crate::photo::read(&path).ok()?;
+            match facade.rotation % 4 {
+                1 => image.rotate90(),
+                2 => image.rotate180(),
+                3 => image.rotate270(),
+                _ => image,
+            }
+            .into_rgba8()
+        }
         _ => {
-            let (w, h, data) = render_whole(&path, facade.page, PLAN_PX).ok()?;
+            let (w, h, data) = render_whole(&path, facade.page, facade.rotation, PLAN_PX).ok()?;
             image::RgbaImage::from_raw(w, h, data)?
         }
     };

@@ -821,6 +821,33 @@ grise quand elle ne s'applique pas à la sélection. L'inspecteur garde les
 mesures (centre, largeur, rotation, calque, diapositive). Pour la place,
 « Assembler des photos… » et « Tout voir » passent aussi en icônes.
 
+**D15-k. Le plan de façade tourne par quarts de tour, et ce qui est posé
+tourne avec lui.** Demande de Benjamin : « import plan : ajouter fonction de
+rotation ». `facade.rotation` (0 à 3 quarts de tour, sens des aiguilles
+d'une montre) dit comment afficher le fichier ; le repère de la façade (et
+donc les mm) est celui du plan tourné, si bien que tout le reste du moteur
+(export, simulation, recalage) n'a rien à savoir. Choix :
+- *Quarts de tour seulement.* Ils sont exacts : une image est tournée pixel
+  pour pixel, un plan vectoriel est rendu tel quel puis ses tuiles tournées,
+  sans perte de netteté. Un angle libre demanderait de rééchantillonner une
+  photo (perte de netteté), d'agrandir le cadre (coins vides) et de tourner
+  chaque moteur de rendu vectoriel : écarté tant qu'aucun cas réel ne le
+  demande. Pour une photo d'ensemble penchée, la piste serait plutôt
+  « redresser par deux points de l'horizontale ».
+- *Ce qui est posé suit le plan.* La mise à l'échelle est gardée (ses deux
+  points tournent) ; dessins posés (centre, rotation + 90°), cadres de
+  déformation et points de recalage côté façade tournent autour du coin
+  haut-gauche du plan, pour rester au même endroit du dessin
+  d'architecte. Les retouches par diapositive (en mm de diapositive) ne
+  bougent pas. Sans mise à l'échelle, rien n'est en mm et seul le plan
+  tourne.
+- *Une fresque importée bloque la rotation* (message clair) : c'est une
+  image dans un cadre droit, qui ne sait pas tourner.
+- Pyramides : une autre clé de cache par orientation (les plans déjà
+  affichés gardent la leur). Un assemblage de photos recalculé sur un plan
+  tourné repart sans échelle (l'image assemblée n'est pas tournée).
+- Commande : `insitu facade rotate <projet> <quarts>`.
+
 **D15-h. Retirer un dessin ou le plan n'efface aucun fichier.** Comme
 pour un projecteur (D15-f), l'élément sort de `projet.json` et son fichier
 reste dans `bibliotheque/` ou `facade/` ; un nouvel import du même fichier

@@ -818,6 +818,7 @@ pub fn render(
             scale: None,
             page: None,
             origin: None,
+            rotation: 0,
             extra: ExtraFields::new(),
         });
     }
@@ -855,7 +856,9 @@ fn carry_over(
     let Some(facade) = project.facade.as_mut() else {
         return false;
     };
-    if facade.source != previous.source {
+    // Un plan tourné (D15-k) repart de zéro : ses points ne sont plus dans
+    // le repère de l'image assemblée.
+    if facade.source != previous.source || facade.rotation != 0 {
         return false;
     }
     let Some(old_factor) = facade

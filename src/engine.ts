@@ -115,6 +115,8 @@ export interface Facade {
   scale: FacadeScale | null;
   page?: number;
   origin?: SourcePoint;
+  /** Quarts de tour (sens des aiguilles d'une montre) appliqués au fichier ; absent : 0 (D15-k). */
+  rotation?: number;
 }
 
 /** Comment une photo brute a été redressée (résumé ; les points restent dans le moteur). */
@@ -267,6 +269,16 @@ export async function importFacade(folder: string, path: string, page?: number):
 export async function removeFacade(folder: string): Promise<Project> {
   requireEngine();
   return invoke<Project>("facade_remove", { folder });
+}
+
+/**
+ * Tourne le plan de la façade de quarts de tour (1 : sens des aiguilles
+ * d'une montre, -1 : sens inverse). L'échelle, les dessins posés et les
+ * points de recalage tournent avec lui (D15-k).
+ */
+export async function rotateFacade(folder: string, quarterTurns: number): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("facade_rotate", { folder, quarterTurns });
 }
 
 export async function setFacadeScale(

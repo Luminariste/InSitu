@@ -62,6 +62,14 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             facade::remove_facade(&dir).map_err(failed)?;
             Ok("Plan retiré du projet ; le fichier reste dans facade/.".to_string())
         }
+        ["rotate", project, turns] => {
+            let dir = ProjectDir::open(project).map_err(failed)?;
+            let turns: i32 = turns.parse().map_err(|_| {
+                Problem::Usage("rotate attend un nombre de quarts de tour (1, -1, 2…)".into())
+            })?;
+            let project = facade::rotate_facade(&dir, turns).map_err(failed)?;
+            Ok(json(&project.facade))
+        }
         ["scale", project, xa, ya, xb, yb, distance] => {
             let dir = ProjectDir::open(project).map_err(failed)?;
             let a = SourcePoint::new(number(xa)?, number(ya)?);
@@ -78,7 +86,7 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
         }
         ["tiles", plan, cache] => {
             let start = Instant::now();
-            let shown = facade::open_for_display(Path::new(plan), page, Path::new(cache))
+            let shown = facade::open_for_display(Path::new(plan), page, 0, Path::new(cache))
                 .map_err(failed)?;
             eprintln!(
                 "Affichage préparé en {:.1} s (niveaux fins rendus à la demande)",
@@ -96,7 +104,7 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             };
             let start = Instant::now();
             let (width, height, rgba) =
-                display::render_whole(Path::new(plan), page, side).map_err(failed)?;
+                display::render_whole(Path::new(plan), page, 0, side).map_err(failed)?;
             image::save_buffer(out, &rgba, width, height, image::ExtendedColorType::Rgba8)
                 .map_err(failed)?;
             Ok(format!(
@@ -123,6 +131,11 @@ pub const USAGE: &str = r#"Usage : insitu facade <commande>
   remove <projet.insitu>
       Retire le plan (et sa mise à l'échelle) du projet. Le fichier reste
       dans facade/ ; dessins posés et points de recalage sont gardés.
+
+  rotate <projet.insitu> <quarts de tour>
+      Tourne le plan de la façade : 1 = un quart de tour dans le sens des
+      aiguilles d'une montre, -1 = sens inverse, 2 = demi-tour. L'échelle,
+      les dessins posés et les points de recalage tournent avec lui.
 
   scale <projet.insitu> <xA> <yA> <xB> <yB> <cote en mm>
       Met la façade à l'échelle : deux points du plan, dans son unité

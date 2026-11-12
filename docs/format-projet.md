@@ -223,12 +223,13 @@ exactement ce que l'app écrit.
 | Champ | Sens |
 | --- | --- |
 | `source` | Le fichier importé (plan, déroulé ou photo d'ensemble) |
-| `sourceWidth`, `sourceHeight` | Dimensions du fichier, dans son unité (voir ci-dessous) |
+| `sourceWidth`, `sourceHeight` | Dimensions du plan affiché, dans l'unité du fichier (voir ci-dessous) : celles du fichier, échangées s'il est tourné d'un quart de tour |
 | `scale` | Mise à l'échelle « par deux points et une cote », ou `null` si elle n'est pas faite |
-| `scale.pointA`, `scale.pointB` | Les deux points, repérés dans le fichier |
+| `scale.pointA`, `scale.pointB` | Les deux points, repérés sur le plan affiché (tourné s'il y a lieu) |
 | `scale.distanceMm` | La distance réelle entre ces deux points, en mm |
 | `page` | PDF seulement : la page retenue, à partir de 1. Absent pour les autres formats |
 | `origin` | DXF seulement : le coin haut-gauche du repère du fichier, en coordonnées du DXF (y vers le haut). Absent sinon |
+| `rotation` | Quarts de tour, dans le sens des aiguilles d'une montre, appliqués au fichier pour l'afficher (1 à 3) ; absent : 0. Le repère de la façade est celui du plan tourné (D15-k) |
 
 L'unité du fichier dépend de son format (tâche 3.1) :
 
