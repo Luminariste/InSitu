@@ -1,25 +1,21 @@
 //! Mise à jour automatique de l'app (demande de Benjamin, décision D16).
 //!
 //! Au lancement, l'interface demande `update_check` : la coque lit le
-//! manifeste `latest.json` publié par la fabrication (branche
-//! `mises-a-jour` du dépôt). S'il annonce une version plus récente,
+//! manifeste `latest.json` joint par la fabrication à la dernière version
+//! publiée du dépôt (public, D16-c). S'il annonce une version plus récente,
 //! l'interface le dit ; sur « Installer », `update_install` télécharge
 //! l'archive de l'app, vérifie sa signature avec la clé publique de
 //! `tauri.conf.json`, remplace l'app et la relance.
 //!
-//! Le dépôt est privé : la fabrication grave dans l'app une clé GitHub en
-//! lecture seule (`INSITU_UPDATE_TOKEN`). Sans cette clé (fabrication locale,
-//! secret absent), la recherche échoue sans bruit et l'app reste telle quelle.
-//! Aucun calcul ici : c'est de la plomberie de la coque, pas du moteur.
+//! Sans réseau, ou si la dernière version n'a pas de manifeste, la recherche
+//! échoue sans bruit et l'app reste telle quelle. Aucun calcul ici : c'est
+//! de la plomberie de la coque, pas du moteur.
 
 use std::sync::Mutex;
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Runtime, State};
 use tauri_plugin_updater::{Update, Updater, UpdaterExt};
-
-/// Clé GitHub en lecture seule, fournie par la fabrication (secret du dépôt).
-const UPDATE_TOKEN: Option<&str> = option_env!("INSITU_UPDATE_TOKEN");
 
 /// Nom de l'évènement de progression envoyé à l'interface.
 const PROGRESS_EVENT: &str = "mise-a-jour";
@@ -47,16 +43,7 @@ struct Progress {
 }
 
 fn updater<R: Runtime>(app: &AppHandle<R>) -> Result<Updater, String> {
-    let mut builder = app.updater_builder();
-    if let Some(token) = UPDATE_TOKEN.filter(|t| !t.trim().is_empty()) {
-        // Le manifeste (raw.githubusercontent.com) et l'archive (API des
-        // publications) acceptent tous deux cette forme. Lors de la
-        // redirection vers le stockage de GitHub, reqwest retire l'en-tête.
-        builder = builder
-            .header("Authorization", format!("token {}", token.trim()))
-            .map_err(|e| e.to_string())?;
-    }
-    builder.build().map_err(|e| e.to_string())
+    app.updater_builder().build().map_err(|e| e.to_string())
 }
 
 /// Cherche une version plus récente. `None` : l'app est à jour.

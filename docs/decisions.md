@@ -28,21 +28,19 @@ contrôle, avant de publier, que la signature vient bien de la clé attendue
 (`.github/scripts/mise_a_jour.py`). Si la clé privée était perdue : en créer
 une autre, et réinstaller une fois l'app à la main.
 
-**D16-c. Dépôt privé : l'app porte une clé GitHub en lecture seule.** Le
-dépôt est privé, ses Releases ne se téléchargent pas sans identification.
-La fabrication grave dans l'app le secret `INSITU_UPDATE_TOKEN` (jeton
-« fine-grained » de Benjamin, lecture seule du contenu de ce seul dépôt).
-Qui a l'app peut en extraire ce jeton et lire le code : accepté, l'app ne
-sort pas de Luminariste. Le jeton expire : il faut alors en refaire un et
-réinstaller une fois à la main (l'app ne trouve simplement plus de mise à
-jour). Si le dépôt devenait public, ce jeton deviendrait inutile.
+**D16-c. Le dépôt devient public.** Choix de Benjamin (12 novembre 2026),
+plutôt qu'une clé GitHub en lecture seule gravée dans l'app : les Releases
+d'un dépôt privé ne se téléchargent pas sans identification. Le code et le
+jeu d'essai (images d'Épinal comprises) deviennent visibles de tous ; en
+échange, plus de jeton à renouveler, et les minutes GitHub Actions d'un dépôt
+public sont gratuites. Tant que le dépôt reste privé, la recherche de mise à
+jour échoue sans bruit.
 
-**D16-d. Le manifeste vit seul sur la branche `mises-a-jour`.** L'adresse
-lue par l'app doit être fixe ; celle des pièces jointes d'une Release privée
-change à chaque version. La fabrication écrit donc `latest.json` (version,
-signature, adresse de l'archive par l'API de GitHub) et le pousse seul sur
-la branche `mises-a-jour`, remplacée à chaque version. L'app le lit sur
-`raw.githubusercontent.com`. Sans les deux secrets, la fabrication publie
+**D16-d. Le manifeste est joint à chaque version.** La fabrication écrit
+`latest.json` (version, signature, adresse de l'archive) et le joint à la
+version avec l'archive `InSitu-X.Y.Z-mac.app.tar.gz`. L'app le lit à
+l'adresse fixe `…/releases/latest/download/latest.json`, qui suit toujours la
+dernière version publiée. Sans le secret de signature, la fabrication publie
 comme avant, sans archive ni manifeste.
 
 **D16-e. La première version qui sait se mettre à jour s'installe à la

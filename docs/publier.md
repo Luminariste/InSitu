@@ -25,23 +25,18 @@ ne contrôle pas ce qui s'affiche : cela reste l'essai de Benjamin.
 
 ## Mise à jour automatique (D16)
 
-À chaque publication, la fabrication ajoute à la version une archive signée
-de l'app (`InSitu-X.Y.Z-mac.app.tar.gz`) et remplace le manifeste
-`latest.json` de la branche `mises-a-jour`. Les apps installées le lisent au
-lancement et proposent la nouvelle version. Rien à faire de plus à chaque
-version.
+À chaque publication, la fabrication joint à la version une archive signée
+de l'app (`InSitu-X.Y.Z-mac.app.tar.gz`) et le manifeste `latest.json`. Les
+apps installées lisent le manifeste de la dernière version au lancement et
+proposent la nouvelle version. Rien à faire de plus à chaque version.
 
-Il faut pour cela deux secrets dans le dépôt (Settings → Secrets and
-variables → Actions), à poser une seule fois :
+Deux conditions, réglées une seule fois :
 
-- `TAURI_SIGNING_PRIVATE_KEY` : la clé privée qui signe les mises à jour. Sa
-  clé publique est dans `src-tauri/tauri.conf.json` ; les deux vont ensemble.
-- `INSITU_UPDATE_TOKEN` : un jeton GitHub « fine-grained » en lecture seule
-  (dépôt InSitu seulement, permission « Contents : Read-only »), que l'app
-  utilise pour télécharger depuis ce dépôt privé. Quand il expire, en refaire
-  un, remplacer le secret, publier une version et l'installer une fois à la
-  main.
+- Le dépôt est public (sinon l'app ne peut pas télécharger).
+- Le secret `TAURI_SIGNING_PRIVATE_KEY` existe (Settings → Secrets and
+  variables → Actions) : la clé privée qui signe les mises à jour. Sa clé
+  publique est dans `src-tauri/tauri.conf.json` ; les deux vont ensemble.
 
-Sans eux, la fabrication publie comme avant et l'avertit dans son journal.
-Si le secret de signature ne correspond pas à la clé publique, la
-fabrication s'arrête avant de publier.
+Sans ce secret, la fabrication publie comme avant et l'avertit dans son
+journal. S'il ne correspond pas à la clé publique, la fabrication s'arrête
+avant de publier.

@@ -9,11 +9,11 @@ name: Fabrication de l'app Mac
 #   coque, lui, est vérifié par la compilation de ci.yml, bien moins chère
 #   (D14). Une app qui ne démarre pas est attrapée au plus tard ici, avant
 #   publication : la version n'est alors pas publiée.
-# - Mise à jour automatique (D16) : quand les deux secrets du dépôt existent
-#   (TAURI_SIGNING_PRIVATE_KEY, INSITU_UPDATE_TOKEN), la fabrication produit
-#   aussi l'archive signée de l'app et, à la publication, le manifeste
-#   `latest.json` sur la branche `mises-a-jour`, que l'app lit au lancement.
-#   Sans ces secrets, tout se passe comme avant (pas de mise à jour proposée).
+# - Mise à jour automatique (D16) : quand le secret TAURI_SIGNING_PRIVATE_KEY
+#   existe, la fabrication produit aussi l'archive signée de l'app et, à la
+#   publication, joint à la version l'archive et le manifeste `latest.json`
+#   que l'app lit au lancement. Sans ce secret, tout se passe comme avant
+#   (pas de mise à jour proposée).
 # - À la main (bouton « Run workflow ») : fabrique sans publier.
 
 on:
@@ -98,11 +98,9 @@ jobs:
 
       - name: Fabriquer l'app
         env:
-          # Clé de signature des mises à jour et clé GitHub en lecture seule,
-          # gravée dans l'app pour télécharger depuis ce dépôt privé (D16).
+          # Clé de signature des mises à jour (D16-b).
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
-          INSITU_UPDATE_TOKEN: ${{ secrets.INSITU_UPDATE_TOKEN }}
         run: |
           if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
             echo "Clé de signature présente : archive de mise à jour fabriquée."
@@ -111,9 +109,6 @@ jobs:
           else
             echo "::warning::Secret TAURI_SIGNING_PRIVATE_KEY absent : pas d'archive de mise à jour (voir docs/publier.md)."
             npm run tauri build -- --target aarch64-apple-darwin --bundles app,dmg
-          fi
-          if [ -z "$INSITU_UPDATE_TOKEN" ]; then
-            echo "::warning::Secret INSITU_UPDATE_TOKEN absent : cette app ne pourra pas chercher de mise à jour (voir docs/publier.md)."
           fi
 
       - name: Contrôler l'app fabriquée
@@ -200,23 +195,9 @@ jobs:
           VERSION: ${{ needs.decider.outputs.version }}
           ARCHIVE: ${{ steps.maj.outputs.archive }}
         run: |
-          gh release upload "v$VERSION" "$ARCHIVE" --repo "$GITHUB_REPOSITORY"
-          # Dépôt privé : l'app télécharge l'archive par l'API de GitHub (avec
-          # sa clé en lecture seule), donc par le numéro de la pièce jointe.
-          ASSET_ID=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$VERSION" \
-            --jq ".assets[] | select(.name == \"$ARCHIVE\") | .id")
-          test -n "$ASSET_ID"
-          URL="https://api.github.com/repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID"
+          URL="https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/$ARCHIVE"
           python3 .github/scripts/mise_a_jour.py manifeste "$VERSION" "$ARCHIVE.sig" "$URL" latest.json
-          # Le manifeste vit seul sur la branche `mises-a-jour`, remplacée à
-          # chaque version (une poussée par GITHUB_TOKEN ne relance aucune
-          # vérification).
-          DOSSIER=$(mktemp -d)
-          cp latest.json "$DOSSIER/"
-          cd "$DOSSIER"
-          git init -q -b mises-a-jour
-          git add latest.json
-          git -c user.name="github-actions[bot]" -c user.email="41898099+github-actions[bot]@users.noreply.github.com" \
-            commit -q -m "Mise à jour automatique : InSitu $VERSION"
-          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" mises-a-jour
+          # Joints à la version : l'app lit le `latest.json` de la dernière
+          # version publiée, à une adresse fixe (D16-d).
+          gh release upload "v$VERSION" "$ARCHIVE" latest.json --repo "$GITHUB_REPOSITORY"
           echo "Les apps installées proposeront la version $VERSION à leur prochain lancement."

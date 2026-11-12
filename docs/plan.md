@@ -45,7 +45,7 @@ tableau à jour.
 | Renommer / supprimer un projecteur, barre de menus du Mac (hors plan, demande de Benjamin) | Fusionné (version 0.1.18), **non validé** : essai sur Mac ; décisions D15-f et D15-g |
 | Retirer un dessin de la bibliothèque, retirer le plan de la façade (hors plan, demande de Benjamin) | Version 0.1.19, **non validé** : essai sur Mac ; décision D15-h |
 | Panneau de droite de la Façade en onglets, outils des dessins en icônes dans la barre du haut (hors plan, demande de Benjamin) | Version 0.1.31, **non validé** : essai sur Mac ; décisions D15-i et D15-j |
-| Mise à jour automatique (hors plan, demande de Benjamin) | **Non validée** : marche à suivre une fois (deux secrets GitHub), puis installer à la main la première version qui la contient ; la mise à jour elle-même ne s'essaie qu'à la version suivante, sur Mac ; décision D16 |
+| Mise à jour automatique (hors plan, demande de Benjamin) | **Non validée** : marche à suivre une fois (secret de signature, dépôt rendu public), puis installer à la main la première version qui la contient ; la mise à jour elle-même ne s'essaie qu'à la version suivante, sur Mac ; décision D16 |
 | Toutes les autres | À faire |
 
 **Ce qui bloque la validation de la tâche 1.5.** Dans la version 0.1.1,
