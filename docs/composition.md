@@ -159,6 +159,7 @@ insitu place set <projet.insitu> <placements.json> [--history DIR]
 insitu place deform <projet.insitu> <id>… (--corners | --grid CxR | --none)
 insitu place slides <projet.insitu>
 insitu place assign <projet.insitu> <id>… (--to PROJECTEUR | --auto)
+insitu place adjust <projet.insitu> <id> (--corners | --grid CxR | --none)
 insitu project history <projet.insitu> --history DIR
 insitu project undo <projet.insitu> --history DIR
 insitu project redo <projet.insitu> --history DIR

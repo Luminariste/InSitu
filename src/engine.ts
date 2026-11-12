@@ -2,8 +2,8 @@
 // pour que l'interface n'appelle jamais `invoke` directement.
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { Pyramid, TileSource } from "./viewer";
-import type { Layer, Placement } from "./compose/placement";
-export type { Layer, Placement };
+import type { Layer, Placement, SlideAdjustment } from "./compose/placement";
+export type { Layer, Placement, SlideAdjustment };
 
 export interface EngineInfo {
   name: string;
@@ -875,6 +875,28 @@ export interface SlideView {
   /** Aperçu de la diapositive calculée, dans le cache de l'app. */
   preview: string | null;
   problem: string | null;
+  /** Dessins posés que porte cette diapositive, avant leur retouche (tâche 4.6). */
+  drawings: SlideDrawing[];
+}
+
+/** Un dessin posé situé dans une diapositive, avant sa retouche (tâche 4.6). */
+export interface SlideDrawing {
+  placement: string;
+  drawing: string;
+  /** Cases par côté : `(divisions + 1)²` points. */
+  divisions: number;
+  /** Position (mm de diapositive) du point `(i, j) / divisions` du dessin, ligne par ligne. */
+  points: { x: number; y: number }[];
+}
+
+/** Enregistre la retouche d'un dessin dans une diapositive (tâche 4.6) ; `null` la retire. */
+export async function saveAdjustment(
+  folder: string,
+  placement: string,
+  adjustment: SlideAdjustment | null,
+): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("placement_adjust", { folder, placement, adjustment });
 }
 
 /** Photo redressée et diapositive calculée de chaque projecteur. */

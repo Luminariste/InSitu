@@ -1,4 +1,4 @@
-# Vue diapositive (tâche 3.6)
+# Vue diapositive (tâches 3.6 et 4.6)
 
 La vue diapositive montre, pour un projecteur, la **diapositive calculée**
 (ce qui sera gravé) posée sur sa **photo redressée**. Si le recalage est
@@ -28,6 +28,30 @@ colonnes, fenêtres.
 
 Si un dessin tombe à côté de l'élément visé, corriger le recalage (étape
 Recalage) : la vue se met à jour avec **Relire**.
+
+## Retoucher un dessin dans une diapositive (tâche 4.6)
+
+Quand le recalage ne suffit pas (façade très en relief), on retouche un
+dessin posé **dans cette diapositive seulement**, sur la photo : la façade et
+les autres diapositives ne changent pas.
+
+1. Cliquer un dessin : son contour apparaît en bleu, et le groupe
+   **Retouche** dans la barre d'outils.
+2. Le glisser le décale dans la diapositive. **Quatre coins** ou **Grille**
+   donne des points bleus à tirer pour l'épouser sur la photo.
+3. À chaque geste lâché, la retouche est enregistrée et l'aperçu recalculé ;
+   l'export la reprend.
+4. **Réinitialiser** retire la retouche : le dessin revient où la façade le
+   place. ⌘Z annule chaque geste.
+
+### Essai sur Mac
+
+1. Ouvrir un projet recalé avec des dessins posés, étape Diapositive.
+2. Cliquer un dessin, le glisser de quelques mm : après le geste, l'aperçu
+   montre le dessin décalé ; l'étape Façade, elle, n'a pas bougé.
+3. « Quatre coins », tirer un coin ; exporter cette diapositive : la retouche
+   est dans le PNG (LightBurn). Les autres diapositives sont identiques.
+4. « Réinitialiser » : l'aperçu et l'export reviennent comme avant.
 
 ## Sans écran
 

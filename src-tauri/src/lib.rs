@@ -18,7 +18,7 @@ use insitu_core::placement;
 use insitu_core::project::history::{self, HistoryState};
 use insitu_core::project::{
     AssemblyPair, ExportSettings, Layer, Mirror, Placement, Project, ProjectDir, RegistrationPair,
-    SourcePoint, VectorSettings,
+    SlideAdjustment, SourcePoint, VectorSettings,
 };
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
@@ -355,6 +355,18 @@ fn placements_set(folder: String, placements: Vec<Placement>) -> Result<Project,
     placement::set_placements(&project_dir(&folder)?, placements).map_err(|e| e.to_string())
 }
 
+/// Enregistre la retouche d'un dessin dans une diapositive (tâche 4.6) ;
+/// aucune : retirée.
+#[tauri::command(async)]
+fn placement_adjust(
+    folder: String,
+    placement: String,
+    adjustment: Option<SlideAdjustment>,
+) -> Result<Project, String> {
+    placement::adjust::set_adjustment(&project_dir(&folder)?, &placement, adjustment)
+        .map_err(|e| e.to_string())
+}
+
 /// La diapositive de chaque dessin posé : proposée par le moteur, ou
 /// choisie à la main (tâche 4.5).
 #[tauri::command(async)]
@@ -553,6 +565,7 @@ pub fn run() {
             library_preview,
             placements_set,
             placements_assignment,
+            placement_adjust,
             composition_set,
             history_step,
             history_state,
