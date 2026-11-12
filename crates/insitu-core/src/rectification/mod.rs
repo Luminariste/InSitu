@@ -44,7 +44,7 @@ use legacy_target::{is_measurable, measurable_count, rotate_quarters, Node};
 use local_model::local_scale;
 use nodes::{grow_and_clean, Measured};
 use raster::ColorPlanes;
-use seed::{find_orientation, seed_from_circle_and_cross, MIN_ORIENTATION_MARGIN};
+use seed::{find_orientation, find_orientation_any, seed_from_circle_and_cross};
 
 /// Lissage de la plaque mince du modèle final (voir D-2.4-d).
 pub const DEFAULT_SMOOTHING: f64 = 0.0;
@@ -260,8 +260,8 @@ pub fn detect(
             // Les coins ne disent pas le sens de la mire : on le lit sur les
             // petits cercles. S'il reste incertain, on garde le sens de la
             // photo (le coin le plus en haut à gauche est le haut-gauche).
-            match find_orientation(&gray, &nodes) {
-                Some(o) if o.margin >= MIN_ORIENTATION_MARGIN => (
+            match find_orientation_any(&gray, &nodes) {
+                Some(o) => (
                     reorient(&nodes, o.quarters),
                     raw,
                     SeedMethod::Corners,
@@ -274,14 +274,15 @@ pub fn detect(
         }
         None => {
             let seed = seed_from_circle_and_cross(&color, &gray).map_err(not_found)?;
-            let orientation = find_orientation(&gray, &seed.nodes)
-                .ok_or_else(|| not_found("sens de la mire introuvable".into()))?;
-            if orientation.margin < MIN_ORIENTATION_MARGIN {
-                return Err(not_found(format!(
-                    "sens de la mire incertain : les six petits cercles ne se distinguent pas (écart {:.3}, il faut {MIN_ORIENTATION_MARGIN})",
-                    orientation.margin
-                )));
-            }
+            let orientation = match find_orientation_any(&gray, &seed.nodes) {
+                Some(o) => o,
+                None => {
+                    let circles = find_orientation(&gray, &seed.nodes).map_or(0.0, |o| o.margin);
+                    return Err(not_found(format!(
+                        "sens de la mire incertain : ni les six petits cercles (ancienne mire, écart {circles:.3}) ni les repères codés (mire version 2) ne se lisent"
+                    )));
+                }
+            };
             (
                 reorient(&seed.nodes, orientation.quarters),
                 seed.raw_count,
@@ -542,8 +543,8 @@ fn corners_only(
             })
         })
         .collect();
-    let (quarters, margin) = match find_orientation(gray, &predicted) {
-        Some(o) if o.margin >= MIN_ORIENTATION_MARGIN => (o.quarters, Some(o.margin)),
+    let (quarters, margin) = match find_orientation_any(gray, &predicted) {
+        Some(o) => (o.quarters, Some(o.margin)),
         _ => (0, None),
     };
     let back = (4 - quarters) % 4;

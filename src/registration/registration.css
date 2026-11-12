@@ -6,7 +6,8 @@
   position: relative;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* La façade, où l'on cale la photo, a la plus grande part. */
+  grid-template-columns: 2fr 3fr;
   gap: 1px;
   background: var(--ui-separator);
 }

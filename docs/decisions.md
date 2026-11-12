@@ -4,6 +4,29 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Essai du 13 novembre : sens de la nouvelle mire
+
+**D-essai-a. Le sens de la mire version 2 se lit sur ses repères codés.**
+La mire version 2 n'a plus les six petits cercles (D-2.2-c). Conséquence
+constatée avant l'essai grandeur nature : la détection seule échouait
+toujours (« sens de la mire incertain »), et après la pose des coins la
+diapositive pouvait sortir tournée d'un quart de tour sans aucun
+avertissement, donc une plaque gravée de travers. Correction : quand les
+petits cercles ne tranchent pas, on lit chacun des 16 repères AprilTag à sa
+place connue (modules de 2 mm, seuil propre à chaque repère entre son
+pourtour noir et son module le plus clair), pour chacun des quatre sens ; le
+bon sens donne presque tous les modules justes, les autres environ la
+moitié. On garde la moyenne de la meilleure moitié des repères (un repère
+dans l'ombre ou un reflet ne compte pas) ; il faut 0,15 d'écart entre le
+meilleur sens et le suivant. Ce n'est pas la tâche 2.4b : l'amorce reste le
+cercle rouge et la croix (ou les coins), les repères ne servent qu'au sens.
+Raison : une lecture à position connue est simple, sans dépendance, et
+suffit pour l'essai ; le lecteur de repères complet (2.4b) reste à faire.
+Vérifié par `crates/insitu-core/tests/mire_v2_sens.rs` sur le PDF à
+imprimer rendu par le moteur, dans les quatre sens, détection seule et
+coins donnés dans le désordre ; pas encore sur une vraie photo de la mire
+imprimée.
+
 ## 2026-11-12 — Tâche 6.3 : import Illustrator
 
 Module `crates/insitu-core/src/illustrator/`, commande `insitu illustrator
@@ -1313,6 +1336,43 @@ normal à 60 % d'opacité, réglable, et non « écran » comme dans l'écran
 Façade : sur un plan clair, le fondu « écran » rendrait la photo
 invisible. La consigne des premiers points dit en clair qu'il faut des
 détails d'architecture communs, pas les coins de la photo.
+
+**D-3.2-h. Recalage direct sur la façade : poser, glisser les coins,
+épingler.** Demande de Benjamin (12 novembre 2026, au soir, avant un essai
+grandeur nature) : le recalage par deux clics est trop complexe. On garde le
+même modèle (des paires diapositive ↔ façade, même calcul, même format de
+projet), mais on le manipule directement sur la façade :
+
+- **Poser la photo sur la façade** crée quatre paires aux coins de la
+  diapositive, en carré au milieu de la vue (de la taille moyenne des
+  emprises déjà recalées, sinon 40 % de la vue). La photo s'affiche aussitôt
+  par-dessus le plan.
+- On **glisse les coins** sur la façade jusqu'à ce que la photo tombe sur le
+  plan ; la **poignée du centre** déplace toute la photo.
+- Pour affiner, on **attrape un détail de la photo** sur la façade et on le
+  lâche sur le même détail du plan : c'est une nouvelle paire (le point de
+  diapositive est celui affiché sous le pointeur, retrouvé dans le maillage
+  affiché, mêmes triangles). Un simple clic (sans glisser) garde la pose en
+  deux clics de D-3.2-e.
+- Pendant un glisser, la photo suit en direct : le moteur calcule l'emprise
+  et le maillage des paires non enregistrées (`registration_preview`,
+  `insitu registration preview`), une demande à la fois ; on enregistre au
+  lâcher. Dans l'exemple du navigateur seulement (pas de moteur), un trapèze
+  par les 4 premiers points est calculé dans l'interface.
+- Barre d'espace + glisser déplace la vue, comme dans Illustrator (un
+  glisser sur la photo l'épingle désormais). Le défilement à deux doigts
+  déplace toujours la vue.
+- La vue de la façade prend 3/5 de la largeur, la photo redressée 2/5.
+- L'aperçu de la photo redressée est fabriqué dès qu'elle existe, recalée ou
+  non (`facade_overview`).
+
+Cela amende la consigne de D-3.2-g (« pas les coins de la photo ») : elle
+valait pour des coins cliqués à l'aveugle sur le plan. Ici, les coins sont
+calés à l'œil, photo posée sur le plan ; ce sont des paires comme les
+autres, que les détails épinglés corrigent. Les coins gardent leur nom
+dans la liste (« Coin haut-gauche »…). Rien n'est automatique : un
+appariement automatique photo ↔ plan (analyse d'image, photo « lum ») reste
+à étudier ; il serait trop fragile pour l'essai du 13 novembre.
 
 ## 2026-11-12 — Tâche 2.5
 
