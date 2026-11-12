@@ -77,6 +77,22 @@ Le HEIC n'est pas lu (tâche 2.5). La nouvelle mire (tâche 2.2) n'a plus les
 six petits cercles : cette amorce devrait y trouver la position puis refuser
 faute de sens (non essayé) ; c'est la tâche 2.4b qui la lira par ses repères.
 
+## 2026-11-12 — Mesure de fluidité de la visionneuse
+
+**D-1.5-k. Pendant un geste, la scène redessine à chaque rafraîchissement de
+l'écran ; la mesure « Dernier geste » porte sur ce rythme.**
+Précise D-1.5-a (« la scène ne redessine que lorsque quelque chose change ») :
+c'est toujours vrai hors geste, mais un mouvement (glisser, pincer, molette)
+ouvre une fenêtre de 180 ms pendant laquelle la scène redessine à chaque
+image de l'écran, fenêtre repoussée à chaque nouveau mouvement. Raison :
+l'ancienne mesure comptait l'écart entre deux images dessinées, qui suivait
+le rythme des mouvements de la main (39 ms en moyenne mesurées par Benjamin
+sur la 0.1.1), pas la fluidité. Un geste n'est rapporté qu'à partir de
+5 écarts mesurés ; une image arrivée plus de 25 ms après la précédente compte
+« en retard ». Le calcul vit dans `src/viewer/frameMeter.ts`, testé sans
+écran. Le chiffre « calcul » ne compte que le travail de l'interface, pas
+celui de la carte graphique.
+
 ## 2026-11-12 — Tâche 2.2
 
 Nouvelle mire : module `crates/insitu-core/src/target/`, commande
