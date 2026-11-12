@@ -1,34 +1,8 @@
-:root {
-  /* L'atelier travaille en blanc sur noir : l'interface aussi. */
-  --fond: #0b0b0c;
-  --surface: #151517;
-  --filet: #2a2a2e;
-  --texte: #f2f2f0;
-  --texte-discret: #9a9aa0;
-  --repere: #ed1c24; /* le rouge du cercle de la mire */
-  color-scheme: dark;
-  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
-  font-size: 13px;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-  /* La page ne défile ni ne rebondit jamais : les gestes vont à la visionneuse. */
-  overflow: hidden;
-  overscroll-behavior: none;
-}
-
-body {
-  background: var(--fond);
-  color: var(--texte);
-}
+/* Styles généraux : le système de design (src/ui/, docs/design.md), puis la
+   barre de l'app. Chaque écran a sa feuille, qui ne fait que placer ses
+   éléments propres. */
+@import "./ui/tokens.css";
+@import "./ui/ui.css";
 
 /* --- Écran de démonstration de la visionneuse ----------------------------- */
 
@@ -160,39 +134,103 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* --- Onglets des écrans ------------------------------------------------------ */
+/* --- Barre de l'app : les étapes ----------------------------------------------- */
 
 .app {
   height: 100%;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .app-screen {
   min-height: 0;
 }
 
-.app-tabs {
+.app-bar {
+  position: relative;
   display: flex;
-  gap: 2px;
-  padding: 6px 10px 0;
-  background: var(--fond);
-  border-bottom: 1px solid var(--filet);
-  user-select: none;
+  align-items: center;
+  justify-content: center;
+  height: var(--ui-appbar-h);
+  padding: 0 var(--ui-space-3);
+  background: var(--ui-bg);
+  border-bottom: 1px solid var(--ui-separator);
 }
 
-.app-tabs button {
-  font: inherit;
-  color: var(--texte-discret);
-  background: transparent;
-  border: 1px solid transparent;
-  border-bottom: none;
-  border-radius: 6px 6px 0 0;
-  padding: 5px 14px;
+.app-name {
+  position: absolute;
+  left: var(--ui-space-4);
+  font-weight: var(--ui-weight-bold);
+  letter-spacing: -0.01em;
+  color: var(--ui-text-secondary);
 }
 
-.app-tabs button.actif {
-  color: var(--texte);
-  background: var(--surface);
-  border-color: var(--filet);
+.app-bar-end {
+  position: absolute;
+  right: var(--ui-space-2);
+}
+
+.app-step-number {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  margin-right: 7px;
+  font-size: var(--ui-text-xs);
+  font-weight: var(--ui-weight-bold);
+  border-radius: 50%;
+  color: var(--ui-text-secondary);
+  box-shadow: inset 0 0 0 1px var(--ui-border-strong);
+}
+
+.ui-segmented button.is-selected .app-step-number {
+  color: var(--ui-on-accent);
+  background: var(--ui-accent);
+  box-shadow: none;
+}
+
+.app-shortcuts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ui-space-4) var(--ui-space-5);
+}
+
+.app-shortcuts h3 {
+  margin-bottom: var(--ui-space-1);
+  font-size: var(--ui-text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ui-text-secondary);
+}
+
+.app-shortcuts dl {
+  margin: 0;
+}
+
+.app-shortcuts dl > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--ui-space-3);
+  padding: 3px 0;
+  color: var(--ui-text);
+}
+
+.app-shortcuts dd {
+  margin: 0;
+}
+
+.app-shortcuts-note {
+  margin: var(--ui-space-4) 0 0;
+  font-size: var(--ui-text-sm);
+}
+
+/* Le menu Projet porte le nom du projet : il peut être long. */
+.project-menu {
+  max-width: 260px;
+}
+
+.project-menu .ui-button-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

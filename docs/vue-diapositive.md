@@ -7,24 +7,26 @@ colonnes, fenêtres.
 
 ## Avant de commencer
 
-- Le projecteur est redressé (onglet Redressement) et recalé (onglet
+- Le projecteur est redressé (étape Redressement) et recalé (étape
   Recalage, 4 paires de points au moins).
-- La fresque est importée (onglet Façade, section Fresque).
+- La fresque est importée (étape Façade, inspecteur à droite, rubrique Fresque).
 
 ## Dans l'app
 
-1. Onglet **Diapositive**. L'écran reprend le projet ouvert ; **Relire**
-   recalcule après un changement fait ailleurs.
-2. En haut, un bouton par projecteur ; grisé s'il manque quelque chose (le
-   message dit quoi). Les **flèches ← →** du clavier passent au projecteur
-   précédent ou suivant.
+1. Étape **Diapositive** (⌘4). L'écran reprend le projet ouvert ; menu
+   **Projet** → **Relire depuis le disque** (⌘R) recalcule après un
+   changement fait ailleurs.
+2. À gauche, la liste des projecteurs ; une pastille orange s'il manque
+   quelque chose (la ligne et le bandeau disent quoi). Les **flèches ← →**
+   (ou ↑ ↓ dans la liste) passent au projecteur précédent ou suivant.
 3. La photo redressée remplit le carré de 280 mm ; les dessins sont
-   par-dessus, en **cyan** par défaut. La liste propose d'autres couleurs ;
-   le curseur règle leur opacité ; **Dessins** les masque.
+   par-dessus, en **cyan** par défaut. Le groupe **Dessins** de la barre
+   d'outils propose d'autres couleurs, règle leur opacité, et la case
+   **Montrer** les masque.
 4. Zoomer pour juger d'un détail. L'aperçu fait 2 048 px (0,14 mm par
    pixel), comme le détail utile d'une photo redressée.
 
-Si un dessin tombe à côté de l'élément visé, corriger le recalage (onglet
+Si un dessin tombe à côté de l'élément visé, corriger le recalage (étape
 Recalage) : la vue se met à jour avec **Relire**.
 
 ## Sans écran

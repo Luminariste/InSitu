@@ -6,8 +6,8 @@ sur la façade à l'étape suivante (placement, tâche 4.2).
 
 ## Dans l'app
 
-1. Ouvrir ou créer le projet dans l'onglet **Façade**, puis aller dans
-   l'onglet **Bibliothèque**.
+1. Ouvrir ou créer le projet (menu **Projet**, en haut à gauche), puis
+   aller dans l'étape **Bibliothèque** (⌘5).
 2. **Importer un dossier…** : choisir un dossier de dessins. Tout son contenu
    est copié dans le projet, sous-dossiers compris, dans
    `bibliotheque/<nom du dossier>/`. Une barre montre l'avancement ; à la
@@ -76,7 +76,7 @@ regarder de près.
 
 ## Essai sur Mac (version 0.1.6)
 
-1. Ouvrir un projet, onglet **Bibliothèque**.
+1. Ouvrir un projet, étape **Bibliothèque**.
 2. Importer un vrai dossier de dessins de Marc, de préférence avec des
    sous-dossiers et au moins un PSD et un BMP. Noter combien de temps dure
    l'import (la barre avance) et vérifier qu'aucun fichier n'est signalé

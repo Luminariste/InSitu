@@ -60,6 +60,57 @@ le projet et refait les vecteurs ; des réglages refusés ne touchent pas au
 projet. Pas d'aperçu en direct pendant la frappe : un calcul coûte de
 quelques dixièmes de seconde à quelques secondes.
 
+## 2026-11-12 — Système de design
+
+Demande de Benjamin : une interface bien lisible, où l'on peut ajouter,
+modifier et supprimer, aux parties bien séparées et aux menus clairs, « digne
+des meilleurs logiciels », fixée dès la V1. Hors plan (pas de numéro de
+tâche) ; règles dans `docs/design.md`, code dans `src/ui/`.
+
+**D15. Un seul système de design, sur le modèle des logiciels pro du Mac.**
+Même gabarit pour chaque écran : barre des étapes (⌘1 à ⌘5), barre d'outils
+qui commence par le menu Projet, objets à gauche, zone de travail au centre,
+inspecteur à droite, barre d'état en bas. Composants communs (`src/ui/`) et
+jetons de couleur, de taille et d'espacement (`src/ui/tokens.css`) ; un écran
+ne redessine ni bouton, ni champ, ni panneau, et n'écrit aucune couleur en
+dur. Raison : les cinq écrans avaient chacun leur barre, leurs boutons et
+leurs messages, presque pareils mais pas tout à fait (le projet s'ouvrait
+dans deux écrans sur quatre, les erreurs s'affichaient en bas, en haut ou
+au milieu). Ce que cela interdit : une feuille de style d'écran qui refait
+un composant commun ; un nouvel objet sans ses gestes ajouter, modifier,
+supprimer (ou la mention de ce qui manque) ; un raccourci pris pour autre
+chose que ce que `docs/design.md` lui réserve.
+
+**D15-a. Thème sombre par défaut, clair au choix, automatique possible ;
+toile toujours sombre.** Les dessins sont des traits blancs sur noir et les
+photos de chambre noire sont sombres : une toile claire les écraserait. Le
+choix est dans le menu Présentation, gardé dans le navigateur de l'app
+(simple confort, comme le dernier projet ouvert).
+
+**D15-b. Une seule couleur d'accent : le bleu du Mac.** Elle marque la
+sélection et l'action principale. Le rouge de la mire, qui servait aussi aux
+boutons enfoncés, est réservé aux repères posés sur les images. Vert, orange,
+rouge et bleu ne disent que l'état (bon, à surveiller, douteux, pas encore
+mesuré), avec une légende.
+
+**D15-c. Menus dans l'interface d'abord, barre de menus native ensuite.**
+Le menu Projet (Nouveau ⌘N, Ouvrir ⌘O, Relire ⌘R) est le même dans chaque
+écran ; le menu Présentation regroupe l'apparence, la liste des raccourcis
+(⌘/) et l'écran de démonstration de la visionneuse (provisoire, D13), qui
+quitte la rangée des étapes. La barre de menus native du Mac demande une
+modification de la coque Tauri, donc une compilation Mac sur GitHub (dix
+fois plus chère, D14) et un essai sur Mac : elle viendra dans une demande à
+part, avec les mêmes entrées et les mêmes raccourcis.
+
+**D15-d. Suppression : confirmation tant qu'il n'y a pas d'annulation.**
+Un objet qui a demandé du travail se supprime après une confirmation dont le
+bouton dit ce qu'il fait ; un point de recalage se supprime sans (⌫ ou
+corbeille). Quand l'annulation existera (4.3), plus de confirmation.
+
+**D15-e. L'écran de démonstration garde son ancien style.** Il est
+provisoire (D13) ; il profite des nouvelles couleurs par les anciens noms de
+variables, gardés comme alias dans `tokens.css`.
+
 ## 2026-11-12 — Tâche 3.6
 
 Vue diapositive : `crates/insitu-core/src/export/preview.rs`, commande

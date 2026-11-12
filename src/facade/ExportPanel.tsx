@@ -1,4 +1,4 @@
-// Fresque et export des diapositives (tâche 3.5), dans le panneau de droite
+// Fresque et export des diapositives (tâche 3.5), dans l'inspecteur (à droite)
 // de l'écran Façade : importer la fresque en une image, régler l'export,
 // écrire un PNG par projecteur recalé.
 
@@ -12,6 +12,7 @@ import {
   type ExportSettings,
   type Project,
 } from "../engine";
+import { Button, Progress, Property, Section, useShortcuts } from "../ui";
 import { exportSettingsOf, exportSizeLabel, exportSummary, fileName, validDpi } from "./exportLogic";
 
 interface Props {
@@ -81,87 +82,81 @@ export function ExportPanel({ engine, folder, project, onProject, showFresco, on
       setMessage(exportSummary(report, destination));
     });
 
-  return (
-    <section className="facade-export" aria-label="Fresque et export">
-      <h2>Fresque</h2>
-      <p className="facade-overview-note">
-        {fresco ? fileName(fresco.source) : engine ? "Aucune fresque importée." : "Dans l'app seulement."}
-      </p>
-      <div className="facade-export-row">
-        <button type="button" onClick={() => void importOne()} disabled={!ready || !scaled}>
-          {fresco ? "Remplacer…" : "Importer la fresque…"}
-        </button>
-        {fresco && (
-          <label>
-            <input type="checkbox" checked={showFresco} onChange={(e) => onShowFresco(e.target.checked)} />
-            Montrer
-          </label>
-        )}
-      </div>
-      {engine && folder && !scaled && (
-        <p className="facade-overview-note">Mettre d'abord le plan à l'échelle : la fresque couvre toute sa largeur.</p>
-      )}
+  const dpiValue = Number(dpiText.replace(",", "."));
+  useShortcuts([{ keys: "mod+e", run: () => void exportAll(), enabled: ready && !!fresco }]);
 
-      <h3>Export des diapositives</h3>
-      <fieldset className="facade-overview-show" disabled={busy !== null}>
-        <label className="facade-export-dpi">
-          Résolution
-          <input
-            type="text"
-            inputMode="decimal"
-            value={dpiText}
-            onChange={(e) => setDpiText(e.target.value)}
-            aria-label="Résolution en dpi"
-          />
-          dpi
-        </label>
-        <label>
-          <input type="checkbox" checked={settings.margin} onChange={(e) => set({ margin: e.target.checked })} />
-          Plaque de 300 mm avec nom et repères (sinon 280 mm)
-        </label>
-        <label>
-          <input type="checkbox" checked={settings.mirror} onChange={(e) => set({ mirror: e.target.checked })} />
-          Miroir
-        </label>
-        <label>
-          <input type="checkbox" checked={settings.negative} onChange={(e) => set({ negative: e.target.checked })} />
-          Négatif
-        </label>
-        <label>
-          <input type="checkbox" checked={settings.oneBit} onChange={(e) => set({ oneBit: e.target.checked })} />
-          Noir et blanc pur (1 bit)
-        </label>
-        {settings.oneBit && (
-          <label className="facade-overview-opacity">
-            Seuil : {settings.threshold}
-            <input
-              type="range"
-              min={1}
-              max={255}
-              value={settings.threshold}
-              onChange={(e) => set({ threshold: Number(e.target.value) })}
-            />
-          </label>
+  return (
+    <>
+      <Section title="Fresque">
+        <p>{fresco ? fileName(fresco.source) : engine ? "Aucune fresque importée." : "Dans l'app seulement."}</p>
+        <div className="facade-export-row">
+          <Button icon="import" onClick={() => void importOne()} disabled={!ready || !scaled}>
+            {fresco ? "Remplacer…" : "Importer la fresque…"}
+          </Button>
+          {fresco && (
+            <label className="ui-check">
+              <input type="checkbox" checked={showFresco} onChange={(e) => onShowFresco(e.target.checked)} />
+              Montrer
+            </label>
+          )}
+        </div>
+        {engine && folder && !scaled && (
+          <p className="ui-note tone-warning">Mettre d'abord le plan à l'échelle : la fresque couvre toute sa largeur.</p>
         )}
-        <span className="facade-overview-note">
-          {validDpi(Number(dpiText.replace(",", ".")))
-            ? exportSizeLabel({ ...settings, dpi: Number(dpiText.replace(",", ".")) })
-            : "Résolution : de 50 à 3 000 dpi"}
-        </span>
-      </fieldset>
-      <button type="button" className="facade-export-go" onClick={() => void exportAll()} disabled={!ready || !fresco}>
-        Exporter les diapositives…
-      </button>
-      {progress && progress.total > 0 && (
-        <p className="facade-overview-note">
-          {progress.current
-            ? `Diapositive ${progress.current} (${progress.done + 1} sur ${progress.total})…`
-            : "Fin de l'écriture…"}
-        </p>
-      )}
-      {busy && !progress && <p className="facade-overview-note">{busy}</p>}
-      {message && <p className="facade-export-ok">{message}</p>}
-      {error && <p className="facade-overview-problem">{error}</p>}
-    </section>
+      </Section>
+
+      <Section title="Export des diapositives">
+        <fieldset className="facade-export-options" disabled={busy !== null}>
+          <Property label="Résolution" hint={validDpi(dpiValue) ? exportSizeLabel({ ...settings, dpi: dpiValue }) : "De 50 à 3 000 dpi"}>
+            <input
+              className="ui-input facade-export-dpi"
+              type="text"
+              inputMode="decimal"
+              value={dpiText}
+              onChange={(e) => setDpiText(e.target.value)}
+              aria-label="Résolution en dpi"
+            />
+            dpi
+          </Property>
+          <label className="ui-check">
+            <input type="checkbox" checked={settings.margin} onChange={(e) => set({ margin: e.target.checked })} />
+            Plaque de 300 mm avec nom et repères (sinon 280 mm)
+          </label>
+          <label className="ui-check">
+            <input type="checkbox" checked={settings.mirror} onChange={(e) => set({ mirror: e.target.checked })} />
+            Miroir
+          </label>
+          <label className="ui-check">
+            <input type="checkbox" checked={settings.negative} onChange={(e) => set({ negative: e.target.checked })} />
+            Négatif
+          </label>
+          <label className="ui-check">
+            <input type="checkbox" checked={settings.oneBit} onChange={(e) => set({ oneBit: e.target.checked })} />
+            Noir et blanc pur (1 bit)
+          </label>
+          {settings.oneBit && (
+            <label className="facade-overview-opacity">
+              Seuil : {settings.threshold}
+              <input type="range" min={1} max={255} value={settings.threshold} onChange={(e) => set({ threshold: Number(e.target.value) })} />
+            </label>
+          )}
+        </fieldset>
+        <div className="facade-export-go">
+          <Button variant="primary" icon="export" shortcut="mod+e" title="Un PNG par projecteur recalé" onClick={() => void exportAll()} disabled={!ready || !fresco}>
+            Exporter les diapositives…
+          </Button>
+        </div>
+        {progress && progress.total > 0 && (
+          <Progress
+            done={progress.done}
+            total={progress.total}
+            label={progress.current ? `Diapositive ${progress.current} (${progress.done + 1} sur ${progress.total})…` : "Fin de l'écriture…"}
+          />
+        )}
+        {busy && !progress && <p className="ui-note">{busy}</p>}
+        {message && <p className="ui-note tone-success">{message}</p>}
+        {error && <p className="ui-note tone-danger">{error}</p>}
+      </Section>
+    </>
   );
 }

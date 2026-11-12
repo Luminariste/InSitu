@@ -1,4 +1,4 @@
-// Le projet ouvert, partagé par les écrans Façade et Redressement : chaque
+// Le projet ouvert, partagé par tous les écrans : chaque
 // écran rouvre le dernier projet utilisé (mémorisé dans le navigateur de
 // l'app, simple confort ; rien d'autre n'y est gardé).
 

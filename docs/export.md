@@ -6,22 +6,22 @@ la façade. Un PNG par projecteur, prêt pour LightBurn.
 
 ## Avant de commencer
 
-- Le plan de la façade est importé et **mis à l'échelle** (onglet Façade).
+- Le plan de la façade est importé et **mis à l'échelle** (étape Façade).
 - Chaque projecteur à exporter est **recalé** (au moins 4 paires de points,
-  onglet Recalage).
+  étape Recalage).
 - La fresque est composée dans Illustrator **sur la façade entière**, sur
   un plan de travail de la taille de la façade, et exportée en une image
   (PNG ou TIFF, traits blancs sur fond noir).
 
 ## Dans l'app
 
-1. Onglet **Façade**, panneau de droite, section **Fresque** :
+1. Étape **Façade**, inspecteur à droite, rubrique **Fresque** :
    **Importer la fresque…**. L'image est copiée dans le projet et posée sur
    toute la largeur de la façade, à partir du coin haut-gauche. Elle
    s'affiche sur le plan ; la case **Montrer** la masque.
 2. Vérifier qu'elle tombe bien : les dessins doivent être à leur place sur
    le plan et dans les emprises des projecteurs.
-3. Section **Export des diapositives** : régler
+3. Rubrique **Export des diapositives** : régler
    - **Résolution** (1 400 dpi par défaut ; Épinal a été gravé à 1 000) ;
    - **Plaque de 300 mm** : décochée par défaut, le PNG fait 280 mm,
      l'image seule, comme les verres d'Épinal. Cochée : il couvre toute la
@@ -30,7 +30,7 @@ la façade. Un PNG par projecteur, prêt pour LightBurn.
    - **Miroir**, **Négatif** ;
    - **Noir et blanc pur (1 bit)** et son **seuil** ; sinon niveaux de gris.
    La taille du PNG s'affiche dessous.
-4. **Exporter les diapositives…**, choisir un dossier. Un fichier par
+4. **Exporter les diapositives…** (⌘E), choisir un dossier. Un fichier par
    projecteur : `<projet>-<diapositive>.png`. Un projecteur pas encore
    recalé est signalé, pas exporté. Les réglages sont gardés dans le projet.
 
