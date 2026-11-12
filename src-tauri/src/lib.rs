@@ -12,7 +12,7 @@ use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
 use insitu_core::overview::{self, FacadeOverview};
 use insitu_core::placement;
 use insitu_core::project::{
-    ExportSettings, Placement, Project, ProjectDir, RegistrationPair, SourcePoint,
+    ExportSettings, Mirror, Placement, Project, ProjectDir, RegistrationPair, SourcePoint,
 };
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
@@ -140,6 +140,17 @@ fn projector_rectify(
     corners: Option<[Point; 4]>,
 ) -> Result<(Project, RectificationView), String> {
     projectors::rectify_projector(&project_dir(&folder)?, &projector, corners)
+        .map_err(|e| e.to_string())
+}
+
+/// Retourne la diapositive d'un projecteur (miroir horizontal ou vertical).
+#[tauri::command(async)]
+fn projector_mirror(
+    folder: String,
+    projector: String,
+    change: Mirror,
+) -> Result<(Project, RectificationView), String> {
+    projectors::mirror_projector(&project_dir(&folder)?, &projector, change)
         .map_err(|e| e.to_string())
 }
 
@@ -366,6 +377,7 @@ pub fn run() {
             projector_rectify,
             projector_view,
             projector_export,
+            projector_mirror,
             registration_show,
             registration_set,
             library_import,

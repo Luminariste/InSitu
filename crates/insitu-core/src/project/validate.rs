@@ -358,6 +358,7 @@ mod tests {
             method: RectificationMethod::Manual,
             points: Vec::new(),
             residual_mm: Some(-1.0),
+            mirror: Default::default(),
             extra: ExtraFields::new(),
         });
         second.registration.push(RegistrationPair::new(

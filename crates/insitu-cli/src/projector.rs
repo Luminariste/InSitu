@@ -4,10 +4,10 @@
 use std::path::Path;
 
 use insitu_core::geometry::Point;
-use insitu_core::project::ProjectDir;
+use insitu_core::project::{Mirror, ProjectDir};
 use insitu_core::rectification::projector::{
-    self, add_projector, export_rectified, import_raw_photo, projector_view, rectify_projector,
-    RectificationView,
+    self, add_projector, export_rectified, import_raw_photo, mirror_projector, projector_view,
+    rectify_projector, RectificationView,
 };
 use insitu_core::units::RECTIFIED_PHOTO_DPI;
 use serde_json::json;
@@ -45,6 +45,7 @@ fn summary(view: &RectificationView, full: bool) -> String {
         "coverage": view.coverage,
         "pxPerMm": view.px_per_mm,
         "seconds": view.seconds,
+        "mirror": view.mirror,
     }))
 }
 
@@ -88,6 +89,21 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                 _ => return Err(Problem::Usage(USAGE.to_string())),
             };
             let (_, view) = rectify_projector(&open(folder)?, key, corners).map_err(failed)?;
+            Ok(summary(&view, false))
+        }
+        ["mirror", folder, key, axis] => {
+            let change = match *axis {
+                "horizontal" | "h" => Mirror {
+                    horizontal: true,
+                    vertical: false,
+                },
+                "vertical" | "v" => Mirror {
+                    horizontal: false,
+                    vertical: true,
+                },
+                _ => return Err(Problem::Usage(USAGE.to_string())),
+            };
+            let (_, view) = mirror_projector(&open(folder)?, key, change).map_err(failed)?;
             Ok(summary(&view, false))
         }
         ["show", folder, key, rest @ ..] => {
@@ -134,9 +150,14 @@ Le projecteur est désigné par son identifiant ou par son nom (« A »).
   rectify <projet.insitu> <projecteur> [--corners x,y,x,y,x,y,x,y]
       Détecte la mire et enregistre la photo redressée (PNG à 500 dpi, dans
       photos-redressees/). Avec --corners : position approchée, en pixels
-      de la photo, des coins haut-gauche, haut-droit, bas-droit et bas-gauche
-      de la diapositive, à la place de la recherche automatique ; la grille
-      affine ensuite.
+      de la photo, des quatre coins de la mire, dans n'importe quel ordre, à
+      la place de la recherche automatique ; le sens de la mire est lu sur
+      les petits cercles, la grille affine ensuite.
+
+  mirror <projet.insitu> <projecteur> horizontal|vertical
+      Retourne la diapositive (gauche-droite ou haut-bas) : photo redressée,
+      export et points du recalage. Le même miroir une seconde fois revient
+      au départ. Le réglage est gardé si la mire est détectée de nouveau.
 
   show <projet.insitu> <projecteur> [--nodes]
       Relit le redressement enregistré (écarts, couverture, coins dans la

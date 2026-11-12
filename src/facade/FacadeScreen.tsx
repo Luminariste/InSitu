@@ -597,7 +597,7 @@ export function FacadeScreen() {
                 </Button>
               }
             >
-              <p>PDF d'architecte, image (PNG, JPEG, TIFF), SVG ou DXF.</p>
+              <p>PDF d'architecte, image (PNG, JPEG, TIFF, HEIC), SVG ou DXF.</p>
               <small>Un DWG est à exporter d'abord en PDF ou en DXF.</small>
             </EmptyState>
           )

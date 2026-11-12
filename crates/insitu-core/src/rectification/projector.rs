@@ -21,7 +21,8 @@ use crate::geometry::Point;
 use crate::photo::{self, OutputFormat, PhotoError};
 use crate::project::store::write_atomic;
 use crate::project::{
-    AssetKind, Project, ProjectDir, ProjectError, Projector, RectificationMethod, RelativePath,
+    AssetKind, Mirror, Project, ProjectDir, ProjectError, Projector, Rectification,
+    RectificationMethod, RelativePath,
 };
 use crate::units::{self, RECTIFIED_PHOTO_DPI, SLIDE_SIZE_MM};
 
@@ -132,6 +133,8 @@ pub struct RectificationView {
     /// Durée du calcul, en secondes (absente quand le redressement est
     /// relu dans le projet).
     pub seconds: Option<f64>,
+    /// Miroir appliqué à la diapositive.
+    pub mirror: Mirror,
 }
 
 impl RectificationView {
@@ -192,6 +195,7 @@ impl RectificationView {
             coverage: detection.coverage,
             px_per_mm: detection.px_per_mm,
             seconds,
+            mirror: Mirror::default(),
         }
     }
 }
@@ -286,6 +290,19 @@ pub fn rectify_projector(
             smoothing: DEFAULT_SMOOTHING,
         },
     )?;
+    // Le miroir choisi pour ce projecteur est gardé d'une détection à l'autre.
+    let mirror = project
+        .projector(&id)
+        .and_then(|p| p.rectification.as_ref())
+        .map(|r| r.mirror)
+        .unwrap_or_default();
+    let mut rectification = detection.to_project_rectification();
+    let detection = if mirror.is_none() {
+        detection
+    } else {
+        mirror_rectification(&mut rectification, mirror);
+        from_rectification((image.width(), image.height()), &rectification)?
+    };
     let rectified = rectify(&image, &detection, RECTIFIED_PHOTO_DPI);
     drop(image);
     let bytes = photo::encode_rgb(&rectified, OutputFormat::Png, RECTIFIED_PHOTO_DPI)?;
@@ -293,9 +310,58 @@ pub fn rectify_projector(
     write_atomic(&dir.resolve(&relative), &bytes)?;
     let p = project.projector_mut(&id).expect("projecteur trouvé");
     p.rectified_photo = Some(relative);
-    p.rectification = Some(detection.to_project_rectification());
+    p.rectification = Some(rectification);
     dir.save(&project)?;
-    let view = RectificationView::new(&id, &detection, Some(start.elapsed().as_secs_f64()));
+    let mut view = RectificationView::new(&id, &detection, Some(start.elapsed().as_secs_f64()));
+    view.mirror = mirror;
+    Ok((project, view))
+}
+
+/// Applique `change` aux points de la diapositive d'un redressement, et le
+/// note dans son réglage de miroir.
+fn mirror_rectification(rectification: &mut Rectification, change: Mirror) {
+    for p in &mut rectification.points {
+        p.slide = change.apply(p.slide, SLIDE_SIZE_MM);
+    }
+    rectification.mirror.horizontal ^= change.horizontal;
+    rectification.mirror.vertical ^= change.vertical;
+}
+
+/// Retourne la diapositive du projecteur (D-2.5-j) : `change` dit quels
+/// axes basculer (appliquer deux fois le même miroir revient au départ).
+/// Les points du redressement et ceux du recalage sont retournés ensemble,
+/// pour rester cohérents, et la photo redressée est recalculée.
+pub fn mirror_projector(
+    dir: &ProjectDir,
+    projector: &str,
+    change: Mirror,
+) -> Result<(Project, RectificationView), RectifyError> {
+    let start = Instant::now();
+    let mut project = dir.load()?.project;
+    let id = projector_id(&project, projector)?;
+    let (raw_path, label) = raw_photo_of(&project, &id)?;
+    let mut rectification = project
+        .projector(&id)
+        .and_then(|p| p.rectification.clone())
+        .ok_or_else(|| RectifyError::NotRectified(label.clone()))?;
+    mirror_rectification(&mut rectification, change);
+    let image = photo::read_rgb(&dir.resolve(&raw_path))?;
+    let detection = from_rectification((image.width(), image.height()), &rectification)?;
+    let rectified = rectify(&image, &detection, RECTIFIED_PHOTO_DPI);
+    drop(image);
+    let bytes = photo::encode_rgb(&rectified, OutputFormat::Png, RECTIFIED_PHOTO_DPI)?;
+    let relative = rectified_path(dir, &project, &id, &label)?;
+    write_atomic(&dir.resolve(&relative), &bytes)?;
+    let mirror = rectification.mirror;
+    let p = project.projector_mut(&id).expect("projecteur trouvé");
+    for pair in &mut p.registration {
+        pair.slide = change.apply(pair.slide, SLIDE_SIZE_MM);
+    }
+    p.rectified_photo = Some(relative);
+    p.rectification = Some(rectification);
+    dir.save(&project)?;
+    let mut view = RectificationView::new(&id, &detection, Some(start.elapsed().as_secs_f64()));
+    view.mirror = mirror;
     Ok((project, view))
 }
 
@@ -313,7 +379,9 @@ pub fn projector_view(
     };
     let size = photo::dimensions(&dir.resolve(raw))?;
     let detection = from_rectification(size, rectification)?;
-    Ok(Some(RectificationView::new(&id, &detection, None)))
+    let mut view = RectificationView::new(&id, &detection, None);
+    view.mirror = rectification.mirror;
+    Ok(Some(view))
 }
 
 /// Ce que l'export a écrit.

@@ -32,10 +32,10 @@ Options :
   --points <fichier>     Écrit les croisements mesurés et la carte de
                          confiance en JSON.
   --corners x,y,x,y,x,y,x,y
-                         Position approchée, en pixels de la photo, des coins
-                         haut-gauche, haut-droit, bas-droit et bas-gauche de
-                         la mire. Remplace la recherche du cercle rouge et de
-                         la croix (et fixe le sens) ; la grille affine ensuite.
+                         Position approchée, en pixels de la photo, des quatre
+                         coins de la mire, dans n'importe quel ordre. Remplace
+                         la recherche du cercle rouge et de la croix ; le sens
+                         est lu sur les petits cercles, la grille affine.
   --smoothing <s>        Lissage de la correction (0 par défaut).
 
 « check » mesure les croisements de la grille dans une image déjà redressée

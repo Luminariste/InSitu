@@ -17,14 +17,16 @@
    l'écran résume le résultat. La photo redressée est enregistrée dans
    `photos-redressees/` ; **Photo redressée** l'affiche.
 5. Si la mire n'est pas trouvée (ou si le résultat est faux) : **Poser les
-   coins**, puis cliquer les quatre coins de la mire dans l'ordre demandé en
-   bas de l'écran (1 haut-gauche, 2 haut-droit, 3 bas-droit, 4 bas-gauche,
-   **de la diapositive** : sur l'ancienne mire, les petits cercles et le
-   texte sont en bas à gauche). Les poignées se glissent ensuite pour viser
-   plus juste ; la loupe, en haut à droite, montre les pixels de la photo
-   autour de la poignée. **Détecter depuis les coins** : les coins n'ont pas
-   besoin d'être exacts (1 ou 2 mm suffisent), la grille affine ensuite.
-6. **Exporter…** : la photo redressée en TIFF ou en PNG, à 300, 500, 1 000
+   coins**. Quatre poignées apparaissent sur la photo : glisser chacune sur
+   un coin de la mire, dans n'importe quel ordre. La loupe, en haut à
+   droite, montre les pixels de la photo autour de la poignée. **Détecter
+   depuis les coins** : l'app retrouve seule quel coin est lequel (par les
+   petits cercles de la mire), et les coins n'ont pas besoin d'être exacts
+   (1 ou 2 mm suffisent), la grille affine ensuite.
+6. **Miroir** : **↔ Gauche-droite** et **↕ Haut-bas** retournent la photo
+   redressée (et donc l'export et les points du recalage) ; un second clic
+   annule. Le réglage est gardé si la mire est détectée de nouveau.
+7. **Exporter…** : la photo redressée en TIFF ou en PNG, à 300, 500, 1 000
    ou 1 400 dpi. La résolution est inscrite dans le fichier : il s'ouvre à
    280 mm dans Illustrator, Photoshop ou LightBurn. L'image est recalculée
    depuis la photo brute à chaque export (ce n'est pas un agrandissement de
@@ -42,7 +44,7 @@ insitu project new Essai.insitu
 insitu projector add Essai.insitu A
 insitu projector photo Essai.insitu A IMG_1234.HEIC
 insitu projector rectify Essai.insitu A                  # détection automatique
-insitu projector rectify Essai.insitu A --corners 2500,420,2540,2600,750,2610,720,430
+insitu projector rectify Essai.insitu A --corners 2500,420,2540,2600,750,2610,720,430   # coins dans n'importe quel ordre
 insitu projector show Essai.insitu A                     # relit le résultat enregistré
 insitu projector export Essai.insitu A A.tif --dpi 500
 ```
