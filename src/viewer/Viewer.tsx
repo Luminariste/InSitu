@@ -36,6 +36,8 @@ export interface ViewerProps {
   options?: SceneOptions;
   /** Affiche dans la barre d'état la mesure de fluidité du dernier geste. */
   showFrameStats?: boolean;
+  /** Unité affichée pour la position du curseur (« mm » par défaut). */
+  cursorUnit?: string;
   onStatus?: (status: SceneStatus) => void;
   onCursor?: (mm: Point | null) => void;
   onGestureEnd?: (stats: FrameStats) => void;
@@ -93,8 +95,9 @@ export function Viewer(props: ViewerProps) {
           },
           onCursor: (mm) => {
             if (cursorRef.current) {
+              const unit = callbacks.current.cursorUnit ?? "mm";
               cursorRef.current.textContent = mm
-                ? `x ${precise.format(mm.x)} mm · y ${precise.format(mm.y)} mm`
+                ? `x ${precise.format(mm.x)} ${unit} · y ${precise.format(mm.y)} ${unit}`
                 : "";
             }
             callbacks.current.onCursor?.(mm);

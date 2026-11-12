@@ -21,6 +21,7 @@ tableau à jour.
 | 2.1 Étude de détection | Faite ; ses propositions sont intégrées à ce plan |
 | 2.2 Nouvelle mire | Fusionnée ; PDF dans `docs/mire/`. **Non validée** : il reste à l'imprimer, la mesurer à 280 mm et relire les 16 repères sur une photo |
 | 2.3 Géométrie | Faite ; seuils réglés sur simulation, à ajuster sur données réelles en 2.4a et 3.2 |
+| 2.5 Écran de redressement | Fusionnée (version 0.1.4), **non validée** : essai sur Mac à faire par Benjamin (`docs/redressement.md`) ; un HEIC d'iPhone récent reste à essayer |
 | Toutes les autres | À faire |
 
 **Ce qui bloque la validation de la tâche 1.5.** Dans la version 0.1.1,

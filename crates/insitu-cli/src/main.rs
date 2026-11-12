@@ -11,6 +11,9 @@
 //! - `insitu project info <dossier.insitu>` : résumé d'un projet, en JSON ;
 //! - `insitu project validate <dossier.insitu>` : contrôle le JSON et la
 //!   présence des fichiers référencés ;
+//! - `insitu projector add|photo|rectify|show|export …` : redressement de la
+//!   photo d'un projecteur dans un projet, comme l'écran de redressement
+//!   (détail : `insitu projector --help`) ;
 //! - `insitu rectify <photo> [--output <image>] …` : détecte la mire dans
 //!   une photo brute et la redresse (options : `insitu rectify --help`) ;
 //! - `insitu target pdf <fichier.pdf> [--page a3|carre]` : écrit la mire
@@ -27,6 +30,7 @@
 
 mod facade;
 mod geometry;
+mod projector;
 mod rectify;
 mod target;
 mod warp;
@@ -92,6 +96,14 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             Err(facade::Problem::Failed(message)) => Err(Failure::Failed(message)),
         },
         ["project", rest @ ..] => run_project(rest),
+        ["projector", rest @ ..] => match projector::run(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(projector::Problem::Usage(message)) => Err(Failure::Usage(message)),
+            Err(projector::Problem::Failed(message)) => Err(Failure::Failed(message)),
+        },
         ["rectify", rest @ ..] => match rectify::run(rest) {
             Ok(text) => {
                 println!("{text}");
@@ -286,6 +298,7 @@ fn usage() -> &'static str {
      project new <dossier.insitu> [--name <nom>]   Crée un projet vide\n  \
      project info <dossier.insitu>                 Affiche le résumé d'un projet (JSON)\n  \
      project validate <dossier.insitu>             Contrôle le projet et ses fichiers\n  \
+     projector --help                              Photo de mire d'un projecteur : import, redressement, export\n  \
      rectify <photo> [--output <image>]            Détecte la mire et redresse la photo (rectify --help)\n  \
      target pdf <fichier.pdf> [--page a3|carre]    Écrit la mire imprimable (PDF, 280 mm)\n  \
      target info                                   Décrit la mire en JSON (repères, grille)\n  \

@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { FacadeScreen } from "./facade/FacadeScreen";
+import { RectificationScreen } from "./rectification/RectificationScreen";
 import { ViewerDemo } from "./ViewerDemo";
 
-type Screen = "facade" | "demo";
+type Screen = "facade" | "redressement" | "demo";
 
-// Deux écrans pour l'instant : la façade (tâche 3.1) et la démonstration de
-// la visionneuse (jalon 1, provisoire, voir D13).
+// Trois écrans pour l'instant : la façade (tâche 3.1), le redressement des
+// photos de mire (tâche 2.5) et la démonstration de la visionneuse (jalon 1,
+// provisoire, voir D13).
 export function App() {
   const [screen, setScreen] = useState<Screen>("facade");
   return (
@@ -14,11 +16,20 @@ export function App() {
         <button type="button" className={screen === "facade" ? "actif" : ""} onClick={() => setScreen("facade")}>
           Façade
         </button>
+        <button
+          type="button"
+          className={screen === "redressement" ? "actif" : ""}
+          onClick={() => setScreen("redressement")}
+        >
+          Redressement
+        </button>
         <button type="button" className={screen === "demo" ? "actif" : ""} onClick={() => setScreen("demo")}>
           Démonstration
         </button>
       </nav>
-      <div className="app-screen">{screen === "facade" ? <FacadeScreen /> : <ViewerDemo />}</div>
+      <div className="app-screen">
+        {screen === "facade" ? <FacadeScreen /> : screen === "redressement" ? <RectificationScreen /> : <ViewerDemo />}
+      </div>
     </div>
   );
 }

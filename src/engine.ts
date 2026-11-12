@@ -94,12 +94,29 @@ export interface Facade {
   origin?: SourcePoint;
 }
 
+/** Comment une photo brute a été redressée (résumé ; les points restent dans le moteur). */
+export interface RectificationInfo {
+  method: "automatic" | "manual";
+  residualMm: number | null;
+}
+
+/** Un rétroprojecteur du projet. */
+export interface Projector {
+  id: string;
+  label: string;
+  /** Chemins relatifs au dossier du projet. */
+  rawPhoto: string | null;
+  rectifiedPhoto: string | null;
+  rectification: RectificationInfo | null;
+}
+
 /** Ce que l'interface lit d'un projet ; les autres champs sont ignorés ici. */
 export interface Project {
   formatVersion: number;
   id: string;
   name: string;
   facade: Facade | null;
+  projectors: Projector[];
 }
 
 export type PlanKind = "image" | "pdf" | "svg" | "dxf";
@@ -183,6 +200,107 @@ export async function openFacadeView(folder: string): Promise<FacadeView> {
   };
 }
 
+// --- Redressement des photos de mire (tâche 2.5) ------------------------------
+
+/** Un point `[x, y]`, comme le moteur l'écrit. */
+export type XY = [number, number];
+
+export interface ErrorSummary {
+  mean: number;
+  p95: number;
+  max: number;
+}
+
+/** Un croisement de la grille retenu par la détection. */
+export interface RectificationNode {
+  /** Dans la photo brute, en px (centre du premier pixel en 0,5). */
+  photo: XY;
+  /** Sur la diapositive, en mm. */
+  slide: XY;
+  /** Écart de validation croisée, en mm. */
+  errorMm: number;
+}
+
+/** Redressement d'un projecteur, tel que l'écran l'affiche. */
+export interface RectificationView {
+  projectorId: string;
+  method: "automatic" | "manual";
+  photoWidth: number;
+  photoHeight: number;
+  nodes: RectificationNode[];
+  measurableNodes: number;
+  outliersRemoved: number;
+  /** Coins de la diapositive dans la photo : haut-gauche, haut-droit, bas-droit, bas-gauche. */
+  corners: [XY, XY, XY, XY];
+  /** Contour du carré de 280 mm dans la photo, fermé. */
+  outline: XY[];
+  leaveOneOutMm: ErrorSummary;
+  estimatedErrorMm: ErrorSummary;
+  coverage: number;
+  pxPerMm: number;
+  seconds: number | null;
+}
+
+export interface ExportedImage {
+  path: string;
+  format: "png" | "tiff";
+  dpi: number;
+  sizePx: number;
+  bytes: number;
+  seconds: number;
+}
+
+/** Chemin complet d'un fichier du projet. */
+export function projectFile(folder: string, relative: string): string {
+  return `${folder.replace(/\/$/, "")}/${relative}`;
+}
+
+export async function addProjector(folder: string, label: string): Promise<{ project: Project; id: string }> {
+  requireEngine();
+  const [project, id] = await invoke<[Project, string]>("projector_add", { folder, label });
+  return { project, id };
+}
+
+export async function importProjectorPhoto(folder: string, projector: string, path: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("projector_import_photo", { folder, projector, path });
+}
+
+/**
+ * Détecte la mire et enregistre la photo redressée. Avec `corners` (coins
+ * haut-gauche, haut-droit, bas-droit, bas-gauche dans la photo, en px), la
+ * recherche automatique est remplacée par ces coins ; la grille affine.
+ */
+export async function rectifyProjector(
+  folder: string,
+  projector: string,
+  corners: [XY, XY, XY, XY] | null,
+): Promise<{ project: Project; view: RectificationView }> {
+  requireEngine();
+  const [project, view] = await invoke<[Project, RectificationView]>("projector_rectify", {
+    folder,
+    projector,
+    corners,
+  });
+  return { project, view };
+}
+
+/** Redressement enregistré d'un projecteur, ou `null` s'il n'est pas encore fait. */
+export async function fetchProjectorView(folder: string, projector: string): Promise<RectificationView | null> {
+  requireEngine();
+  return invoke<RectificationView | null>("projector_view", { folder, projector });
+}
+
+export async function exportRectified(
+  folder: string,
+  projector: string,
+  destination: string,
+  dpi: number,
+): Promise<ExportedImage> {
+  requireEngine();
+  return invoke<ExportedImage>("projector_export", { folder, projector, destination, dpi });
+}
+
 // --- Fenêtres de choix de fichiers (macOS) ----------------------------------
 
 /** Extensions de plan acceptées pour la façade. */
@@ -215,4 +333,35 @@ export async function choosePlanFile(): Promise<string | null> {
     filters: [{ name: "Plan de façade", extensions: PLAN_EXTENSIONS }],
   });
   return typeof chosen === "string" ? chosen : null;
+}
+
+/** Extensions de photo de mire acceptées (le HEIC des iPhone compris). */
+export const PHOTO_EXTENSIONS = ["heic", "heif", "jpg", "jpeg", "png", "tif", "tiff"];
+
+/** Demande une photo de mire ; `null` si l'utilisateur renonce. */
+export async function choosePhotoFile(): Promise<string | null> {
+  requireEngine();
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const chosen = await open({
+    multiple: false,
+    directory: false,
+    title: "Importer la photo de la mire",
+    filters: [{ name: "Photo (HEIC, JPEG, PNG, TIFF)", extensions: PHOTO_EXTENSIONS }],
+  });
+  return typeof chosen === "string" ? chosen : null;
+}
+
+/** Demande où exporter la photo redressée ; `null` si l'utilisateur renonce. */
+export async function chooseExportPath(defaultName: string): Promise<string | null> {
+  requireEngine();
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  const chosen = await save({
+    title: "Exporter la photo redressée",
+    defaultPath: defaultName,
+    filters: [
+      { name: "TIFF", extensions: ["tif", "tiff"] },
+      { name: "PNG", extensions: ["png"] },
+    ],
+  });
+  return chosen ?? null;
 }

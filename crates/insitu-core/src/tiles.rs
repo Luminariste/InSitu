@@ -390,21 +390,26 @@ pub fn detect_format(raster: &Raster) -> TileFormat {
     }
 }
 
-/// Lit une image (PNG, JPEG ou TIFF) et la ramène à 8 bits par canal, sans
-/// ajouter de canal : une image en gris reste sur un seul canal.
+/// Lit une image (PNG, JPEG, TIFF ou HEIC) et la ramène à 8 bits par canal,
+/// sans ajouter de canal : une image en gris reste sur un seul canal.
 ///
 /// L'orientation EXIF n'est pas appliquée : les pixels gardent la disposition
-/// du fichier.
+/// du fichier (pour le HEIC, voir [`crate::photo`]).
 pub fn read_raster(path: &Path) -> Result<Raster, TileError> {
     let image_error = |message: String| TileError::Image(path.to_path_buf(), message);
-    let mut reader = ImageReader::open(path)
-        .map_err(io_error(path))?
-        .with_guessed_format()
-        .map_err(io_error(path))?;
-    // Une diapositive de 15 433 px en couleur dépasse la limite de mémoire
-    // par défaut du décodeur (512 Mo) : c'est un cas normal ici.
-    reader.no_limits();
-    let image = reader.decode().map_err(|e| image_error(e.to_string()))?;
+    let image = if crate::photo::is_heif_file(path) {
+        let data = fs::read(path).map_err(io_error(path))?;
+        crate::photo::decode_heif(&data).map_err(|e| image_error(e.0))?
+    } else {
+        let mut reader = ImageReader::open(path)
+            .map_err(io_error(path))?
+            .with_guessed_format()
+            .map_err(io_error(path))?;
+        // Une diapositive de 15 433 px en couleur dépasse la limite de
+        // mémoire par défaut du décodeur (512 Mo) : c'est un cas normal ici.
+        reader.no_limits();
+        reader.decode().map_err(|e| image_error(e.to_string()))?
+    };
     let (width, height) = (image.width(), image.height());
     if width == 0 || height == 0 {
         return Err(image_error("image vide".into()));

@@ -22,6 +22,7 @@
 mod legacy_target;
 mod local_model;
 mod nodes;
+pub mod projector;
 mod raster;
 mod render;
 mod seed;
@@ -333,6 +334,48 @@ fn fit_model(
             .map(|(_, m)| m)
             .collect();
     };
+    let photo_size = (photo.width(), photo.height());
+    let nodes: Vec<(Point, Point, f64)> = nodes
+        .iter()
+        .map(|m| (m.node.position(), m.photo, m.score))
+        .collect();
+    assemble(
+        photo_size,
+        &nodes,
+        &warp,
+        &report,
+        Seed {
+            method,
+            raw_nodes,
+            outliers_removed,
+            quarter_turns,
+            orientation_margin,
+            red_circle_sectors,
+        },
+        smoothing,
+    )
+}
+
+/// Ce que l'amorce apporte au compte rendu.
+struct Seed {
+    method: SeedMethod,
+    raw_nodes: usize,
+    outliers_removed: usize,
+    quarter_turns: u8,
+    orientation_margin: Option<f64>,
+    red_circle_sectors: Option<usize>,
+}
+
+/// Compte rendu complet à partir du modèle ajusté. `nodes` : position sur
+/// la diapositive (mm), dans la photo (px), netteté de la mesure.
+fn assemble(
+    (photo_width, photo_height): (u32, u32),
+    nodes: &[(Point, Point, f64)],
+    warp: &crate::geometry::PointWarp,
+    report: &crate::geometry::FitReport,
+    seed: Seed,
+    smoothing: f64,
+) -> Result<TargetDetection, DetectionError> {
     let px_per_mm = local_scale(warp.base(), Point::new(140.0, 140.0));
     let loo: Vec<f64> = report
         .leave_one_out_in_source
@@ -343,28 +386,28 @@ fn fit_model(
         Point::new(-10.0, -10.0),
         Point::new(SLIDE_SIZE_MM + 10.0, SLIDE_SIZE_MM + 10.0),
     )?;
-    let grid = GridWarp::from_point_warp(&warp, region, RENDER_GRID_STEP_MM)?;
+    let grid = GridWarp::from_point_warp(warp, region, RENDER_GRID_STEP_MM)?;
     let detected: Vec<DetectedNode> = nodes
         .iter()
         .zip(&loo)
-        .map(|(m, e)| DetectedNode {
-            slide: m.node.position(),
-            photo: m.photo,
-            score: m.score,
+        .map(|(&(slide, photo, score), e)| DetectedNode {
+            slide,
+            photo,
+            score,
             leave_one_out_mm: *e,
         })
         .collect();
     let coverage = coverage(&detected);
     Ok(TargetDetection {
-        method,
-        photo_width: photo.width(),
-        photo_height: photo.height(),
+        method: seed.method,
+        photo_width,
+        photo_height,
         measurable_nodes: measurable_count(),
-        raw_nodes,
-        outliers_removed,
-        quarter_turns,
-        orientation_margin,
-        red_circle_sectors,
+        raw_nodes: seed.raw_nodes,
+        outliers_removed: seed.outliers_removed,
+        quarter_turns: seed.quarter_turns,
+        orientation_margin: seed.orientation_margin,
+        red_circle_sectors: seed.red_circle_sectors,
         px_per_mm,
         homography_residual_mm: ErrorSummary::of(&homography_residual),
         leave_one_out_mm: ErrorSummary::of(&loo),
@@ -373,6 +416,56 @@ fn fit_model(
         nodes: detected,
         warp: grid,
     })
+}
+
+/// Reconstruit le redressement à partir des correspondances enregistrées
+/// dans le projet, sans relire la photo : même modèle (trapèze + plaque
+/// mince, D-2.4-b) sur les mêmes points, donc la même image redressée.
+/// Les mesures propres à l'amorce (sens, cercle rouge) ne sont pas connues.
+pub fn from_rectification(
+    photo_size: (u32, u32),
+    rectification: &Rectification,
+) -> Result<TargetDetection, DetectionError> {
+    let points = &rectification.points;
+    if points.len() < 4 {
+        return Err(DetectionError::NotFound(format!(
+            "le projet ne garde que {} point(s) de redressement, il en faut au moins 4",
+            points.len()
+        )));
+    }
+    let mm: Vec<Point> = points
+        .iter()
+        .map(|p| Point::new(p.slide.x, p.slide.y))
+        .collect();
+    let px: Vec<Point> = points
+        .iter()
+        .map(|p| Point::new(p.photo.x, p.photo.y))
+        .collect();
+    let options = FitOptions {
+        smoothing: DEFAULT_SMOOTHING,
+        ..FitOptions::default()
+    };
+    let (warp, report) = fit_with_report(&mm, &px, &options)?;
+    let nodes: Vec<(Point, Point, f64)> = mm.iter().zip(&px).map(|(&a, &b)| (a, b, 0.0)).collect();
+    let method = match rectification.method {
+        RectificationMethod::Automatic => SeedMethod::RedCircleAndCross,
+        RectificationMethod::Manual => SeedMethod::Corners,
+    };
+    assemble(
+        photo_size,
+        &nodes,
+        &warp,
+        &report,
+        Seed {
+            method,
+            raw_nodes: points.len(),
+            outliers_removed: 0,
+            quarter_turns: 0,
+            orientation_margin: None,
+            red_circle_sectors: None,
+        },
+        DEFAULT_SMOOTHING,
+    )
 }
 
 /// Part de la diapositive (échantillonnée au mm) à moins de
@@ -517,11 +610,10 @@ pub fn check_rectified(image: &RgbImage) -> Result<GridCheck, DetectionError> {
     })
 }
 
-/// Lit une photo (JPEG, PNG, TIFF), sans appliquer de rotation EXIF.
+/// Lit une photo (JPEG, PNG, TIFF, HEIC), sans appliquer de rotation EXIF
+/// (voir [`crate::photo`]).
 pub fn read_photo(path: &Path) -> Result<RgbImage, DetectionError> {
-    image::open(path)
-        .map(|i| i.to_rgb8())
-        .map_err(|e| DetectionError::Image(format!("{} illisible : {e}", path.display())))
+    crate::photo::read_rgb(path).map_err(|e| DetectionError::Image(e.0))
 }
 
 #[cfg(test)]
