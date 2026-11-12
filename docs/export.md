@@ -15,13 +15,13 @@ la façade. Un PNG par projecteur, prêt pour LightBurn.
 
 ## Dans l'app
 
-1. Étape **Façade**, inspecteur à droite, rubrique **Fresque** :
+1. Étape **Façade**, panneau de droite, onglet **Fresque** :
    **Importer la fresque…**. L'image est copiée dans le projet et posée sur
    toute la largeur de la façade, à partir du coin haut-gauche. Elle
    s'affiche sur le plan ; la case **Montrer** la masque.
 2. Vérifier qu'elle tombe bien : les dessins doivent être à leur place sur
    le plan et dans les emprises des projecteurs.
-3. Rubrique **Export des diapositives** : régler
+3. Onglet **Export**, rubrique **Export des diapositives** : régler
    - **Résolution** (1 400 dpi par défaut ; Épinal a été gravé à 1 000) ;
    - **Plaque de 300 mm** : décochée par défaut, le PNG fait 280 mm,
      l'image seule, comme les verres d'Épinal. Cochée : il couvre toute la

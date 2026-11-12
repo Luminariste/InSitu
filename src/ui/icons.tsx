@@ -15,6 +15,13 @@ const PATHS = {
     </>
   ),
   pencil: <path d="M10.5 3.5l2 2L6 12H4v-2zM9.5 4.5l2 2" />,
+  layers: (
+    <>
+      <path d="M8 2.5l5.5 3L8 8.5l-5.5-3z" />
+      <path d="M2.5 8L8 11l5.5-3M2.5 10.5L8 13.5l5.5-3" />
+    </>
+  ),
+  cursor: <path d="M4 2.5l8 5.2-3.6.8 2 3.8-1.5.8-2-3.8L4 12z" />,
   folder: <path d="M2.5 4.5v7.5h11V6H8L6.5 4.5z" />,
   document: (
     <>

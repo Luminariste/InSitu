@@ -7,8 +7,8 @@ l'échelle** : les dessins sont posés en vraies dimensions (mm de façade).
 ## Poser un dessin
 
 1. Importer des dessins dans l'étape Bibliothèque (⌘5) si ce n'est pas fait.
-2. Dans l'étape Façade, la rubrique **Dessins** (panneau de gauche, sous les
-   projecteurs) montre la bibliothèque ; un champ permet de chercher.
+2. Dans l'étape Façade, l'onglet **Outils** du panneau de droite montre la
+   bibliothèque (rubrique **Dessins**) ; un champ permet de chercher.
 3. Glisser une vignette sur le plan. Le dessin arrive au point de chute, large
    du quart de ce qu'on voit, aux proportions du fichier. Un double-clic sur
    la vignette le pose au centre de la vue.
@@ -47,7 +47,7 @@ Sur un clavier français, les « crochets » sont les deux touches à droite du 
 
 ## Inspecteur (à droite)
 
-La rubrique **Dessins posés** apparaît quand un dessin est choisi :
+La rubrique **Dessins posés** (onglet **Outils**, qui s'ouvre seul) apparaît quand un dessin est choisi :
 
 - centre X et Y, largeur (la hauteur suit) : taper par exemple `2,5 m`,
   `250 cm` ou `2500`, puis ↩ ;
@@ -60,7 +60,7 @@ La rubrique **Dessins posés** apparaît quand un dessin est choisi :
 
 ## Calques (tâche 4.3)
 
-La rubrique « Calques », dans le panneau de gauche, au-dessus des dessins.
+L'onglet « Calques », dans le panneau de droite.
 Le calque du haut de la liste est devant.
 
 - **+** : nouveau calque, juste au-dessus du calque choisi.

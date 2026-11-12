@@ -595,6 +595,19 @@ et ne connaît pas l'état des écrans ; une seule liste d'actions, celle des
 raccourcis. Limite : une entrée ne se grise pas quand son action est
 indisponible ; la choisir ne fait alors rien.
 
+**D15-i. L'inspecteur de la Façade est un panneau en onglets.** Demande de
+Benjamin (12 novembre au soir) : un panneau de propriétés contextuel, par
+onglets. Six onglets : Plan (fichier, retrait), Mise en plan (échelle),
+Outils (dessins à poser et réglages de la sélection), Calques (rangement
+des dessins posés ; l'arborescence par diapositive y viendra), Fresque,
+Export (simulation, export des diapositives, fiche de calepinage). Le
+panneau de gauche ne garde que les projecteurs et l'affichage. Tous les
+onglets restent montés, cachés : ⌘E exporte quel que soit l'onglet
+affiché. L'onglet change seul sur un évènement (dessins choisis, pose de A
+et B, plan disparu), jamais en continu ; le dernier choisi est retenu
+(`localStorage`, une commodité, pas une donnée du projet). L'inspecteur
+passe de 300 à 320 px pour que six libellés tiennent.
+
 **D15-h. Retirer un dessin ou le plan n'efface aucun fichier.** Comme
 pour un projecteur (D15-f), l'élément sort de `projet.json` et son fichier
 reste dans `bibliotheque/` ou `facade/` ; un nouvel import du même fichier

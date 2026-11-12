@@ -402,6 +402,110 @@ input[type="range"] {
   border-top: 1px solid var(--ui-separator);
 }
 
+/* Panneau en onglets (D15-i) : les onglets prennent la place du titre. */
+.ui-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px var(--ui-space-2) 4px;
+  border-bottom: 1px solid var(--ui-separator);
+  margin-bottom: var(--ui-space-2);
+}
+
+.ui-tabs button {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  padding: 5px 1px 4px;
+  border: 0;
+  border-radius: var(--ui-radius-sm);
+  background: transparent;
+  color: var(--ui-text-secondary);
+  font: inherit;
+  cursor: default;
+}
+
+.ui-tabs button:hover:not(:disabled):not(.is-selected) {
+  background: var(--ui-hover);
+  color: var(--ui-text);
+}
+
+.ui-tabs button.is-selected {
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent);
+}
+
+.ui-tabs button:disabled {
+  opacity: 0.4;
+}
+
+.ui-tabs button:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: -2px;
+}
+
+.ui-tab-icon {
+  position: relative;
+  display: inline-flex;
+}
+
+.ui-tab-label {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: center;
+  font-size: var(--ui-text-xs);
+  line-height: 1.15;
+}
+
+.ui-tab-count {
+  position: absolute;
+  top: -5px;
+  right: -10px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--ui-accent);
+  color: var(--ui-on-accent);
+  font-size: 10px;
+  font-weight: var(--ui-weight-bold);
+  line-height: 14px;
+  text-align: center;
+}
+
+.ui-tab-dot {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ui-text-tertiary);
+}
+
+.ui-tab-dot.tone-warning {
+  background: var(--ui-warning);
+}
+
+.ui-tab-dot.tone-danger {
+  background: var(--ui-danger);
+}
+
+.ui-tab-dot.tone-success {
+  background: var(--ui-success);
+}
+
+.ui-tabbed {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.ui-tabbed > .ui-panel-body[hidden] {
+  display: none;
+}
+
 .ui-section {
   padding: var(--ui-space-2) var(--ui-space-1) var(--ui-space-3);
   border-top: 1px solid var(--ui-separator);
