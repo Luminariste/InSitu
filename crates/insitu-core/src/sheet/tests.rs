@@ -83,6 +83,8 @@ fn project(temp: &TempDir) -> ProjectDir {
             deformation: None,
             projector: None,
             adjustment: None,
+            hidden: false,
+            locked: false,
             extra: Default::default(),
         });
     }
@@ -140,10 +142,17 @@ fn the_layout_sheet_is_an_a3_pdf_with_the_plan_and_every_slide() {
     assert!(pixels_below(200, &page1, w, at(14.0), at(40.0), at(290.0), at(283.0)) > 2_000);
 
     // Page 2 : la vignette de P1 (en haut à gauche) montre l'anneau, en
-    // traits sombres sur fond clair.
+    // traits blancs sur fond noir, comme la plaque gravée (D-6.2-e).
     let (w, _, page2) = render_whole(&out, Some(2), 1_680).unwrap();
-    let thumb = dark_pixels(&page2, w, at(14.0), at(34.0), at(92.0), at(112.0));
-    assert!(thumb > 300, "vignette de P1 : {thumb}");
+    let (x0, y0, x1, y1) = (at(14.0), at(34.0), at(92.0), at(112.0));
+    let area = ((x1 - x0) * (y1 - y0)) as usize;
+    let dark = dark_pixels(&page2, w, x0, y0, x1, y1);
+    let light = area - pixels_below(200, &page2, w, x0, y0, x1, y1);
+    assert!(
+        dark > area / 2,
+        "fond de la vignette de P1 : {dark} sur {area}"
+    );
+    assert!(light > 300, "traits de la vignette de P1 : {light}");
     // P7 (pas recalé) est seul sur la page 3, avec son problème en clair.
     let (_, _, page3) = render_whole(&out, Some(3), 1_680).unwrap();
     assert!(dark_pixels(&page3, w, at(14.0), at(34.0), at(140.0), at(140.0)) > 100);

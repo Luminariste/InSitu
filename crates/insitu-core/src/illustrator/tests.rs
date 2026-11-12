@@ -199,6 +199,8 @@ fn the_pose_puts_the_drawing_corners_where_illustrator_does() {
             deformation: None,
             projector: None,
             adjustment: None,
+            hidden: false,
+            locked: false,
             extra: Default::default(),
         };
         assert_eq!(pose.mirrored, flip, "{degrees}°");

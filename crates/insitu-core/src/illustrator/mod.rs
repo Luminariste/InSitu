@@ -619,16 +619,14 @@ pub fn import_composition(
         };
         let flags = doc.layers.iter().find(|l| l.name == p.layer);
         let top_visible = flags.is_none_or(|l| l.visible);
-        let mut name = if p.layer.trim().is_empty() {
+        let name = if p.layer.trim().is_empty() {
             stem.clone()
         } else {
             p.layer.clone()
         };
-        // Masquée dans un sous-calque d'un calque visible : un calque à part,
-        // masqué lui aussi (l'app n'a pas de sous-calques).
-        if !p.visible && top_visible {
-            name = format!("{name} (masqué)");
-        }
+        // Masquée dans un sous-calque d'un calque visible : le dessin seul est
+        // masqué (l'app n'a pas de sous-calques).
+        let hidden = !p.visible && top_visible;
         let layer_id = match project.layers.iter().find(|l| l.name == name) {
             Some(l) => l.id.clone(),
             None => {
@@ -636,7 +634,7 @@ pub fn import_composition(
                 project.layers.push(Layer {
                     id: id.clone(),
                     name: name.clone(),
-                    visible: p.visible,
+                    visible: top_visible,
                     locked: flags.is_some_and(|l| l.locked),
                     extra: Default::default(),
                 });
@@ -665,6 +663,8 @@ pub fn import_composition(
             deformation: None,
             projector: None,
             adjustment: None,
+            hidden,
+            locked: false,
             extra: Default::default(),
         });
     }

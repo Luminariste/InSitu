@@ -13,6 +13,8 @@ import { DrawingsSection } from "../compose/DrawingsSection";
 import { IllustratorImport } from "../compose/IllustratorImport";
 import { LayersSection } from "../compose/LayersSection";
 import { PlacementInspector } from "../compose/PlacementInspector";
+import { SlidesSection } from "../compose/SlidesSection";
+import { slideTree } from "../compose/slideTree";
 import { useComposition } from "../compose/useComposition";
 import "../compose/compose.css";
 import {
@@ -318,6 +320,26 @@ export function FacadeScreen() {
     onError: setError,
   });
   const viewerLayers = useMemo(() => [...layers, ...composition.layers], [layers, composition.layers]);
+
+  // Arborescence des dessins par diapositive : il faut les affectations du moteur.
+  const tree = useMemo(
+    () =>
+      slideTree(
+        composition.placements,
+        composition.composeLayers,
+        (project?.projectors ?? []).map((q) => ({ id: q.id, label: q.label, registered: (q.registration?.length ?? 0) >= 4 })),
+        composition.assignments,
+      ),
+    [composition.placements, composition.composeLayers, project?.projectors, composition.assignments],
+  );
+  const selectedIds = useMemo(() => new Set(composition.selected.map((p) => p.id)), [composition.selected]);
+  const describePlacement = useCallback(
+    (p: { drawing: string }) => {
+      const d = composition.drawings.find((x) => x.id === p.drawing);
+      return { name: d?.name ?? p.drawing, url: d?.url };
+    },
+    [composition.drawings],
+  );
 
   // --- Simulation (tâche 6.1) ----------------------------------------------
 
@@ -636,6 +658,13 @@ export function FacadeScreen() {
         ),
         calques: (
           <>
+            <SlidesSection
+              groups={composition.placements.length > 0 ? tree : []}
+              selected={selectedIds}
+              describe={describePlacement}
+              actions={composition.actions}
+              blocked={composeBlocked}
+            />
             <LayersSection
               layers={composition.composeLayers}
               active={composition.activeLayer}

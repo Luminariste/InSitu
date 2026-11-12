@@ -1,0 +1,179 @@
+{
+  "nom": "Trévarez, novembre 2026",
+  "description": "Écuries du domaine de Trévarez (Noël 2026) : la cour des écuries, quatre façades et leurs avant-toits mis à plat dans un déroulé vectoriel, douze projecteurs A à L. Prises de vue du 11 novembre 2026 à l'iPhone 16 Pro, avec l'ancienne mire. Projet InSitu monté par Benjamin avec la version 0.1.28.",
+  "projecteurs": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "J",
+    "K",
+    "L"
+  ],
+  "fichiers": [
+    {
+      "id": "facade",
+      "role": "facade",
+      "projecteur": null,
+      "original": {
+        "chemin": "Esquises/ECURIES-COMPOSITION PlanBase.pdf",
+        "octets": 284140,
+        "sha256": "01f4132923541b843f3e1c3c6f227c536ae5c36fb9094690c25ae58c0fa6c858"
+      },
+      "note": "Déroulé vectoriel exporté d'Illustrator : une page carrée de 1 417,32 pt (500 mm). Benjamin l'a mis à l'échelle par 27 260 mm entre deux points de la façade du haut.",
+      "reference": {
+        "chemin": "references/facade/ecuries-planbase.pdf",
+        "octets": 284140,
+        "sha256": "01f4132923541b843f3e1c3c6f227c536ae5c36fb9094690c25ae58c0fa6c858",
+        "fidelite": "identique"
+      }
+    },
+    {
+      "id": "projet",
+      "role": "project",
+      "projecteur": null,
+      "original": {
+        "chemin": "_PROJECTION/Trevarez.insitu/projet.json",
+        "octets": 785560,
+        "sha256": "107f91fc2d3044aa778c954b66e96a1e05ed6320b508e1cadeddfe777e6e7f7e"
+      },
+      "note": "Le projet tel que Benjamin l'a enregistré (format 1, version 0.1.28) : douze projecteurs, B à G redressés, B et C recalés, 95 dessins en bibliothèque, 2 posés. Copie du 12 novembre 2026, 22 h 37 (heure de Paris). La déformation du dessin posé sur B a été retouchée après l'export de Trevarez-B.png : seul l'export de C correspond encore à ce projet.",
+      "reference": {
+        "chemin": "references/projet/projet.json",
+        "octets": 785560,
+        "sha256": "107f91fc2d3044aa778c954b66e96a1e05ed6320b508e1cadeddfe777e6e7f7e",
+        "fidelite": "identique"
+      }
+    },
+    {
+      "id": "dessin-algue-h02",
+      "role": "drawing",
+      "projecteur": null,
+      "original": {
+        "chemin": "_PROJECTION/Trevarez.insitu/bibliotheque/Algues/Algue-H02.png",
+        "octets": 323673,
+        "sha256": "5ff26ec4b34f612d6c895af67b77035434e892fa5ae925de5f13df0f3f5c39e8",
+        "largeur": 3299,
+        "hauteur": 1046
+      },
+      "note": "Dessin posé sur la diapositive B, avec une déformation quatre coins (retouchée après l'export de B).",
+      "reference": {
+        "chemin": "references/dessins/algue-h02.png",
+        "octets": 323673,
+        "sha256": "5ff26ec4b34f612d6c895af67b77035434e892fa5ae925de5f13df0f3f5c39e8",
+        "largeur": 3299,
+        "hauteur": 1046,
+        "fidelite": "identique"
+      }
+    },
+    {
+      "id": "dessin-algues-horizontales",
+      "role": "drawing",
+      "projecteur": null,
+      "original": {
+        "chemin": "_PROJECTION/Trevarez.insitu/bibliotheque/Algues/Algues Horizontales.png",
+        "octets": 2305012,
+        "sha256": "25fc28dfb091f6a924fc8006912a87ac5e90a3e32322bccfbf131d54e156e637",
+        "largeur": 5793,
+        "hauteur": 5793
+      },
+      "note": "Dessin posé sur la diapositive C.",
+      "reference": {
+        "chemin": "references/dessins/algues-horizontales.png",
+        "octets": 2305012,
+        "sha256": "25fc28dfb091f6a924fc8006912a87ac5e90a3e32322bccfbf131d54e156e637",
+        "largeur": 5793,
+        "hauteur": 5793,
+        "fidelite": "identique"
+      }
+    },
+    {
+      "id": "photo-brute-a",
+      "role": "raw_photo",
+      "projecteur": "A",
+      "original": {
+        "chemin": "_PROJECTION/01 - Rétroprojecteur BRUT/A BRUT.JPG",
+        "octets": 1036989,
+        "sha256": "eb37ba5ac34a95728796c913edf53db52ccc1fb5e5617a3a89577c4da79826c3",
+        "largeur": 4032,
+        "hauteur": 3024,
+        "orientationExif": 6,
+        "priseDeVue": "2026:11:11 17:40:27"
+      },
+      "note": "Grille presque illisible (lumière, flou) : la détection automatique échoue, le redressement passe par les quatre coins posés à la main (D-2.5-l).",
+      "reference": {
+        "chemin": "references/photos-brutes/a-brut.jpg",
+        "octets": 1036989,
+        "sha256": "eb37ba5ac34a95728796c913edf53db52ccc1fb5e5617a3a89577c4da79826c3",
+        "largeur": 4032,
+        "hauteur": 3024,
+        "fidelite": "identique"
+      },
+      "reduit": {
+        "chemin": "reduits/photos-brutes/a-brut.jpg",
+        "octets": 50827,
+        "sha256": "de36858b09b21e32142301bfca98dd1110acf5f33706247b22a4a83b485a24ef",
+        "largeur": 1008,
+        "hauteur": 756,
+        "echelle": 4
+      }
+    },
+    {
+      "id": "photo-brute-b",
+      "role": "raw_photo",
+      "projecteur": "B",
+      "original": {
+        "chemin": "_PROJECTION/01 - Rétroprojecteur BRUT/B BRUT.JPG",
+        "octets": 1402328,
+        "sha256": "83a77d759ef94d77ec47c14672613558af6e9d03137ea7edc1e6e5907eb0cf36",
+        "largeur": 4032,
+        "hauteur": 3024,
+        "orientationExif": 6,
+        "priseDeVue": "2026:11:11 17:51:00"
+      },
+      "note": "Redressée automatiquement par Benjamin dans la 0.1.28 : écart résiduel 0,078 mm, miroir horizontal et vertical.",
+      "reference": {
+        "chemin": "references/photos-brutes/b-brut.jpg",
+        "octets": 1402328,
+        "sha256": "83a77d759ef94d77ec47c14672613558af6e9d03137ea7edc1e6e5907eb0cf36",
+        "largeur": 4032,
+        "hauteur": 3024,
+        "fidelite": "identique"
+      },
+      "reduit": {
+        "chemin": "reduits/photos-brutes/b-brut.jpg",
+        "octets": 72167,
+        "sha256": "39eda7ad96a67135fd81707d9fce614cffad623b23475984a87b3e772850acf6",
+        "largeur": 1008,
+        "hauteur": 756,
+        "echelle": 4
+      }
+    },
+    {
+      "id": "verre-c",
+      "role": "engraving_export",
+      "projecteur": "C",
+      "original": {
+        "chemin": "_PROJECTION/04 - Export To Light Burn/Trevarez-C.png",
+        "octets": 5134823,
+        "sha256": "abe6745087b8a494059f61e319e2b1ba7c40b7c5ee64af0b17c2f22289f3f341",
+        "largeur": 15433,
+        "hauteur": 15433
+      },
+      "note": "Exporté par InSitu 0.1.28 à 1 400 dpi (15 433 px), sans miroir ni négatif. Sert de référence : l'export refait depuis projet.json doit retomber dessus.",
+      "reduit": {
+        "chemin": "reduits/verres/trevarez-c.png",
+        "octets": 60248,
+        "sha256": "7c413fdf104f41b5af4da78f9ea795df3e696b7955ecfba8fb4e10c5f18d9458",
+        "largeur": 1102,
+        "hauteur": 1102,
+        "echelle": 14
+      }
+    }
+  ]
+}

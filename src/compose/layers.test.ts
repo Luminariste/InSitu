@@ -39,6 +39,10 @@ describe("calques", () => {
     expect(ids(shown(list, [{ ...fond, visible: false }, devant]))).toEqual(["b"]);
     expect(ids(pickable(list, [fond, { ...devant, locked: true }]))).toEqual(["a"]);
     expect(ids(pickable(list, [{ ...fond, visible: false }, devant]))).toEqual(["b"]);
+    // Un dessin masqué un à un ne s'affiche pas ; verrouillé, il s'affiche mais ne se choisit pas.
+    const one = [{ ...placed("a", "fond"), hidden: true }, { ...placed("b", "devant"), locked: true }, placed("c", "fond")];
+    expect(ids(shown(one, [fond, devant]))).toEqual(["c", "b"]);
+    expect(ids(pickable(one, [fond, devant]))).toEqual(["c"]);
   });
 
   it("ajouter un calque à un projet sans calque écrit les deux, et range les dessins dans le premier", () => {

@@ -40,16 +40,16 @@ export function stack(placements: Placement[], layers: Layer[]): Placement[] {
 export const isShown = (l: Layer) => l.visible !== false;
 export const isLocked = (l: Layer) => l.locked === true;
 
-/** Dessins affichés, dans l'ordre d'affichage. */
+/** Dessins affichés, dans l'ordre d'affichage : ni masqués un à un, ni sur un calque masqué. */
 export function shown(placements: Placement[], layers: Layer[]): Placement[] {
-  return stack(placements, layers).filter((p) => isShown(layerOf(layers, p)));
+  return stack(placements, layers).filter((p) => !p.hidden && isShown(layerOf(layers, p)));
 }
 
-/** Dessins qu'on peut choisir à la souris : ni masqués ni verrouillés. */
+/** Dessins qu'on peut choisir à la souris : ni masqués ni verrouillés, eux ou leur calque. */
 export function pickable(placements: Placement[], layers: Layer[]): Placement[] {
   return stack(placements, layers).filter((p) => {
     const l = layerOf(layers, p);
-    return isShown(l) && !isLocked(l);
+    return !p.hidden && !p.locked && isShown(l) && !isLocked(l);
   });
 }
 
