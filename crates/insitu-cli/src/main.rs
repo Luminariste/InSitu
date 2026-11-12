@@ -23,7 +23,10 @@
 //! - `insitu tiles <image> <dossier>` : pyramide de tuiles d'une image, pour
 //!   la visionneuse (descripteur en JSON, durée sur la sortie d'erreur) ;
 //! - `insitu warp <image> <sortie.png> <paires.json>` : déforme une image
-//!   vers une diapositive de 280 mm (format : `insitu warp --help`).
+//!   vers une diapositive de 280 mm (format : `insitu warp --help`) ;
+//! - `insitu vectorize <image> [--svg <sortie.svg>] [--check] …` : vectorise
+//!   un dessin et mesure l'écart avec l'image (options : `insitu vectorize
+//!   --help`).
 //!
 //! Code de sortie : 0 si tout va bien, 1 en cas d'échec ou de projet
 //! invalide, 2 si la commande est mal écrite.
@@ -33,6 +36,7 @@ mod geometry;
 mod projector;
 mod rectify;
 mod target;
+mod vectorize;
 mod warp;
 
 use std::path::Path;
@@ -128,6 +132,14 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             }
             Err(warp::Problem::Usage(message)) => Err(Failure::Usage(message)),
             Err(warp::Problem::Failed(message)) => Err(Failure::Failed(message)),
+        },
+        ["vectorize", rest @ ..] => match vectorize::run(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(vectorize::Problem::Usage(message)) => Err(Failure::Usage(message)),
+            Err(vectorize::Problem::Failed(message)) => Err(Failure::Failed(message)),
         },
         [] | ["--help"] | ["-h"] => {
             println!("{}", usage());
@@ -307,5 +319,6 @@ fn usage() -> &'static str {
      --format png|jpeg                           format imposé (sinon choisi d'après l'image)\n      \
      --quality Q                                 qualité JPEG de 1 à 100 (88 par défaut)\n  \
      warp <image> <sortie.png> <paires.json>       Déforme une image vers une diapositive de 280 mm\n  \
-     warp --help                                   Décrit le fichier de paires et les options"
+     warp --help                                   Décrit le fichier de paires et les options\n  \
+     vectorize <image> [--svg <sortie.svg>]        Vectorise un dessin (vectorize --help)"
 }

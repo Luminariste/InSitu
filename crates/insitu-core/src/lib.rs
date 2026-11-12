@@ -21,6 +21,7 @@ pub mod resample;
 pub mod target;
 pub mod tiles;
 pub mod units;
+pub mod vectorize;
 
 use serde::Serialize;
 
