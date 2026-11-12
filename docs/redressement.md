@@ -26,13 +26,14 @@
    un coin de la mire, dans n'importe quel ordre. La loupe, en haut à
    droite, montre les pixels de la photo autour de la poignée. **Détecter
    depuis les coins** : l'app retrouve seule quel coin est lequel (par les
-   petits cercles de la mire), et les coins n'ont pas besoin d'être exacts
+   petits cercles de l'ancienne mire, ou par les repères codés, les petits
+   carrés noirs, de la nouvelle mire), et les coins n'ont pas besoin d'être exacts
    (1 ou 2 mm suffisent), la grille affine ensuite.
    **Si la grille ne se lit pas** (photo floue, sombre, mire mal éclairée),
    la photo est quand même redressée, par les quatre coins seuls : le bas
    de l'écran le dit en orange, avec la raison. C'est un simple trapèze,
    dont la précision n'est pas mesurée : poser les coins avec soin (loupe)
-   et vérifier la photo redressée. Si les petits cercles ne se voient pas
+   et vérifier la photo redressée. Si ni les petits cercles ni les repères codés ne se voient
    non plus, le sens peut être faux : **↻ Quart de tour** (à côté du
    miroir) tourne la photo redressée, autant de fois qu'il faut.
 6. **Miroir** : **↔ Gauche-droite** et **↕ Haut-bas** retournent la photo
