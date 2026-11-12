@@ -48,9 +48,11 @@ function formatZoom(percent: number | null): string {
 
 export function formatFrameStats(stats: FrameStats): string {
   const slow = stats.slowFrames === 0 ? "aucune saccade" : `${stats.slowFrames} en retard`;
+  const perSecond = Math.round(1000 / stats.meanMs);
   return (
-    `${stats.frames} images, ${decimal.format(stats.meanMs)} ms en moyenne, ` +
-    `${decimal.format(stats.worstMs)} ms au pire, ${slow} (calcul : ${decimal.format(stats.meanWorkMs)} ms)`
+    `${stats.frames} images, ${perSecond} par seconde ` +
+    `(${decimal.format(stats.meanMs)} ms en moyenne, ${decimal.format(stats.worstMs)} ms au pire), ` +
+    `${slow}, calcul : ${decimal.format(stats.meanWorkMs)} ms`
   );
 }
 

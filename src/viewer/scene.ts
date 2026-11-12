@@ -65,7 +65,10 @@ export interface SceneListeners {
 }
 
 /** Une image dessinée après une pause plus longue ne compte pas dans le geste. */
-const GESTURE_GAP_MS = 250;
+// Après le dernier mouvement, la scène continue d'être redessinée pendant ce
+// délai : la mesure porte ainsi sur le rythme réel de l'écran, pas sur le
+// rythme auquel les mouvements arrivent.
+const GESTURE_TAIL_MS = 180;
 const SLOW_FRAME_MS = 25;
 
 /** Événement de pincement propre à WebKit (Safari, fenêtre Tauri sur Mac). */
@@ -97,7 +100,8 @@ export class ViewerScene {
 
   private lastFrameAt = 0;
   private gesture = { frames: 0, total: 0, worst: 0, slow: 0, work: 0 };
-  private gestureTimer = 0;
+  private activeUntil = 0;
+  private inGesture = false;
 
   /** Crée la scène dans `host`, qui doit avoir une taille. */
   static async create(host: HTMLElement, options: SceneOptions = {}): Promise<ViewerScene> {
@@ -204,6 +208,7 @@ export class ViewerScene {
     this.autoFit = false;
     const bounds = this.contentBounds();
     this.view = bounds ? keepInBounds(view, bounds) : view;
+    this.activeUntil = performance.now() + GESTURE_TAIL_MS;
     this.invalidate();
   }
 
@@ -239,7 +244,6 @@ export class ViewerScene {
     if (this.destroyed) return;
     this.destroyed = true;
     cancelAnimationFrame(this.frameRequest);
-    window.clearTimeout(this.gestureTimer);
     this.resizeObserver.disconnect();
     for (const dispose of this.disposers) dispose();
     for (const { node } of this.nodes.values()) node.destroy();
@@ -284,7 +288,11 @@ export class ViewerScene {
     this.tiles.sync(wanted);
 
     this.renderer.render(this.stage);
-    this.recordFrame(time, performance.now() - started);
+    // Pendant un geste, une image est dessinée à chaque rafraîchissement de
+    // l'écran, même si aucun mouvement n'est arrivé entre-temps.
+    const active = performance.now() < this.activeUntil;
+    this.recordFrame(time, performance.now() - started, active);
+    if (active) this.invalidate();
 
     const detail = this.finestDetail();
     this.listeners.onFrame?.({
@@ -294,30 +302,37 @@ export class ViewerScene {
     });
   }
 
-  private recordFrame(time: number, workMs: number): void {
-    const gap = time - this.lastFrameAt;
-    this.lastFrameAt = time;
-    if (gap < GESTURE_GAP_MS) {
-      const g = this.gesture;
-      g.frames += 1;
-      g.total += gap;
-      g.worst = Math.max(g.worst, gap);
-      g.work += workMs;
-      if (gap > SLOW_FRAME_MS) g.slow += 1;
+  /**
+   * Mesure la fluidité d'un geste : l'écart entre deux images successives
+   * tant que le geste dure. Sur un écran à 60 Hz l'écart idéal est de
+   * 16,7 ms, sur un écran à 120 Hz de 8,3 ms.
+   */
+  private recordFrame(time: number, workMs: number, active: boolean): void {
+    const g = this.gesture;
+    if (active) {
+      if (this.inGesture) {
+        const gap = time - this.lastFrameAt;
+        g.frames += 1;
+        g.total += gap;
+        g.worst = Math.max(g.worst, gap);
+        g.work += workMs;
+        if (gap > SLOW_FRAME_MS) g.slow += 1;
+      }
+      this.inGesture = true;
+      this.lastFrameAt = time;
+      return;
     }
-    window.clearTimeout(this.gestureTimer);
-    this.gestureTimer = window.setTimeout(() => {
-      const g = this.gesture;
-      this.gesture = { frames: 0, total: 0, worst: 0, slow: 0, work: 0 };
-      if (g.frames < 5) return;
-      this.listeners.onGestureEnd?.({
-        frames: g.frames,
-        meanMs: g.total / g.frames,
-        worstMs: g.worst,
-        slowFrames: g.slow,
-        meanWorkMs: g.work / g.frames,
-      });
-    }, GESTURE_GAP_MS);
+    if (!this.inGesture) return;
+    this.inGesture = false;
+    this.gesture = { frames: 0, total: 0, worst: 0, slow: 0, work: 0 };
+    if (g.frames < 5) return;
+    this.listeners.onGestureEnd?.({
+      frames: g.frames,
+      meanMs: g.total / g.frames,
+      worstMs: g.worst,
+      slowFrames: g.slow,
+      meanWorkMs: g.work / g.frames,
+    });
   }
 
   private resize(): void {
