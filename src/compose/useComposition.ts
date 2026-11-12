@@ -31,6 +31,7 @@ import {
   applyGesture,
   frameCorners,
   handleAt,
+  nodeAt,
   repeatGesture,
   type Gesture,
   type GestureStep,
@@ -44,18 +45,21 @@ import {
   arrange,
   bounds,
   copyOf,
-  corners,
+  deform,
   distribute,
   dropped,
   expandToGroups,
+  facadePoint,
   flip,
   group,
   hitTest,
   newId,
+  outline,
   rectCenter,
   remove,
   rotate,
   scale,
+  sharedDeformation,
   translate,
   ungroup,
   type Alignment,
@@ -80,6 +84,7 @@ import {
   updateLayer,
 } from "./layers";
 import type { Layer } from "./placement";
+import { meshLines, nodePoints } from "./deformation";
 import { SelectionNode } from "./SelectionNode";
 
 /** Type des données glissées depuis la liste des dessins. */
@@ -119,6 +124,11 @@ export interface CompositionActions {
   place(drawing: string): void;
   /** Range la sélection sur un calque. */
   moveToLayer(layer: string): void;
+  /**
+   * Tend sur la sélection une grille au repos de `columns × rows` cases
+   * (1 × 1 : quatre coins), d'un bloc ; 0 retire la déformation (tâche 4.4).
+   */
+  deform(columns: number, rows: number): void;
 }
 
 /** Ce que la rubrique « Calques » peut faire (tâche 4.3). */
@@ -168,6 +178,16 @@ interface Active {
 }
 
 const CLICK_PX = 4;
+/** Cases par côté de la maille qui affiche un dessin déformé. */
+const PREVIEW_DIVISIONS = 16;
+
+/** Points de la maille d'affichage d'un dessin posé, ligne par ligne. */
+function previewMesh(p: Placement): { divisions: number; points: Point[] } {
+  const n = p.deformation ? PREVIEW_DIVISIONS : 1;
+  const points: Point[] = [];
+  for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) points.push(facadePoint(p, i / n, j / n));
+  return { divisions: n, points };
+}
 
 export function useComposition(options: Options): Composition {
   const { engine, folder, project, onProject, viewer, stage, enabled, onError } = options;
@@ -326,16 +346,16 @@ export function useComposition(options: Options): Composition {
 
   const selected = useMemo(() => placements.filter((p) => selection.has(p.id)), [placements, selection]);
   const frame = useMemo(() => bounds(selected), [selected]);
+  // Les nœuds ne se tirent que sur une sélection qui partage une même déformation.
+  const editable = useMemo(() => sharedDeformation(selected), [selected]);
+  const editableNodes = useMemo(() => (editable ? nodePoints(editable) : []), [editable]);
 
   const layers = useMemo<LayerSpec[]>(
     () =>
       shown(placements, layerList).flatMap((p) => {
         const url = previews.get(p.drawing);
         if (!url) return [];
-        const [tl, tr, br, bl] = corners(p);
-        return [
-          { id: `pose:${p.id}`, kind: "mesh-image", url, divisions: 1, points: [tl, tr, bl, br] } satisfies LayerSpec,
-        ];
+        return [{ id: `pose:${p.id}`, kind: "mesh-image", url, ...previewMesh(p) } satisfies LayerSpec];
       }),
     [placements, layerList, previews],
   );
@@ -362,9 +382,14 @@ export function useComposition(options: Options): Composition {
     };
   }, [viewer]);
   useEffect(() => {
-    selectionNode.current?.set({ outlines: selected.map((p) => corners(p)), frame, marquee });
+    selectionNode.current?.set({
+      outlines: selected.map((p) => outline(p)),
+      frame,
+      marquee,
+      mesh: editable ? { lines: meshLines(editable), nodes: editableNodes } : null,
+    });
     viewer.current?.scene()?.invalidate();
-  }, [selected, frame, marquee, viewer, layers]);
+  }, [selected, frame, marquee, viewer, layers, editable, editableNodes]);
 
   // --- Pointeur ------------------------------------------------------------------------------
 
@@ -382,6 +407,9 @@ export function useComposition(options: Options): Composition {
   const handleUnder = (at: NonNullable<ReturnType<typeof pointerAt>>) =>
     frame ? handleAt(frameCorners(frame).map(at.toScreen), at.screen) : null;
 
+  const nodeUnder = (at: NonNullable<ReturnType<typeof pointerAt>>) =>
+    editable ? nodeAt(editableNodes.map(at.toScreen), at.screen) : null;
+
   const setCursor = (cursor: string) => {
     if (stage.current) stage.current.style.cursor = cursor;
   };
@@ -390,9 +418,20 @@ export function useComposition(options: Options): Composition {
     if (!enabled || event.button !== 0 || spaceDown.current) return false;
     const at = pointerAt(event);
     if (!at) return false;
-    const handle = handleUnder(at);
+    const node = nodeUnder(at);
+    const handle = node === null ? handleUnder(at) : null;
     let gesture: Gesture | null = null;
-    if (handle && frame) {
+    if (node !== null && editable) {
+      gesture = {
+        kind: "node",
+        start: at.mm,
+        before: placements,
+        ids: selection,
+        deformation: editable,
+        index: node,
+        origin: editableNodes[node],
+      };
+    } else if (handle && frame) {
       gesture =
         handle.kind === "scale"
           ? { kind: "scale", start: at.mm, before: placements, ids: selection, frame, corner: handle.corner }
@@ -437,15 +476,17 @@ export function useComposition(options: Options): Composition {
       if (!enabled || spaceDown.current) return;
       const handle = handleUnder(at);
       setCursor(
-        handle?.kind === "scale"
-          ? handle.corner % 2 === 0
-            ? "nwse-resize"
-            : "nesw-resize"
-          : handle?.kind === "rotate"
-            ? "alias"
-            : hitTest(picks, at.mm)
-              ? "move"
-              : "",
+        nodeUnder(at) !== null
+          ? "crosshair"
+          : handle?.kind === "scale"
+            ? handle.corner % 2 === 0
+              ? "nwse-resize"
+              : "nesw-resize"
+            : handle?.kind === "rotate"
+              ? "alias"
+              : hitTest(picks, at.mm)
+                ? "move"
+                : "",
       );
       return;
     }
@@ -595,6 +636,7 @@ export function useComposition(options: Options): Composition {
       const r = moveToLayer(current, selection, id);
       if (r !== current) commit(r.placements, undefined, r.layers);
     },
+    deform: (columns, rows) => apply(deform(placements, selection, columns, rows)),
   };
 
   const shortcuts = [
@@ -646,7 +688,9 @@ export function useComposition(options: Options): Composition {
   const hint = !enabled
     ? null
     : has
-      ? "Glisser : déplacer (⌥ copie, ⇧ droit) · coin : agrandir · près d'un coin, dehors : tourner · Espace : déplacer la vue"
+      ? editable
+        ? "Glisser un point bleu : déformer · glisser le dessin : déplacer · coin du cadre : agrandir · Espace : déplacer la vue"
+        : "Glisser : déplacer (⌥ copie, ⇧ droit) · coin : agrandir · près d'un coin, dehors : tourner · Espace : déplacer la vue"
       : picks.length > 0
         ? "Cliquer un dessin pour le choisir, ou glisser autour de plusieurs"
         : drawings.length > 0

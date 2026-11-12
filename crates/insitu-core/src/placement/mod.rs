@@ -5,12 +5,16 @@
 //! et l'enregistre ([`set_placements`]). Les fonctions d'ajout et de retrait
 //! servent à la ligne de commande et aux tests.
 
+pub mod mesh;
+
 use std::collections::BTreeSet;
 use std::fmt;
 
 use crate::project::model::new_id;
 use crate::project::validate::placement_errors;
-use crate::project::{Layer, Placement, PointMm, Project, ProjectDir, ProjectError};
+use crate::project::{
+    DeformationFrame, Layer, Placement, PointMm, Project, ProjectDir, ProjectError,
+};
 
 #[derive(Debug)]
 pub enum PlacementError {
@@ -150,6 +154,7 @@ pub fn new_placement(
         mirrored: false,
         group: None,
         layer: None,
+        deformation: None,
         extra: Default::default(),
     })
 }
@@ -184,6 +189,76 @@ pub fn remove(dir: &ProjectDir, ids: &[String]) -> Result<Project, PlacementErro
     project
         .placements
         .retain(|p| !wanted.contains(p.id.as_str()));
+    dir.save(&project)?;
+    Ok(project)
+}
+
+/// Le cadre d'une nouvelle déformation : le dessin lui-même s'il est seul,
+/// sinon le rectangle droit qui contient tous les dessins.
+pub fn deformation_frame(placements: &[&Placement]) -> Option<DeformationFrame> {
+    match placements {
+        [] => None,
+        [p] => Some(DeformationFrame {
+            center: p.center,
+            width: p.width,
+            height: p.height,
+            rotation: p.rotation,
+        }),
+        many => {
+            let (mut x0, mut y0) = (f64::INFINITY, f64::INFINITY);
+            let (mut x1, mut y1) = (f64::NEG_INFINITY, f64::NEG_INFINITY);
+            for p in many {
+                for (u, v) in [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)] {
+                    let c = p.rigid_point(u, v);
+                    x0 = x0.min(c.x);
+                    y0 = y0.min(c.y);
+                    x1 = x1.max(c.x);
+                    y1 = y1.max(c.y);
+                }
+            }
+            Some(DeformationFrame {
+                center: PointMm::new((x0 + x1) / 2.0, (y0 + y1) / 2.0),
+                width: x1 - x0,
+                height: y1 - y0,
+                rotation: 0.0,
+            })
+        }
+    }
+}
+
+/// Tend une grille au repos de `columns × rows` cases (1 × 1 : quatre
+/// coins) sur des dessins posés, ensemble (tâche 4.4) ; `columns` à 0 retire
+/// leur déformation. Une déformation précédente est remplacée.
+pub fn deform(
+    dir: &ProjectDir,
+    ids: &[String],
+    columns: u32,
+    rows: u32,
+) -> Result<Project, PlacementError> {
+    let mut project = dir.load()?.project;
+    let wanted: BTreeSet<&str> = ids.iter().map(String::as_str).collect();
+    if let Some(missing) = wanted
+        .iter()
+        .find(|id| !project.placements.iter().any(|p| p.id == **id))
+    {
+        return Err(PlacementError::UnknownPlacement(missing.to_string()));
+    }
+    let deformation = if columns == 0 {
+        None
+    } else {
+        let chosen: Vec<&Placement> = project
+            .placements
+            .iter()
+            .filter(|p| wanted.contains(p.id.as_str()))
+            .collect();
+        deformation_frame(&chosen).map(|frame| mesh::identity(frame, columns, rows.max(1)))
+    };
+    for p in &mut project.placements {
+        if wanted.contains(p.id.as_str()) {
+            p.deformation = deformation.clone();
+        }
+    }
+    check(&mut project)?;
     dir.save(&project)?;
     Ok(project)
 }

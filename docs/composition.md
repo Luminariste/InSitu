@@ -1,4 +1,4 @@
-# Poser des dessins sur la façade (tâches 4.2 et 4.3)
+# Poser des dessins sur la façade (tâches 4.2 à 4.4)
 
 Dans l'étape **Façade** (⌘1), les dessins de la bibliothèque se posent
 directement sur le plan, comme dans Illustrator. Il faut un plan **mis à
@@ -82,9 +82,37 @@ reste après la fermeture de l'app. Si le projet a été modifié ailleurs entre
 temps (l'autre Mac, par Dropbox), l'app refuse d'annuler plutôt que
 d'écraser ce changement.
 
+## Déformer (tâche 4.4)
+
+Dans l'inspecteur, rubrique « Déformation » :
+
+- **Quatre coins** : quatre points bleus aux coins du dessin ; on les tire
+  comme les coins d'un trapèze (les droites restent droites).
+- **Grille…** : 2 × 2, 3 × 3, 4 × 4, 6 × 1, 6 × 2 ou 8 × 4 cases. Chaque
+  point bleu se tire, le dessin suit en souplesse. Pour une voussure,
+  « 6 × 1 » puis remonter les points du milieu, en haut et en bas.
+- **Redresser** : le dessin redevient droit.
+
+Plusieurs dessins choisis ensemble (ou un groupe) se déforment d'un bloc :
+une seule grille sur l'ensemble. Déplacer, tourner, agrandir ou retourner
+un dessin déformé garde sa forme. Une déformation qui replierait le dessin
+sur lui-même est refusée (message en bas, l'état d'avant revient). ⌘Z
+annule chaque geste. L'export suit exactement la forme vue à l'écran.
+
+### Essai sur Mac
+
+1. Poser un dessin, puis « Grille… » → « 6 × 1 ».
+2. Tirer vers le haut les cinq points du milieu de la rangée du haut, plus
+   au centre qu'aux bords ; pareil pour la rangée du bas. Le dessin doit
+   s'arrondir en arc, sans saut quand on prend un point.
+3. Déplacer et tourner le dessin : l'arc suit.
+4. Exporter les diapositives où tombe le dessin : dans LightBurn, le dessin
+   doit avoir la même forme qu'à l'écran (vue Diapositive comprise).
+5. Choisir deux dessins, « Quatre coins », tirer un coin : les deux se
+   déforment ensemble. ⌘Z revient en arrière.
+
 ## Ce qui n'est pas encore là
 
-- **Déformation** (quatre coins, grille) : tâche 4.4.
 - **Export** : fait. Les dessins posés partent dans les diapositives et dans
   la vue Diapositive, sauf ceux des calques masqués (`docs/export.md`).
 - Les dessins sont affichés par leur aperçu de 1 024 px : flous de très près.
@@ -96,6 +124,7 @@ insitu place list <projet.insitu>
 insitu place add <projet.insitu> <dessin> --at X,Y --width MM [--rotation DEG] [--mirror] [--group NOM]
 insitu place remove <projet.insitu> <id>…
 insitu place set <projet.insitu> <placements.json> [--history DIR]
+insitu place deform <projet.insitu> <id>… (--corners | --grid CxR | --none)
 insitu project history <projet.insitu> --history DIR
 insitu project undo <projet.insitu> --history DIR
 insitu project redo <projet.insitu> --history DIR

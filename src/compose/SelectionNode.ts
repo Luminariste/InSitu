@@ -1,6 +1,7 @@
 // Sélection des dessins posés, dessinée sur la visionneuse : le contour de
 // chaque dessin choisi, le cadre de la sélection avec ses quatre poignées,
-// et le cadre de sélection tracé à la souris. Mêmes épaisseurs à l'écran
+// la grille de déformation et ses nœuds (tâche 4.4), et le cadre de
+// sélection tracé à la souris. Mêmes épaisseurs à l'écran
 // quel que soit le zoom.
 
 import { Container, Graphics } from "pixi.js";
@@ -18,12 +19,14 @@ export interface SelectionDrawing {
   frame: Rect | null;
   /** Cadre tracé à la souris. */
   marquee: Rect | null;
+  /** Grille de la déformation partagée par la sélection, avec ses nœuds (tâche 4.4). */
+  mesh: { lines: Point[][]; nodes: Point[] } | null;
 }
 
 export class SelectionNode implements SceneNode {
   readonly container = new Container();
   private readonly graphics = new Graphics();
-  private drawing: SelectionDrawing = { outlines: [], frame: null, marquee: null };
+  private drawing: SelectionDrawing = { outlines: [], frame: null, marquee: null, mesh: null };
   private drawnZoom = 0;
 
   constructor() {
@@ -51,7 +54,7 @@ export class SelectionNode implements SceneNode {
     const px = 1 / zoom;
     const g = this.graphics;
     g.clear();
-    const { outlines, frame: box, marquee } = this.drawing;
+    const { outlines, frame: box, marquee, mesh } = this.drawing;
     for (const outline of outlines) {
       g.poly(
         outline.flatMap((p) => [p.x, p.y]),
@@ -66,6 +69,19 @@ export class SelectionNode implements SceneNode {
           .fill({ color: 0xffffff })
           .stroke({ width: 1 * px, color: ACCENT });
       }
+    }
+    if (mesh) {
+      // Grille en trait fin, nœuds ronds (les poignées du cadre sont carrées).
+      for (const line of mesh.lines)
+        g.poly(
+          line.flatMap((p) => [p.x, p.y]),
+          false,
+        ).stroke({ width: 1 * px, color: ACCENT, alpha: 0.6 });
+      const r = HANDLE_PX * 0.7 * px;
+      for (const n of mesh.nodes)
+        g.circle(n.x, n.y, r)
+          .fill({ color: ACCENT })
+          .stroke({ width: 1 * px, color: 0xffffff });
     }
     if (marquee) {
       g.rect(marquee.x, marquee.y, marquee.width, marquee.height)

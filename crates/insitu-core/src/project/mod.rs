@@ -33,10 +33,10 @@ pub use lock::{
 };
 pub use migrate::CURRENT_FORMAT_VERSION;
 pub use model::{
-    AssemblyOutput, AssemblyPair, AssemblyPhoto, Drawing, ExportSettings, ExtraFields, Facade,
-    FacadeAssembly, FacadeScale, FrescoImage, Layer, Mirror, Placement, PointMm, Project,
-    Projector, RectMm, Rectification, RectificationMethod, RectificationPoint, RegistrationPair,
-    SourcePoint, VectorSettings,
+    AssemblyOutput, AssemblyPair, AssemblyPhoto, Deformation, DeformationFrame, Drawing,
+    ExportSettings, ExtraFields, Facade, FacadeAssembly, FacadeScale, FrescoImage, Layer, Mirror,
+    Placement, PointMm, Project, Projector, RectMm, Rectification, RectificationMethod,
+    RectificationPoint, RegistrationPair, SourcePoint, VectorSettings,
 };
 pub use path::RelativePath;
 pub use store::{AssetKind, LoadedProject, ProjectDir, PROJECT_EXTENSION, PROJECT_FILE};

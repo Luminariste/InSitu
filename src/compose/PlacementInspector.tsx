@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { formatLength, parseDistanceMm } from "../facade/scale";
 import { Button, Property, Section } from "../ui";
 import { layerOf } from "./layers";
-import { rectCenter, type Layer, type Placement, type Rect } from "./placement";
+import { rectCenter, sharedDeformation, type Layer, type Placement, type Rect } from "./placement";
 import type { CompositionActions, ComposeDrawing } from "./useComposition";
 
 interface Props {
@@ -69,6 +69,67 @@ function parseDegrees(text: string): number | null {
 }
 
 const degrees = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
+
+/** Grilles proposées (colonnes × rangées) : une rangée de six pour une voussure, des grilles carrées. */
+const GRIDS: [number, number][] = [
+  [2, 2],
+  [3, 3],
+  [4, 4],
+  [6, 1],
+  [6, 2],
+  [8, 4],
+];
+
+/** Rubrique « Déformation » (tâche 4.4). */
+function DeformationSection({ selected, actions }: { selected: Placement[]; actions: CompositionActions }) {
+  const shared = sharedDeformation(selected);
+  const some = selected.some((p) => p.deformation);
+  const state = shared
+    ? shared.columns === 1 && shared.rows === 1
+      ? "Quatre coins : tirer les points bleus."
+      : `Grille ${shared.columns} × ${shared.rows} : tirer les points bleus.`
+    : some
+      ? "Les dessins choisis n'ont pas la même déformation : en tendre une nouvelle pour les déformer ensemble."
+      : selected.length > 1
+        ? "Une grille tendue sur la sélection la déforme d'un bloc."
+        : "Le dessin est droit.";
+  return (
+    <>
+      <p className="compose-label">Déformation</p>
+      <p className="compose-hint">{state}</p>
+      <div className="compose-buttons">
+        <Button
+          size="sm"
+          onClick={() => actions.deform(1, 1)}
+          title="Quatre coins à tirer, en perspective (remplace la déformation actuelle)"
+        >
+          Quatre coins
+        </Button>
+        <select
+          className="ui-select"
+          aria-label="Tendre une grille de déformation"
+          value=""
+          onChange={(e) => {
+            const [c, r] = e.target.value.split("x").map(Number);
+            if (c > 0 && r > 0) actions.deform(c, r);
+          }}
+        >
+          <option value="">Grille…</option>
+          {GRIDS.map(([c, r]) => (
+            <option key={`${c}x${r}`} value={`${c}x${r}`}>
+              {c} × {r}
+            </option>
+          ))}
+        </select>
+        {some && (
+          <Button size="sm" onClick={() => actions.deform(0, 0)} title="Le dessin redevient droit">
+            Redresser
+          </Button>
+        )}
+      </div>
+    </>
+  );
+}
 
 export function PlacementInspector({ selected, frame, drawings, actions, layers }: Props) {
   if (selected.length === 0 || !frame) return null;
@@ -197,6 +258,7 @@ export function PlacementInspector({ selected, frame, drawings, actions, layers 
           )}
         </>
       )}
+      <DeformationSection selected={selected} actions={actions} />
       <p className="compose-label">Groupe et ordre</p>
       <div className="compose-buttons">
         <Button size="sm" shortcut="mod+g" onClick={actions.group} disabled={selected.length < 2}>

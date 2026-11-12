@@ -662,8 +662,40 @@ pub struct Placement {
     /// Calque du dessin (tâche 4.3) ; absent : le premier calque.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub layer: Option<String>,
+    /// Déformation libre (tâche 4.4) ; absente : le dessin reste droit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deformation: Option<Deformation>,
     #[serde(flatten)]
     pub extra: ExtraFields,
+}
+
+/// Déformation libre d'un dessin posé (tâche 4.4) : une grille tendue sur
+/// un cadre de la façade. Calculs dans `crate::placement::mesh`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Deformation {
+    pub frame: DeformationFrame,
+    /// Nombre de cases ; une seule case : quatre coins en perspective.
+    pub columns: u32,
+    pub rows: u32,
+    /// Position de chaque nœud en fractions du cadre, ligne par ligne :
+    /// `(columns + 1) × (rows + 1)` couples ; au repos, le nœud (i, j) est
+    /// en (i / columns, j / rows).
+    pub nodes: Vec<[f64; 2]>,
+    #[serde(flatten)]
+    pub extra: ExtraFields,
+}
+
+/// Rectangle tourné de la façade sur lequel la grille est tendue ; il suit
+/// le dessin (ou le groupe) quand on le déplace, le tourne ou l'agrandit.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeformationFrame {
+    pub center: PointMm,
+    pub width: f64,
+    pub height: f64,
+    #[serde(default)]
+    pub rotation: f64,
 }
 
 /// Un calque de la composition (tâche 4.3).
@@ -730,6 +762,15 @@ impl Placement {
     /// fractions de sa largeur et de sa hauteur : (0, 0) est le coin
     /// haut-gauche du fichier, (1, 1) le coin bas-droit.
     pub fn facade_point(&self, u: f64, v: f64) -> PointMm {
+        let p = self.rigid_point(u, v);
+        match &self.deformation {
+            Some(d) => crate::placement::mesh::forward(d, p),
+            None => p,
+        }
+    }
+
+    /// Comme [`Self::facade_point`], sans la déformation libre.
+    pub fn rigid_point(&self, u: f64, v: f64) -> PointMm {
         let mut x = (u - 0.5) * self.width;
         let y = (v - 0.5) * self.height;
         if self.mirrored {
@@ -744,8 +785,18 @@ impl Placement {
 
     /// Inverse de [`Self::facade_point`] : la position (`u`, `v`) dans le
     /// dessin, en fractions de sa largeur et de sa hauteur, du point `p` de
-    /// la façade. Hors du dessin, `u` ou `v` sort de [0, 1].
-    pub fn drawing_point(&self, p: PointMm) -> (f64, f64) {
+    /// la façade. Hors du dessin, `u` ou `v` sort de [0, 1] ; `None` si la
+    /// déformation n'a pas d'antécédent pour ce point.
+    pub fn drawing_point(&self, p: PointMm) -> Option<(f64, f64)> {
+        let p = match &self.deformation {
+            Some(d) => crate::placement::mesh::inverse(d, p)?,
+            None => p,
+        };
+        Some(self.rigid_fractions(p))
+    }
+
+    /// Inverse de [`Self::rigid_point`].
+    pub fn rigid_fractions(&self, p: PointMm) -> (f64, f64) {
         let (dx, dy) = (p.x - self.center.x, p.y - self.center.y);
         let (sin, cos) = self.rotation.to_radians().sin_cos();
         let mut x = dx * cos + dy * sin;

@@ -111,7 +111,7 @@ pub fn draw(
             let x = if mirror { f64::from(side) - x } else { x };
             let y = q.y + f64::from(rect.y0);
             let facade = warp.apply(Point::new(x * px_mm, y * px_mm))?;
-            let (u, v) = placement.drawing_point(PointMm::new(facade.x, facade.y));
+            let (u, v) = placement.drawing_point(PointMm::new(facade.x, facade.y))?;
             Some(Point::new(u * iw, v * ih))
         };
         let part = warp_raster(image, w, h, map, &options)
