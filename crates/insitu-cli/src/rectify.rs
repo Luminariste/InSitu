@@ -18,8 +18,8 @@ pub enum Problem {
 pub const USAGE: &str = r#"Usage : insitu rectify <photo> [options]
        insitu rectify check <image redressée>
 
-Cherche la mire dans une photo brute (JPEG, PNG ou TIFF ; pas encore de
-HEIC), mesure les croisements de sa grille et affiche le compte rendu en JSON.
+Cherche la mire dans une photo brute (JPEG, PNG, TIFF ou HEIC), mesure les
+croisements de sa grille et affiche le compte rendu en JSON.
 
 Options :
   --output <image>       Écrit la photo redressée (PNG, TIFF ou JPEG, d'après

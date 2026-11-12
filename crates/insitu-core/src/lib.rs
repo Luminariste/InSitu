@@ -14,6 +14,7 @@
 
 pub mod facade;
 pub mod geometry;
+pub mod photo;
 pub mod project;
 pub mod rectification;
 pub mod resample;

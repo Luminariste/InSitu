@@ -77,6 +77,17 @@ sont pas faites pour comparer des valeurs de pixels au niveau près.
 | Taille et position de l'image | 280,0 mm, centrée en (150 ; 150) sur la plaque de 300 mm |
 | Miroir | aucun |
 
+## Photo HEIC (tâche 2.5)
+
+`heic/a-brut.heic` est la photo brute A d'Épinal (`a-brut.jpg`) réencodée en
+HEIC par libheif, avec un encodeur indépendant du moteur (`pillow-heif`),
+pour tester la lecture du HEIC sur une vraie mire : 485 Ko, qualité 40,
+mêmes pixels couchés que le JPEG, sans EXIF. Ce n'est pas un fichier
+d'origine : les photos d'Épinal ont été livrées en JPEG. Pour la refaire :
+`pip install pillow pillow-heif`, puis `python3 jeu-essai/heic/fabriquer.py`.
+Une vraie photo HEIC d'iPhone de Luminariste reste à verser si un test en a
+besoin.
+
 ## Ajouter ou modifier un fichier
 
 Il faut avoir les fichiers d'origine sous la main, rangés par famille comme

@@ -41,29 +41,10 @@ import {
   viewToSource,
   withProjectExtension,
 } from "./scale";
+import { recalledProject as recalled, rememberProject as remember } from "../project/current";
 import "./facade.css";
 
-/** Dernier projet ouvert, pour le rouvrir au lancement (confort seulement). */
-const LAST_PROJECT_KEY = "insitu.dernierProjet";
-
 const KIND_LABEL: Record<string, string> = { pdf: "PDF", svg: "SVG", dxf: "DXF", image: "image" };
-
-function remember(folder: string | null): void {
-  try {
-    if (folder) localStorage.setItem(LAST_PROJECT_KEY, folder);
-    else localStorage.removeItem(LAST_PROJECT_KEY);
-  } catch {
-    // Stockage indisponible : on s'en passe.
-  }
-}
-
-function recalled(): string | null {
-  try {
-    return localStorage.getItem(LAST_PROJECT_KEY);
-  } catch {
-    return null;
-  }
-}
 
 /** Plan en attente du choix de sa page (PDF de plusieurs pages). */
 interface PendingPlan {

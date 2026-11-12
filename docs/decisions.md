@@ -4,6 +4,82 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 2.5
+
+Écran de redressement : `src/rectification/`, module
+`crates/insitu-core/src/rectification/projector.rs`, lecture des photos
+`crates/insitu-core/src/photo.rs`, commande `insitu projector`, mode
+d'emploi `docs/redressement.md`.
+
+**D-2.5-a. HEIC lu par `zune-heic`, en Rust pur ; rotation du conteneur
+appliquée.**
+`zune-heic` (0.5, MIT, Apache-2.0 ou Zlib) contient son propre décodeur HEVC :
+aucune bibliothèque système, compilation identique sous Linux et sur Mac,
+tests en session cloud. Écartés : `libheif` (bibliothèque C à embarquer),
+la conversion par `sips` de macOS (impossible à tester hors Mac), `heic`
+(licence AGPL). Le décodeur matériel d'Apple est désactivé : il convertit
+les couleurs autrement, le Mac et les tests ne verraient pas les mêmes
+pixels. Vérifié sur une vraie photo d'iPhone (grille de 49 tuiles, 4 284 ×
+5 712, échantillon public du projet zune, non versé) : pixels identiques à
+libheif à un niveau près ; et sur la photo A d'Épinal réencodée en HEIC par
+libheif (`jeu-essai/heic/`, 485 Ko) : coins de la mire à moins de 0,07 mm
+de ceux du JPEG. La rotation et le miroir inscrits dans le conteneur HEIF
+(`irot`, `imir`) et son recadrage (`clap`) sont appliqués, comme le veut la
+norme : un HEIC apparaît droit, alors qu'un JPEG garde ses pixels couchés
+(D9). Les points du redressement sont comptés dans l'image ainsi décodée.
+Limites : HEIC 8 bits seulement (un HEIC 10 bits est refusé avec un message),
+cartes de profondeur et de gain ignorées. Le HEIC n'est pas encore accepté
+pour la façade (D-3.1-f) : la lecture existe, l'ouverture est à faire.
+
+**D-2.5-b. Un projecteur, une photo brute ; la détection part dès l'import.**
+Importer une photo remplace la précédente et oublie son redressement. Le
+plan évoque deux ou trois photos par projecteur dont l'app garderait la
+meilleure : pas fait ici, faute de place dans le modèle (`rawPhoto` est un
+seul chemin). Si la recherche automatique échoue, l'écran passe directement
+à la pose des quatre coins au clic.
+
+**D-2.5-c. Photo redressée du projet : PNG à 500 dpi, nommée d'après le
+projecteur.**
+`photos-redressees/<libellé>.png` (« A » donne `a.png` ; suffixe si un autre
+projecteur a déjà ce nom), réécrite à chaque détection. 500 dpi comme les
+photos redressées d'Épinal (5 512 px) ; compression PNG rapide (le PNG
+habituel prenait 5 s de plus). Une photo redressée qu'aucun projecteur ne
+cite plus est remplacée sans question.
+
+**D-2.5-d. L'export recalcule l'image depuis la photo brute.**
+Les correspondances enregistrées dans le projet suffisent à refaire le même
+modèle (trapèze + plaque mince, D-2.4-b) : `from_rectification`. L'export à
+1 400 dpi n'est donc pas un agrandissement de la photo à 500 dpi. TIFF
+compressé sans perte (LZW et prédiction horizontale) ou PNG ; résolution
+inscrite dans le fichier (balises TIFF, bloc pHYs du PNG). Les crates `png`
+et `tiff` deviennent des dépendances directes du moteur pour cela, aux
+versions qu'utilisait déjà `image`. Résolution acceptée : 50 à 1 400 dpi.
+
+**D-2.5-e. Photo brute affichée en pixels.**
+Dans la vue « Photo brute », une unité de la visionneuse vaut un pixel de la
+photo, et la barre d'état l'écrit « px » (nouvelle option `cursorUnit` de la
+visionneuse). Les coins se numérotent dans le repère de la diapositive, pas
+de la photo.
+
+**D-2.5-f. La loupe est faite d'images, pas d'une seconde visionneuse.**
+Elle affiche les tuiles pleine résolution (niveau 0) sous forme d'images,
+pixels non lissés, avec une croix de visée en SVG. Essai écarté : une
+seconde scène PixiJS (deux contextes WebGL) faisait apparaître un carré noir
+dans la vue principale, dans le navigateur de la session ; en plus d'être
+plus lourde.
+
+**D-2.5-g. Couleurs des croisements et jugement d'ensemble.**
+Un croisement est vert sous 0,15 mm d'écart de validation croisée (précision
+attendue d'un croisement, étude 2.1), orange sous 0,3 mm, rouge au-delà. Le
+résumé est jugé comme le critère de la tâche 2.4a : bon si 95 % des
+croisements sont à moins de 0,3 mm, mauvais si la mire est couverte à moins
+de 80 % ou si ce 95e centile dépasse 0,6 mm.
+
+**D-2.5-h. Les écrans Façade et Redressement partagent le dernier projet.**
+Le chemin du dernier projet ouvert est gardé au même endroit pour les deux
+écrans (`src/project/current.ts`) : passer d'un onglet à l'autre garde le
+projet. L'écran Redressement ne crée pas de projet : l'écran Façade le fait.
+
 ## 2026-11-12 — Tâche 2.4a
 
 Détection de l'ancienne mire et redressement : module
