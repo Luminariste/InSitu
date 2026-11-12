@@ -46,6 +46,35 @@ d'un PDF (le premier plan de travail d'un `.ai`) est lue ; la ligne de
 commande accepte `--page N`, gardé dans `fresco.vector.page`. Un choix de
 page dans l'app viendra si Benjamin en a besoin.
 
+## 2026-11-12 — Jeu d'essai Trévarez (hors plan, demande de Benjamin)
+
+Deuxième projet réel, `jeu-essai/trevarez`, tests dans
+`crates/insitu-core/tests/trevarez.rs`.
+
+**D-JE-a. Un vrai `projet.json` enregistré par l'app entre au jeu
+d'essai.** Copie exacte du projet de Benjamin (0.1.28). Les tests vérifient
+qu'il se relit tel quel et que la diapositive C, refaite depuis ce projet,
+retombe sur celle qu'il a exportée (à 0,5 mm près, à 100 dpi). Un
+changement du format qui casserait la relecture d'un projet réel se voit
+donc tout de suite.
+
+**D-JE-b. Seule la diapositive C sert de référence.** Le dessin posé sur B
+a été déformé autrement après l'export : comparer B testerait l'historique
+du projet, pas le moteur.
+
+**D-JE-c. Rien n'est versé sans test.** Les photos HEIC C à H, les photos
+« lum », les 93 autres dessins et la composition Illustrator restent dans
+le Dropbox (environ 5,9 Mo versés au total).
+
+## 2026-11-12 — Étude du pli (Trévarez, hors plan)
+
+**D-PLI-a. Constat, pas encore de changement du moteur.** Un projecteur qui
+éclaire deux surfaces à angle (mur et avant-toit à Trévarez) n'est pas bien
+recalé par le modèle actuel (un trapèze et une correction lisse) : 40 cm
+d'écart en simulation avec 20 points. Un recalage par surface, séparé par
+une arête tracée à la main, ramène l'écart à 10 cm. Détail :
+`docs/etudes/pli-trevarez.md`. Le coder demande l'accord de Benjamin.
+
 ## 2026-11-12 — Tâche 6.2 : fiche de calepinage
 
 Module `crates/insitu-core/src/sheet/` ; bouton « Fiche de calepinage… » sous
@@ -66,9 +95,15 @@ de la simulation (6.1) et une légende. Pages suivantes : six diapositives
 par page. Couleurs des projecteurs : les teintes de l'écran, plus foncées
 pour le papier blanc.
 
-**D-6.2-c. Vignettes en traits noirs sur blanc.** La diapositive gravée est
+**D-6.2-c. Vignettes en traits noirs sur blanc** (remplacé par D-6.2-e). La diapositive gravée est
 blanche sur noir ; à l'impression, des carrés noirs useraient l'encre et se
 liraient mal. La vignette est donc inversée.
+
+**D-6.2-e. Vignettes sur fond noir (remplace D-6.2-c).** Demande de
+Benjamin après l'essai de la 0.1.28 (12 novembre 2026) : les diapositives
+de la fiche sont montrées comme la plaque gravée, traits blancs sur noir,
+pour que les tracés se voient. L'encre noire des six carrés par page est
+acceptée.
 
 **D-6.2-d. « Lisible sur site » = corps de 3 mm au moins.** Aucun texte de
 la fiche sous 3 mm (environ 8,5 points), vérifié par test ; les noms des
@@ -271,6 +306,39 @@ tombe dans aucune emprise. Le choix à la main se fait dans l'inspecteur
 (« Diapositive »). Sans moteur (navigateur seul), rien de tout cela ne
 s'affiche.
 
+**D-4.5-f. Arborescence des dessins par diapositive.** Demande de Benjamin
+(12 novembre 2026), « comme les calques d'Illustrator ». Rubrique
+« Diapositives » (`src/compose/SlidesSection.tsx`, logique dans
+`slideTree.ts`) : un groupe par projecteur recalé, dans l'ordre du projet,
+plus « Hors de toute diapositive » ; dans un groupe, le dessin de devant en
+haut (ordre des calques puis de la liste, D-4.3-e). Glisser une ligne sur
+un titre de groupe fait un choix à la main (`placements[].projector`,
+D-4.5-b) sans changer l'ordre ; la glisser sur un dessin la place juste
+devant lui dans `placements[]` et sur son calque, pour que l'ordre affiché
+soit celui de la liste. On ne lâche rien sur « Hors de toute diapositive »
+(ce n'est pas un choix possible). La rubrique est en tête de l'onglet
+« Calques » du panneau de droite (D15-i).
+
+**D-4.5-g. L'arborescence suit le panneau Calques d'Illustrator.** Demande
+de Benjamin (12 novembre 2026) : « afficher masqué un dessin, clic sur
+plusieurs dessins, clic droit grouper etc. ». Chaque dessin posé peut être
+**masqué** (`placements[].hidden`) ou **verrouillé** (`placements[].locked`),
+un à un, en plus de son calque ; ces champs ne s'écrivent que vrais, un
+projet ancien se relit tel quel. Masqué, un dessin ne s'affiche pas et ne
+part ni dans l'export ni dans la fiche ni dans la simulation (même règle
+que les calques masqués, `Project::visible_placements`). Verrouillé, il
+s'affiche et s'exporte mais ne se choisit plus sur la façade. Dans
+l'arborescence : clic = ce dessin seul, ⌘-clic = l'ajouter ou le retirer,
+⇧-clic = toutes les lignes jusqu'à la dernière cliquée, dans l'ordre affiché
+(`treeClick`) ; un groupe se choisit en entier, comme sur la façade ; un
+dessin masqué ou verrouillé n'entre pas dans la sélection. Le clic droit
+ouvre un menu (`ContextMenu`, ajouté au système de design) : Grouper,
+Dégrouper, Masquer/Afficher, Verrouiller, ordre (premier plan… arrière-plan),
+envoi vers une diapositive ou « Automatique », Supprimer. Il porte sur la
+sélection si la ligne en fait partie, sinon sur la ligne seule. Écart
+assumé avec Illustrator : on ne peut pas choisir un dessin masqué depuis
+l'arborescence (seuls l'œil et le cadenas s'y appliquent).
+
 ## 2026-11-12 — Tâche 4.4 : déformation libre
 
 Modules `crates/insitu-core/src/placement/mesh.rs` (moteur) et
@@ -358,6 +426,19 @@ glissé est aussi gardé en mémoire au départ du geste et porté en texte
 simple, pour le cas où la vue web du Mac ne rendrait pas le type maison.
 Le double-clic sur une vignette pose toujours le dessin au centre de la
 vue. Non vérifiable en session cloud : seul l'essai sur Mac le prouve.
+
+**D-4.2-l. Poignées du cadre comme Illustrator : étirer en x et en y.**
+Demande de Benjamin (12 novembre 2026). Le cadre de sélection a huit
+poignées : un coin étire en largeur et en hauteur à la fois (⇧ garde les
+proportions, ce qui était le comportement par défaut depuis D-4.2-c), le
+milieu d'un côté étire seulement en largeur ou en hauteur ; ⌥ part du
+centre ; ⌘D répète l'étirement. Les axes sont ceux de la façade, comme le
+cadre. Un dessin droit ou tourné d'un quart change de largeur et de
+hauteur ; un dessin tourné d'un autre angle, ou déjà déformé, ne peut pas
+rester un rectangle tourné (il serait cisaillé) : il reçoit une déformation
+(D-4.4) qui porte l'étirement exactement, sans approximation, puisque
+l'interpolation de la grille suit une transformation affine. Prouvé par
+test sur un dessin tourné de 30°.
 
 **Limite.** Les fichiers des dessins utilisés par une diapositive restent
 en mémoire pendant l'export (en niveaux de gris, un dessin de 4 096 px pèse

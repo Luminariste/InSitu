@@ -1,7 +1,7 @@
 # Jeu d'essai
 
 Des fichiers réels de Luminariste, pour que le moteur soit testé sur ce qu'il
-devra vraiment traiter. Un dossier par projet ; pour l'instant un seul.
+devra vraiment traiter. Un dossier par projet : Épinal (le premier) et Trévarez (le deuxième).
 
 ## Épinal, novembre 2025
 
@@ -77,6 +77,45 @@ sont pas faites pour comparer des valeurs de pixels au niveau près.
 | Taille et position de l'image | 280,0 mm, centrée en (150 ; 150) sur la plaque de 300 mm |
 | Miroir | aucun |
 
+## Trévarez, novembre 2026
+
+Les écuries du domaine de Trévarez, pour Noël 2026 : la cour entière (quatre
+façades et leurs avant-toits) mise à plat dans un déroulé vectoriel, douze
+projecteurs A à L. Prises de vue du 11 novembre 2026 à l'iPhone 16 Pro, avec
+l'ancienne mire. Benjamin y a monté un vrai projet InSitu avec la version
+0.1.28 ; c'est le premier projet enregistré par l'app elle-même.
+
+Les fichiers d'origine restent dans le Dropbox de Luminariste (« 06 -
+Projets - Parcours Lumière / Diffusions / 2026-11 - Noel a Trevarez / 05 -
+PROJET / 04 - Eccuries / Ecuries - Fresque »).
+
+| Fichier | Contenu | Référence | Réduit |
+| --- | --- | --- | --- |
+| `facade/ecuries-planbase.pdf` | Le déroulé, PDF vectoriel d'Illustrator, page carrée de 500 mm | copie exacte | — |
+| `projet/projet.json` | Le projet de Benjamin : 12 projecteurs, B à G redressés, B et C recalés, 95 dessins, 2 posés | copie exacte | — |
+| `dessins/algue-h02.png`, `algues-horizontales.png` | Les deux dessins posés (sur B et sur C) | copie exacte | — |
+| `photos-brutes/a-brut.jpg` | Photo de mire A : grille presque illisible | copie exacte | ÷ 4 |
+| `photos-brutes/b-brut.jpg` | Photo de mire B : redressée sans aide | copie exacte | ÷ 4 |
+| `verres/trevarez-c.png` | Diapositive C exportée par l'app à 1 400 dpi | — | ÷ 14 (1 102 px) |
+
+Ce qu'il faut savoir :
+
+- **Le projet est une copie à un instant donné** (12 novembre 2026, 22 h 37).
+  La déformation du dessin posé sur B a été retouchée après l'export de
+  `Trevarez-B.png` : seul l'export de C correspond encore au projet, et c'est
+  lui que le test compare.
+- **Les photos C à H sont en HEIC** (4 à 7 Mo chacune) et ne sont pas
+  versées : aucun test n'en a besoin, `heic/a-brut.heic` couvre la lecture.
+- **La composition Illustrator** (`ECURIES-COMPOSITION.ai`, 50 Mo, environ
+  245 images liées) n'est pas dans le dépôt. Ses liens sont des chemins
+  absolus pris sur le Mac de Marc ; 20 des 100 liens pointent vers un autre
+  dossier du projet (« 17 - Projection gobo finale »).
+- **Ce qui manque encore** : aucune photo de la nouvelle mire (2.4b), et le
+  projecteur A, qui éclaire à la fois un plafond en bois et un mur de brique,
+  n'est ni redressé ni recalé.
+
+Tests : `crates/insitu-core/tests/trevarez.rs`.
+
 ## Photo HEIC (tâche 2.5)
 
 `heic/a-brut.heic` est la photo brute A d'Épinal (`a-brut.jpg`) réencodée en
@@ -105,4 +144,5 @@ référence que ce qu'un test utilise vraiment.
 
 Rôles utilisés : `raw_photo`, `raw_photo_alternate`, `lit_photo`,
 `wall_photo`, `grid_photo`, `rectified_photo`, `engraving_export`, `facade`,
-`composition`, `target`, `settings`.
+`composition`, `target`, `settings`, `project` (un `projet.json`
+enregistré par l'app), `drawing` (un dessin de la bibliothèque).
