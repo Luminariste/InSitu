@@ -443,3 +443,223 @@ fn a_large_assembly_is_reduced_to_the_maximum_side() {
     let output = read_raster(&s.dir.resolve(&project.facade.unwrap().source)).unwrap();
     assert_eq!((output.width, output.height), (done.width, done.height));
 }
+
+// ---------------------------------------------------------------------------
+// Raccord automatique (tâche 6.6)
+// ---------------------------------------------------------------------------
+
+/// Écart maximal (pixels de la référence) entre les coins de chaque photo
+/// placés par le moteur et leur vraie place.
+fn corner_error(s: &Scene, width: u32, height: u32) -> f64 {
+    let diagnosis = report(&s.dir.load().unwrap().project);
+    assert!(diagnosis.ready, "{diagnosis:?}");
+    let truth_to_reference = s.views[0].inverse().unwrap();
+    let mut worst: f64 = 0.0;
+    for (k, photo) in diagnosis.photos.iter().enumerate() {
+        let corners = photo.corners.unwrap();
+        let expected = [
+            Point::new(0.0, 0.0),
+            Point::new(f64::from(width), 0.0),
+            Point::new(f64::from(width), f64::from(height)),
+            Point::new(0.0, f64::from(height)),
+        ]
+        .map(|p| {
+            truth_to_reference
+                .apply(s.views[k].apply(p).unwrap())
+                .unwrap()
+        });
+        for (got, want) in corners.iter().zip(expected) {
+            worst = worst.max(Point::new(got.x, got.y).distance(want));
+        }
+    }
+    worst
+}
+
+#[test]
+fn the_three_photos_are_linked_automatically() {
+    // Les trois photos de l'essai 6.4, ajoutées sans aucun point, et dans
+    // le désordre (droite, gauche, milieu) : la droite est la référence.
+    let s = scene();
+    for k in [2, 0, 1] {
+        add_photo(&s.dir, &s.files[k], None).unwrap();
+    }
+    let (_, done) = auto::analyze(&s.dir).unwrap();
+    assert!(done.unlinked.is_empty(), "{done:?}");
+    assert!(done.assembly.ready);
+    // Gauche et droite ne se recouvrent pas : la gauche passe par le milieu.
+    let names: std::collections::HashMap<_, _> = done
+        .photos
+        .iter()
+        .map(|p| (p.id.clone(), p.name.clone()))
+        .collect();
+    let anchor_of = |name: &str| {
+        let p = done.photos.iter().find(|p| p.name == name).unwrap();
+        p.anchor.as_ref().map(|a| names[a].clone())
+    };
+    assert_eq!(anchor_of("droite"), None);
+    assert_eq!(anchor_of("milieu").as_deref(), Some("droite"));
+    assert_eq!(anchor_of("gauche").as_deref(), Some("milieu"));
+    for p in &done.photos[1..] {
+        assert!(p.pairs >= 8, "{} : {} points", p.name, p.pairs);
+    }
+    // Repère de la référence : ici la photo de droite.
+    let s = Scene {
+        views: vec![s.views[2], s.views[0], s.views[1]],
+        ..s
+    };
+    let worst = corner_error(&s, W, H);
+    println!("raccord automatique, scène 6.4 : coin le plus loin à {worst:.2} px");
+    assert!(worst < 1.0, "coin à {worst:.2} px de sa place");
+    for photo in &done.assembly.photos[1..] {
+        let mean = photo.mean_residual_px.unwrap();
+        assert!(mean < 1.0, "{} : écart moyen {mean:.2} px", photo.name);
+    }
+    assert!(render(&s.dir, &RenderOptions::default()).is_ok());
+}
+
+/// Trois photos de 1 200 × 900 px découpées en biais dans une vraie photo
+/// iPhone de la façade d'Épinal (pierre, sculptures, ombres).
+fn photo_scene() -> (Scene, u32, u32) {
+    let temp = TempDir::new("assemblage-auto");
+    let (dir, _) = ProjectDir::create(temp.path().join("Essai.insitu"), Some("Essai")).unwrap();
+    let truth = read_raster(
+        &Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../jeu-essai/epinal/reduits/photos-brutes/a-mur.jpg"),
+    )
+    .expect("photo d'essai");
+    let (w, h) = (1200u32, 900u32);
+    let (fw, fh) = (f64::from(w), f64::from(h));
+    let views = vec![
+        view(
+            fw,
+            fh,
+            [
+                (80.0, 300.0),
+                (1300.0, 260.0),
+                (1320.0, 1250.0),
+                (60.0, 1300.0),
+            ],
+        ),
+        view(
+            fw,
+            fh,
+            [
+                (820.0, 330.0),
+                (2000.0, 300.0),
+                (2040.0, 1220.0),
+                (800.0, 1280.0),
+            ],
+        ),
+        view(
+            fw,
+            fh,
+            [
+                (1560.0, 250.0),
+                (2780.0, 290.0),
+                (2760.0, 1300.0),
+                (1540.0, 1260.0),
+            ],
+        ),
+    ];
+    let files: Vec<PathBuf> = ["un", "deux", "trois"]
+        .iter()
+        .zip(&views)
+        .map(|(name, v)| {
+            let path = temp.path().join(format!("{name}.jpg"));
+            let map = |p: Point| v.apply(p);
+            let photo = warp_raster(&truth, w, h, map, &WarpOptions::default()).unwrap();
+            image::save_buffer(&path, &photo.data, w, h, image::ColorType::Rgb8).unwrap();
+            path
+        })
+        .collect();
+    (
+        Scene {
+            _temp: temp,
+            dir,
+            truth,
+            views,
+            files,
+        },
+        w,
+        h,
+    )
+}
+
+#[test]
+fn real_stonework_is_linked_to_within_half_a_pixel() {
+    let (s, w, h) = photo_scene();
+    for file in &s.files {
+        add_photo(&s.dir, file, None).unwrap();
+    }
+    let (_, done) = auto::analyze(&s.dir).unwrap();
+    assert!(done.unlinked.is_empty());
+    let worst = corner_error(&s, w, h);
+    println!("raccord automatique, pierre d'Épinal : coin le plus loin à {worst:.2} px");
+    assert!(worst < 0.5, "coin à {worst:.2} px de sa place");
+    for photo in &done.assembly.photos[1..] {
+        assert!(photo.pairs.len() >= 12);
+        assert!(photo.pairs.iter().all(|p| !p.outlier), "{photo:?}");
+    }
+}
+
+#[test]
+fn unrelated_photos_are_not_linked_and_keep_their_points() {
+    // La façade d'essai et une photo de mire n'ont rien en commun.
+    let s = scene();
+    let ids = build(&s, 0.0);
+    let mire = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../jeu-essai/epinal/reduits/photos-brutes/a-brut.jpg");
+    let (_, stray) = add_photo(&s.dir, &mire, None).unwrap();
+    let before = s.dir.load().unwrap().project;
+    let stray_before = before
+        .facade_assembly
+        .as_ref()
+        .unwrap()
+        .photos
+        .iter()
+        .find(|p| p.id == stray)
+        .unwrap()
+        .clone();
+    let (project, done) = auto::analyze(&s.dir).unwrap();
+    assert_eq!(done.unlinked, ["a-brut"]);
+    let after = project
+        .facade_assembly
+        .as_ref()
+        .unwrap()
+        .photos
+        .iter()
+        .find(|p| p.id == stray)
+        .unwrap();
+    assert_eq!(after, &stray_before);
+    // Les trois autres restent raccordées.
+    let placed: Vec<bool> = done.assembly.photos.iter().map(|p| p.placed).collect();
+    assert_eq!(placed, [true, true, true, false]);
+    assert_eq!(done.photos[1].anchor.as_deref(), Some(ids[0].as_str()));
+}
+
+#[test]
+fn two_real_iphone_photos_are_linked() {
+    // Deux vraies photos de jour du portail d'Épinal, prises de deux
+    // endroits différents (projecteurs A et B) : le portail est en relief,
+    // mais le mur de pierre au-dessus est plan et suffit au raccord.
+    let temp = TempDir::new("assemblage-epinal");
+    let (dir, _) = ProjectDir::create(temp.path().join("Essai.insitu"), Some("Essai")).unwrap();
+    let photos =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../jeu-essai/epinal/reduits/photos-brutes");
+    for name in ["a-mur", "b-mur"] {
+        add_photo(&dir, &photos.join(format!("{name}.jpg")), None).unwrap();
+    }
+    let (_, done) = auto::analyze(&dir).unwrap();
+    assert!(done.unlinked.is_empty(), "{done:?}");
+    let b = &done.photos[1];
+    assert!(b.matches >= 30, "{} détails communs", b.matches);
+    assert!(b.pairs >= 12, "{} points", b.pairs);
+    let placed = &done.assembly.photos[1];
+    let mean = placed.mean_residual_px.unwrap();
+    println!(
+        "photos réelles A et B : {} détails, écart moyen {mean:.2} px",
+        b.matches
+    );
+    assert!(mean < 1.5, "écart moyen {mean:.2} px");
+    assert!(placed.pairs.iter().all(|p| !p.outlier));
+}

@@ -479,6 +479,60 @@ refuse sans rien écrire.
 (tâche 3.5) : les dessins posés dans l'app ne sont pas encore exportés. Le
 plan ne le range dans aucune tâche du jalon 4 explicitement (4.4 parle
 d'« export identique à l'aperçu ») : à décider avec Benjamin.
+## 2026-11-12 — Tâche 6.6
+
+Assemblage automatique, demandé par Benjamin après son essai de la 6.4
+(« laborieux, je préférerais une analyse automatique ») :
+`crates/insitu-core/src/assembly/features.rs` (détails et appariement),
+`crates/insitu-core/src/assembly/auto.rs` (choix des appuis), commande
+`insitu assembly auto`, bouton « Raccorder automatiquement » de l'écran
+Assemblage, mode d'emploi `docs/assemblage.md`.
+
+**D-6.6-a. Détection écrite dans le moteur, en Rust pur, sans OpenCV.**
+Coins FAST classés par Harris sur une pyramide de 5 tailles, signatures de
+type SIFT (histogrammes de directions, 128 octets), appariement réciproque
+avec test du rapport (0,85), tri par RANSAC sur un trapèze. OpenCV aurait
+demandé une bibliothèque système à embarquer dans l'app Mac et compliqué la
+fabrication ; les algorithmes sont publics et courts. Le calcul est
+déterministe (tirages pseudo-aléatoires à graine fixe) : mêmes photos, mêmes
+points. Une première version avec des signatures binaires (ORB) trouvait
+trop peu d'appariements entre deux vraies photos d'Épinal prises de deux
+endroits (15 justes) ; les signatures SIFT en trouvent 51.
+
+**D-6.6-b. Positions affinées au dixième de pixel.** Les coins sont trouvés
+sur une image réduite à environ 2 000 px ; chaque appariement retenu est
+ensuite recalé par corrélation locale (Lucas-Kanade, luminosité et
+contraste compensés, fenêtre de 17 px transportée par le trapèze), puis le
+trapèze est recalculé et les appariements à plus de 1 px écartés. Sans cet
+affinage, l'erreur aux coins des photos atteignait 20 px sur l'essai à
+trois photos ; avec, 0,12 px.
+
+**D-6.6-c. Le résultat, ce sont des points communs ordinaires.** Pour
+chaque photo, au plus 24 points bien répartis (le meilleur de chaque case
+d'une grille 6 × 4 sur la zone commune, puis les meilleurs restants
+jusqu'à 12) sont enregistrés dans `pairs`, comme s'ils avaient été
+cliqués : même diagnostic, même correction à la main, même calcul de
+l'image. Rien de nouveau dans le fichier projet. La première photo reste la
+référence ; chaque autre s'appuie sur la photo déjà raccordée avec laquelle
+elle partage le plus de détails (arbre de poids maximal, en partant de la
+référence) : l'ordre d'ajout des photos n'a plus d'importance.
+
+**D-6.6-d. Quand l'analyse se lance, et ce qu'elle remplace.** Elle se lance
+seule après « Ajouter des photos… » si aucun point n'a encore été posé à la
+main, et sur le bouton « Raccorder automatiquement » ; si des points
+existent, le bouton demande confirmation, car il les remplace tous. Il faut
+20 appariements justes au moins pour raccorder deux photos ; une photo sans
+détail commun avec les autres garde ses points et son appui, et est nommée
+dans le message. Quatre photos analysées à la fois au plus, pour borner la
+mémoire (une photo de 48 Mpx occupe environ 150 Mo le temps d'être lue).
+
+**D-6.6-e. Toujours un mur plan (D-6.4-a).** Sur un portail en relief, le
+trapèze suit le plan qui porte le plus de détails communs : sur les photos
+A et B d'Épinal, le mur de pierre au-dessus du porche, bien raccordé, alors
+que le fond du porche apparaît dédoublé dans l'image assemblée. Pour un
+assemblage net, les photos doivent être prises de face, du même recul, en
+se décalant le long du mur.
+
 ## 2026-11-12 — Tâche 6.4
 
 Assemblage de photos de façade : `crates/insitu-core/src/assembly/`,

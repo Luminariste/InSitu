@@ -6,6 +6,7 @@ mod menu;
 
 use std::path::{Path, PathBuf};
 
+use insitu_core::assembly::auto::AutoReport;
 use insitu_core::assembly::{self, AssemblyReport, RenderOptions, RenderReport};
 use insitu_core::export::preview::{self as slide_preview, SlideView};
 use insitu_core::export::{self, ExportReport};
@@ -290,6 +291,12 @@ fn assembly_set_pairs(
     pairs: Vec<AssemblyPair>,
 ) -> Result<(Project, AssemblyReport), String> {
     assembly::set_pairs(&project_dir(&folder)?, &photo, &anchor, pairs).map_err(|e| e.to_string())
+}
+
+/// Raccord automatique : le moteur trouve les points communs (tâche 6.6).
+#[tauri::command(async)]
+fn assembly_auto(folder: String) -> Result<(Project, AutoReport), String> {
+    assembly::auto::analyze(&project_dir(&folder)?).map_err(|e| e.to_string())
 }
 
 /// Calcule l'image assemblée et en fait la façade du projet.
@@ -651,6 +658,7 @@ pub fn run() {
             assembly_add,
             assembly_remove,
             assembly_set_pairs,
+            assembly_auto,
             assembly_render
         ])
         .run(tauri::generate_context!())

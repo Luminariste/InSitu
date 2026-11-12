@@ -22,6 +22,8 @@
 //! et devient la façade ; une mise à l'échelle déjà faite sur un assemblage
 //! précédent est conservée, et les points de façade des recalages suivent.
 
+pub mod auto;
+pub mod features;
 #[cfg(test)]
 mod tests;
 

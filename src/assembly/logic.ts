@@ -2,7 +2,7 @@
 // points communs en deux clics, états et textes affichés. Testée sans écran
 // (`logic.test.ts`). Les points sont en pixels de chaque photo.
 
-import type { AssemblyPair, AssemblyPairReport, AssemblyPhoto, AssemblyPhotoReport, AssemblyReport } from "../engine";
+import type { AssemblyPair, AssemblyPairReport, AssemblyPhoto, AssemblyPhotoReport, AssemblyReport, AutoReport } from "../engine";
 
 export interface XYPoint {
   x: number;
@@ -159,4 +159,29 @@ export function hint(pending: Pending, selected: number | null): string | null {
   if (pending.here && !pending.there) return "Cliquer maintenant le même point sur la photo d'appui (à droite).";
   if (pending.there && !pending.here) return "Cliquer maintenant le même point sur la photo à placer (à gauche).";
   return null;
+}
+
+/** Vrai si une photo autre que la référence a déjà des points communs (que le raccord automatique remplacerait). */
+export function hasManualPoints(photos: AssemblyPhoto[]): boolean {
+  return photos.some((p, i) => i > 0 && (p.pairs?.length ?? 0) > 0);
+}
+
+const seconds = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
+
+/** Message après le raccord automatique. */
+export function autoMessage(report: AutoReport): { tone: "success" | "warning"; text: string } {
+  const linked = report.photos.filter((p, i) => i > 0 && p.linked).length;
+  const time = `${seconds.format(Math.max(1, report.seconds))} s`;
+  const outliers = report.assembly.photos.reduce((n, p) => n + p.pairs.filter((q) => q.outlier).length, 0);
+  const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? "s" : ""}`;
+  if (report.unlinked.length > 0) {
+    const names = report.unlinked.map((n) => `« ${n} »`).join(", ");
+    const lead = linked > 0 ? `${plural(linked, "photo")} raccordée${linked > 1 ? "s" : ""} automatiquement (${time}). ` : "";
+    return {
+      tone: "warning",
+      text: `${lead}Aucun détail commun trouvé pour ${names} : poser ses points à la main, ou la retirer.`,
+    };
+  }
+  const check = outliers > 0 ? ` ${plural(outliers, "point")} douteux, en rouge, à vérifier.` : " Vérifier les points, puis « Calculer l'assemblage ».";
+  return { tone: "success", text: `${plural(linked, "photo")} raccordée${linked > 1 ? "s" : ""} automatiquement (${time}).${check}` };
 }
