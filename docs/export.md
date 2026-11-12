@@ -55,16 +55,38 @@ projecteurs, ni projeté deux fois là où deux emprises se recouvrent
 (`docs/composition.md`, « Diapositive de chaque dessin »). La fresque
 importée en une image, elle, reste découpée entre les diapositives.
 
+## SVG en millimètres (tâche 5.3)
+
+Cocher **SVG en plus (courbes des dessins posés)** : à côté de chaque PNG,
+un `<projet>-<diapositive>.svg` de 280 mm (300 mm avec la plaque). Il
+contient les **courbes des dessins posés**, celles qu'on voit dans
+« Comparer image et vecteurs… » de la Bibliothèque, transportées vers la
+diapositive sans repasser par des pixels : même place, même taille, même
+déformation, même retouche de diapositive, même miroir que dans le PNG.
+
+- Les traits sont des surfaces **remplies de noir**, sans fond ; un dessin
+  par chemin, nommé d'après son placement.
+- Un dessin placé derrière un autre est **découpé par la silhouette** de
+  celui de devant, comme dans le PNG.
+- La **fresque importée en une image** n'est pas dans le SVG (elle n'a pas
+  de courbes), ni le nom et les repères de la marge.
+- Le **négatif** et le **noir et blanc pur** ne s'appliquent qu'au PNG.
+- Compter quelques secondes de plus par diapositive : chaque dessin est
+  vectorisé avec ses réglages de la Bibliothèque.
+
 ## Dans LightBurn
 
 Importer le PNG : il doit mesurer **280 mm** (ou **300 mm** avec la plaque)
-sans rien régler, car la résolution est inscrite dans le fichier.
+sans rien régler, car la résolution est inscrite dans le fichier. Le SVG
+aussi s'ouvre à sa taille (ses dimensions sont écrites en mm). Les réglages
+conseillés pour graver le SVG viendront avec l'essai de la tâche 5.4.
 
 ## Sans écran
 
 ```
 insitu fresco Mon-projet.insitu fresque.png
 insitu export Mon-projet.insitu Gravure/ --dpi 1000 --no-margin
+insitu export Mon-projet.insitu Gravure/ --svg
 ```
 
 `insitu export --help` donne toutes les options.
@@ -78,5 +100,10 @@ insitu export Mon-projet.insitu Gravure/ --dpi 1000 --no-margin
   importée en fresque sur le même rectangle (à 2 niveaux de gris près),
   miroir compris ; un dessin d'un calque masqué ne sort pas ; un dessin hors
   de la diapositive n'est pas lu.
-- **Pas vérifié** : l'ouverture dans LightBurn elle-même, et une gravure
-  réelle. Pas encore essayé sur une vraie fresque composée sur la façade.
+- Vérifié par les tests (SVG, tâche 5.3) : à 1 400 dpi, les courbes du SVG
+  posées sur le PNG de la même diapositive s'en écartent de moins de
+  0,02 mm (dessin tourné et déformé, avec et sans miroir) ; les courbes
+  transportées suivent la chaîne exacte à 0,004 mm près ; un dessin derrière
+  un autre est découpé par sa silhouette.
+- **Pas vérifié** : l'ouverture dans LightBurn elle-même (PNG et SVG), et
+  une gravure réelle. Pas encore essayé sur une vraie fresque composée sur la façade.

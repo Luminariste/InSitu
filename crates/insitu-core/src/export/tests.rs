@@ -946,3 +946,32 @@ fn the_front_drawing_hides_the_one_behind_under_its_silhouette() {
         "anneau visible derrière les rayures : écart {worst}"
     );
 }
+
+/// Avec l'option SVG, chaque diapositive a son SVG en millimètres à côté
+/// du PNG, avec un chemin par dessin posé ; sans l'option, aucun.
+#[test]
+fn the_svg_option_writes_one_svg_per_slide() {
+    let frame = RectMm {
+        x: 1_800.0,
+        y: 1_200.0,
+        width: 2_400.0,
+        height: 2_400.0 * 0.9,
+    };
+    let (temp, dir, _) = project_with_placed_drawing("export-svg", &frame);
+    let out = temp.path().join("export");
+    let s = ExportSettings {
+        svg: true,
+        ..settings(100.0)
+    };
+    let report = export_slides(&dir, &out, &s, None, 0, &|_| {}).unwrap();
+    let slide = &report.slides[0];
+    let svg_path = slide.svg.as_ref().expect("SVG écrit");
+    assert_eq!(svg_path.with_extension("png"), slide.path);
+    let svg = std::fs::read_to_string(svg_path).unwrap();
+    assert!(svg.contains("width=\"280mm\"") && svg.contains("viewBox=\"0 0 280 280\""));
+    assert_eq!(svg.matches("<path ").count(), 1);
+    assert!(svg.contains("id=\"p1\""));
+
+    let report = export_slides(&dir, &out, &settings(100.0), None, 0, &|_| {}).unwrap();
+    assert!(report.slides[0].svg.is_none());
+}

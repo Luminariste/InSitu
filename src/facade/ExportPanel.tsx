@@ -136,6 +136,10 @@ export function ExportPanel({ engine, folder, project, onProject, showFresco, on
             <input type="checkbox" checked={settings.oneBit} onChange={(e) => set({ oneBit: e.target.checked })} />
             Noir et blanc pur (1 bit)
           </label>
+          <label className="ui-check" title="Les courbes des dessins posés, en millimètres, pour une gravure vectorielle (la fresque importée en une image n'y est pas)">
+            <input type="checkbox" checked={settings.svg} onChange={(e) => set({ svg: e.target.checked })} />
+            SVG en plus (courbes des dessins posés)
+          </label>
           {settings.oneBit && (
             <label className="facade-overview-opacity">
               Seuil : {settings.threshold}

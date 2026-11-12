@@ -209,6 +209,8 @@ export interface ExportSettings {
   /** Noir et blanc pur (PNG 1 bit) ; sinon niveaux de gris. */
   oneBit: boolean;
   threshold: number;
+  /** Un SVG en mm à côté de chaque PNG : les courbes des dessins posés (tâche 5.3). */
+  svg: boolean;
 }
 
 export type PlanKind = "image" | "pdf" | "svg" | "dxf";
@@ -849,6 +851,8 @@ export interface ExportedSlide {
   sizePx: number;
   sizeMm: number;
   bytes: number;
+  /** Le SVG écrit à côté, si demandé. */
+  svg?: string | null;
   seconds: number;
 }
 

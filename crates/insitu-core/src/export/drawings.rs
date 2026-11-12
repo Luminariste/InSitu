@@ -15,14 +15,17 @@
 
 use std::collections::HashMap;
 
+use super::svg::VectorDrawing;
 use super::{to_gray, ExportError};
 use crate::geometry::{Point, PointWarp, Transform};
 use crate::library::silhouette;
+use crate::library::vectors::{self, SVG_VECTOR_SIDE};
 use crate::library::{flatten_on_black, read::decode};
 use crate::placement::mesh;
-use crate::project::{Deformation, Placement, PointMm, Project, ProjectDir};
+use crate::project::{Deformation, Placement, PointMm, Project, ProjectDir, SilhouettePolygon};
 use crate::resample::{warp_raster, WarpOptions};
 use crate::tiles::Raster;
+use crate::vectorize::{self, GrayImage, Vectorization};
 
 /// Points calculés sur chaque bord d'un dessin pour trouver le rectangle
 /// qu'il occupe dans la diapositive.
@@ -201,6 +204,8 @@ pub fn draw(
 #[derive(Default)]
 pub struct DrawingCache {
     images: HashMap<String, (Raster, Option<Raster>)>,
+    silhouettes: HashMap<String, Vec<SilhouettePolygon>>,
+    vectors: HashMap<String, Vectorization>,
 }
 
 impl DrawingCache {
@@ -242,6 +247,7 @@ impl DrawingCache {
                 Some(polygons) => polygons.clone(),
                 None => silhouette::detect(&image),
             };
+            self.silhouettes.insert(p.drawing.clone(), polygons.clone());
             let mask = (!polygons.is_empty()).then(|| {
                 let scale =
                     (f64::from(MASK_SIDE) / f64::from(image.width.max(image.height))).min(1.0);
@@ -252,6 +258,59 @@ impl DrawingCache {
             self.images.insert(p.drawing.clone(), (image, mask));
         }
         Ok(())
+    }
+
+    /// Vectorise, si ce n'est déjà fait, le dessin de chaque placement
+    /// donné, avec ses réglages, comme la bibliothèque (tâche 5.2 : un SVG
+    /// est rendu à 4 096 px). À appeler après [`Self::load`].
+    pub fn load_vectors(
+        &mut self,
+        dir: &ProjectDir,
+        project: &Project,
+        placements: &[&Placement],
+        threads: usize,
+    ) -> Result<(), ExportError> {
+        for p in placements {
+            if self.vectors.contains_key(&p.drawing) {
+                continue;
+            }
+            let Some(drawing) = project.drawing(&p.drawing) else {
+                continue;
+            };
+            let path = dir.resolve(&drawing.source);
+            let raster = decode(&path, SVG_VECTOR_SIDE)
+                .map_err(|e| ExportError::Image(format!("dessin « {} » : {e}", drawing.name)))?
+                .raster;
+            let gray = GrayImage::from_raster(&raster);
+            drop(raster);
+            let settings = drawing.vector.unwrap_or_default();
+            let vector = vectorize::vectorize(&gray, &vectors::options(&settings, threads))
+                .map_err(|e| {
+                    ExportError::BadSettings(format!("dessin « {} » : {e}", drawing.name))
+                })?;
+            self.vectors.insert(p.drawing.clone(), vector);
+        }
+        Ok(())
+    }
+
+    /// Les placements avec leurs courbes et leur silhouette, pour le SVG
+    /// (ceux dont le dessin n'est pas vectorisé sont omis).
+    pub fn vector_drawings<'a>(&'a self, placements: &[&'a Placement]) -> Vec<VectorDrawing<'a>> {
+        placements
+            .iter()
+            .filter_map(|&placement| {
+                let vector = self.vectors.get(&placement.drawing)?;
+                let silhouette = self
+                    .silhouettes
+                    .get(&placement.drawing)
+                    .map_or(&[][..], Vec::as_slice);
+                Some(VectorDrawing {
+                    placement,
+                    vector,
+                    silhouette,
+                })
+            })
+            .collect()
     }
 
     /// Les placements avec leur image et leur silhouette (ceux dont le
