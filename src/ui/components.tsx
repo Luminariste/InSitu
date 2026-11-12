@@ -272,6 +272,7 @@ export function ListRow({
   tone,
   dimmed,
   tooltip: help,
+  onDoubleClick,
 }: {
   selected?: boolean;
   onSelect?: () => void;
@@ -285,10 +286,13 @@ export function ListRow({
   tone?: Tone;
   dimmed?: boolean;
   tooltip?: string;
+  /** Double-clic : renommer, selon docs/design.md § 3. */
+  onDoubleClick?: () => void;
 }) {
   return (
     <div
       role="option"
+      onDoubleClick={onDoubleClick}
       aria-selected={selected ?? false}
       className={cx("ui-row", selected && "is-selected", dimmed && "is-dimmed", tone && `tone-${tone}`)}
       onClick={onSelect}
@@ -595,6 +599,28 @@ export function ConfirmDialog({
 
 // --- Raccourcis clavier ---------------------------------------------------------------------
 
+/** Raccourcis branchés en ce moment, pour la barre de menus du Mac. */
+const registry = new Set<{ current: ShortcutBinding[] }>();
+
+/**
+ * Déclenche l'action du raccourci `keys` comme si la touche avait été
+ * pressée. Sert à la barre de menus du Mac : quand un menu porte le
+ * raccourci, la touche n'arrive pas jusqu'à l'interface. Renvoie faux si
+ * aucune action n'est disponible.
+ */
+export function runShortcut(keys: ShortcutSpec): boolean {
+  if (document.querySelector(".ui-scrim") && keys !== "mod+/") return false;
+  for (const bindings of registry) {
+    for (const b of bindings.current) {
+      if (b.keys === keys && b.enabled !== false) {
+        b.run();
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 export interface ShortcutBinding {
   keys: ShortcutSpec;
   run: () => void;
@@ -610,6 +636,12 @@ export interface ShortcutBinding {
 export function useShortcuts(bindings: ShortcutBinding[]): void {
   const current = useRef(bindings);
   current.current = bindings;
+  useEffect(() => {
+    registry.add(current);
+    return () => {
+      registry.delete(current);
+    };
+  }, []);
   const onKey = useCallback((event: KeyboardEvent) => {
     if (event.defaultPrevented) return;
     const mac = isMac();

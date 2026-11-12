@@ -23,6 +23,8 @@ import {
   openTileFolder,
   projectFile,
   rectifyProjector,
+  removeProjector,
+  renameProjector,
   type Project,
   type Projector,
   type RectificationView,
@@ -55,6 +57,7 @@ import {
   Banner,
   Busy,
   Button,
+  ConfirmDialog,
   Dot,
   EmptyState,
   IconButton,
@@ -153,6 +156,11 @@ export function RectificationScreen() {
   const [loupeCenter, setLoupeCenter] = useState<Point | null>(null);
   const [dpi, setDpi] = useState<number>(500);
   const [format, setFormat] = useState<"tif" | "png">("tif");
+  /** Projecteur en cours de renommage, et le nom tapé. */
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameText, setRenameText] = useState("");
+  /** Projecteur dont on demande la suppression (confirmation ouverte). */
+  const [removing, setRemoving] = useState<string | null>(null);
 
   const projector = project?.projectors.find((p) => p.id === selected) ?? null;
   const photoSize = rawSource ? { width: rawSource.pyramid.width, height: rawSource.pyramid.height } : null;
@@ -474,6 +482,7 @@ export function RectificationScreen() {
     { keys: "mod+e", run: () => void exportImage(), enabled: canExport },
     { keys: "mod+0", run: () => viewer.current?.fitAll(), enabled: layers.length > 0 },
     { keys: "escape", run: cancelCorners, enabled: editing },
+    { keys: "backspace", run: () => selected && setRemoving(selected), enabled: engine && !!selected && ready && !editing },
   ]);
 
   const toolbar = (
@@ -550,6 +559,38 @@ export function RectificationScreen() {
     </Toolbar>
   );
 
+  const startRename = (p: Projector) => {
+    setRenaming(p.id);
+    setRenameText(p.label);
+  };
+
+  const commitRename = () =>
+    run("Renommage du projecteur…", async () => {
+      const id = renaming;
+      setRenaming(null);
+      if (!folder || !id) return;
+      const before = projectors.find((p) => p.id === id);
+      if (!before || renameText.trim() === before.label) return;
+      setProject(await renameProjector(folder, id, renameText));
+    });
+
+  const confirmRemove = () =>
+    run("Retrait du projecteur…", async () => {
+      const id = removing;
+      setRemoving(null);
+      if (!folder || !id) return;
+      const next = await removeProjector(folder, id);
+      setProject(next);
+      if (id === selected) {
+        const other = next.projectors[0] ?? null;
+        setSelected(other?.id ?? null);
+        setMode("brute");
+        await showProjector(folder, other);
+      }
+    });
+
+  const removingProjector = projectors.find((p) => p.id === removing) ?? null;
+
   const sidebar = (
     <Panel
       side="left"
@@ -562,10 +603,38 @@ export function RectificationScreen() {
             <ListRow
               key={p.id}
               selected={p.id === selected}
-              onSelect={() => ready && p.id !== selected && void choose(p.id)}
+              onSelect={() => ready && p.id !== selected && renaming !== p.id && void choose(p.id)}
+              onDoubleClick={engine && ready ? () => startRename(p) : undefined}
               leading={<Dot tone={p.rectification ? "success" : p.rawPhoto ? "warning" : undefined} />}
-              title={p.label}
+              title={
+                renaming === p.id ? (
+                  <input
+                    className="ui-input ui-input-inline"
+                    value={renameText}
+                    autoFocus
+                    aria-label="Nouveau nom du projecteur"
+                    onChange={(event) => setRenameText(event.target.value)}
+                    onClick={(event) => event.stopPropagation()}
+                    onBlur={() => void commitRename()}
+                    onKeyDown={(event) => {
+                      event.stopPropagation();
+                      if (event.key === "Enter") event.currentTarget.blur();
+                      if (event.key === "Escape") setRenaming(null);
+                    }}
+                  />
+                ) : (
+                  p.label
+                )
+              }
               detail={projectorStatus(p)}
+              actions={
+                engine && renaming !== p.id ? (
+                  <>
+                    <IconButton icon="pencil" label={`Renommer ${p.label}`} size="sm" onClick={() => startRename(p)} disabled={!ready} />
+                    <IconButton icon="trash" label={`Supprimer ${p.label}`} size="sm" onClick={() => setRemoving(p.id)} disabled={!ready} />
+                  </>
+                ) : undefined
+              }
             />
           ))}
         </List>
@@ -573,6 +642,17 @@ export function RectificationScreen() {
         <p className="ui-list-empty">
           {!engine ? "Exemple sans moteur : un seul projecteur, sans nom." : !folder ? "Pas de projet ouvert." : "Aucun projecteur. Le bouton + en ajoute un."}
         </p>
+      )}
+      {removingProjector && (
+        <ConfirmDialog
+          title={`Supprimer le projecteur ${removingProjector.label} ?`}
+          confirmLabel={`Supprimer ${removingProjector.label}`}
+          onConfirm={() => void confirmRemove()}
+          onCancel={() => setRemoving(null)}
+        >
+          <p>Son redressement et son recalage seront perdus.</p>
+          <p>Ses photos restent dans le dossier du projet : on pourra les réimporter.</p>
+        </ConfirmDialog>
       )}
     </Panel>
   );

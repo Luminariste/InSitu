@@ -178,6 +178,13 @@ code {
   background: var(--ui-control);
 }
 
+/* Champ posé dans une ligne de liste (renommer en place). */
+.ui-input-inline {
+  width: 100%;
+  height: 22px;
+  padding: 0 6px;
+}
+
 .ui-input::placeholder {
   color: var(--ui-text-tertiary);
 }

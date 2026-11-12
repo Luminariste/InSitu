@@ -216,25 +216,62 @@ fn projector_id(project: &Project, key: &str) -> Result<String, RectifyError> {
 /// Ajoute un projecteur au projet et renvoie le projet enregistré et
 /// l'identifiant du nouveau projecteur.
 pub fn add_projector(dir: &ProjectDir, label: &str) -> Result<(Project, String), RectifyError> {
+    let mut project = dir.load()?.project;
+    let label = checked_label(&project, label, None)?;
+    let id = project.add_projector(label).id.clone();
+    dir.save(&project)?;
+    Ok((project, id))
+}
+
+/// Nom de projecteur nettoyé, refusé s'il est vide ou déjà pris par un
+/// autre projecteur que `except` (sans tenir compte des majuscules).
+fn checked_label<'a>(
+    project: &Project,
+    label: &'a str,
+    except: Option<&str>,
+) -> Result<&'a str, RectifyError> {
     let label = label.trim();
     if label.is_empty() {
         return Err(RectifyError::BadLabel(
             "le nom du projecteur est vide".into(),
         ));
     }
-    let mut project = dir.load()?.project;
     if project
         .projectors
         .iter()
-        .any(|p| p.label.trim().eq_ignore_ascii_case(label))
+        .any(|p| Some(p.id.as_str()) != except && p.label.trim().eq_ignore_ascii_case(label))
     {
         return Err(RectifyError::BadLabel(format!(
             "un projecteur s'appelle déjà « {label} »"
         )));
     }
-    let id = project.add_projector(label).id.clone();
+    Ok(label)
+}
+
+/// Renomme un projecteur. Son identifiant, ses photos, son redressement et
+/// son recalage ne changent pas.
+pub fn rename_projector(
+    dir: &ProjectDir,
+    projector: &str,
+    label: &str,
+) -> Result<Project, RectifyError> {
+    let mut project = dir.load()?.project;
+    let id = projector_id(&project, projector)?;
+    let label = checked_label(&project, label, Some(&id))?.to_string();
+    project.projector_mut(&id).expect("projecteur trouvé").label = label;
     dir.save(&project)?;
-    Ok((project, id))
+    Ok(project)
+}
+
+/// Retire un projecteur du projet, avec son redressement et son recalage.
+/// Ses photos (brute et redressée) restent dans le dossier du projet : rien
+/// n'est effacé du disque, on peut les réimporter.
+pub fn remove_projector(dir: &ProjectDir, projector: &str) -> Result<Project, RectifyError> {
+    let mut project = dir.load()?.project;
+    let id = projector_id(&project, projector)?;
+    project.projectors.retain(|p| p.id != id);
+    dir.save(&project)?;
+    Ok(project)
 }
 
 /// Copie la photo `source` dans `photos-brutes/` et en fait la photo de

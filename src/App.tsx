@@ -5,6 +5,7 @@ import { RectificationScreen } from "./rectification/RectificationScreen";
 import { RegistrationScreen } from "./registration/RegistrationScreen";
 import { SlideScreen } from "./slide/SlideScreen";
 import { ViewerDemo } from "./ViewerDemo";
+import { listenMenu } from "./engine";
 import {
   APPEARANCES,
   APP_SHORTCUTS,
@@ -15,6 +16,7 @@ import {
   Segmented,
   applyAppearance,
   readAppearance,
+  runShortcut,
   useShortcuts,
   type Appearance,
 } from "./ui";
@@ -40,6 +42,9 @@ export function App() {
   const [help, setHelp] = useState(false);
 
   useEffect(() => applyAppearance(appearance), [appearance]);
+
+  // Barre de menus du Mac : chaque entrée envoie son raccourci (src-tauri/src/menu.rs).
+  useEffect(() => listenMenu((keys) => void runShortcut(keys)), []);
 
   useShortcuts([
     ...STEPS.map((s) => ({ keys: s.keys, run: () => setScreen(s.value) })),

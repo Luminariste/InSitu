@@ -37,7 +37,8 @@ boutons enfoncés, est réservé aux repères posés sur les images. Vert, orang
 rouge et bleu ne disent que l'état (bon, à surveiller, douteux, pas encore
 mesuré), avec une légende.
 
-**D15-c. Menus dans l'interface d'abord, barre de menus native ensuite.**
+**D15-c. Menus dans l'interface d'abord, barre de menus native ensuite**
+(faite le même jour, D15-g).
 Le menu Projet (Nouveau ⌘N, Ouvrir ⌘O, Relire ⌘R) est le même dans chaque
 écran ; le menu Présentation regroupe l'apparence, la liste des raccourcis
 (⌘/) et l'écran de démonstration de la visionneuse (provisoire, D13), qui
@@ -50,6 +51,22 @@ part, avec les mêmes entrées et les mêmes raccourcis.
 Un objet qui a demandé du travail se supprime après une confirmation dont le
 bouton dit ce qu'il fait ; un point de recalage se supprime sans (⌫ ou
 corbeille). Quand l'annulation existera (4.3), plus de confirmation.
+
+**D15-f. Retirer un projecteur n'efface pas ses photos.** Le projecteur,
+son redressement et son recalage sortent de `projet.json` ; ses photos
+brute et redressée restent dans le dossier du projet (on peut les
+réimporter, et rien ne se perd par erreur dans un dossier partagé par
+Dropbox). Renommer garde l'identifiant, donc tout le travail. Le nom est
+refusé s'il est vide ou déjà pris (sans tenir compte des majuscules), comme
+à l'ajout. Commandes : `insitu projector rename|remove`.
+
+**D15-g. La barre de menus du Mac envoie des raccourcis, pas des actions.**
+Chaque entrée propre à InSitu porte le raccourci de l'interface ; la coque
+le transmet (évènement `menu`) et l'interface déclenche l'action branchée
+sur ce raccourci dans l'écran affiché. Raison : la coque ne calcule rien
+et ne connaît pas l'état des écrans ; une seule liste d'actions, celle des
+raccourcis. Limite : une entrée ne se grise pas quand son action est
+indisponible ; la choisir ne fait alors rien.
 
 **D15-e. L'écran de démonstration garde son ancien style.** Il est
 provisoire (D13) ; il profite des nouvelles couleurs par les anciens noms de

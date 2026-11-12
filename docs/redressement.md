@@ -8,6 +8,11 @@
    projecteur, nommé par la première lettre libre (A, B, C…). La liste
    passe d'un projecteur à l'autre (clic, ou ↑ ↓) et dit où en est
    chacun : pastille verte = redressé, orange = photo à redresser.
+   Au survol d'une ligne : le **crayon** renomme le projecteur (ou
+   double-clic sur son nom ; ↩ valide, Échap annule), la **corbeille** le
+   supprime après confirmation (ou ⌫). Le renommage garde tout le travail ;
+   la suppression perd le redressement et le recalage, mais les photos
+   restent dans le dossier du projet.
 3. **Importer la photo…** (⌘I) : la photo de la mire prise en chambre noire, en
    HEIC (format des iPhone), JPEG, PNG ou TIFF. Elle est copiée dans le
    dossier `photos-brutes/` du projet, et la mire y est cherchée aussitôt.

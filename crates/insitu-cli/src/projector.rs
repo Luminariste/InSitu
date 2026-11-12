@@ -7,7 +7,7 @@ use insitu_core::geometry::Point;
 use insitu_core::project::ProjectDir;
 use insitu_core::rectification::projector::{
     self, add_projector, export_rectified, import_raw_photo, projector_view, rectify_projector,
-    RectificationView,
+    remove_projector, rename_projector, RectificationView,
 };
 use insitu_core::units::RECTIFIED_PHOTO_DPI;
 use serde_json::json;
@@ -75,6 +75,14 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             let (_, id) = add_projector(&open(folder)?, label).map_err(failed)?;
             Ok(json(&json!({ "id": id, "label": label.trim() })))
         }
+        ["rename", folder, key, label] => {
+            rename_projector(&open(folder)?, key, label).map_err(failed)?;
+            Ok(format!("Projecteur renommé « {} ».", label.trim()))
+        }
+        ["remove", folder, key] => {
+            remove_projector(&open(folder)?, key).map_err(failed)?;
+            Ok("Projecteur retiré du projet (ses photos restent dans le dossier).".into())
+        }
         ["photo", folder, key, photo] => {
             let project =
                 import_raw_photo(&open(folder)?, key, Path::new(photo)).map_err(failed)?;
@@ -126,6 +134,13 @@ Le projecteur est désigné par son identifiant ou par son nom (« A »).
 
   add <projet.insitu> <nom>
       Ajoute un projecteur au projet.
+
+  rename <projet.insitu> <projecteur> <nouveau nom>
+      Renomme le projecteur ; son redressement et son recalage sont gardés.
+
+  remove <projet.insitu> <projecteur>
+      Retire le projecteur du projet, avec son redressement et son recalage.
+      Ses photos restent dans le dossier du projet.
 
   photo <projet.insitu> <projecteur> <photo>
       Copie la photo de mire (JPEG, PNG, TIFF ou HEIC) dans photos-brutes/
