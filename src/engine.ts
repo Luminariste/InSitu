@@ -355,6 +355,8 @@ export interface RectificationView {
   seconds: number | null;
   /** Miroir appliqué à la diapositive (gauche-droite, haut-bas). */
   mirror: Mirror;
+  /** Pourquoi la grille n'a pas été lue, quand le redressement ne tient qu'aux quatre coins. */
+  gridUnread: string | null;
 }
 
 export interface Mirror {
@@ -419,6 +421,13 @@ export async function mirrorProjector(
     projector,
     change,
   });
+  return { project, view };
+}
+
+/** Tourne la diapositive d'un quart de tour (sens des aiguilles d'une montre). */
+export async function rotateProjector(folder: string, projector: string): Promise<{ project: Project; view: RectificationView }> {
+  requireEngine();
+  const [project, view] = await invoke<[Project, RectificationView]>("projector_rotate", { folder, projector });
   return { project, view };
 }
 
@@ -1105,6 +1114,35 @@ export async function saveAssemblyPairs(
 ): Promise<{ project: Project; report: AssemblyReport }> {
   requireEngine();
   const [project, report] = await invoke<[Project, AssemblyReport]>("assembly_set_pairs", { folder, photo, anchor, pairs });
+  return { project, report };
+}
+
+/** Ce que le raccord automatique dit d'une photo (tâche 6.6). */
+export interface AutoPhotoReport {
+  id: string;
+  name: string;
+  /** Photo d'appui choisie ; `null` pour la référence et une photo non raccordée. */
+  anchor: string | null;
+  /** Détails communs trouvés avec l'appui. */
+  matches: number;
+  /** Points communs enregistrés. */
+  pairs: number;
+  /** Raccordée : ses points ont été remplacés. */
+  linked: boolean;
+}
+
+export interface AutoReport {
+  photos: AutoPhotoReport[];
+  /** Photos sans détail commun avec les autres (leurs points sont gardés). */
+  unlinked: string[];
+  seconds: number;
+  assembly: AssemblyReport;
+}
+
+/** Raccord automatique : le moteur trouve les points communs et l'appui de chaque photo. */
+export async function autoAssembly(folder: string): Promise<{ project: Project; report: AutoReport }> {
+  requireEngine();
+  const [project, report] = await invoke<[Project, AutoReport]>("assembly_auto", { folder });
   return { project, report };
 }
 

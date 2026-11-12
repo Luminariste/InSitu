@@ -350,6 +350,17 @@ par erreur. Un projet sans fresque mais avec des dessins posés s'exporte.
 compte des placements visibles et de la taille et de la date des fichiers
 des dessins : bouger un dessin refait l'aperçu.
 
+**D-4.2-k. Glisser un dessin sur la façade : la fenêtre ne capte plus les
+glisser.** Essai de la 0.1.28 par Benjamin : le dessin glissé ne se posait
+pas. Tauri capte par défaut tout glisser au-dessus de la fenêtre (pour
+recevoir des fichiers du Finder), ce qui empêche la page de recevoir le
+lâcher ; l'app n'utilise pas ce glisser de fichiers, il est coupé
+(`dragDropEnabled: false` dans `tauri.conf.json`). Par prudence, le dessin
+glissé est aussi gardé en mémoire au départ du geste et porté en texte
+simple, pour le cas où la vue web du Mac ne rendrait pas le type maison.
+Le double-clic sur une vignette pose toujours le dessin au centre de la
+vue. Non vérifiable en session cloud : seul l'essai sur Mac le prouve.
+
 **Limite.** Les fichiers des dessins utilisés par une diapositive restent
 en mémoire pendant l'export (en niveaux de gris, un dessin de 4 096 px pèse
 16 Mo) ; à surveiller avec une très grande bibliothèque.
@@ -470,6 +481,60 @@ refuse sans rien écrire.
 (tâche 3.5) : les dessins posés dans l'app ne sont pas encore exportés. Le
 plan ne le range dans aucune tâche du jalon 4 explicitement (4.4 parle
 d'« export identique à l'aperçu ») : à décider avec Benjamin.
+## 2026-11-12 — Tâche 6.6
+
+Assemblage automatique, demandé par Benjamin après son essai de la 6.4
+(« laborieux, je préférerais une analyse automatique ») :
+`crates/insitu-core/src/assembly/features.rs` (détails et appariement),
+`crates/insitu-core/src/assembly/auto.rs` (choix des appuis), commande
+`insitu assembly auto`, bouton « Raccorder automatiquement » de l'écran
+Assemblage, mode d'emploi `docs/assemblage.md`.
+
+**D-6.6-a. Détection écrite dans le moteur, en Rust pur, sans OpenCV.**
+Coins FAST classés par Harris sur une pyramide de 5 tailles, signatures de
+type SIFT (histogrammes de directions, 128 octets), appariement réciproque
+avec test du rapport (0,85), tri par RANSAC sur un trapèze. OpenCV aurait
+demandé une bibliothèque système à embarquer dans l'app Mac et compliqué la
+fabrication ; les algorithmes sont publics et courts. Le calcul est
+déterministe (tirages pseudo-aléatoires à graine fixe) : mêmes photos, mêmes
+points. Une première version avec des signatures binaires (ORB) trouvait
+trop peu d'appariements entre deux vraies photos d'Épinal prises de deux
+endroits (15 justes) ; les signatures SIFT en trouvent 51.
+
+**D-6.6-b. Positions affinées au dixième de pixel.** Les coins sont trouvés
+sur une image réduite à environ 2 000 px ; chaque appariement retenu est
+ensuite recalé par corrélation locale (Lucas-Kanade, luminosité et
+contraste compensés, fenêtre de 17 px transportée par le trapèze), puis le
+trapèze est recalculé et les appariements à plus de 1 px écartés. Sans cet
+affinage, l'erreur aux coins des photos atteignait 20 px sur l'essai à
+trois photos ; avec, 0,12 px.
+
+**D-6.6-c. Le résultat, ce sont des points communs ordinaires.** Pour
+chaque photo, au plus 24 points bien répartis (le meilleur de chaque case
+d'une grille 6 × 4 sur la zone commune, puis les meilleurs restants
+jusqu'à 12) sont enregistrés dans `pairs`, comme s'ils avaient été
+cliqués : même diagnostic, même correction à la main, même calcul de
+l'image. Rien de nouveau dans le fichier projet. La première photo reste la
+référence ; chaque autre s'appuie sur la photo déjà raccordée avec laquelle
+elle partage le plus de détails (arbre de poids maximal, en partant de la
+référence) : l'ordre d'ajout des photos n'a plus d'importance.
+
+**D-6.6-d. Quand l'analyse se lance, et ce qu'elle remplace.** Elle se lance
+seule après « Ajouter des photos… » si aucun point n'a encore été posé à la
+main, et sur le bouton « Raccorder automatiquement » ; si des points
+existent, le bouton demande confirmation, car il les remplace tous. Il faut
+20 appariements justes au moins pour raccorder deux photos ; une photo sans
+détail commun avec les autres garde ses points et son appui, et est nommée
+dans le message. Quatre photos analysées à la fois au plus, pour borner la
+mémoire (une photo de 48 Mpx occupe environ 150 Mo le temps d'être lue).
+
+**D-6.6-e. Toujours un mur plan (D-6.4-a).** Sur un portail en relief, le
+trapèze suit le plan qui porte le plus de détails communs : sur les photos
+A et B d'Épinal, le mur de pierre au-dessus du porche, bien raccordé, alors
+que le fond du porche apparaît dédoublé dans l'image assemblée. Pour un
+assemblage net, les photos doivent être prises de face, du même recul, en
+se décalant le long du mur.
+
 ## 2026-11-12 — Tâche 6.4
 
 Assemblage de photos de façade : `crates/insitu-core/src/assembly/`,
@@ -956,6 +1021,15 @@ des repères : à voir après l'essai de Benjamin.
 servir de repère large ; le format de projet n'a pas encore de place pour
 elle (pas de champ `litPhoto`). Noté pour une tâche suivante.
 
+**D-3.2-g. La photo recalée posée sur la façade, dans l'écran Recalage.**
+Demande de Benjamin (12 novembre 2026). Le calque est celui de l'écran
+Façade (maillage et aperçu de `facade_overview`, tâche 3.3), relu après
+chaque recalage enregistré, sans nouveau calcul dans le moteur. Fondu
+normal à 60 % d'opacité, réglable, et non « écran » comme dans l'écran
+Façade : sur un plan clair, le fondu « écran » rendrait la photo
+invisible. La consigne des premiers points dit en clair qu'il faut des
+détails d'architecture communs, pas les coins de la photo.
+
 ## 2026-11-12 — Tâche 2.5
 
 Écran de redressement : `src/rectification/`, module
@@ -1064,6 +1138,26 @@ PNG provisoire. Ce secours dépend du système, mais seulement sur Mac et en
 dernier recours ; les tests (Linux) ne le parcourent pas. Le décodeur à
 nous reste le premier, pour que Mac et tests donnent les mêmes pixels
 (D-2.5-a).
+
+**D-2.5-l. Grille illisible : redressement par les quatre coins seuls.**
+Benjamin a été bloqué (12 novembre 2026) : sur sa photo, même les coins
+posés à la main étaient refusés (« seulement 7 croisements de la grille
+mesurés, il en faut au moins 40 »). Quand les coins sont donnés et que la
+grille ne se lit pas, le moteur redresse maintenant par le trapèze des
+quatre coins, sans correction de l'objectif ni du papier. Rien n'est
+caché : `grid_unread` (`gridUnread` à l'écran et en ligne de commande) dit
+pourquoi, l'écran l'affiche en orange avec « précision non mesurée », et
+aucun croisement n'est coloré. Le fichier projet ne change pas : c'est un
+redressement « manuel » à quatre points, reconnu comme tel à la relecture.
+Le sens de la mire est lu sur les petits cercles quand ils se voient ;
+sinon le coin le plus en haut à gauche de la photo devient le haut-gauche,
+et un **quart de tour** (`rotate_projector`, `insitu projector rotate`)
+corrige le sens. Il tourne aussi les points du recalage, comme le miroir
+(D-2.5-j), mais n'est pas gardé : une nouvelle détection retrouve le sens
+d'elle-même. La détection automatique (sans coins) n'a pas de tel repli :
+elle a besoin de la grille pour trouver la mire. Prouvé par
+`an_unreadable_grid_is_rectified_by_the_corners_alone` (photo A réduite et
+floutée).
 
 ## 2026-11-12 — Tâche 2.4a
 

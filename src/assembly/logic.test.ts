@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { AssemblyPhoto, AssemblyPhotoReport } from "../engine";
-import { NO_PENDING, click, formatPx, hint, movePoint, pairStatus, photoLine, possibleAnchors, removePair, summary } from "./logic";
+import type { AssemblyPhoto, AssemblyPhotoReport, AutoReport } from "../engine";
+import { NO_PENDING, click, formatPx, hint, movePoint, pairStatus, photoLine, possibleAnchors, removePair, summary, autoMessage, hasManualPoints } from "./logic";
 
 const photo = (id: string, anchor: string | null): AssemblyPhoto => ({ id, name: id, source: `facade/assemblage/${id}.jpg`, width: 100, height: 80, anchor });
 
@@ -80,5 +80,46 @@ describe("états et textes", () => {
     expect(summary({ ready: false, photos: [report({ id: "a", placed: true }), report({})] }, 2)).toMatch(/^1 photo à placer/);
     expect(hint({ here: { x: 0, y: 0 }, there: null }, null)).toMatch(/photo d'appui/);
     expect(hint(NO_PENDING, null)).toBeNull();
+  });
+});
+
+describe("raccord automatique (tâche 6.6)", () => {
+  const auto = (over: Partial<AutoReport>): AutoReport => ({
+    photos: [
+      { id: "a", name: "a", anchor: null, matches: 0, pairs: 0, linked: true },
+      { id: "b", name: "b", anchor: "a", matches: 120, pairs: 24, linked: true },
+      { id: "c", name: "c", anchor: "b", matches: 90, pairs: 24, linked: true },
+    ],
+    unlinked: [],
+    seconds: 3.4,
+    assembly: { photos: [report({ id: "a" }), report({ id: "b" }), report({ id: "c" })], ready: true },
+    ...over,
+  });
+
+  it("annonce les photos raccordées", () => {
+    expect(autoMessage(auto({}))).toEqual({
+      tone: "success",
+      text: "2 photos raccordées automatiquement (3 s). Vérifier les points, puis « Calculer l'assemblage ».",
+    });
+  });
+
+  it("nomme les photos sans détail commun", () => {
+    const r = auto({ unlinked: ["c"] });
+    r.photos[2] = { ...r.photos[2], linked: false, anchor: null, pairs: 0 };
+    expect(autoMessage(r)).toEqual({
+      tone: "warning",
+      text: "1 photo raccordée automatiquement (3 s). Aucun détail commun trouvé pour « c » : poser ses points à la main, ou la retirer.",
+    });
+  });
+
+  it("signale les points douteux", () => {
+    const r = auto({});
+    r.assembly.photos[1] = report({ pairs: [{ residualPx: 9, outlier: true }] });
+    expect(autoMessage(r).text).toContain("1 point douteux");
+  });
+
+  it("ne demande confirmation que si des points ont déjà été posés", () => {
+    expect(hasManualPoints([photo("a", null), photo("b", "a")])).toBe(false);
+    expect(hasManualPoints([photo("a", null), { ...photo("b", "a"), pairs: [{ here: { x: 1, y: 1 }, there: { x: 2, y: 2 } }] }])).toBe(true);
   });
 });

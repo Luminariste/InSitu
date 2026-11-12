@@ -22,14 +22,14 @@ tableau à jour.
 | 2.2 Nouvelle mire | Fusionnée ; PDF dans `docs/mire/`. **Non validée** : il reste à l'imprimer, la mesurer à 280 mm et relire les 16 repères sur une photo |
 | 2.3 Géométrie | Faite ; seuils réglés sur simulation, à ajuster sur données réelles en 2.4a et 3.2 |
 | 5.1 Moteur de vectorisation | Faite : écart de 0,33 px au plus sur les quatre verres d'Épinal (critère : 0,5 px) ; reste à l'essayer sur des dessins de Marc (5.2) |
-| 2.5 Écran de redressement | Fusionnée (version 0.1.4), essayée par Benjamin : loupe validée ; ses retours (coins glissés sans ordre, miroir, HEIC refusé) sont faits en version 0.1.12, **non validée** : essai à refaire (`docs/redressement.md`) |
-| 3.2 Recalage par points | Fusionnée (version 0.1.5 ; points déplaçables au glisser depuis la 0.1.7, demande de Benjamin), **non validée** : essai sur Mac à faire par Benjamin (`docs/recalage.md`) ; seuil des points aberrants réglé sur simulation, à reprendre sur ses premiers points cliqués ; photo « lum » pas encore prise en charge |
+| 2.5 Écran de redressement | Fusionnée (version 0.1.4), essayée par Benjamin : loupe validée ; ses retours (coins glissés sans ordre, miroir, HEIC refusé) sont faits en version 0.1.12 ; essai de la 0.1.28 : bloqué par une grille illisible, d'où le redressement par les coins seuls et le quart de tour en version 0.1.29 (D-2.5-l), **non validée** : essai à refaire (`docs/redressement.md`) |
+| 3.2 Recalage par points | Fusionnée (version 0.1.5 ; points déplaçables au glisser depuis la 0.1.7, demande de Benjamin), **non validée** : essai sur Mac à faire par Benjamin (`docs/recalage.md`) ; seuil des points aberrants réglé sur simulation, à reprendre sur ses premiers points cliqués ; photo « lum » pas encore prise en charge ; consignes plus claires et photo recalée posée sur la façade en version 0.1.29 (D-3.2-g) |
 | 4.1 Bibliothèque | Fusionnée (version 0.1.6), **non validée** : essai sur Mac à faire par Benjamin (`docs/bibliotheque.md`), si possible sur un vrai dossier de dessins de Marc |
 | 3.3 Vue façade | Fusionnée (version 0.1.8), **non validée** : essai sur Mac à faire par Benjamin (`docs/vue-facade.md`) ; le critère « dix projecteurs sans ralentissement » ne se vérifie que sur son Mac |
 | 3.5 Export des diapositives | Fusionnée (version 0.1.9), **non validée** : ouverture dans LightBurn à faire par Benjamin (`docs/export.md`) ; export à 280 mm par défaut, choix de Benjamin (D-3.5-a) |
 | 3.6 Vue diapositive | Fusionnée (version 0.1.10), **non validée** : essai sur Mac à faire par Benjamin (`docs/vue-diapositive.md`) sur un vrai projet recalé avec une fresque |
 | Système de design (hors plan, demande de Benjamin) | Fusionné (version 0.1.11), **non validé** : lisibilité et ergonomie à juger par Benjamin sur Mac ; règles dans `docs/design.md`, décision D15 |
-| 4.2 Placement | Fusionnée (version 0.1.17), **non validée** : essai sur Mac à faire par Benjamin (`docs/composition.md`) ; raccourcis à comparer avec son Illustrator ; dessins posés exportés depuis la version 0.1.21 (D-4.2-g à j, essai Mac et LightBurn à faire) |
+| 4.2 Placement | Fusionnée (version 0.1.17), **non validée** : essai sur Mac à faire par Benjamin (`docs/composition.md`) ; raccourcis à comparer avec son Illustrator ; dessins posés exportés depuis la version 0.1.21 (D-4.2-g à j, essai Mac et LightBurn à faire) ; glisser-déposer réparé en version 0.1.29 (D-4.2-k, à réessayer) |
 | 4.3 Calques et historique | Fusionnée (version 0.1.20), **non validée** : essai sur Mac à faire par Benjamin (`docs/composition.md`, « Calques » et « Annuler ») |
 | 4.4 Déformation libre | Fusionnée (version 0.1.22), **non validée** : essai sur Mac à faire par Benjamin (`docs/composition.md`, « Déformer ») ; « export identique à l'aperçu » prouvé par test (D-4.4-e) |
 | 4.5 Affectation | Fusionnée (version 0.1.23), **non validée** : essai sur Mac à faire par Benjamin (`docs/composition.md`, « Diapositive de chaque dessin ») ; critères prouvés par test (D-4.5-d) |
@@ -41,7 +41,8 @@ tableau à jour.
 | 6.1 Simulation | Version 0.1.27, **non validée** : essai sur Mac à faire par Benjamin (`docs/simulation.md`) ; critère prouvé par test (chaque alerte donne le dessin concerné et un rectangle qui le contient ; un clic choisit le dessin et cadre la vue) ; décisions D-6.1-a à d |
 | Export des dessins posés (après 4.3, accord de Benjamin) | Fusionné (version 0.1.21), **non validé** : export vers LightBurn à essayer par Benjamin avec des dessins posés (`docs/export.md`) ; décisions D-4.2-g à j |
 | 5.2 Vecteurs en bibliothèque | Fusionnée (version 0.1.13), **non validée** : critère « dix dessins de styles différents validés à l'œil » à faire par Benjamin, idéalement sur des dessins de Marc (`docs/bibliotheque.md`) ; écart mesuré sous 0,5 px sur les dessins d'essai |
-| 6.4 Assemblage de photos | Fusionnée (version 0.1.16), **non validée** : essai sur Mac à faire par Benjamin avec trois vraies photos de façade (`docs/assemblage.md`) ; façade supposée plane (D-6.4-a), rotation EXIF non appliquée (D-6.4-f) |
+| 6.4 Assemblage de photos | Fusionnée (version 0.1.16), essayée par Benjamin : jugée laborieuse, d'où la 6.6 ; **non validée** (`docs/assemblage.md`) ; façade supposée plane (D-6.4-a), rotation EXIF non appliquée (D-6.4-f) |
+| 6.6 Assemblage automatique (demande de Benjamin après essai de la 6.4) | Version 0.1.30, **non validée** : essai sur Mac à faire par Benjamin avec ses vraies photos (`docs/assemblage.md`) ; prouvé par test : trois photos raccordées sans aucun clic, coins à moins de 1 px de leur place (photos simulées), et deux vraies photos d'Épinal raccordées (écart moyen 0,65 px) ; décisions D-6.6-a à e |
 | Renommer / supprimer un projecteur, barre de menus du Mac (hors plan, demande de Benjamin) | Fusionné (version 0.1.18), **non validé** : essai sur Mac ; décisions D15-f et D15-g |
 | Retirer un dessin de la bibliothèque, retirer le plan de la façade (hors plan, demande de Benjamin) | Version 0.1.19, **non validé** : essai sur Mac ; décision D15-h |
 | Toutes les autres | À faire |
@@ -292,6 +293,7 @@ les tâches « interface » demandent un essai sur Mac.
 | 6.2 | Fiche de calepinage | PDF : plan avec emprises, liste des diapositives, vignettes, réglages d'export | Imprimable en A3, lisible sur site | 6.1 |
 | 6.3 | Import Illustrator | Lecture d'un `.ai` : images placées, positions, liens | Composition A recréée à l'identique dans l'app | 4.2 |
 | 6.4 | Assemblage de photos | Recalage de plusieurs photos de façade entre elles par points | Trois photos assemblées servent de fond de plan | 3.2 |
+| 6.6 | Assemblage automatique | L'app trouve elle-même les points communs entre les photos et l'appui de chacune ; correction à la main toujours possible | Trois photos qui se recouvrent sont raccordées sans aucun clic, à moins de 1 px près | 6.4 |
 | 6.5 | Finitions | Préférences, raccourcis, messages d'erreur clairs, aide intégrée, icône | Marc installe et utilise l'app sans explication | tout |
 
 ## Méthode de travail

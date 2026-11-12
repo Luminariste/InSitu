@@ -104,6 +104,12 @@ describe("affichage du résultat", () => {
     expect(summarize({ ...view, mirror: { horizontal: true, vertical: true } }).text).toContain(
       "miroir gauche-droite et haut-bas",
     );
+    // Coins seuls : ni croisements ni précision annoncés, une alerte orange.
+    const alone = summarize({ ...view, method: "manual", gridUnread: "seulement 7 croisements" });
+    expect(alone.text).toContain("quatre coins seuls");
+    expect(alone.text).toContain("seulement 7 croisements");
+    expect(alone.text).not.toContain("mm en moyenne");
+    expect(alone.quality).toBe("moyen");
   });
 });
 

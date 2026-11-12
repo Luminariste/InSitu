@@ -21,7 +21,7 @@ use crate::geometry::Point;
 use crate::photo::{self, OutputFormat, PhotoError};
 use crate::project::store::write_atomic;
 use crate::project::{
-    AssetKind, Mirror, Project, ProjectDir, ProjectError, Projector, Rectification,
+    AssetKind, Mirror, PointMm, Project, ProjectDir, ProjectError, Projector, Rectification,
     RectificationMethod, RelativePath,
 };
 use crate::units::{self, RECTIFIED_PHOTO_DPI, SLIDE_SIZE_MM};
@@ -135,6 +135,9 @@ pub struct RectificationView {
     pub seconds: Option<f64>,
     /// Miroir appliqué à la diapositive.
     pub mirror: Mirror,
+    /// Pourquoi la grille n'a pas été lue, quand le redressement ne tient
+    /// qu'aux quatre coins posés à la main (D-2.5-l).
+    pub grid_unread: Option<String>,
 }
 
 impl RectificationView {
@@ -196,6 +199,7 @@ impl RectificationView {
             px_per_mm: detection.px_per_mm,
             seconds,
             mirror: Mirror::default(),
+            grid_unread: detection.grid_unread.clone(),
         }
     }
 }
@@ -373,6 +377,45 @@ pub fn mirror_projector(
     projector: &str,
     change: Mirror,
 ) -> Result<(Project, RectificationView), RectifyError> {
+    transform_slide(
+        dir,
+        projector,
+        |p| change.apply(p, SLIDE_SIZE_MM),
+        |r| {
+            r.mirror.horizontal ^= change.horizontal;
+            r.mirror.vertical ^= change.vertical;
+        },
+    )
+}
+
+/// Tourne la diapositive du projecteur d'un quart de tour dans le sens des
+/// aiguilles d'une montre (D-2.5-l) : pour un redressement par les coins
+/// seuls, quand le sens de la mire n'a pas pu être lu. Comme le miroir, les
+/// points du redressement et du recalage tournent ensemble et la photo
+/// redressée est recalculée. Une nouvelle détection retrouve le sens d'elle-
+/// même et oublie ce quart de tour.
+pub fn rotate_projector(
+    dir: &ProjectDir,
+    projector: &str,
+) -> Result<(Project, RectificationView), RectifyError> {
+    transform_slide(dir, projector, quarter_turn, |_| {})
+}
+
+/// Un point de la diapositive, tourné d'un quart de tour (sens horaire à
+/// l'écran, y vers le bas) autour du centre.
+fn quarter_turn(p: PointMm) -> PointMm {
+    PointMm::new(SLIDE_SIZE_MM - p.y, p.x)
+}
+
+/// Applique `map` aux points de la diapositive (redressement et recalage),
+/// note le changement dans le redressement par `note`, et recalcule la
+/// photo redressée.
+fn transform_slide(
+    dir: &ProjectDir,
+    projector: &str,
+    map: impl Fn(PointMm) -> PointMm,
+    note: impl FnOnce(&mut Rectification),
+) -> Result<(Project, RectificationView), RectifyError> {
     let start = Instant::now();
     let mut project = dir.load()?.project;
     let id = projector_id(&project, projector)?;
@@ -381,7 +424,10 @@ pub fn mirror_projector(
         .projector(&id)
         .and_then(|p| p.rectification.clone())
         .ok_or_else(|| RectifyError::NotRectified(label.clone()))?;
-    mirror_rectification(&mut rectification, change);
+    for p in &mut rectification.points {
+        p.slide = map(p.slide);
+    }
+    note(&mut rectification);
     let image = photo::read_rgb(&dir.resolve(&raw_path))?;
     let detection = from_rectification((image.width(), image.height()), &rectification)?;
     let rectified = rectify(&image, &detection, RECTIFIED_PHOTO_DPI);
@@ -392,7 +438,7 @@ pub fn mirror_projector(
     let mirror = rectification.mirror;
     let p = project.projector_mut(&id).expect("projecteur trouvé");
     for pair in &mut p.registration {
-        pair.slide = change.apply(pair.slide, SLIDE_SIZE_MM);
+        pair.slide = map(pair.slide);
     }
     p.rectified_photo = Some(relative);
     p.rectification = Some(rectification);

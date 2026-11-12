@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { RegistrationReport } from "../engine";
+import type { FacadeOverview, RegistrationReport } from "../engine";
 import {
   NO_PENDING,
   SLIDE_MM,
   click,
+  facadePhotoLayer,
   formatFacadeCm,
   formatSlideMm,
   hint,
@@ -132,5 +133,32 @@ describe("glisser un point", () => {
 
   it("garde un point de diapositive dans le carré", () => {
     expect(movePoint(pairs, 0, "slide", { x: -5, y: 300 })[0].slide).toEqual({ x: 0, y: SLIDE_MM });
+  });
+});
+
+describe("photo recalée sur la façade", () => {
+  const square = [p(0, 0), p(100, 0), p(0, 100), p(100, 100)];
+  const overview = {
+    projectors: [
+      { projectorId: "a", mesh: { divisions: 1, facade: square }, photoPreview: "apercus/a.png" },
+      { projectorId: "b", mesh: null, photoPreview: null },
+    ],
+    overlaps: [],
+  } as unknown as FacadeOverview;
+
+  it("pose la photo du projecteur choisi sur son maillage, à l'opacité choisie", () => {
+    const layer = facadePhotoLayer(overview, "a", true, 0.6, (r) => `cache://${r}`);
+    expect(layer?.kind).toBe("mesh-image");
+    expect(layer?.kind === "mesh-image" && layer.url).toBe("cache://apercus/a.png");
+    expect(layer?.kind === "mesh-image" && layer.points).toEqual(square);
+    expect(layer?.opacity).toBe(0.6);
+    expect(layer?.visible).toBe(true);
+    expect(facadePhotoLayer(overview, "a", false, 0.6, (r) => r)?.visible).toBe(false);
+  });
+
+  it("rien tant que le projecteur n'est pas recalé", () => {
+    expect(facadePhotoLayer(overview, "b", true, 0.6, (r) => r)).toBeNull();
+    expect(facadePhotoLayer(overview, null, true, 0.6, (r) => r)).toBeNull();
+    expect(facadePhotoLayer(null, "a", true, 0.6, (r) => r)).toBeNull();
   });
 });
