@@ -25,10 +25,12 @@ import {
   type RegistrationReport,
 } from "../engine";
 import { Viewer, placementForWidth, type LayerSpec, type Placement, type TileSource, type ViewerHandle } from "../viewer";
-import { screenToMm } from "../viewer/geometry";
+import { mmToScreen, screenToMm } from "../viewer/geometry";
+import { hitHandle } from "../rectification/logic";
 import { recalledProject } from "../project/current";
 import { facadePlacement, isClick, mmPerSourceUnit } from "../facade/scale";
 import {
+  GRAB_RADIUS_PX,
   NO_PENDING,
   SLIDE_MM,
   click,
@@ -37,6 +39,7 @@ import {
   hint,
   onSlide,
   pairStatus,
+  movePoint,
   removePair,
   summary,
   type Pending,
@@ -103,6 +106,9 @@ export function RegistrationScreen() {
   const [report, setReport] = useState<RegistrationReport | null>(null);
   const [pending, setPending] = useState<Pending>(NO_PENDING);
   const [selected, setSelected] = useState<number | null>(null);
+  /** Point saisi pour être glissé : son côté, son numéro, les paires d'avant. */
+  const [dragging, setDragging] = useState<{ side: Side; index: number; before: RegistrationPair[] } | null>(null);
+  const [grabbable, setGrabbable] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -225,8 +231,7 @@ export function RegistrationScreen() {
   // --- Actions -------------------------------------------------------------
 
   /** Enregistre les paires et relit le compte rendu du moteur. */
-  const commit = (next: RegistrationPair[]) => {
-    const previous = pairs;
+  const commit = (next: RegistrationPair[], previous: RegistrationPair[] = pairs) => {
     setPairs(next);
     if (!engine || !folder || !projector) return;
     saveRegistration(folder, projector.id, next).then(
@@ -254,24 +259,72 @@ export function RegistrationScreen() {
     commit(removePair(pairs, index));
   };
 
-  const onPointerDown = (event: PointerEvent) => {
-    pointerDown.current = { x: event.clientX, y: event.clientY, t: event.timeStamp };
-  };
-
-  const onPointerUp = (side: Side) => (event: PointerEvent) => {
-    const down = pointerDown.current;
-    pointerDown.current = null;
-    if (!down || !ready || !isClick(down, { x: event.clientX, y: event.clientY, t: event.timeStamp })) return;
+  /** Le pointeur, en mm de la vue `side` et en pixels de son écran. */
+  const pointerAt = (side: Side, event: PointerEvent) => {
     const handle = side === "slide" ? slideViewer.current : facadeViewer.current;
     const pane = side === "slide" ? slidePane.current : facadePane.current;
     const scene = handle?.scene();
     const canvas = pane?.querySelector(".viewer-canvas");
-    if (!scene || !canvas) return;
+    if (!scene || !canvas) return null;
     const box = canvas.getBoundingClientRect();
-    const at = screenToMm(scene.getView(), scene.getViewport(), {
-      x: event.clientX - box.left,
-      y: event.clientY - box.top,
-    });
+    const screen = { x: event.clientX - box.left, y: event.clientY - box.top };
+    const view = scene.getView();
+    const viewport = scene.getViewport();
+    return { screen, mm: screenToMm(view, viewport, screen), toScreen: (p: { x: number; y: number }) => mmToScreen(view, viewport, p) };
+  };
+
+  /** Numéro du point de ce côté sous le pointeur, ou rien. */
+  const pointUnder = (side: Side, at: NonNullable<ReturnType<typeof pointerAt>>) =>
+    hitHandle(
+      pairs.map((pair) => at.toScreen(pair[side])),
+      at.screen,
+      GRAB_RADIUS_PX,
+    );
+
+  const onPointerDown = (side: Side) => (event: PointerEvent<HTMLDivElement>) => {
+    pointerDown.current = { x: event.clientX, y: event.clientY, t: event.timeStamp };
+    if (!ready) return;
+    const at = pointerAt(side, event);
+    const hit = at ? pointUnder(side, at) : null;
+    if (hit === null) return;
+    // Le point est saisi : la visionneuse ne doit pas se déplacer.
+    event.stopPropagation();
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragging({ side, index: hit, before: pairs });
+  };
+
+  const onPointerMove = (side: Side) => (event: PointerEvent<HTMLDivElement>) => {
+    const at = pointerAt(side, event);
+    if (!at) return;
+    if (dragging && dragging.side === side) {
+      setPairs(movePoint(dragging.before, dragging.index, side, at.mm));
+      return;
+    }
+    setGrabbable(ready && pointUnder(side, at) !== null);
+  };
+
+  const onPointerUp = (side: Side) => (event: PointerEvent<HTMLDivElement>) => {
+    const down = pointerDown.current;
+    pointerDown.current = null;
+    const up = { x: event.clientX, y: event.clientY, t: event.timeStamp };
+    if (dragging) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+      const { index, before } = dragging;
+      setDragging(null);
+      if (down && isClick(down, up)) {
+        // Simple clic sur un point : il est choisi (ou ne l'est plus).
+        setPairs(before);
+        setSelected(selected === index ? null : index);
+        return;
+      }
+      setSelected(index);
+      commit(pairs, before);
+      return;
+    }
+    if (!down || !ready || !isClick(down, up)) return;
+    const at = pointerAt(side, event)?.mm;
+    if (!at) return;
     if (side === "slide" && !onSlide(at)) {
       setError("Ce point est hors de la diapositive : cliquer dans le carré de la photo redressée.");
       return;
@@ -310,6 +363,7 @@ export function RegistrationScreen() {
             ? "Redresser d'abord la photo de mire d'un projecteur (écran Redressement)."
             : null;
   const instruction = hint(pending, selected);
+  const stageClass = `registration-stage${dragging ? " registration-dragging" : grabbable ? " registration-grab" : ""}`;
 
   return (
     <main className="registration">
@@ -354,13 +408,23 @@ export function RegistrationScreen() {
         <div className="registration-views">
           <section className="registration-pane" ref={slidePane}>
             <h2>Photo redressée {projector ? `— ${projector.label}` : ""}</h2>
-            <div className="registration-stage" onPointerDownCapture={onPointerDown} onPointerUp={onPointerUp("slide")}>
+            <div
+              className={stageClass}
+              onPointerDownCapture={onPointerDown("slide")}
+              onPointerMove={onPointerMove("slide")}
+              onPointerUp={onPointerUp("slide")}
+            >
               <Viewer ref={slideViewer} layers={slideLayers} cursorUnit="mm" />
             </div>
           </section>
           <section className="registration-pane" ref={facadePane}>
             <h2>Façade</h2>
-            <div className="registration-stage" onPointerDownCapture={onPointerDown} onPointerUp={onPointerUp("facade")}>
+            <div
+              className={stageClass}
+              onPointerDownCapture={onPointerDown("facade")}
+              onPointerMove={onPointerMove("facade")}
+              onPointerUp={onPointerUp("facade")}
+            >
               <Viewer ref={facadeViewer} layers={facadeLayers} cursorUnit="mm" />
             </div>
           </section>

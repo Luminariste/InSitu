@@ -33,9 +33,12 @@ de fenêtre, le pied d'une colonne, la pointe d'un arc… visibles sur les deux.
      un point au bord, prédit de loin) ;
    - rouge : **point douteux**, que les autres contredisent nettement. Le
      vérifier, le déplacer ou le retirer.
-6. Cliquer une ligne de la liste sélectionne le point : un clic sur la photo
-   ou sur la façade le **déplace** de ce côté. Cliquer à nouveau la ligne (ou
-   Échap) désélectionne. **×** retire le point.
+6. **Corriger un point : le glisser.** Au-dessus d'un point, le pointeur
+   devient une main : on le saisit et on le lâche à sa place, sur la photo
+   ou sur la façade, dans n'importe quel ordre. L'écart se recalcule au
+   lâcher. Un simple clic sur un point (ou sur sa ligne dans la liste) le
+   sélectionne : un clic ailleurs sur la photo ou sur la façade l'y amène.
+   Cliquer à nouveau (ou Échap) désélectionne. **×** retire le point.
 
 Chaque modification est enregistrée aussitôt dans le projet.
 
