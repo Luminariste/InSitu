@@ -1,0 +1,82 @@
+{
+  "nom": "Trévarez, novembre 2026",
+  "description": "Écuries du domaine de Trévarez (Noël 2026) : la cour des écuries, quatre façades et leurs avant-toits mis à plat dans un déroulé vectoriel, douze projecteurs A à L. Prises de vue du 11 novembre 2026 à l'iPhone 16 Pro, avec l'ancienne mire. Projet InSitu monté par Benjamin avec la version 0.1.28.",
+  "projecteurs": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "J",
+    "K",
+    "L"
+  ],
+  "fichiers": [
+    {
+      "id": "facade",
+      "role": "facade",
+      "fichier": "facade/ecuries-planbase.pdf",
+      "nomDorigine": "Esquises/ECURIES-COMPOSITION PlanBase.pdf",
+      "note": "Déroulé vectoriel exporté d'Illustrator : une page carrée de 1 417,32 pt (500 mm). Benjamin l'a mis à l'échelle par 27 260 mm entre deux points de la façade du haut.",
+      "reference": "identique"
+    },
+    {
+      "id": "projet",
+      "role": "project",
+      "fichier": "projet/projet.json",
+      "nomDorigine": "_PROJECTION/Trevarez.insitu/projet.json",
+      "note": "Le projet tel que Benjamin l'a enregistré (format 1, version 0.1.28) : douze projecteurs, B à G redressés, B et C recalés, 95 dessins en bibliothèque, 2 posés. Copie du 12 novembre 2026, 22 h 37 (heure de Paris). La déformation du dessin posé sur B a été retouchée après l'export de Trevarez-B.png : seul l'export de C correspond encore à ce projet.",
+      "reference": "identique"
+    },
+    {
+      "id": "dessin-algue-h02",
+      "role": "drawing",
+      "fichier": "dessins/algue-h02.png",
+      "nomDorigine": "_PROJECTION/Trevarez.insitu/bibliotheque/Algues/Algue-H02.png",
+      "note": "Dessin posé sur la diapositive B, avec une déformation quatre coins (retouchée après l'export de B).",
+      "reference": "identique"
+    },
+    {
+      "id": "dessin-algues-horizontales",
+      "role": "drawing",
+      "fichier": "dessins/algues-horizontales.png",
+      "nomDorigine": "_PROJECTION/Trevarez.insitu/bibliotheque/Algues/Algues Horizontales.png",
+      "note": "Dessin posé sur la diapositive C.",
+      "reference": "identique"
+    },
+    {
+      "id": "photo-brute-a",
+      "role": "raw_photo",
+      "projecteur": "A",
+      "fichier": "photos-brutes/a-brut.jpg",
+      "nomDorigine": "_PROJECTION/01 - Rétroprojecteur BRUT/A BRUT.JPG",
+      "note": "Grille presque illisible (lumière, flou) : la détection automatique échoue, le redressement passe par les quatre coins posés à la main (D-2.5-l).",
+      "reference": "identique",
+      "reduction": 4
+    },
+    {
+      "id": "photo-brute-b",
+      "role": "raw_photo",
+      "projecteur": "B",
+      "fichier": "photos-brutes/b-brut.jpg",
+      "nomDorigine": "_PROJECTION/01 - Rétroprojecteur BRUT/B BRUT.JPG",
+      "note": "Redressée automatiquement par Benjamin dans la 0.1.28 : écart résiduel 0,078 mm, miroir horizontal et vertical.",
+      "reference": "identique",
+      "reduction": 4
+    },
+    {
+      "id": "verre-c",
+      "role": "engraving_export",
+      "projecteur": "C",
+      "fichier": "verres/trevarez-c.png",
+      "nomDorigine": "_PROJECTION/04 - Export To Light Burn/Trevarez-C.png",
+      "note": "Exporté par InSitu 0.1.28 à 1 400 dpi (15 433 px), sans miroir ni négatif. Sert de référence : l'export refait depuis projet.json doit retomber dessus.",
+      "reference": null,
+      "reduction": 14
+    }
+  ]
+}
