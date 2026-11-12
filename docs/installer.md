@@ -27,6 +27,15 @@ puis relancez l'app.
 
 ## Mettre à jour
 
-Téléchargez la nouvelle version et glissez-la dans Applications en acceptant
-de remplacer l'ancienne. Vos projets ne sont pas touchés : ils vivent dans
-leurs propres dossiers, pas dans l'app.
+Au lancement, InSitu cherche toute seule une version plus récente. Si elle en
+trouve une, elle affiche « Une nouvelle version est disponible » : cliquez
+sur « Installer et relancer ». L'app télécharge la nouvelle version, vérifie
+qu'elle vient bien de Luminariste, se remplace et se relance. « Plus tard » :
+la question revient au lancement suivant.
+
+Si cela ne marche pas (pas de réseau, ou version installée trop ancienne pour
+se mettre à jour seule), téléchargez la nouvelle version ici et glissez-la
+dans Applications en acceptant de remplacer l'ancienne.
+
+Dans tous les cas, vos projets ne sont pas touchés : ils vivent dans leurs
+propres dossiers, pas dans l'app.

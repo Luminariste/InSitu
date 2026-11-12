@@ -4,6 +4,49 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Mise à jour automatique (hors plan, demande de Benjamin)
+
+**D16. L'app se met à jour toute seule, avec l'accord de l'utilisateur.**
+Demande de Benjamin : ne plus réinstaller le `.dmg` à chaque version. Revient
+sur la fin de D12 (« pas de mise à jour automatique ») avec son accord. Au
+lancement, l'app cherche une version plus récente ; si elle en trouve une, un
+dialogue propose « Installer et relancer » ou « Plus tard » (la question
+revient au lancement suivant). Une recherche ratée (pas de réseau) ne dit
+rien. Code : `src-tauri/src/updates.rs`, `src/update/`.
+
+**D16-a. Module de mise à jour de Tauri (`tauri-plugin-updater`), appelé
+depuis la coque.** Deux commandes (`update_check`, `update_install`) passent
+par `src/engine.ts` comme le reste ; l'interface n'utilise pas le module
+JavaScript du greffon. Après installation, la coque relance l'app.
+
+**D16-b. Les mises à jour sont signées par une clé à nous.** Indépendante de
+la signature Apple (toujours « ad hoc », D12). Clé publique dans
+`tauri.conf.json`, clé privée dans le secret GitHub
+`TAURI_SIGNING_PRIVATE_KEY` (sans mot de passe), nulle part ailleurs. L'app
+refuse une archive qui n'est pas signée par cette clé. La fabrication
+contrôle, avant de publier, que la signature vient bien de la clé attendue
+(`.github/scripts/mise_a_jour.py`). Si la clé privée était perdue : en créer
+une autre, et réinstaller une fois l'app à la main.
+
+**D16-c. Dépôt privé : l'app porte une clé GitHub en lecture seule.** Le
+dépôt est privé, ses Releases ne se téléchargent pas sans identification.
+La fabrication grave dans l'app le secret `INSITU_UPDATE_TOKEN` (jeton
+« fine-grained » de Benjamin, lecture seule du contenu de ce seul dépôt).
+Qui a l'app peut en extraire ce jeton et lire le code : accepté, l'app ne
+sort pas de Luminariste. Le jeton expire : il faut alors en refaire un et
+réinstaller une fois à la main (l'app ne trouve simplement plus de mise à
+jour). Si le dépôt devenait public, ce jeton deviendrait inutile.
+
+**D16-d. Le manifeste vit seul sur la branche `mises-a-jour`.** L'adresse
+lue par l'app doit être fixe ; celle des pièces jointes d'une Release privée
+change à chaque version. La fabrication écrit donc `latest.json` (version,
+signature, adresse de l'archive par l'API de GitHub) et le pousse seul sur
+la branche `mises-a-jour`, remplacée à chaque version. L'app le lit sur
+`raw.githubusercontent.com`. Sans les deux secrets, la fabrication publie
+comme avant, sans archive ni manifeste.
+
+**D16-e. La première version qui sait se mettre à jour s'installe à la
+main.** Les versions déjà installées n'ont pas ce module.
 ## 2026-11-12 — Étude du pli (Trévarez, hors plan)
 
 **D-PLI-a. Constat, pas encore de changement du moteur.** Un projecteur qui
@@ -1746,7 +1789,8 @@ une dépendance du moteur (elle n'était utilisée que par ses tests).
 puce Apple ne se lance pas. Avec cette signature locale, elle se lance mais
 macOS la bloque au premier lancement après téléchargement ; la marche à
 suivre est dans `docs/installer.md`. Pas de notarisation, pas de mise à jour
-automatique.
+automatique (mise à jour automatique ajoutée depuis, avec l'accord de
+Benjamin : D16).
 
 **D11. Le numéro de version n'est écrit qu'à un endroit.**
 `Cargo.toml` à la racine, rubrique `[workspace.package]`. `tauri.conf.json`
