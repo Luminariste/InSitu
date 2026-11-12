@@ -198,13 +198,17 @@ pub fn ensure_vectors(
 
 /// Écrit un fichier du cache sans jamais laisser voir un fichier à moitié
 /// écrit.
-fn write_atomic(cache_root: &Path, request: &str, bytes: &[u8]) -> Result<(), LibraryError> {
+pub(super) fn write_atomic(
+    cache_root: &Path,
+    request: &str,
+    bytes: &[u8],
+) -> Result<(), LibraryError> {
     let target = cache_root.join(request);
     let failed = |reason: String| LibraryError::Cache {
         path: target.clone(),
         reason,
     };
-    let folder = target.parent().expect("vecteurs/<fichier>");
+    let folder = target.parent().expect("<dossier>/<fichier>");
     fs::create_dir_all(folder).map_err(|e| failed(e.to_string()))?;
     let temp = folder.join(format!(".~{}.{}", new_id(), std::process::id()));
     let written = fs::File::create(&temp)

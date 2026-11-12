@@ -22,7 +22,7 @@
 
 mod check;
 pub(crate) mod contour;
-mod fit;
+pub(crate) mod fit;
 
 use std::fmt::{self, Write as _};
 use std::sync::atomic::{AtomicUsize, Ordering};

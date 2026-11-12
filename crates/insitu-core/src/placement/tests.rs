@@ -13,6 +13,7 @@ fn project_with_drawing(label: &str) -> (TempDir, ProjectDir) {
         width: 2_000.0,
         height: 1_000.0,
         vector: None,
+        silhouette: None,
         extra: Default::default(),
     });
     dir.save(&project).expect("enregistrement");

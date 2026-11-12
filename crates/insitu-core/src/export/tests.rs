@@ -428,6 +428,7 @@ fn project_with_placed_drawing(label: &str, frame: &RectMm) -> (TempDir, Project
         width: f64::from(verre.width),
         height: f64::from(verre.height),
         vector: None,
+        silhouette: None,
         extra: Default::default(),
     });
     project.placements.push(Placement {

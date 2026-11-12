@@ -32,11 +32,12 @@ pub use lock::{
     LOCK_REFRESH_INTERVAL_SECONDS, LOCK_STALE_AFTER_SECONDS,
 };
 pub use migrate::CURRENT_FORMAT_VERSION;
+pub use model::silhouette_problem;
 pub use model::{
     AssemblyOutput, AssemblyPair, AssemblyPhoto, Deformation, DeformationFrame, Drawing,
     ExportSettings, ExtraFields, Facade, FacadeAssembly, FacadeScale, FrescoImage, Layer, Mirror,
     Placement, PointMm, Project, Projector, RectMm, Rectification, RectificationMethod,
-    RectificationPoint, RegistrationPair, SourcePoint, VectorSettings,
+    RectificationPoint, RegistrationPair, SilhouettePolygon, SourcePoint, VectorSettings,
 };
 pub use path::RelativePath;
 pub use store::{AssetKind, LoadedProject, ProjectDir, PROJECT_EXTENSION, PROJECT_FILE};
