@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Assignment } from "../engine";
 import type { Placement } from "./placement";
-import { dropInTree, slideTree } from "./slideTree";
+import { dropInTree, setFlag, slideTree, treeClick } from "./slideTree";
 
 const placed = (id: string, layer?: string): Placement => ({
   id,
@@ -84,5 +84,30 @@ describe("arborescence des diapositives", () => {
     // Sur lui-même, ou sur un dessin inconnu : rien.
     expect(dropInTree(placements, assignments, "p1", { projector: "a", before: "p1" })).toBe(placements);
     expect(dropInTree(placements, assignments, "p1", { projector: "a", before: "zz" })).toBe(placements);
+  });
+});
+
+describe("arborescence, comme le panneau Calques d'Illustrator", () => {
+  const order = ["p1", "p2", "p3", "p4"];
+  const none = { toggle: false, range: false };
+
+  it("clic : ce dessin seul ; ⌘ : ajoute ou retire ; ⇧ : de la dernière ligne cliquée à celle-ci", () => {
+    expect([...treeClick(order, new Set(["p2"]), "p2", "p3", none)]).toEqual(["p3"]);
+    expect([...treeClick(order, new Set(["p2"]), "p2", "p4", { toggle: true, range: false })]).toEqual(["p2", "p4"]);
+    expect([...treeClick(order, new Set(["p2", "p4"]), "p4", "p2", { toggle: true, range: false })]).toEqual(["p4"]);
+    expect([...treeClick(order, new Set(["p4"]), "p4", "p2", { toggle: false, range: true })]).toEqual(["p2", "p3", "p4"]);
+    // ⇧ sans ligne de départ : comme un clic.
+    expect([...treeClick(order, new Set(), null, "p2", { toggle: false, range: true })]).toEqual(["p2"]);
+  });
+
+  it("masque, affiche, verrouille ces dessins un à un", () => {
+    const list = [placed("p1"), placed("p2")];
+    const hidden = setFlag(list, new Set(["p2"]), "hidden", true);
+    expect(hidden[1].hidden).toBe(true);
+    expect(hidden[0]).toBe(list[0]);
+    const back = setFlag(hidden, new Set(["p2"]), "hidden", false);
+    expect("hidden" in back[1]).toBe(false);
+    expect(setFlag(list, new Set(["p1"]), "locked", false)).toBe(list);
+    expect(setFlag(list, new Set(["p1"]), "locked", true)[0].locked).toBe(true);
   });
 });

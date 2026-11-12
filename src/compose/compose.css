@@ -198,3 +198,29 @@
   font-size: var(--ui-text-xs);
   color: var(--ui-text-tertiary);
 }
+
+/* Œil et cadenas d'une ligne, comme le panneau Calques d'Illustrator :
+   visibles au survol, ou toujours quand ils sont actifs. */
+.compose-tree-flags {
+  display: inline-flex;
+  flex: none;
+}
+
+.compose-tree-flags .ui-button {
+  opacity: 0;
+}
+
+.compose-tree-row:hover .compose-tree-flags .ui-button,
+.compose-tree-flags .ui-button.is-on,
+.compose-tree-flags .ui-button:focus-visible {
+  opacity: 1;
+}
+
+.compose-tree-row.is-hidden .compose-tree-label,
+.compose-tree-row.is-hidden img {
+  opacity: 0.4;
+}
+
+.compose-tree-row.is-locked .compose-tree-label {
+  font-style: italic;
+}

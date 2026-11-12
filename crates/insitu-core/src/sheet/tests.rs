@@ -83,6 +83,8 @@ fn project(temp: &TempDir) -> ProjectDir {
             deformation: None,
             projector: None,
             adjustment: None,
+            hidden: false,
+            locked: false,
             extra: Default::default(),
         });
     }

@@ -3,7 +3,9 @@
 // calques d'Illustrator. Le dessin du haut d'un groupe est devant. On glisse
 // une ligne sur une autre diapositive pour l'y affecter à la main (tâche
 // 4.5), ou au-dessus d'un autre dessin pour la passer devant lui. Logique
-// pure, testée sans écran (`slideTree.test.ts`).
+// pure, testée sans écran (`slideTree.test.ts`). Clic, ⌘-clic, ⇧-clic, œil,
+// cadenas et menu au clic droit suivent le panneau Calques d'Illustrator
+// (D-4.5-g).
 
 import type { Assignment } from "../engine";
 import { stack } from "./layers";
@@ -91,4 +93,52 @@ export function dropInTree(
   // L'ordre de la liste va du fond vers l'avant : devant = juste après.
   const next = [...rest.slice(0, at + 1), moved, ...rest.slice(at + 1)];
   return next.every((p, i) => p === placements[i]) ? placements : next;
+}
+
+/** Masque ou affiche, verrouille ou déverrouille ces dessins un à un (D-4.5-g). */
+export function setFlag(
+  placements: Placement[],
+  ids: Set<string>,
+  flag: "hidden" | "locked",
+  value: boolean,
+): Placement[] {
+  let changed = false;
+  const next = placements.map((p) => {
+    if (!ids.has(p.id) || (p[flag] ?? false) === value) return p;
+    changed = true;
+    const q = { ...p };
+    if (value) q[flag] = true;
+    else delete q[flag];
+    return q;
+  });
+  return changed ? next : placements;
+}
+
+/**
+ * Un clic sur la ligne `id`, comme dans Illustrator : seul, il choisit ce
+ * dessin ; ⌘ l'ajoute ou le retire ; ⇧ choisit toutes les lignes entre la
+ * dernière cliquée (`anchor`) et celle-ci, dans l'ordre affiché (`order`).
+ */
+export function treeClick(
+  order: string[],
+  selected: Set<string>,
+  anchor: string | null,
+  id: string,
+  mods: { toggle: boolean; range: boolean },
+): Set<string> {
+  if (mods.range && anchor !== null) {
+    const a = order.indexOf(anchor);
+    const b = order.indexOf(id);
+    if (a >= 0 && b >= 0) {
+      const [from, to] = a < b ? [a, b] : [b, a];
+      return new Set([...(mods.toggle ? selected : []), ...order.slice(from, to + 1)]);
+    }
+  }
+  if (mods.toggle) {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  }
+  return new Set([id]);
 }

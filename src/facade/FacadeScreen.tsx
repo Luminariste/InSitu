@@ -661,8 +661,7 @@ export function FacadeScreen() {
               groups={composition.placements.length > 0 ? tree : []}
               selected={selectedIds}
               describe={describePlacement}
-              onSelect={(id) => composition.actions.select([id])}
-              onDrop={composition.actions.dropInTree}
+              actions={composition.actions}
               blocked={composeBlocked}
             />
             <LayersSection

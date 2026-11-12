@@ -92,7 +92,7 @@ import {
 import type { Layer } from "./placement";
 import { meshLines, nodePoints } from "./deformation";
 import { SelectionNode } from "./SelectionNode";
-import { dropInTree, type TreeDrop } from "./slideTree";
+import { dropInTree, setFlag, type TreeDrop } from "./slideTree";
 import { DRAWING_DRAG_TYPE, draggedDrawing, droppedDrawingId, endDrawingDrag } from "./dragDrawing";
 
 export { DRAWING_DRAG_TYPE };
@@ -142,6 +142,12 @@ export interface CompositionActions {
   select(ids: string[]): void;
   /** Un dessin lâché dans l'arborescence des diapositives : autre diapositive, ou devant un autre dessin. */
   dropInTree(dragged: string, drop: TreeDrop): void;
+  /** Choisit ces dessins depuis l'arborescence, groupes compris ; ni masqués ni verrouillés (D-4.5-g). */
+  selectInTree(ids: Iterable<string>): void;
+  /** Masque (vrai) ou affiche ces dessins un à un ; masqués, ils ne sont plus choisis. */
+  setHidden(ids: Iterable<string>, hidden: boolean): void;
+  /** Verrouille (vrai) ou déverrouille ces dessins un à un ; verrouillés, ils ne sont plus choisis. */
+  setLocked(ids: Iterable<string>, locked: boolean): void;
 }
 
 /** Ce que la rubrique « Calques » peut faire (tâche 4.3). */
@@ -753,6 +759,20 @@ export function useComposition(options: Options): Composition {
     assignTo: (projector) => apply(assignTo(placements, selection, projector)),
     select: (ids) => setSelection(new Set(ids.filter((id) => placements.some((p) => p.id === id)))),
     dropInTree: (dragged, drop) => apply(dropInTree(placements, assignments, dragged, drop), new Set([dragged])),
+    selectInTree: (ids) => {
+      const free = new Set(placements.filter((p) => !p.hidden && !p.locked).map((p) => p.id));
+      setSelection(new Set([...expandToGroups(placements, ids)].filter((id) => free.has(id))));
+    },
+    setHidden: (ids, value) => {
+      const set = new Set(ids);
+      const kept = value ? new Set([...selection].filter((id) => !set.has(id))) : undefined;
+      apply(setFlag(placements, set, "hidden", value), kept);
+    },
+    setLocked: (ids, value) => {
+      const set = new Set(ids);
+      const kept = value ? new Set([...selection].filter((id) => !set.has(id))) : undefined;
+      apply(setFlag(placements, set, "locked", value), kept);
+    },
   };
 
   const shortcuts = [

@@ -245,8 +245,28 @@ un titre de groupe fait un choix à la main (`placements[].projector`,
 D-4.5-b) sans changer l'ordre ; la glisser sur un dessin la place juste
 devant lui dans `placements[]` et sur son calque, pour que l'ordre affiché
 soit celui de la liste. On ne lâche rien sur « Hors de toute diapositive »
-(ce n'est pas un choix possible). Le fil « système de design » range cette
-rubrique dans l'onglet « Calques » du panneau de droite.
+(ce n'est pas un choix possible). La rubrique est en tête de l'onglet
+« Calques » du panneau de droite (D15-i).
+
+**D-4.5-g. L'arborescence suit le panneau Calques d'Illustrator.** Demande
+de Benjamin (12 novembre 2026) : « afficher masqué un dessin, clic sur
+plusieurs dessins, clic droit grouper etc. ». Chaque dessin posé peut être
+**masqué** (`placements[].hidden`) ou **verrouillé** (`placements[].locked`),
+un à un, en plus de son calque ; ces champs ne s'écrivent que vrais, un
+projet ancien se relit tel quel. Masqué, un dessin ne s'affiche pas et ne
+part ni dans l'export ni dans la fiche ni dans la simulation (même règle
+que les calques masqués, `Project::visible_placements`). Verrouillé, il
+s'affiche et s'exporte mais ne se choisit plus sur la façade. Dans
+l'arborescence : clic = ce dessin seul, ⌘-clic = l'ajouter ou le retirer,
+⇧-clic = toutes les lignes jusqu'à la dernière cliquée, dans l'ordre affiché
+(`treeClick`) ; un groupe se choisit en entier, comme sur la façade ; un
+dessin masqué ou verrouillé n'entre pas dans la sélection. Le clic droit
+ouvre un menu (`ContextMenu`, ajouté au système de design) : Grouper,
+Dégrouper, Masquer/Afficher, Verrouiller, ordre (premier plan… arrière-plan),
+envoi vers une diapositive ou « Automatique », Supprimer. Il porte sur la
+sélection si la ligne en fait partie, sinon sur la ligne seule. Écart
+assumé avec Illustrator : on ne peut pas choisir un dessin masqué depuis
+l'arborescence (seuls l'œil et le cadenas s'y appliquent).
 
 ## 2026-11-12 — Tâche 4.4 : déformation libre
 

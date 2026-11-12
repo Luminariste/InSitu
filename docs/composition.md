@@ -142,7 +142,17 @@ les calques d'Illustrator : un groupe par projecteur recalé (même couleur
 que son emprise), et « Hors de toute diapositive » pour les dessins qui ne
 tombent dans aucune emprise. Dans un groupe, le dessin du haut est devant.
 
-- Cliquer une ligne choisit le dessin sur la façade.
+- **Clic** sur une ligne : choisit ce dessin (et son groupe) sur la façade.
+  **⌘-clic** l'ajoute à la sélection ou l'en retire ; **⇧-clic** choisit
+  toutes les lignes entre la dernière cliquée et celle-ci.
+- **Œil** (au survol de la ligne) : masque le dessin. Masqué, il ne
+  s'affiche plus et ne part plus à l'export. **Cadenas** : le verrouille ; il
+  reste visible et exporté, mais ne se choisit plus sur la façade. Un œil ou
+  un cadenas actif reste affiché.
+- **Clic droit** : Grouper (⌘G), Dégrouper, Masquer, Verrouiller, ordre
+  (premier plan, en avant, en arrière, arrière-plan), envoyer vers une
+  diapositive ou « Automatique », Supprimer. Le menu porte sur la sélection
+  si la ligne en fait partie, sinon sur la ligne seule.
 - **Glisser une ligne sur le titre d'une autre diapositive** : le dessin y
   part, choisi à la main (comme dans l'inspecteur).
 - **Glisser une ligne au-dessus d'un autre dessin** : il passe juste devant
@@ -165,6 +175,11 @@ tombent dans aucune emprise. Dans un groupe, le dessin du haut est devant.
    rouge.
 6. Rubrique Diapositives : glisser un dessin d'un groupe à l'autre, puis
    au-dessus d'un autre dessin. Sa couleur suit, et il passe devant.
+7. Rubrique Diapositives : ⌘-clic sur deux dessins, puis clic droit,
+   Grouper ; cliquer l'un d'eux sur la façade : les deux sont choisis.
+8. Masquer un dessin avec l'œil : il disparaît de la façade ; exporter : il
+   n'est pas dans la diapositive. Le verrouiller : on ne peut plus le
+   choisir sur la façade.
 
 ## Ce qui n'est pas encore là
 

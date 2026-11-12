@@ -54,6 +54,10 @@ export interface Placement {
   projector?: string | null;
   /** Retouche dans une diapositive (tâche 4.6), sans effet sur la façade. */
   adjustment?: SlideAdjustment | null;
+  /** Masqué un à un (arborescence des diapositives) : ni affiché, ni exporté (D-4.5-g). */
+  hidden?: boolean;
+  /** Verrouillé un à un : affiché, exporté, mais plus choisi à la souris (D-4.5-g). */
+  locked?: boolean;
 }
 
 /** Retouche d'un dessin dans la diapositive d'un projecteur : grille en mm de diapositive. */

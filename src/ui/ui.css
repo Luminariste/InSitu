@@ -1133,3 +1133,9 @@ input[type="range"] {
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+/* Menu au clic droit : posé au point du clic (style en ligne). */
+.ui-context-menu {
+  position: fixed;
+  z-index: 100;
+}

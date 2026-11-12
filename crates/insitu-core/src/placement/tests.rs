@@ -39,6 +39,8 @@ fn corners_follow_size_rotation_and_mirror() {
         deformation: None,
         projector: None,
         adjustment: None,
+        hidden: false,
+        locked: false,
         extra: Default::default(),
     };
     let c = p.corners();
@@ -183,6 +185,8 @@ fn drawing_point_undoes_facade_point() {
         deformation: None,
         projector: None,
         adjustment: None,
+        hidden: false,
+        locked: false,
         extra: Default::default(),
     };
     for mirrored in [false, true] {
@@ -212,6 +216,8 @@ fn hidden_layers_are_not_exported() {
         deformation: None,
         projector: None,
         adjustment: None,
+        hidden: false,
+        locked: false,
         extra: Default::default(),
     };
     let layer = |id: &str, visible: bool| Layer {
@@ -243,6 +249,19 @@ fn hidden_layers_are_not_exported() {
     project.layers[0].visible = true;
     project.layers[1].visible = false;
     assert_eq!(ids(&project), ["b", "c"]);
+    // Un dessin masqué un à un (arborescence des diapositives, D-4.5-g)
+    // n'est pas exporté ; verrouillé, il l'est.
+    project.placements[1].hidden = true;
+    project.placements[2].locked = true;
+    assert_eq!(ids(&project), ["c"]);
+    // Les deux réglages passent par le fichier projet, et n'y sont écrits
+    // que s'ils sont vrais.
+    let text = serde_json::to_string(&project.placements).unwrap();
+    assert_eq!(text.matches("\"hidden\":true").count(), 1);
+    assert_eq!(text.matches("\"locked\":true").count(), 1);
+    assert!(!text.contains("false,\"locked\"") && !text.contains("\"hidden\":false"));
+    let back: Vec<Placement> = serde_json::from_str(&text).unwrap();
+    assert!(back[1].hidden && back[2].locked && !back[0].hidden);
 }
 
 // --- Déformation libre (tâche 4.4) ------------------------------------------
@@ -261,6 +280,8 @@ fn straight(rotation: f64, mirrored: bool) -> Placement {
         deformation: None,
         projector: None,
         adjustment: None,
+        hidden: false,
+        locked: false,
         extra: Default::default(),
     }
 }
@@ -567,6 +588,8 @@ fn assignment_test_project(label: &str) -> (TempDir, ProjectDir) {
             deformation: None,
             projector: None,
             adjustment: None,
+            hidden: false,
+            locked: false,
             extra: Default::default(),
         };
         if k % 5 == 0 {
