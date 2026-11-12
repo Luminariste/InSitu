@@ -15,6 +15,7 @@
 //! seule ; niveaux de gris ou noir et blanc pur (1 bit) seuillé.
 
 pub mod marks;
+pub mod preview;
 #[cfg(test)]
 mod tests;
 

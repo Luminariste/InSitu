@@ -46,6 +46,26 @@ import {
   type Side,
 } from "./logic";
 import { EMPTY_MARKERS, PairMarkersNode, type MarkersContent } from "./markers";
+import { ProjectMenu } from "../project/ProjectMenu";
+import {
+  Banner,
+  Busy,
+  Button,
+  Dot,
+  EmptyState,
+  IconButton,
+  List,
+  ListRow,
+  Panel,
+  Screen,
+  StatusBar,
+  StatusText,
+  ToolGroup,
+  ToolSpacer,
+  Toolbar,
+  useShortcuts,
+  type Tone,
+} from "../ui";
 import "./registration.css";
 
 /** Échelle supposée de la façade de l'exemple du navigateur (mm par pixel). */
@@ -365,136 +385,172 @@ export function RegistrationScreen() {
   const instruction = hint(pending, selected);
   const stageClass = `registration-stage${dragging ? " registration-dragging" : grabbable ? " registration-grab" : ""}`;
 
-  return (
-    <main className="registration">
-      <header className="registration-bar">
-        <div className="registration-group">
-          <span className="registration-label">Projet</span>
-          <span className="registration-value">{project?.name ?? (engine ? "aucun" : "exemple")}</span>
-          {engine && (
-            <button type="button" onClick={() => folder && void load(folder)} disabled={!folder || !ready}>
-              Relire
-            </button>
-          )}
-        </div>
-        <div className="registration-group">
-          <span className="registration-label">Projecteur</span>
-          <select
-            value={selectedProjector ?? ""}
-            onChange={(event) => void chooseProjector(event.target.value)}
-            disabled={!ready || rectified.length === 0}
-            aria-label="Projecteur"
-          >
-            {rectified.length === 0 && <option value="">aucun</option>}
-            {rectified.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label} — {(p.registration?.length ?? 0) > 0 ? `${p.registration?.length} points` : "à recaler"}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="registration-group">
-          <span className="registration-label">Voir</span>
-          <button type="button" onClick={() => slideViewer.current?.fitAll()} disabled={!photo}>
-            Toute la photo
-          </button>
-          <button type="button" onClick={() => facadeViewer.current?.fitAll()} disabled={!facade}>
-            Toute la façade
-          </button>
-        </div>
-      </header>
+  const tones: Record<string, Tone> = { bon: "success", moyen: "warning", aberrant: "danger", inconnu: "info" };
+  const moveProjector = (step: -1 | 1) => {
+    const at = rectified.findIndex((p) => p.id === selectedProjector);
+    const next = rectified[Math.min(rectified.length - 1, Math.max(0, at + step))];
+    if (next && next.id !== selectedProjector && ready) void chooseProjector(next.id);
+  };
+  const stepPoint = (step: -1 | 1) => {
+    if (pairs.length === 0) return;
+    setPending(NO_PENDING);
+    setSelected(selected === null ? 0 : Math.min(pairs.length - 1, Math.max(0, selected + step)));
+  };
 
-      <div className="registration-body">
-        <div className="registration-views">
-          <section className="registration-pane" ref={slidePane}>
-            <h2>Photo redressée {projector ? `— ${projector.label}` : ""}</h2>
-            <div
-              className={stageClass}
-              onPointerDownCapture={onPointerDown("slide")}
-              onPointerMove={onPointerMove("slide")}
-              onPointerUp={onPointerUp("slide")}
-            >
-              <Viewer ref={slideViewer} layers={slideLayers} cursorUnit="mm" />
-            </div>
-          </section>
-          <section className="registration-pane" ref={facadePane}>
-            <h2>Façade</h2>
-            <div
-              className={stageClass}
-              onPointerDownCapture={onPointerDown("facade")}
-              onPointerMove={onPointerMove("facade")}
-              onPointerUp={onPointerUp("facade")}
-            >
-              <Viewer ref={facadeViewer} layers={facadeLayers} cursorUnit="mm" />
-            </div>
-          </section>
-          {(message || busy) && <p className="registration-message">{busy ?? message}</p>}
-        </div>
+  useShortcuts([
+    {
+      keys: "mod+0",
+      run: () => {
+        slideViewer.current?.fitAll();
+        facadeViewer.current?.fitAll();
+      },
+    },
+    { keys: "backspace", run: () => selected !== null && remove(selected), enabled: selected !== null && ready },
+  ]);
 
-        <aside className="registration-list" aria-label="Points communs">
-          <table>
-            <thead>
-              <tr>
-                <th>N°</th>
-                <th title="Écart sur la diapositive">Diapo</th>
-                <th title="Écart sur la façade">Façade</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {pairs.map((_, i) => {
-                const r = report?.pairs[i];
-                const status = pairStatus(r);
-                return (
-                  <tr
-                    key={i}
-                    className={`${selected === i ? "selectionne " : ""}etat-${status}`}
-                    onClick={() => {
-                      setPending(NO_PENDING);
-                      setSelected(selected === i ? null : i);
-                    }}
-                    title={r?.outlier ? "Point douteux : à vérifier, déplacer ou retirer" : "Cliquer pour déplacer ce point"}
-                  >
-                    <td>
-                      <i className={`pastille ${status}`} /> {i + 1}
-                    </td>
-                    <td>{formatSlideMm(r?.slideResidualMm)}</td>
-                    <td>{formatFacadeCm(r?.facadeResidualMm)}</td>
-                    <td>
-                      <button
-                        type="button"
-                        aria-label={`Retirer le point ${i + 1}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          remove(i);
-                        }}
-                        disabled={!ready}
-                      >
-                        ×
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {pairs.length === 0 && <p className="registration-empty">Aucun point pour l'instant.</p>}
-        </aside>
-      </div>
+  const toolbar = (
+    <Toolbar>
+      <ProjectMenu
+        name={project?.name ?? null}
+        folder={folder}
+        ready={ready}
+        placeholder="Exemple sans moteur"
+        onOpen={(path) => void load(path)}
+        onReload={() => folder && void load(folder)}
+        onError={setError}
+      />
+      <ToolSpacer />
+      <ToolGroup label="Voir">
+        <Button icon="fit" onClick={() => slideViewer.current?.fitAll()} disabled={!photo}>
+          Toute la photo
+        </Button>
+        <Button icon="fit" onClick={() => facadeViewer.current?.fitAll()} disabled={!facade} shortcut="mod+0" title="⌘0 cadre les deux vues">
+          Toute la façade
+        </Button>
+      </ToolGroup>
+    </Toolbar>
+  );
 
-      <footer className="registration-foot">
-        {error ? (
-          <span className="registration-error">{error}</span>
-        ) : instruction ? (
-          <span className="registration-hint">{instruction} (Échap : annuler)</span>
-        ) : (
-          <span>{summary(report, pairs.length)}</span>
-        )}
-        <span className="registration-legend">
-          <i className="pastille bon" /> &lt; 1 mm <i className="pastille moyen" /> au-delà{" "}
-          <i className="pastille aberrant" /> douteux <i className="pastille inconnu" /> pas encore mesuré
+  const sidebar = (
+    <Panel side="left" title="Projecteurs">
+      {rectified.length > 0 ? (
+        <List label="Projecteurs" onMove={moveProjector}>
+          {rectified.map((p) => {
+            const count = p.registration?.length ?? 0;
+            return (
+              <ListRow
+                key={p.id}
+                selected={p.id === selectedProjector}
+                onSelect={() => ready && p.id !== selectedProjector && void chooseProjector(p.id)}
+                leading={<Dot tone={count >= 4 ? "success" : count > 0 ? "warning" : undefined} />}
+                title={p.label}
+                detail={count > 0 ? `${count} point${count > 1 ? "s" : ""}` : "à recaler"}
+              />
+            );
+          })}
+        </List>
+      ) : (
+        <p className="ui-list-empty">{engine ? "Aucun projecteur redressé." : "Exemple sans moteur."}</p>
+      )}
+    </Panel>
+  );
+
+  const inspector = (
+    <Panel side="right" title="Points communs">
+      {pairs.length > 0 ? (
+        <List label="Points communs" onMove={stepPoint}>
+          {pairs.map((_, i) => {
+            const r = report?.pairs[i];
+            const status = pairStatus(r);
+            return (
+              <ListRow
+                key={i}
+                selected={selected === i}
+                tone={status === "aberrant" ? "danger" : undefined}
+                onSelect={() => {
+                  setPending(NO_PENDING);
+                  setSelected(selected === i ? null : i);
+                }}
+                tooltip={r?.outlier ? "Point douteux : à vérifier, déplacer ou supprimer" : "Cliquer pour choisir ce point, puis le glisser pour le déplacer"}
+                leading={<Dot tone={tones[status]} />}
+                title={`Point ${i + 1}`}
+                detail={`diapo ${formatSlideMm(r?.slideResidualMm)} · façade ${formatFacadeCm(r?.facadeResidualMm)}`}
+                actions={<IconButton icon="trash" label={`Supprimer le point ${i + 1}`} shortcut="backspace" size="sm" onClick={() => remove(i)} disabled={!ready} />}
+              />
+            );
+          })}
+        </List>
+      ) : (
+        <p className="ui-list-empty">Aucun point pour l'instant. Cliquer un point sur la photo, puis le même sur la façade.</p>
+      )}
+    </Panel>
+  );
+
+  const status = (
+    <StatusBar>
+      {instruction ? <StatusText tone="info">{instruction} (Échap : annuler)</StatusText> : <StatusText>{summary(report, pairs.length)}</StatusText>}
+      <span className="ui-legend push">
+        <span>
+          <Dot tone="success" /> &lt; 1 mm
         </span>
-      </footer>
-    </main>
+        <span>
+          <Dot tone="warning" /> au-delà
+        </span>
+        <span>
+          <Dot tone="danger" /> douteux
+        </span>
+        <span>
+          <Dot tone="info" /> pas encore mesuré
+        </span>
+      </span>
+    </StatusBar>
+  );
+
+  return (
+    <Screen
+      className="registration"
+      toolbar={toolbar}
+      banner={
+        error && (
+          <Banner tone="danger" onClose={() => setError(null)}>
+            {error}
+          </Banner>
+        )
+      }
+      sidebar={sidebar}
+      inspector={inspector}
+      status={status}
+    >
+      <div className="registration-views">
+        <section className="registration-pane" ref={slidePane}>
+          <h2>Photo redressée {projector ? `· ${projector.label}` : ""}</h2>
+          <div
+            className={stageClass}
+            onPointerDownCapture={onPointerDown("slide")}
+            onPointerMove={onPointerMove("slide")}
+            onPointerUp={onPointerUp("slide")}
+          >
+            <Viewer ref={slideViewer} layers={slideLayers} cursorUnit="mm" />
+          </div>
+        </section>
+        <section className="registration-pane" ref={facadePane}>
+          <h2>Façade</h2>
+          <div
+            className={stageClass}
+            onPointerDownCapture={onPointerDown("facade")}
+            onPointerMove={onPointerMove("facade")}
+            onPointerUp={onPointerUp("facade")}
+          >
+            <Viewer ref={facadeViewer} layers={facadeLayers} cursorUnit="mm" />
+          </div>
+        </section>
+        {message && !busy && (
+          <EmptyState icon="link" title="Recalage pas encore possible">
+            <p>{message}</p>
+          </EmptyState>
+        )}
+        {busy && <Busy>{busy}</Busy>}
+      </div>
+    </Screen>
   );
 }

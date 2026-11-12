@@ -1,0 +1,16 @@
+/* Écran Diapositive (tâche 3.6). Gabarit, panneaux et contrôles : système
+   de design (src/ui/). Ici, seulement ce qui est propre à l'écran. */
+
+.slide-stage {
+  position: relative;
+  min-height: 0;
+  display: grid;
+}
+
+.slide-stage > .viewer {
+  height: 100%;
+}
+
+.slide-opacity {
+  width: 110px;
+}

@@ -1,0 +1,174 @@
+/*
+ * Jetons du système de design (docs/design.md).
+ *
+ * Toute couleur, taille de texte, marge ou rayon de l'interface vient d'ici.
+ * Un écran n'écrit jamais une couleur en dur : il emploie un jeton. Seuls les
+ * dessins posés sur les images (repères, poignées, emprises, dans la
+ * visionneuse) ont leurs propres couleurs, choisies pour se voir sur une photo.
+ *
+ * Deux thèmes : sombre (par défaut) et clair. « Automatique » suit le réglage
+ * d'apparence de macOS ; le choix se fait dans le menu Présentation et pose
+ * `data-theme` sur <html>. La toile des images reste sombre dans les deux
+ * thèmes : les dessins sont des traits blancs sur fond noir.
+ */
+
+:root {
+  /* --- Typographie : la police système du Mac (SF Pro) ------------------ */
+  --ui-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --ui-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --ui-text-xs: 11px; /* raccourcis, légendes, en-têtes de section */
+  --ui-text-sm: 12px; /* barre d'état, listes denses, aides */
+  --ui-text-md: 13px; /* corps du texte, boutons, champs (taille macOS) */
+  --ui-text-lg: 15px; /* titre d'un panneau, nom de l'objet choisi */
+  --ui-text-xl: 20px; /* titre d'un état vide */
+  --ui-weight-regular: 400;
+  --ui-weight-medium: 500;
+  --ui-weight-bold: 600;
+  --ui-line: 1.4;
+
+  /* --- Espacement : grille de 4 px --------------------------------------- */
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-5: 24px;
+  --ui-space-6: 32px;
+
+  /* --- Formes ------------------------------------------------------------- */
+  --ui-radius-sm: 4px; /* pastilles, cases */
+  --ui-radius-md: 6px; /* boutons, champs, lignes de liste */
+  --ui-radius-lg: 10px; /* menus, fenêtres de dialogue, cartes */
+
+  /* --- Dimensions de la fenêtre ------------------------------------------ */
+  --ui-control-h: 26px; /* hauteur d'un bouton ou d'un champ */
+  --ui-row-h: 28px; /* hauteur d'une ligne de liste */
+  --ui-appbar-h: 40px; /* barre des étapes, tout en haut */
+  --ui-toolbar-h: 44px; /* barre d'outils de l'écran */
+  --ui-statusbar-h: 26px; /* barre d'état, tout en bas */
+  --ui-sidebar-w: 240px; /* panneau de gauche : les objets */
+  --ui-inspector-w: 300px; /* panneau de droite : les réglages */
+
+  /* --- Mouvement ---------------------------------------------------------- */
+  --ui-fast: 120ms;
+
+  /* --- Couleurs fixes (identiques dans les deux thèmes) ------------------ */
+  --ui-canvas: #161618; /* toile des images */
+  --ui-canvas-text: #a9a9b0; /* texte posé sur la toile (états vides) */
+  --ui-canvas-text-strong: #f2f2f4;
+  --ui-canvas-text-faint: #7a7a81;
+  --ui-canvas-raised: rgba(255, 255, 255, 0.07);
+  --ui-marker: #ed1c24; /* le rouge du cercle de la mire : repères sur l'image */
+
+  /* --- Couleurs du thème sombre (par défaut) ----------------------------- */
+  color-scheme: dark;
+  --ui-bg: #1e1e20; /* fond de la fenêtre, barre des étapes */
+  --ui-surface: #262628; /* barres et panneaux */
+  --ui-surface-raised: #2f2f32; /* menus, dialogues, cartes */
+  --ui-control: #38383b; /* fond des boutons et des champs */
+  --ui-control-hover: #434347;
+  --ui-field: #1b1b1d; /* fond d'un champ de saisie */
+  --ui-hover: rgba(255, 255, 255, 0.06); /* survol d'une ligne */
+  --ui-border: #3a3a3d; /* contour des contrôles */
+  --ui-border-strong: #56565b;
+  --ui-separator: #303033; /* filets entre zones */
+  --ui-text: #f2f2f4;
+  --ui-text-secondary: #a9a9b0; /* libellés, détails */
+  --ui-text-tertiary: #7a7a81; /* indications, désactivé */
+  --ui-accent: #0a84ff; /* sélection, action principale (bleu système du Mac) */
+  --ui-accent-hover: #3b9bff;
+  --ui-accent-soft: rgba(10, 132, 255, 0.24); /* fond d'une ligne choisie */
+  --ui-on-accent: #ffffff;
+  --ui-focus: rgba(10, 132, 255, 0.55);
+  --ui-success: #32d74b;
+  --ui-warning: #ff9f0a;
+  --ui-danger: #ff453a;
+  --ui-info: #64d2ff;
+  --ui-success-soft: rgba(50, 215, 75, 0.14);
+  --ui-warning-soft: rgba(255, 159, 10, 0.16);
+  --ui-danger-soft: rgba(255, 69, 58, 0.16);
+  --ui-info-soft: rgba(100, 210, 255, 0.14);
+  --ui-shadow: 0 10px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.6);
+  --ui-scrim: rgba(0, 0, 0, 0.45); /* voile derrière un dialogue */
+
+  font-family: var(--ui-font);
+  font-size: var(--ui-text-md);
+  line-height: var(--ui-line);
+  -webkit-font-smoothing: antialiased;
+
+  /* Anciens noms (avant le système de design) : gardés pour le code pas
+     encore converti. Ne plus les employer. */
+  --fond: var(--ui-bg);
+  --surface: var(--ui-surface);
+  --filet: var(--ui-separator);
+  --texte: var(--ui-text);
+  --texte-discret: var(--ui-text-secondary);
+  --repere: var(--ui-marker);
+}
+
+/* --- Thème clair : choisi, ou automatique quand macOS est en clair -------- */
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ui-bg: #e8e8ea;
+  --ui-surface: #f5f5f6;
+  --ui-surface-raised: #ffffff;
+  --ui-control: #ffffff;
+  --ui-control-hover: #f0f0f2;
+  --ui-field: #ffffff;
+  --ui-hover: rgba(0, 0, 0, 0.05);
+  --ui-border: #cfcfd4;
+  --ui-border-strong: #a9a9b0;
+  --ui-separator: #d8d8dc;
+  --ui-text: #1d1d1f;
+  --ui-text-secondary: #5c5c63;
+  --ui-text-tertiary: #8c8c93;
+  --ui-accent: #007aff;
+  --ui-accent-hover: #1a88ff;
+  --ui-accent-soft: rgba(0, 122, 255, 0.16);
+  --ui-on-accent: #ffffff;
+  --ui-focus: rgba(0, 122, 255, 0.45);
+  --ui-success: #1f8a3b;
+  --ui-warning: #b35900;
+  --ui-danger: #d70015;
+  --ui-info: #0070a8;
+  --ui-success-soft: rgba(31, 138, 59, 0.12);
+  --ui-warning-soft: rgba(255, 149, 0, 0.16);
+  --ui-danger-soft: rgba(215, 0, 21, 0.1);
+  --ui-info-soft: rgba(0, 112, 168, 0.1);
+  --ui-shadow: 0 10px 32px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.1);
+  --ui-scrim: rgba(0, 0, 0, 0.25);
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme="auto"] {
+    color-scheme: light;
+    --ui-bg: #e8e8ea;
+    --ui-surface: #f5f5f6;
+    --ui-surface-raised: #ffffff;
+    --ui-control: #ffffff;
+    --ui-control-hover: #f0f0f2;
+    --ui-field: #ffffff;
+    --ui-hover: rgba(0, 0, 0, 0.05);
+    --ui-border: #cfcfd4;
+    --ui-border-strong: #a9a9b0;
+    --ui-separator: #d8d8dc;
+    --ui-text: #1d1d1f;
+    --ui-text-secondary: #5c5c63;
+    --ui-text-tertiary: #8c8c93;
+    --ui-accent: #007aff;
+    --ui-accent-hover: #1a88ff;
+    --ui-accent-soft: rgba(0, 122, 255, 0.16);
+    --ui-on-accent: #ffffff;
+    --ui-focus: rgba(0, 122, 255, 0.45);
+    --ui-success: #1f8a3b;
+    --ui-warning: #b35900;
+    --ui-danger: #d70015;
+    --ui-info: #0070a8;
+    --ui-success-soft: rgba(31, 138, 59, 0.12);
+    --ui-warning-soft: rgba(255, 149, 0, 0.16);
+    --ui-danger-soft: rgba(215, 0, 21, 0.1);
+    --ui-info-soft: rgba(0, 112, 168, 0.1);
+    --ui-shadow: 0 10px 32px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.1);
+    --ui-scrim: rgba(0, 0, 0, 0.25);
+  }
+}

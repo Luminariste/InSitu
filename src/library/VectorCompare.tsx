@@ -21,6 +21,7 @@ import {
   type SettingsDraft,
   type View,
 } from "./vectorLogic";
+import { Button, IconButton, Panel, Property, Section, Segmented, ToolGroup, ToolSeparator, ToolSpacer, Toolbar } from "../ui";
 
 /** Les vecteurs, avec les adresses déjà prêtes à afficher. */
 export interface ShownVectors extends VectorSummary {
@@ -176,44 +177,29 @@ export function VectorCompare({ name, vectors, backdrop, editable, busy, error, 
 
   return (
     <div className="vc" role="dialog" aria-label={`Comparer image et vecteurs : ${name}`}>
-      <header className="vc-bar">
+      <Toolbar label="Comparaison">
         <strong className="vc-title" title={name}>
           {name}
         </strong>
-        <div className="vc-modes" role="radiogroup" aria-label="Affichage">
-          {MODES.map((m) => (
-            <button
-              type="button"
-              key={m.value}
-              role="radio"
-              aria-checked={mode === m.value}
-              className={mode === m.value ? "actif" : ""}
-              title={m.title}
-              onClick={() => setMode(m.value)}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-        <div className="vc-zoom">
-          <button type="button" onClick={() => zoomBy(1 / 1.5)} aria-label="Zoom arrière">
-            −
-          </button>
+        <ToolSeparator />
+        <Segmented label="Affichage" value={mode} onChange={setMode} options={MODES} />
+        <ToolSpacer />
+        <ToolGroup label="Zoom">
+          <IconButton icon="minus" label="Zoom arrière" onClick={() => zoomBy(1 / 1.5)} />
           <span className="vc-scale">{view ? scaleLabel(view.scale) : "—"}</span>
-          <button type="button" onClick={() => zoomBy(1.5)} aria-label="Zoom avant">
-            +
-          </button>
-          <button type="button" onClick={fit}>
+          <IconButton icon="plus" label="Zoom avant" onClick={() => zoomBy(1.5)} />
+          <Button icon="fit" onClick={fit}>
             Ajuster
-          </button>
-          <button type="button" onClick={actualSize} title="Un pixel du dessin par pixel d'écran">
+          </Button>
+          <Button onClick={actualSize} title="Un pixel du dessin par pixel d'écran">
             100 %
-          </button>
-        </div>
-        <button type="button" className="vc-close" onClick={onClose}>
+          </Button>
+        </ToolGroup>
+        <ToolSeparator />
+        <Button icon="close" onClick={onClose} title="Revenir à la bibliothèque (Échap)">
           Fermer
-        </button>
-      </header>
+        </Button>
+      </Toolbar>
 
       <div className="vc-body">
         <div
@@ -257,94 +243,91 @@ export function VectorCompare({ name, vectors, backdrop, editable, busy, error, 
           {busy && vectors && <p className="vc-busy">Nouveaux vecteurs en cours…</p>}
         </div>
 
-        <aside className="vc-side">
-          <h3>Vectorisation</h3>
-          {vectors ? (
-            <dl>
-              <dt>Contours</dt>
-              <dd>
-                {frNumber(vectors.stats.contours)}
-                {vectors.stats.removedContours > 0 && ` (${frNumber(vectors.stats.removedContours)} retirés)`}
-              </dd>
-              <dt>Morceaux</dt>
-              <dd>
-                {frNumber(vectors.stats.lines + vectors.stats.cubics)} ({frNumber(vectors.stats.lines)} droites,{" "}
-                {frNumber(vectors.stats.cubics)} courbes)
-              </dd>
-              <dt>Écart maximal</dt>
-              <dd className={verdict?.good ? "vc-bon" : "vc-mauvais"}>{frNumber(vectors.comparison.maxDeviationPx, 2)} px</dd>
-              <dt>Pixels différents</dt>
-              <dd>
-                {frNumber(vectors.comparison.mismatchedPixels)} sur {frNumber(vectors.comparison.sourcePixels)}
-              </dd>
-              <dt>Taille</dt>
-              <dd>
-                {frNumber(vectors.width)} × {frNumber(vectors.height)} px
-              </dd>
-              <dt>Calcul</dt>
-              <dd>{frNumber(vectors.seconds, 1)} s</dd>
-            </dl>
-          ) : (
-            <p className="vc-note">…</p>
-          )}
-          {verdict && <p className="vc-note">{verdict.text}</p>}
+        <Panel side="right" title="Vectorisation">
+          <Section>
+            {vectors ? (
+              <dl className="ui-facts">
+                <dt>Contours</dt>
+                <dd>
+                  {frNumber(vectors.stats.contours)}
+                  {vectors.stats.removedContours > 0 && ` (${frNumber(vectors.stats.removedContours)} retirés)`}
+                </dd>
+                <dt>Morceaux</dt>
+                <dd>
+                  {frNumber(vectors.stats.lines + vectors.stats.cubics)} ({frNumber(vectors.stats.lines)} droites,{" "}
+                  {frNumber(vectors.stats.cubics)} courbes)
+                </dd>
+                <dt>Écart maximal</dt>
+                <dd className={verdict?.good ? "vc-bon" : "vc-mauvais"}>{frNumber(vectors.comparison.maxDeviationPx, 2)} px</dd>
+                <dt>Pixels différents</dt>
+                <dd>
+                  {frNumber(vectors.comparison.mismatchedPixels)} sur {frNumber(vectors.comparison.sourcePixels)}
+                </dd>
+                <dt>Taille</dt>
+                <dd>
+                  {frNumber(vectors.width)} × {frNumber(vectors.height)} px
+                </dd>
+                <dt>Calcul</dt>
+                <dd>{frNumber(vectors.seconds, 1)} s</dd>
+              </dl>
+            ) : (
+              <p className="vc-note">…</p>
+            )}
+            {verdict && <p className="vc-note">{verdict.text}</p>}
+          </Section>
 
-          <h3>
-            Réglages du dessin
-            {vectors && <span className="vc-tag">{vectors.defaultSettings ? "par défaut" : "propres à ce dessin"}</span>}
-          </h3>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (changed && "settings" in parsed) onApply(isDefault(parsed.settings) ? null : parsed.settings);
-            }}
-          >
-            {FIELDS.map((field) => (
-              <label key={field.key} className="vc-field" title={field.help}>
-                <span>
-                  {field.label} <small>({field.unit})</small>
-                </span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={draft[field.key]}
-                  disabled={!editable || busy}
-                  onChange={(event) => setDraft({ ...draft, [field.key]: event.target.value })}
-                />
-                {field.key === "threshold" && (
+          <Section title={vectors && !vectors.defaultSettings ? "Réglages propres à ce dessin" : "Réglages (par défaut)"}>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (changed && "settings" in parsed) onApply(isDefault(parsed.settings) ? null : parsed.settings);
+              }}
+            >
+              {FIELDS.map((field) => (
+                <Property key={field.key} label={`${field.label} (${field.unit})`} hint={field.key === "threshold" ? field.help : undefined}>
                   <input
-                    type="range"
-                    min={1}
-                    max={255}
-                    value={Number(draft.threshold) || 128}
+                    className={field.key === "threshold" ? "ui-input vc-threshold" : "ui-input"}
+                    type="text"
+                    inputMode="decimal"
+                    title={field.help}
+                    aria-label={field.label}
+                    value={draft[field.key]}
                     disabled={!editable || busy}
-                    onChange={(event) => setDraft({ ...draft, threshold: event.target.value })}
-                    aria-label="Seuil"
+                    onChange={(event) => setDraft({ ...draft, [field.key]: event.target.value })}
                   />
-                )}
-              </label>
-            ))}
-            {"error" in parsed && <p className="vc-erreur">{parsed.error}</p>}
-            {error && vectors && <p className="vc-erreur">{error}</p>}
-            <div className="vc-actions">
-              <button type="submit" className="vc-primary" disabled={!editable || busy || !changed}>
-                Appliquer
-              </button>
-              <button
-                type="button"
-                disabled={!editable || busy || !vectors || vectors.defaultSettings}
-                onClick={() => onApply(null)}
-              >
-                Réglages par défaut
-              </button>
-            </div>
-            {!editable && <p className="vc-note">Dans l'app seulement : ici, les vecteurs sont un exemple.</p>}
-          </form>
-          <p className="vc-note">
-            Molette ou pincement : zoom. Glisser : déplacer. À partir de 200 %, les pixels de l'image se voient tels
-            quels ; le contour rouge doit longer le bord du trait.
-          </p>
-        </aside>
+                  {field.key === "threshold" && (
+                    <input
+                      type="range"
+                      min={1}
+                      max={255}
+                      value={Number(draft.threshold) || 128}
+                      disabled={!editable || busy}
+                      onChange={(event) => setDraft({ ...draft, threshold: event.target.value })}
+                      aria-label="Seuil"
+                    />
+                  )}
+                </Property>
+              ))}
+              {"error" in parsed && <p className="vc-erreur">{parsed.error}</p>}
+              {error && vectors && <p className="vc-erreur">{error}</p>}
+              <div className="vc-actions">
+                <Button type="submit" variant="primary" disabled={!editable || busy || !changed}>
+                  Appliquer
+                </Button>
+                <Button disabled={!editable || busy || !vectors || vectors.defaultSettings} onClick={() => onApply(null)}>
+                  Réglages par défaut
+                </Button>
+              </div>
+              {!editable && <p className="vc-note">Dans l'app seulement : ici, les vecteurs sont un exemple.</p>}
+            </form>
+          </Section>
+          <Section>
+            <p className="vc-note">
+              Molette ou pincement : zoom. Glisser : déplacer. À partir de 200 %, les pixels de l'image se voient tels
+              quels ; le contour rouge doit longer le bord du trait.
+            </p>
+          </Section>
+        </Panel>
       </div>
     </div>
   );

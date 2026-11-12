@@ -7,15 +7,15 @@ deux projecteurs, avec leur surface.
 
 ## Avant de commencer
 
-- Le plan de la façade est importé et mis à l'échelle (onglet **Façade**).
-- Chaque projecteur à montrer est redressé (onglet **Redressement**) puis
-  recalé avec au moins 4 paires de points (onglet **Recalage**).
+- Le plan de la façade est importé et mis à l'échelle (étape **Façade**).
+- Chaque projecteur à montrer est redressé (étape **Redressement**) puis
+  recalé avec au moins 4 paires de points (étape **Recalage**).
 
 ## Dans l'app
 
-1. Onglet **Façade**. Le panneau **Projecteurs**, à droite, se remplit à
-   l'ouverture du projet. Après un recalage fait dans l'autre onglet,
-   cliquer **Relire**.
+1. Étape **Façade**. Le panneau **Projecteurs**, à gauche, se remplit à
+   l'ouverture du projet. Après un recalage fait dans une autre étape,
+   cliquer la flèche circulaire de son en-tête (ou ⌘R).
 2. Chaque projecteur a sa couleur, celle de son emprise. À côté : le nombre
    de points du recalage et la surface couverte en m². Un projecteur pas
    encore recalé est grisé, avec ce qui lui manque.
@@ -44,6 +44,6 @@ rectangles ; dans l'app, c'est le moteur qui les calcule exactement.
 ## Limites connues
 
 - Les photos sont des aperçus de 1 024 px (voir D-3.3-b) : pour juger d'un
-  détail fin, utiliser l'onglet Recalage.
+  détail fin, utiliser l'étape Recalage.
 - La surface d'un recouvrement est mesurée sur une grille fine (D-3.3-d),
   à environ 1/400 près.
