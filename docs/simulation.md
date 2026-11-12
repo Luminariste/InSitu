@@ -5,7 +5,7 @@ telles qu'elles seront projetées, et signale ce qui ne va pas.
 
 ## Dans l'app
 
-1. Étape **Façade**, panneau de gauche, rubrique **Simulation** :
+1. Étape **Façade**, panneau de droite, onglet **Export**, rubrique **Simulation** :
    **Simuler**. L'app calcule la diapositive de chaque projecteur recalé (la
    même que dans la vue Diapositive) et la pose sur la façade, teinte de la
    couleur du projecteur. Là où deux diapositives allument le même point,

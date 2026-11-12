@@ -77,6 +77,9 @@ pub struct TileOptions {
     pub jpeg_quality: u8,
     /// Nombre de fils d'exécution ; `None` utilise tous les cœurs.
     pub threads: Option<usize>,
+    /// Quarts de tour (sens des aiguilles d'une montre) appliqués à l'image
+    /// avant découpe : le plan de façade tourné (D15-k).
+    pub quarter_turns: u8,
 }
 
 impl Default for TileOptions {
@@ -86,6 +89,7 @@ impl Default for TileOptions {
             format: None,
             jpeg_quality: 88,
             threads: None,
+            quarter_turns: 0,
         }
     }
 }
@@ -248,6 +252,36 @@ impl Raster {
             channels,
             data,
         }
+    }
+
+    /// L'image tournée de `quarter_turns` quarts de tour dans le sens des
+    /// aiguilles d'une montre (y vers le bas) : exact, sans rééchantillonner.
+    pub fn rotated(self, quarter_turns: u8) -> Raster {
+        let turns = quarter_turns % 4;
+        if turns == 0 {
+            return self;
+        }
+        let (w, h, c) = (
+            self.width as usize,
+            self.height as usize,
+            self.channels as usize,
+        );
+        let (out_w, out_h) = if turns % 2 == 1 { (h, w) } else { (w, h) };
+        let mut data = vec![0u8; self.data.len()];
+        for y in 0..out_h {
+            for x in 0..out_w {
+                // Pixel source qui arrive en (x, y).
+                let (sx, sy) = match turns {
+                    1 => (y, h - 1 - x),
+                    2 => (w - 1 - x, h - 1 - y),
+                    _ => (w - 1 - y, x),
+                };
+                let from = (sy * w + sx) * c;
+                let to = (y * out_w + x) * c;
+                data[to..to + c].copy_from_slice(&self.data[from..from + c]);
+            }
+        }
+        Raster::new(out_w as u32, out_h as u32, self.channels, data)
     }
 
     /// Copie d'un rectangle de l'image.
@@ -438,7 +472,7 @@ pub fn build_pyramid(
     out_dir: &Path,
     options: &TileOptions,
 ) -> Result<Pyramid, TileError> {
-    let raster = read_raster(image_path)?;
+    let raster = read_raster(image_path)?.rotated(options.quarter_turns);
     build_pyramid_from_raster(raster, out_dir, options)
 }
 
@@ -629,8 +663,14 @@ fn cache_key(image_path: &Path, options: &TileOptions) -> Result<String, TileErr
         .ok()
         .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
         .map_or(0, |since| since.as_nanos());
+    // Les quarts de tour n'entrent dans la clé que s'il y en a : les
+    // pyramides déjà faites gardent leur clé.
+    let turns = match options.quarter_turns % 4 {
+        0 => String::new(),
+        n => format!("|q{n}"),
+    };
     let identity = format!(
-        "{}|{}|{modified}|{}|{:?}|{}|v{PYRAMID_VERSION}",
+        "{}|{}|{modified}|{}|{:?}|{}{turns}|v{PYRAMID_VERSION}",
         canonical.display(),
         metadata.len(),
         options.tile_size,

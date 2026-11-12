@@ -1,8 +1,11 @@
 // Fresque et export des diapositives (tâche 3.5), dans l'inspecteur (à droite)
 // de l'écran Façade : importer la fresque en une image, régler l'export,
-// écrire un PNG par projecteur recalé.
+// écrire un PNG par projecteur recalé. Les deux rubriques vont dans deux
+// onglets (Fresque, Export, D15-i) mais partagent leur état : le crochet
+// `useExportPanel` les rend toutes deux, et reste actif (⌘E) quel que soit
+// l'onglet affiché.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   chooseExportFolder,
   chooseFrescoFile,
@@ -34,13 +37,18 @@ interface Props {
   onShowFresco: (show: boolean) => void;
 }
 
-export function ExportPanel({ engine, folder, project, onProject, showFresco, onShowFresco }: Props) {
+export function useExportPanel({ engine, folder, project, onProject, showFresco, onShowFresco }: Props): {
+  fresco: ReactNode;
+  export: ReactNode;
+} {
   const [settings, setSettings] = useState<ExportSettings>(() => exportSettingsOf(project?.export));
   const [dpiText, setDpiText] = useState(String(settings.dpi));
   const [busy, setBusy] = useState<string | null>(null);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Rubrique où montrer l'avancement et le compte rendu. */
+  const [origin, setOrigin] = useState<"fresco" | "export">("export");
 
   // Un autre projet : ses réglages.
   useEffect(() => {
@@ -58,7 +66,8 @@ export function ExportPanel({ engine, folder, project, onProject, showFresco, on
   const ready = engine && folder !== null && busy === null;
   const set = (patch: Partial<ExportSettings>) => setSettings({ ...settings, ...patch });
 
-  const run = async (label: string, task: () => Promise<void>) => {
+  const run = async (label: string, task: () => Promise<void>, from: "fresco" | "export" = "export") => {
+    setOrigin(from);
     setBusy(label);
     setError(null);
     setMessage(null);
@@ -79,7 +88,7 @@ export function ExportPanel({ engine, folder, project, onProject, showFresco, on
       if (!path) return;
       onProject(await importFresco(folder, path));
       onShowFresco(true);
-    });
+    }, "fresco");
 
   const exportAll = () =>
     run("Export des diapositives…", async () => {
@@ -109,10 +118,25 @@ export function ExportPanel({ engine, folder, project, onProject, showFresco, on
   const dpiValue = Number(dpiText.replace(",", "."));
   useShortcuts([{ keys: "mod+e", run: () => void exportAll(), enabled: ready && artwork }]);
 
-  return (
-    <>
+  const notes = (from: "fresco" | "export") =>
+    origin === from && (
+      <>
+        {busy && !progress && <p className="ui-note">{busy}</p>}
+        {message && <p className="ui-note tone-success">{message}</p>}
+        {error && <p className="ui-note tone-danger">{error}</p>}
+      </>
+    );
+
+  return {
+    fresco: (
       <Section title="Fresque">
-        <p>{fresco ? fileName(fresco.source) : engine ? "Aucune fresque importée." : "Dans l'app seulement."}</p>
+        <p>
+          {fresco
+            ? fileName(fresco.vector?.source ?? fresco.source)
+            : engine
+              ? "Aucune fresque importée. Image, PDF, Illustrator (.ai) ou SVG."
+              : "Dans l'app seulement."}
+        </p>
         <div className="facade-export-row">
           <Button icon="import" onClick={() => void importOne()} disabled={!ready || !scaled}>
             {fresco ? "Remplacer…" : "Importer la fresque…"}
@@ -127,8 +151,10 @@ export function ExportPanel({ engine, folder, project, onProject, showFresco, on
         {engine && folder && !scaled && (
           <p className="ui-note tone-warning">Mettre d'abord le plan à l'échelle : la fresque couvre toute sa largeur.</p>
         )}
+        {notes("fresco")}
       </Section>
-
+    ),
+    export: (
       <Section title="Export des diapositives">
         <fieldset className="facade-export-options" disabled={busy !== null}>
           <Property label="Résolution" hint={validDpi(dpiValue) ? exportSizeLabel({ ...settings, dpi: dpiValue }) : "De 50 à 3 000 dpi"}>
@@ -195,10 +221,8 @@ export function ExportPanel({ engine, folder, project, onProject, showFresco, on
             label={progress.current ? `Diapositive ${progress.current} (${progress.done + 1} sur ${progress.total})…` : "Fin de l'écriture…"}
           />
         )}
-        {busy && !progress && <p className="ui-note">{busy}</p>}
-        {message && <p className="ui-note tone-success">{message}</p>}
-        {error && <p className="ui-note tone-danger">{error}</p>}
+        {notes("export")}
       </Section>
-    </>
-  );
+    ),
+  };
 }

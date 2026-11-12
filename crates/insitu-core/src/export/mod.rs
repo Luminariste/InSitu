@@ -20,6 +20,7 @@
 //! seule ; niveaux de gris ou noir et blanc pur (1 bit) seuillé.
 
 pub mod drawings;
+pub mod fresco;
 pub mod marks;
 pub mod preview;
 pub mod svg;
@@ -38,7 +39,8 @@ use crate::placement::assign::{assignments, slide_placements_in};
 use crate::project::model::RectMm;
 use crate::project::store::write_atomic;
 use crate::project::{
-    AssetKind, ExportSettings, FrescoImage, Placement, Project, ProjectDir, ProjectError,
+    AssetKind, ExportSettings, FrescoImage, FrescoVector, Placement, Project, ProjectDir,
+    ProjectError,
 };
 use crate::registration::slide_to_facade;
 use crate::resample::{warp_raster, WarpOptions};
@@ -103,13 +105,38 @@ impl From<ProjectError> for ExportError {
 /// façade : sur `frame` si donné (mm de façade), sinon sur toute la largeur
 /// de la façade, à partir du coin haut-gauche, en gardant ses proportions.
 /// Remplace la fresque précédente.
+///
+/// L'image peut être un PNG, TIFF, JPEG ou BMP, ou un fichier vectoriel :
+/// PDF, Illustrator (`.ai` compatible PDF) ou SVG (voir [`fresco`]).
 pub fn import_fresco(
     dir: &ProjectDir,
     source: &Path,
     frame: Option<RectMm>,
 ) -> Result<Project, ExportError> {
+    import_fresco_page(dir, source, frame, None)
+}
+
+/// Comme [`import_fresco`] ; `page` (à partir de 1) choisit la page d'un PDF
+/// ou d'un `.ai` à plusieurs plans de travail. Absente : la première.
+pub fn import_fresco_page(
+    dir: &ProjectDir,
+    source: &Path,
+    frame: Option<RectMm>,
+    page: Option<u32>,
+) -> Result<Project, ExportError> {
     let mut project = dir.load()?.project;
-    let (width, height) = image_size(source)?;
+    let format = fresco::format_of(source)?;
+    let vector = match format {
+        fresco::FrescoFormat::Raster => None,
+        _ => Some(fresco::VectorFresco::open(source, page.unwrap_or(1))?),
+    };
+    let (width, height) = match &vector {
+        Some(v) => v.size(),
+        None => {
+            let (w, h) = image_size(source)?;
+            (f64::from(w), f64::from(h))
+        }
+    };
     let frame = match frame {
         Some(frame) => frame,
         None => {
@@ -122,7 +149,7 @@ pub fn import_fresco(
                 x: 0.0,
                 y: 0.0,
                 width: facade_width,
-                height: facade_width * f64::from(height) / f64::from(width),
+                height: facade_width * height / width,
             }
         }
     };
@@ -131,14 +158,61 @@ pub fn import_fresco(
             "le rectangle de la fresque doit avoir une largeur et une hauteur positives".into(),
         ));
     }
-    let stored = dir.import_file(source, AssetKind::Fresco)?;
+    let (stored, vector) = match vector {
+        None => (dir.import_file(source, AssetKind::Fresco)?, None),
+        Some(v) => {
+            // Le rendu pour l'affichage, puis le fichier d'origine.
+            let display = v.render_whole(fresco::DISPLAY_SIDE_PX, 0);
+            let stem = source
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "fresque".into());
+            let bytes = crate::library::encode_png(&display).map_err(ExportError::Image)?;
+            let temp = TempFolder::new()?;
+            let png = temp.0.join(format!("{stem}-apercu.png"));
+            std::fs::write(&png, bytes)
+                .map_err(|e| ExportError::Image(format!("{} : {e}", png.display())))?;
+            let stored = dir.import_file(&png, AssetKind::Fresco)?;
+            let original = dir.import_file(source, AssetKind::Fresco)?;
+            (
+                stored,
+                Some(FrescoVector {
+                    source: original,
+                    page: page.filter(|_| format == fresco::FrescoFormat::Pdf),
+                }),
+            )
+        }
+    };
     project.fresco = Some(FrescoImage {
         source: stored,
         frame,
+        vector,
         extra: Default::default(),
     });
     dir.save(&project)?;
     Ok(project)
+}
+
+/// Dossier temporaire effacé à la fin.
+struct TempFolder(PathBuf);
+
+impl TempFolder {
+    fn new() -> Result<Self, ExportError> {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos());
+        let path =
+            std::env::temp_dir().join(format!("insitu-fresque-{}-{nanos}", std::process::id()));
+        std::fs::create_dir_all(&path)
+            .map_err(|e| ExportError::Image(format!("{} : {e}", path.display())))?;
+        Ok(Self(path))
+    }
+}
+
+impl Drop for TempFolder {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
 }
 
 fn image_size(path: &Path) -> Result<(u32, u32), ExportError> {
@@ -498,9 +572,18 @@ pub fn export_slides(
         total,
         current: Some(todo[0].1.clone()),
     });
-    let image = match &fresco {
-        Some(f) => Some(read_fresco(&dir.resolve(&f.source))?),
+    // Une fresque vectorielle est relue pour chaque diapositive, à sa
+    // résolution ; une image l'est une fois pour toutes.
+    let vector = match fresco.as_ref().and_then(|f| f.vector.as_ref()) {
+        Some(v) => Some(fresco::VectorFresco::open(
+            &dir.resolve(&v.source),
+            v.page.unwrap_or(1),
+        )?),
         None => None,
+    };
+    let image = match (&fresco, &vector) {
+        (Some(f), None) => Some(read_fresco(&dir.resolve(&f.source))?),
+        _ => None,
     };
     let px_mm = units::px_size_mm(settings.dpi);
     let (side, _) = sizes_px(settings.dpi);
@@ -526,8 +609,15 @@ pub fn export_slides(
             })
             .collect();
         cache.load(dir, &project, &seen, px_mm)?;
+        let crop = match (&vector, &fresco) {
+            (Some(v), Some(f)) => v.crop_for_slide(&f.frame, warp, px_mm, threads),
+            _ => None,
+        };
         let art = Artwork {
-            fresco: image.as_ref().zip(fresco.as_ref().map(|f| &f.frame)),
+            fresco: match &crop {
+                Some((raster, frame)) => Some((raster, frame)),
+                None => image.as_ref().zip(fresco.as_ref().map(|f| &f.frame)),
+            },
             drawings: cache.pair(&seen),
             projector: Some(id),
         };

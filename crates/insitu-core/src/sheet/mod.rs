@@ -140,9 +140,18 @@ fn plan_image(dir: &ProjectDir, project: &Project) -> Option<PlanImage> {
     let size_mm = facade.size_mm()?;
     let path = dir.resolve(&facade.source);
     let rgba = match SourceKind::of(&path).ok()? {
-        SourceKind::Image => crate::photo::read(&path).ok()?.into_rgba8(),
+        SourceKind::Image => {
+            let image = crate::photo::read(&path).ok()?;
+            match facade.rotation % 4 {
+                1 => image.rotate90(),
+                2 => image.rotate180(),
+                3 => image.rotate270(),
+                _ => image,
+            }
+            .into_rgba8()
+        }
         _ => {
-            let (w, h, data) = render_whole(&path, facade.page, PLAN_PX).ok()?;
+            let (w, h, data) = render_whole(&path, facade.page, facade.rotation, PLAN_PX).ok()?;
             image::RgbaImage::from_raw(w, h, data)?
         }
     };
@@ -167,13 +176,14 @@ fn plan_image(dir: &ProjectDir, project: &Project) -> Option<PlanImage> {
     Some(PlanImage { image, size_mm })
 }
 
-/// La vignette d'une diapositive (aperçu du cache) : traits noirs sur blanc.
+/// La vignette d'une diapositive (aperçu du cache) : traits blancs sur noir,
+/// comme la plaque gravée (D-6.2-e).
 fn thumbnail(path: &Path) -> Result<GrayImage, ExportError> {
     let raster = tiles::read_raster(path).map_err(|e| ExportError::Image(e.to_string()))?;
     let lit = crate::simulation::LitSlide::from_raster(&raster);
     let side = lit.side;
     let gray = GrayImage::from_fn(side, side, |x, y| {
-        image::Luma([255 - lit.data[(y * side + x) as usize]])
+        image::Luma([lit.data[(y * side + x) as usize]])
     });
     Ok(image::imageops::resize(
         &gray,

@@ -208,6 +208,95 @@ export function Panel({
   );
 }
 
+// --- Onglets d'un panneau ----------------------------------------------------------------
+
+export interface TabSpec<T extends string> {
+  value: T;
+  label: string;
+  icon: IconName;
+  /** Bulle d'aide : ce que l'onglet règle. */
+  title?: string;
+  /** Pastille : un nombre (sélection) ou un point coloré (à faire). */
+  badge?: number | Tone;
+  disabled?: boolean;
+}
+
+/** Panneau de propriétés en onglets (D15-i) : une rangée d'onglets icône et
+ *  libellé à la place du titre, un seul contenu visible. Tous les contenus
+ *  restent montés (cachés), pour garder leurs raccourcis et leur saisie. */
+export function TabbedPanel<T extends string>({
+  label,
+  side,
+  tabs,
+  value,
+  onChange,
+  panes,
+  className,
+}: {
+  label: string;
+  side: "left" | "right";
+  tabs: TabSpec<T>[];
+  value: T;
+  onChange: (value: T) => void;
+  panes: Record<T, ReactNode>;
+  className?: string;
+}) {
+  const id = useId();
+  const onKey = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
+    if (!step) return;
+    event.preventDefault();
+    const usable = tabs.filter((t) => !t.disabled);
+    const index = usable.findIndex((t) => t.value === value);
+    const next = usable[(index + step + usable.length) % usable.length];
+    onChange(next.value);
+    document.getElementById(`${id}-tab-${next.value}`)?.focus();
+  };
+  return (
+    <aside className={cx("ui-panel", "ui-tabbed", side === "left" ? "ui-sidebar" : "ui-inspector", className)} aria-label={label}>
+      <div className="ui-tabs" role="tablist" aria-label={label} onKeyDown={onKey}>
+        {tabs.map((t) => {
+          const selected = t.value === value;
+          return (
+            <button
+              key={t.value}
+              id={`${id}-tab-${t.value}`}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-controls={`${id}-pane-${t.value}`}
+              tabIndex={selected ? 0 : -1}
+              className={selected ? "is-selected" : undefined}
+              disabled={t.disabled}
+              title={t.title ?? t.label}
+              onClick={() => onChange(t.value)}
+            >
+              <span className="ui-tab-icon">
+                <Icon name={t.icon} />
+                {typeof t.badge === "number" && t.badge > 0 && <span className="ui-tab-count">{t.badge}</span>}
+                {typeof t.badge === "string" && <span className={cx("ui-tab-dot", `tone-${t.badge}`)} />}
+              </span>
+              <span className="ui-tab-label">{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      {tabs.map((t) => (
+        <div
+          key={t.value}
+          id={`${id}-pane-${t.value}`}
+          role="tabpanel"
+          aria-labelledby={`${id}-tab-${t.value}`}
+          className="ui-panel-body"
+          hidden={t.value !== value}
+        >
+          {panes[t.value]}
+        </div>
+      ))}
+    </aside>
+  );
+}
+
 /** Rubrique d'un panneau : un titre en petites capitales, un contenu. */
 export function Section({ title, actions, children, className }: { title?: string; actions?: ReactNode; children: ReactNode; className?: string }) {
   return (
@@ -526,6 +615,76 @@ export function MenuButton({
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Menu au clic droit, posé au point (`x`, `y`) de la fenêtre. Échap, un clic
+ * ailleurs ou un défilement le referme ; mêmes entrées que `MenuButton`.
+ */
+export function ContextMenu({ x, y, items, onClose }: { x: number; y: number; items: MenuEntry[]; onClose: () => void }) {
+  const list = useRef<HTMLDivElement>(null);
+  const [at, setAt] = useState({ x, y });
+  useEffect(() => {
+    const close = (event: Event) => {
+      if (!list.current?.contains(event.target as Node)) onClose();
+    };
+    const key = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("mousedown", close);
+    window.addEventListener("wheel", close, { passive: true });
+    window.addEventListener("keydown", key, true);
+    // Reste dans la fenêtre : le menu remonte ou part à gauche s'il dépasse.
+    const box = list.current?.getBoundingClientRect();
+    if (box) setAt({ x: Math.max(4, Math.min(x, window.innerWidth - box.width - 4)), y: Math.max(4, Math.min(y, window.innerHeight - box.height - 4)) });
+    list.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("wheel", close);
+      window.removeEventListener("keydown", key, true);
+    };
+  }, [x, y, onClose]);
+  const onKeyDown = (event: ReactKeyboardEvent) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    const buttons = [...(list.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? [])];
+    const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    buttons[(i + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length]?.focus();
+  };
+  return (
+    <div className="ui-menu ui-context-menu" role="menu" ref={list} style={{ left: at.x, top: at.y }} onKeyDown={onKeyDown} onContextMenu={(e) => e.preventDefault()}>
+      {items.map((item, i) => {
+        if ("separator" in item) return <div key={i} className="ui-menu-separator" role="separator" />;
+        if ("heading" in item)
+          return (
+            <div key={i} className="ui-menu-heading">
+              {item.heading}
+            </div>
+          );
+        return (
+          <button
+            key={i}
+            type="button"
+            role={item.checked === undefined ? "menuitem" : "menuitemradio"}
+            aria-checked={item.checked}
+            className={cx("ui-menu-item", item.danger && "is-danger")}
+            disabled={item.disabled}
+            onClick={() => {
+              onClose();
+              item.onSelect();
+            }}
+          >
+            <span className="ui-menu-check">{item.checked ? <Icon name="check" size={12} /> : item.icon ? <Icon name={item.icon} size={14} /> : null}</span>
+            <span className="ui-menu-label">{item.label}</span>
+            {item.shortcut && <span className="ui-menu-shortcut">{formatShortcut(item.shortcut, isMac())}</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }

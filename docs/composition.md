@@ -7,8 +7,8 @@ l'échelle** : les dessins sont posés en vraies dimensions (mm de façade).
 ## Poser un dessin
 
 1. Importer des dessins dans l'étape Bibliothèque (⌘5) si ce n'est pas fait.
-2. Dans l'étape Façade, la rubrique **Dessins** (panneau de gauche, sous les
-   projecteurs) montre la bibliothèque ; un champ permet de chercher.
+2. Dans l'étape Façade, l'onglet **Dessins** du panneau de droite montre la
+   bibliothèque (rubrique **Dessins**) ; un champ permet de chercher.
 3. Glisser une vignette sur le plan. Le dessin arrive au point de chute, large
    du quart de ce qu'on voit, aux proportions du fichier. Un double-clic sur
    la vignette le pose au centre de la vue.
@@ -25,7 +25,8 @@ Tout s'enregistre dans le projet à la fin de chaque geste.
 | Cliquer dans le vide | Plus rien de choisi |
 | Glisser un dessin choisi | Le déplacer ; ⇧ : à l'horizontale, à la verticale ou à 45° |
 | ⌥-glisser | Déplacer une copie |
-| Poignée de coin (carré blanc) | Agrandir ou réduire, proportions gardées ; ⌥ : depuis le centre |
+| Poignée de coin (carré blanc) | Étirer en largeur et en hauteur à la fois ; ⇧ : proportions gardées ; ⌥ : depuis le centre |
+| Poignée au milieu d'un côté | Étirer seulement en largeur (côtés gauche et droit) ou en hauteur (haut et bas) ; ⌥ : depuis le centre |
 | Juste au-delà d'un coin | Tourner autour du centre ; ⇧ : par pas de 45° |
 | Espace + glisser, ou défiler à deux doigts | Déplacer la vue |
 
@@ -45,22 +46,27 @@ Tout s'enregistre dans le projet à la fin de chaque geste.
 Sur un clavier français, les « crochets » sont les deux touches à droite du P
 (^ et $).
 
-## Inspecteur (à droite)
+## Outils (barre du haut) et mesures (à droite)
 
-La rubrique **Dessins posés** apparaît quand un dessin est choisi :
+Les outils sont des icônes dans la barre d'outils, en haut de l'écran
+Façade ; ils agissent sur les dessins choisis (bulle d'aide au survol) :
 
-- centre X et Y, largeur (la hauteur suit) : taper par exemple `2,5 m`,
-  `250 cm` ou `2500`, puis ↩ ;
-- rotation en degrés (un seul dessin) ; boutons ↺ 90° et ↻ 90° ;
-- symétries ⇆ (gauche-droite) et ⇅ (haut-bas) ;
+- tourner d'un quart de tour à gauche ou à droite ; symétries gauche-droite
+  et haut-bas ;
+- déformer : quatre coins, grille (menu), redresser ;
 - avec plusieurs dessins : aligner à gauche, au centre, à droite, en haut, au
   milieu, en bas ; répartir l'espacement (trois dessins ou plus) ; un groupe
   compte pour un seul bloc ;
-- grouper, dégrouper, premier plan, arrière-plan, retirer.
+- premier plan, avancer, reculer, arrière-plan ; grouper, dégrouper.
+
+La rubrique **Dessins posés** (onglet **Dessins**, qui s'ouvre seul) apparaît
+quand un dessin est choisi : centre X et Y, largeur (la hauteur suit ; taper
+par exemple `2,5 m`, `250 cm` ou `2500`, puis ↩), rotation en degrés (un seul
+dessin), calque, diapositive, retirer.
 
 ## Calques (tâche 4.3)
 
-La rubrique « Calques », dans le panneau de gauche, au-dessus des dessins.
+L'onglet « Calques », dans le panneau de droite.
 Le calque du haut de la liste est devant.
 
 - **+** : nouveau calque, juste au-dessus du calque choisi.
@@ -84,7 +90,7 @@ d'écraser ce changement.
 
 ## Déformer (tâche 4.4)
 
-Dans l'inspecteur, rubrique « Déformation » :
+Dans la barre d'outils, groupe des déformations :
 
 - **Quatre coins** : quatre points bleus aux coins du dessin ; on les tire
   comme les coins d'un trapèze (les droites restent droites).
@@ -129,6 +135,31 @@ la choisir à la main (les diapositives qui couperaient le dessin sont
 signalées). Ce choix reste, même si l'on déplace le dessin, jusqu'à ce
 qu'on revienne à « Automatique ». ⌘Z l'annule.
 
+### Arborescence « Diapositives »
+
+La rubrique **Diapositives** range les dessins posés par diapositive, comme
+les calques d'Illustrator : un groupe par projecteur recalé (même couleur
+que son emprise), et « Hors de toute diapositive » pour les dessins qui ne
+tombent dans aucune emprise. Dans un groupe, le dessin du haut est devant.
+
+- **Clic** sur une ligne : choisit ce dessin (et son groupe) sur la façade.
+  **⌘-clic** l'ajoute à la sélection ou l'en retire ; **⇧-clic** choisit
+  toutes les lignes entre la dernière cliquée et celle-ci.
+- **Œil** (au survol de la ligne) : masque le dessin. Masqué, il ne
+  s'affiche plus et ne part plus à l'export. **Cadenas** : le verrouille ; il
+  reste visible et exporté, mais ne se choisit plus sur la façade. Un œil ou
+  un cadenas actif reste affiché.
+- **Clic droit** : Grouper (⌘G), Dégrouper, Masquer, Verrouiller, ordre
+  (premier plan, en avant, en arrière, arrière-plan), envoyer vers une
+  diapositive ou « Automatique », Supprimer. Le menu porte sur la sélection
+  si la ligne en fait partie, sinon sur la ligne seule.
+- **Glisser une ligne sur le titre d'une autre diapositive** : le dessin y
+  part, choisi à la main (comme dans l'inspecteur).
+- **Glisser une ligne au-dessus d'un autre dessin** : il passe juste devant
+  lui (et sur son calque), et dans sa diapositive si elle est différente.
+- « choisie à la main » et « à cheval » (en rouge) s'affichent à droite.
+- La flèche d'un titre replie ou déplie le groupe. ⌘Z annule.
+
 ### Essai sur Mac
 
 1. Ouvrir un projet dont plusieurs projecteurs sont recalés, avec des
@@ -142,6 +173,43 @@ qu'on revienne à « Automatique ». ⌘Z l'annule.
    a changé de diapositive.
 5. Agrandir un dessin jusqu'à dépasser de toutes les emprises : contour
    rouge.
+6. Rubrique Diapositives : glisser un dessin d'un groupe à l'autre, puis
+   au-dessus d'un autre dessin. Sa couleur suit, et il passe devant.
+7. Rubrique Diapositives : ⌘-clic sur deux dessins, puis clic droit,
+   Grouper ; cliquer l'un d'eux sur la façade : les deux sont choisis.
+8. Masquer un dessin avec l'œil : il disparaît de la façade ; exporter : il
+   n'est pas dans la diapositive. Le verrouiller : on ne peut plus le
+   choisir sur la façade.
+
+## Importer une composition Illustrator (tâche 6.3)
+
+Pour reprendre une fresque déjà composée dans Illustrator, dessin par
+dessin :
+
+1. Dans Illustrator, la composition doit être sur un plan de travail **de la
+   taille du plan de façade** (comme pour la fresque), et les dessins
+   **liés** (pas incorporés). Enregistrer le `.ai` avec « Créer un fichier
+   compatible PDF » (réglage par défaut).
+2. Garder les dossiers des dessins **à côté du `.ai`**, comme Illustrator
+   les attend (Algues/, Poissons/…). Le `.ai` peut venir d'un autre Mac :
+   les liens sont retrouvés par leur dossier relatif, puis par leur nom.
+3. Écran Façade (plan à l'échelle), onglet **Calques**, rubrique
+   **Composition Illustrator** : **Importer un fichier .ai…**.
+4. Chaque fichier lié entre dans la bibliothèque (dossier du nom du `.ai`),
+   chaque image placée devient un dessin posé, avec sa position, sa taille,
+   sa rotation et son retournement, dans un calque du nom de celui
+   d'Illustrator (masqué ou verrouillé comme dans Illustrator).
+5. Le compte rendu dit combien de dessins sont posés, et nomme les liens
+   introuvables, les images incorporées (à lier dans Illustrator pour les
+   retrouver) et les images déformées en biais (posées sans le biais).
+
+⌘Z annule l'import en deux fois (dessins posés, puis bibliothèque). Les masques d'écrêtage, l'opacité et les tracés
+dessinés dans Illustrator ne sont pas repris : seules les images liées.
+
+À essayer sur le Mac : importer ECURIES-COMPOSITION.ai depuis son dossier
+« Ecuries - Fresque » ; comparer à l'écran avec Illustrator (positions,
+rotations, dessins retournés, calques). Les 20 liens vers « 17 - Projection
+gobo finale » doivent être retrouvés s'ils sont sur le Mac.
 
 ## Ce qui n'est pas encore là
 
@@ -160,6 +228,8 @@ insitu place deform <projet.insitu> <id>… (--corners | --grid CxR | --none)
 insitu place slides <projet.insitu>
 insitu place assign <projet.insitu> <id>… (--to PROJECTEUR | --auto)
 insitu place adjust <projet.insitu> <id> (--corners | --grid CxR | --none)
+insitu illustrator inspect <fichier.ai>
+insitu illustrator import <projet.insitu> <fichier.ai> [--frame X Y L H] [--cache DIR]
 insitu project history <projet.insitu> --history DIR
 insitu project undo <projet.insitu> --history DIR
 insitu project redo <projet.insitu> --history DIR

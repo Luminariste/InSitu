@@ -445,6 +445,8 @@ fn project_with_placed_drawing(label: &str, frame: &RectMm) -> (TempDir, Project
         deformation: None,
         projector: None,
         adjustment: None,
+        hidden: false,
+        locked: false,
         extra: Default::default(),
     });
     dir.save(&project).unwrap();
@@ -976,4 +978,194 @@ fn the_svg_option_writes_one_svg_per_slide() {
 
     let report = export_slides(&dir, &out, &settings(100.0), None, 0, &|_| {}).unwrap();
     assert!(report.slides[0].svg.is_none());
+}
+
+// ---------------------------------------------------------------------------
+// Fresque vectorielle : PDF, Illustrator, SVG
+// ---------------------------------------------------------------------------
+
+/// Page de 600 × 500 points (les proportions de `FRAME`), noire sauf un
+/// rectangle blanc : u de 150 à 450, v de 100 à 300 (origine en haut à
+/// gauche). Sur `FRAME`, 1 point = 10 mm : le rectangle couvre
+/// x de 2 000 à 5 000 mm et y de 1 300 à 3 300 mm.
+fn fresco_pdf() -> Vec<u8> {
+    use pdf_writer::{Content, Pdf, Rect, Ref};
+    let mut pdf = Pdf::new();
+    let (catalog, tree, page, content) = (Ref::new(1), Ref::new(2), Ref::new(3), Ref::new(4));
+    pdf.catalog(catalog).pages(tree);
+    pdf.pages(tree).kids([page]).count(1);
+    {
+        let mut p = pdf.page(page);
+        p.media_box(Rect::new(0.0, 0.0, 600.0, 500.0));
+        p.parent(tree);
+        p.contents(content);
+    }
+    let mut c = Content::new();
+    c.set_fill_rgb(1.0, 1.0, 1.0);
+    // Le PDF compte y vers le haut : v de 100 à 300 → y de 200 à 400.
+    c.rect(150.0, 200.0, 300.0, 200.0);
+    c.fill_nonzero();
+    pdf.stream(content, &c.finish());
+    pdf.finish()
+}
+
+const WHITE_RECT: (f64, f64, f64, f64) = (2_000.0, 1_300.0, 5_000.0, 3_300.0);
+
+/// Distance signée (mm) d'un point de façade au bord du rectangle blanc :
+/// positive dedans, négative dehors.
+fn inside_white_rect(p: Point) -> f64 {
+    let (x0, y0, x1, y1) = WHITE_RECT;
+    (p.x - x0).min(x1 - p.x).min(p.y - y0).min(y1 - p.y)
+}
+
+/// Chaque pixel de la diapositive est blanc dans le rectangle et noir
+/// dehors, à `tolerance_px` pixels près du bord ; rend le nombre de pixels
+/// blancs.
+fn check_white_rect(slide: &Raster, warp: &PointWarp, dpi: f64, tolerance_px: f64) -> usize {
+    let px_mm = units::px_size_mm(dpi);
+    let mut white = 0;
+    for j in (0..slide.height).step_by(3) {
+        for i in (0..slide.width).step_by(3) {
+            let s = Point::new((f64::from(i) + 0.5) * px_mm, (f64::from(j) + 0.5) * px_mm);
+            let f = warp.apply(s).unwrap();
+            // Taille locale d'un pixel de diapositive sur la façade.
+            let g = warp.apply(Point::new(s.x + px_mm, s.y)).unwrap();
+            let local = (g.x - f.x).hypot(g.y - f.y);
+            let d = inside_white_rect(f) / local;
+            let v = slide.data[(j * slide.width + i) as usize];
+            if d > tolerance_px {
+                assert!(v >= 250, "pixel ({i}, {j}) gris {v} au lieu de blanc");
+                white += 1;
+            } else if d < -tolerance_px {
+                assert!(v <= 5, "pixel ({i}, {j}) gris {v} au lieu de noir");
+            }
+        }
+    }
+    white
+}
+
+#[test]
+fn an_illustrator_file_is_imported_and_exported_sharp() {
+    let temp = TempDir::new("fresque-ai");
+    let (dir, mut project) =
+        ProjectDir::create(temp.path().join("Essai.insitu"), Some("Essai")).unwrap();
+    project.add_projector("A").registration = pairs();
+    dir.save(&project).unwrap();
+    // Un .ai « compatible PDF » est un PDF : le nom ne change rien.
+    let ai = temp.path().join("Composition.ai");
+    std::fs::write(&ai, fresco_pdf()).unwrap();
+
+    let project = import_fresco(&dir, &ai, Some(FRAME)).unwrap();
+    let fresco = project.fresco.as_ref().unwrap();
+    assert_eq!(fresco.source.as_str(), "fresque/Composition-apercu.png");
+    let vector = fresco.vector.as_ref().unwrap();
+    assert_eq!(vector.source.as_str(), "fresque/Composition.ai");
+    assert_eq!(vector.page, None);
+    assert_eq!(fresco.frame, FRAME);
+
+    // L'aperçu : 8 192 px de large, le rectangle blanc à sa place.
+    let display = read_gray(&dir.resolve(&fresco.source));
+    assert_eq!((display.width, display.height), (8_192, 6_827));
+    let at = |u: f64, v: f64| {
+        let k = 8_192.0 / 600.0;
+        display.data[((v * k) as u32 * display.width + (u * k) as u32) as usize]
+    };
+    assert_eq!(at(300.0, 200.0), 255);
+    assert_eq!(at(100.0, 200.0), 0);
+    assert_eq!(at(300.0, 400.0), 0);
+
+    // Le projet relu est valide et garde le fichier d'origine.
+    let reloaded = dir.load().unwrap().project;
+    assert_eq!(reloaded.fresco, project.fresco);
+
+    // L'export relit le vectoriel : bords nets, à leur place.
+    let out = temp.path().join("export");
+    let report = export_slides(&dir, &out, &settings(200.0), None, 0, &|_| {}).unwrap();
+    let slide = read_gray(&report.slides[0].path);
+    let warp = slide_to_facade(&pairs()).unwrap();
+    let white = check_white_rect(&slide, &warp, 200.0, 1.5);
+    assert!(white > 10_000, "{white} pixels blancs");
+}
+
+#[test]
+fn the_vector_crop_has_the_resolution_of_the_slide() {
+    let temp = TempDir::new("fresque-decoupe");
+    let pdf = temp.path().join("f.pdf");
+    std::fs::write(&pdf, fresco_pdf()).unwrap();
+    let vector = fresco::VectorFresco::open(&pdf, 1).unwrap();
+    assert_eq!(vector.size(), (600.0, 500.0));
+    let warp = slide_to_facade(&pairs()).unwrap();
+    let px_mm = units::px_size_mm(1_400.0);
+    let (raster, frame) = vector.crop_for_slide(&FRAME, &warp, px_mm, 0).unwrap();
+    // Le morceau couvre l'emprise (≈ 900 à 5 300 mm de large)...
+    assert!(
+        frame.x < 900.0 && frame.x + frame.width > 5_300.0,
+        "{frame:?}"
+    );
+    // ... à un pixel de fresque par pixel de diapositive, au plus fin :
+    // la diapositive, agrandie 14 à 15 fois, fait ≈ 0,26 mm par pixel.
+    let mm_per_px = frame.width / f64::from(raster.width);
+    assert!(mm_per_px > 0.2 && mm_per_px < 0.27, "{mm_per_px}");
+    assert!(raster.width <= fresco::MAX_CROP_SIDE_PX);
+
+    // Une diapositive hors de la fresque n'en rend rien.
+    let far: Vec<_> = pairs()
+        .iter()
+        .map(|p| RegistrationPair::new(p.slide, PointMm::new(p.facade.x + 50_000.0, p.facade.y)))
+        .collect();
+    let far = slide_to_facade(&far).unwrap();
+    assert!(vector.crop_for_slide(&FRAME, &far, px_mm, 0).is_none());
+}
+
+#[test]
+fn an_svg_fresco_and_a_pdf_page_choice() {
+    let temp = TempDir::new("fresque-svg");
+    let (dir, mut project) =
+        ProjectDir::create(temp.path().join("Essai.insitu"), Some("Essai")).unwrap();
+    project.add_projector("A").registration = pairs();
+    dir.save(&project).unwrap();
+    let svg = temp.path().join("fresque.svg");
+    std::fs::write(
+        &svg,
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="600" height="500">
+             <rect x="150" y="100" width="300" height="200" fill="white"/>
+           </svg>"#,
+    )
+    .unwrap();
+    let project = import_fresco(&dir, &svg, Some(FRAME)).unwrap();
+    let vector = project.fresco.as_ref().unwrap().vector.as_ref().unwrap();
+    assert_eq!(vector.source.as_str(), "fresque/fresque.svg");
+    let out = temp.path().join("export");
+    let report = export_slides(&dir, &out, &settings(200.0), None, 0, &|_| {}).unwrap();
+    let slide = read_gray(&report.slides[0].path);
+    let white = check_white_rect(&slide, &slide_to_facade(&pairs()).unwrap(), 200.0, 1.5);
+    assert!(white > 10_000, "{white} pixels blancs");
+
+    // Une page qui n'existe pas est refusée ; la page 1 est notée.
+    let pdf = temp.path().join("f.pdf");
+    std::fs::write(&pdf, fresco_pdf()).unwrap();
+    assert!(matches!(
+        import_fresco_page(&dir, &pdf, Some(FRAME), Some(2)),
+        Err(ExportError::BadSettings(_))
+    ));
+    let project = import_fresco_page(&dir, &pdf, Some(FRAME), Some(1)).unwrap();
+    assert_eq!(project.fresco.unwrap().vector.unwrap().page, Some(1));
+}
+
+#[test]
+fn an_old_illustrator_file_gets_a_clear_message() {
+    let temp = TempDir::new("fresque-ps");
+    let ai = temp.path().join("ancien.ai");
+    std::fs::write(&ai, b"%!PS-Adobe-3.0\n%%Creator: Adobe Illustrator\n").unwrap();
+    let message = fresco::format_of(&ai).unwrap_err().to_string();
+    assert!(message.contains("compatible PDF"), "{message}");
+    let fake = temp.path().join("faux.pdf");
+    std::fs::write(&fake, b"pas un pdf").unwrap();
+    assert!(fresco::format_of(&fake).is_err());
+    let png = temp.path().join("image.png");
+    std::fs::write(&png, b"\x89PNG\r\n").unwrap();
+    assert_eq!(
+        fresco::format_of(&png).unwrap(),
+        fresco::FrescoFormat::Raster
+    );
 }

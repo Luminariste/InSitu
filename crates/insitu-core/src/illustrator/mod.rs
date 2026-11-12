@@ -1,0 +1,744 @@
+//! Import Illustrator (tâche 6.3) : les images placées d'un fichier `.ai`,
+//! leurs liens et leurs positions, recréées en dessins posés sur la façade.
+//!
+//! Un `.ai` récent est un PDF. La composition telle qu'Illustrator la relit
+//! est rangée à part, dans les « données privées » du fichier
+//! (`/PieceInfo /Illustrator /Private /AIPrivateData1…n`) : un texte
+//! PostScript commenté, compressé en Zstandard (Illustrator 2020 et après)
+//! ou en zlib (avant). Chaque image liée y est décrite par un bloc
+//! `%AI5_BeginPlace … %AI5_EndPlace` : sa matrice de placement, le
+//! rectangle de l'image, son chemin absolu et, depuis Illustrator 2024, son
+//! chemin relatif au `.ai`. Les anciennes images liées (`%AI5_BeginRaster`
+//! avec un chemin) sont lues aussi ; les images incorporées sont comptées,
+//! pas importées (décision D-6.3-b).
+//!
+//! Repère : celui d'Illustrator a y vers le haut. Le plan de travail
+//! (`%AI3_Cropmarks`) est ramené à la page, origine en haut à gauche, y
+//! vers le bas, comme la façade.
+
+mod link;
+#[cfg(test)]
+mod tests;
+
+use std::collections::BTreeMap;
+use std::fmt;
+use std::path::{Path, PathBuf};
+
+use serde::Serialize;
+
+use crate::library::{import_files, ImportOptions, ImportProgress, LibraryError};
+use crate::project::model::{new_id, RectMm};
+use crate::project::{Layer, Placement, PointMm, Project, ProjectDir, ProjectError};
+
+pub use link::{fold_name, resolve_link};
+
+#[derive(Debug)]
+pub enum IllustratorError {
+    /// Le fichier n'a pas pu être lu.
+    Unreadable(String),
+    /// Ni PDF, ni données Illustrator.
+    NotIllustrator(String),
+    /// La façade n'est pas à l'échelle et aucun rectangle n'est donné.
+    NoFacadeScale,
+    /// Aucune image liée retrouvée : rien à poser.
+    NothingPlaced(String),
+    Library(LibraryError),
+    Project(ProjectError),
+}
+
+impl fmt::Display for IllustratorError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unreadable(m) => write!(f, "fichier illisible : {m}"),
+            Self::NotIllustrator(m) => write!(f, "{m}"),
+            Self::NoFacadeScale => f.write_str(
+                "la façade doit être importée et mise à l'échelle avant d'importer une composition",
+            ),
+            Self::NothingPlaced(m) => write!(f, "{m}"),
+            Self::Library(e) => write!(f, "{e}"),
+            Self::Project(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+impl std::error::Error for IllustratorError {}
+
+impl From<ProjectError> for IllustratorError {
+    fn from(e: ProjectError) -> Self {
+        Self::Project(e)
+    }
+}
+
+impl From<LibraryError> for IllustratorError {
+    fn from(e: LibraryError) -> Self {
+        Self::Library(e)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Lecture du fichier
+// ---------------------------------------------------------------------------
+
+/// Une image liée, telle qu'Illustrator la décrit.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlacedImage {
+    /// Calque de premier niveau qui la contient.
+    pub layer: String,
+    /// Faux si ce calque, ou un sous-calque qui contient l'image, est masqué
+    /// dans Illustrator.
+    pub visible: bool,
+    /// Matrice d'Illustrator [a b c d tx ty] : un point (x, y) de l'image
+    /// tombe en (a·x + c·y + tx, b·x + d·y + ty), y vers le haut.
+    pub matrix: [f64; 6],
+    /// Rectangle de l'image dans son propre repère (x0, y0, x1, y1) : sa
+    /// taille en pixels est (x1 − x0, y1 − y0) ; le pixel (u, v), v vers
+    /// le bas, est le point (x0 + u, y0 + v).
+    pub bounds: [f64; 4],
+    /// Chemin du fichier lié, tel qu'enregistré sur le Mac qui a fait le
+    /// `.ai`.
+    pub absolute: String,
+    /// Dossier du lien relatif au fichier `.ai` lui-même (`../Algues/`),
+    /// si Illustrator l'a noté.
+    pub relative_dir: Option<String>,
+}
+
+impl PlacedImage {
+    pub fn file_name(&self) -> &str {
+        self.absolute
+            .rsplit(['/', '\\', ':'])
+            .next()
+            .unwrap_or(&self.absolute)
+    }
+
+    pub fn size_px(&self) -> (f64, f64) {
+        (
+            (self.bounds[2] - self.bounds[0]).abs(),
+            (self.bounds[3] - self.bounds[1]).abs(),
+        )
+    }
+}
+
+/// Ce que le `.ai` contient d'utile ici.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiDocument {
+    /// Plan de travail (x0, y0, x1, y1), repère d'Illustrator (y vers le
+    /// haut), en points.
+    pub artboard: [f64; 4],
+    pub placed: Vec<PlacedImage>,
+    /// Images incorporées (sans lien) : non importées.
+    pub embedded: usize,
+    /// Calques de premier niveau, dans l'ordre du fichier (le premier est au
+    /// fond).
+    pub layers: Vec<AiLayer>,
+}
+
+/// Un calque de premier niveau d'Illustrator.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiLayer {
+    pub name: String,
+    pub visible: bool,
+    pub locked: bool,
+}
+
+impl AiDocument {
+    pub fn artboard_size(&self) -> (f64, f64) {
+        (
+            self.artboard[2] - self.artboard[0],
+            self.artboard[3] - self.artboard[1],
+        )
+    }
+}
+
+/// Lit un `.ai` : son plan de travail et ses images liées.
+pub fn read(path: &Path) -> Result<AiDocument, IllustratorError> {
+    let bytes = std::fs::read(path)
+        .map_err(|e| IllustratorError::Unreadable(format!("{} : {e}", path.display())))?;
+    let text = private_data(&bytes)
+        .map_err(|m| IllustratorError::NotIllustrator(format!("{} : {m}", path.display())))?;
+    parse(&text).ok_or_else(|| {
+        IllustratorError::NotIllustrator(format!(
+            "{} : plan de travail introuvable dans les données Illustrator",
+            path.display()
+        ))
+    })
+}
+
+/// Les données privées d'Illustrator, décompressées.
+pub fn private_data(bytes: &[u8]) -> Result<Vec<u8>, String> {
+    use hayro::hayro_syntax::object::{Dict, Stream};
+    use hayro::hayro_syntax::Pdf;
+
+    let not_ai = || {
+        "ce fichier ne contient pas de données Illustrator. Il faut un .ai enregistré par \
+         Illustrator avec « Créer un fichier compatible PDF »"
+            .to_string()
+    };
+    if bytes.starts_with(b"%!PS") {
+        // Ancien .ai, PostScript : les données sont en clair.
+        return Ok(bytes.to_vec());
+    }
+    let pdf = Pdf::new(bytes.to_vec()).map_err(|_| not_ai())?;
+    let page = pdf.pages().first().ok_or_else(not_ai)?;
+    let private = page
+        .raw()
+        .get::<Dict>(b"PieceInfo")
+        .and_then(|d| d.get::<Dict>(b"Illustrator"))
+        .and_then(|d| d.get::<Dict>(b"Private"))
+        .ok_or_else(not_ai)?;
+    let mut parts: Vec<(u32, Vec<u8>)> = Vec::new();
+    for key in private.keys() {
+        let name = key.as_ref().to_vec();
+        let Some(n) = name
+            .strip_prefix(b"AIPrivateData")
+            .and_then(|rest| std::str::from_utf8(rest).ok())
+            .and_then(|rest| rest.parse::<u32>().ok())
+        else {
+            continue;
+        };
+        let stream = private
+            .get::<Stream>(&name)
+            .ok_or_else(|| "données Illustrator incomplètes".to_string())?;
+        let data = stream
+            .decoded()
+            .map_err(|_| "données Illustrator illisibles".to_string())?;
+        parts.push((n, data.into_owned()));
+    }
+    if parts.is_empty() {
+        return Err(not_ai());
+    }
+    parts.sort_by_key(|(n, _)| *n);
+    let joined: Vec<u8> = parts.into_iter().flat_map(|(_, d)| d).collect();
+    decompress(&joined)
+}
+
+fn decompress(data: &[u8]) -> Result<Vec<u8>, String> {
+    const ZSTD: &[u8] = b"%AI24_ZStandard_Data";
+    const ZLIB: &[u8] = b"%AI12_CompressedData";
+    if let Some(rest) = data.strip_prefix(ZSTD) {
+        use std::io::Read;
+        let mut out = Vec::new();
+        ruzstd::decoding::StreamingDecoder::new(rest)
+            .map_err(|e| format!("données Illustrator illisibles (zstd : {e})"))?
+            .read_to_end(&mut out)
+            .map_err(|e| format!("données Illustrator illisibles (zstd : {e})"))?;
+        Ok(out)
+    } else if let Some(rest) = data.strip_prefix(ZLIB) {
+        miniz_oxide::inflate::decompress_to_vec_zlib(rest)
+            .map_err(|e| format!("données Illustrator illisibles (zlib : {e:?})"))
+    } else {
+        Ok(data.to_vec())
+    }
+}
+
+/// Une chaîne PostScript `(…)` au début de `line` ; rend son contenu.
+fn ps_string(line: &[u8]) -> Option<Vec<u8>> {
+    let start = line.iter().position(|&c| c == b'(')?;
+    let mut out = Vec::new();
+    let mut depth = 0usize;
+    let mut i = start + 1;
+    while i < line.len() {
+        let c = line[i];
+        match c {
+            b'\\' if i + 1 < line.len() => {
+                i += 1;
+                let e = line[i];
+                match e {
+                    b'n' => out.push(b'\n'),
+                    b'r' => out.push(b'\r'),
+                    b't' => out.push(b'\t'),
+                    b'0'..=b'7' => {
+                        let mut v = u32::from(e - b'0');
+                        for _ in 0..2 {
+                            if i + 1 < line.len() && (b'0'..=b'7').contains(&line[i + 1]) {
+                                i += 1;
+                                v = v * 8 + u32::from(line[i] - b'0');
+                            }
+                        }
+                        out.push(v as u8);
+                    }
+                    other => out.push(other),
+                }
+            }
+            b'(' => {
+                depth += 1;
+                out.push(c);
+            }
+            b')' if depth == 0 => return Some(out),
+            b')' => {
+                depth -= 1;
+                out.push(c);
+            }
+            _ => out.push(c),
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Les nombres d'une ligne, dans l'ordre.
+fn numbers(line: &[u8]) -> Vec<f64> {
+    String::from_utf8_lossy(line)
+        .split(|c: char| c.is_whitespace() || c == '[' || c == ']')
+        .filter_map(|t| t.parse::<f64>().ok())
+        .collect()
+}
+
+/// Lit le texte des données privées.
+pub fn parse(text: &[u8]) -> Option<AiDocument> {
+    let lines: Vec<&[u8]> = text.split(|&c| c == b'\n' || c == b'\r').collect();
+    let mut artboard = None;
+    let mut placed = Vec::new();
+    let mut embedded = 0;
+    // Pile des calques ouverts : (nom, visible, verrouillé).
+    let mut stack: Vec<AiLayer> = Vec::new();
+    let mut top_layers: Vec<AiLayer> = Vec::new();
+    let mut pending_layer = false;
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+        if artboard.is_none() {
+            if let Some(rest) = line.strip_prefix(b"%AI3_Cropmarks:") {
+                let n = numbers(rest);
+                if n.len() >= 4 {
+                    artboard = Some([n[0], n[1], n[2], n[3]]);
+                }
+            }
+        }
+        if line == b"%AI5_BeginLayer" {
+            stack.push(AiLayer {
+                name: String::new(),
+                visible: true,
+                locked: false,
+            });
+            pending_layer = true;
+        } else if line.starts_with(b"%AI5_EndLayer") {
+            if let Some(layer) = stack.pop() {
+                if stack.is_empty() {
+                    top_layers.push(layer);
+                }
+            }
+        } else if pending_layer && line.ends_with(b" Lb") {
+            // visible, aperçu, modifiable, imprimable, … Lb
+            let n = numbers(line);
+            if let (Some(last), true) = (stack.last_mut(), n.len() >= 3) {
+                last.visible = n[0] != 0.0;
+                last.locked = n[2] == 0.0;
+            }
+        } else if pending_layer && line.ends_with(b") Ln") {
+            if let (Some(name), Some(last)) = (ps_string(line), stack.last_mut()) {
+                last.name = String::from_utf8_lossy(&name).into_owned();
+            }
+            pending_layer = false;
+        } else if line == b"%AI5_BeginPlace" || line == b"%AI5_BeginRaster" {
+            let raster = line == b"%AI5_BeginRaster";
+            let closing: &[u8] = if raster {
+                b"%AI5_EndRaster"
+            } else {
+                b"%AI5_EndPlace"
+            };
+            let end = (i + 1..lines.len())
+                .find(|&k| lines[k] == closing)
+                .unwrap_or(lines.len());
+            let found = if raster {
+                read_raster(&lines[i + 1..end.min(i + 8)])
+            } else {
+                read_place(&lines[i + 1..end])
+            };
+            match found {
+                Some(mut p) => {
+                    p.layer = stack.first().map(|l| l.name.clone()).unwrap_or_default();
+                    p.visible = stack.iter().all(|l| l.visible);
+                    placed.push(p);
+                }
+                None if raster => embedded += 1,
+                None => {}
+            }
+            i = end;
+        }
+        i += 1;
+    }
+    Some(AiDocument {
+        artboard: artboard?,
+        placed,
+        embedded,
+        layers: top_layers,
+    })
+}
+
+/// Un bloc `%AI5_BeginPlace` (image liée, Illustrator 9 et après).
+fn read_place(block: &[&[u8]]) -> Option<PlacedImage> {
+    let mut matrix = None;
+    let mut absolute = None;
+    let mut relative_dir = None;
+    let mut k = 0;
+    while k < block.len() {
+        let line = block[k];
+        if matrix.is_none() && line.starts_with(b"[") {
+            let n = numbers(line);
+            if n.len() >= 10 {
+                matrix = Some((
+                    [n[0], n[1], n[2], n[3], n[4], n[5]],
+                    [n[6], n[7], n[8], n[9]],
+                ));
+            }
+        } else if absolute.is_none() && matrix.is_some() && line.starts_with(b"(") {
+            absolute = ps_string(line).map(|s| String::from_utf8_lossy(&s).into_owned());
+        } else if line == b"%AI28_BeginPlacedRelativePath" {
+            relative_dir = block
+                .get(k + 1)
+                .and_then(|l| ps_string(l))
+                .map(|s| String::from_utf8_lossy(&s).into_owned())
+                .filter(|s| !s.is_empty());
+        }
+        k += 1;
+    }
+    let (matrix, bounds) = matrix?;
+    let absolute = absolute.filter(|s| !s.is_empty())?;
+    Some(PlacedImage {
+        layer: String::new(),
+        visible: true,
+        matrix,
+        bounds,
+        absolute,
+        relative_dir,
+    })
+}
+
+/// Un bloc `%AI5_BeginRaster` : image liée à l'ancienne (son chemin suivi
+/// de `XG`) ou incorporée (chemin vide) ; `None` pour une incorporée.
+fn read_raster(block: &[&[u8]]) -> Option<PlacedImage> {
+    let path = block
+        .iter()
+        .find(|l| l.ends_with(b"XG"))
+        .and_then(|l| ps_string(l))
+        .map(|s| String::from_utf8_lossy(&s).into_owned())
+        .filter(|s| !s.is_empty())?;
+    let line = block.iter().find(|l| l.ends_with(b"Xh"))?;
+    let n = numbers(line);
+    if n.len() < 8 {
+        return None;
+    }
+    // Ici, la matrice place le pixel (u, v) en (a·u + c·v + tx,
+    // ty − b·u − d·v) : même chose qu'un bloc Place aux signes de b et d
+    // près.
+    Some(PlacedImage {
+        layer: String::new(),
+        visible: true,
+        matrix: [n[0], -n[1], n[2], -n[3], n[4], n[5]],
+        bounds: [0.0, 0.0, n[6], n[7]],
+        absolute: path,
+        relative_dir: None,
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Géométrie : de la page à la façade
+// ---------------------------------------------------------------------------
+
+/// Où tombe l'image sur la façade : centre, taille avant rotation,
+/// rotation (degrés, sens horaire) et retournement, comme un placement.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Pose {
+    pub center: PointMm,
+    pub width: f64,
+    pub height: f64,
+    pub rotation: f64,
+    pub mirrored: bool,
+}
+
+/// Pose de `image` sur `frame` (mm de façade), le plan de travail couvrant
+/// tout le rectangle.
+pub fn pose(image: &PlacedImage, artboard: [f64; 4], frame: &RectMm) -> Pose {
+    let [a, b, c, d, tx, ty] = image.matrix;
+    let [x0, y0, x1, y1] = image.bounds;
+    let (w, h) = (x1 - x0, y1 - y0);
+    let kx = frame.width / (artboard[2] - artboard[0]);
+    let ky = frame.height / (artboard[3] - artboard[1]);
+    // Point de l'image → mm de façade (y vers le bas).
+    let to_facade = |x: f64, y: f64| {
+        let (px, py) = (a * x + c * y + tx, b * x + d * y + ty);
+        PointMm::new(
+            frame.x + (px - artboard[0]) * kx,
+            frame.y + (artboard[3] - py) * ky,
+        )
+    };
+    let center = to_facade(x0 + w / 2.0, y0 + h / 2.0);
+    // Axes du fichier sur la façade : u (vers la droite), v (vers le bas).
+    let u = (a * w * kx, -b * w * ky);
+    let v = (c * h * kx, -d * h * ky);
+    let width = u.0.hypot(u.1);
+    let height = v.0.hypot(v.1);
+    let mirrored = u.0 * v.1 - u.1 * v.0 < 0.0;
+    let (dx, dy) = if mirrored { (-u.0, -u.1) } else { u };
+    let mut rotation = dy.atan2(dx).to_degrees();
+    if rotation.abs() < 1e-9 {
+        rotation = 0.0;
+    }
+    Pose {
+        center,
+        width,
+        height,
+        rotation,
+        mirrored,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Import dans le projet
+// ---------------------------------------------------------------------------
+
+/// Un lien du `.ai` que l'import n'a pas pu poser.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MissingLink {
+    /// Le chemin noté dans le `.ai`.
+    pub link: String,
+    /// Nombre d'images posées avec ce lien.
+    pub count: usize,
+    pub reason: String,
+}
+
+/// Compte rendu de l'import d'une composition.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompositionReport {
+    /// Images liées trouvées dans le `.ai`.
+    pub found: usize,
+    /// Dessins posés sur la façade.
+    pub placed: usize,
+    /// Fichiers distincts ajoutés à la bibliothèque (ou déjà présents).
+    pub drawings: usize,
+    /// Dossier de la bibliothèque qui les reçoit.
+    pub folder: String,
+    /// Calques créés ou repris, dans l'ordre d'Illustrator.
+    pub layers: Vec<String>,
+    /// Liens introuvables ou illisibles.
+    pub missing: Vec<MissingLink>,
+    /// Images incorporées dans le `.ai`, non importées.
+    pub embedded: usize,
+    /// Images déformées en biais dans Illustrator : posées sans le biais.
+    pub skewed: usize,
+}
+
+/// Recrée la composition d'un `.ai` : chaque fichier lié entre dans la
+/// bibliothèque (sous `bibliotheque/<nom du .ai>/`), chaque image placée
+/// devient un dessin posé, dans un calque du même nom que celui
+/// d'Illustrator. Le plan de travail couvre `frame` (mm de façade) ; sans
+/// `frame`, toute la largeur de la façade à partir du coin haut-gauche,
+/// comme la fresque (D-3.5-b). Les dessins s'ajoutent à ceux déjà posés.
+pub fn import_composition(
+    dir: &ProjectDir,
+    ai: &Path,
+    frame: Option<RectMm>,
+    options: &ImportOptions,
+    progress: &(dyn Fn(ImportProgress) + Sync),
+) -> Result<(Project, CompositionReport), IllustratorError> {
+    let doc = read(ai)?;
+    let project = dir.load()?.project;
+    let (aw, ah) = doc.artboard_size();
+    let frame = match frame {
+        Some(f) => f,
+        None => {
+            let (facade_width, _) = project
+                .facade
+                .as_ref()
+                .and_then(|f| f.size_mm())
+                .ok_or(IllustratorError::NoFacadeScale)?;
+            RectMm {
+                x: 0.0,
+                y: 0.0,
+                width: facade_width,
+                height: facade_width * ah / aw,
+            }
+        }
+    };
+
+    // Les liens distincts, retrouvés sur ce Mac.
+    let ai_folder = ai.parent().unwrap_or(Path::new("."));
+    let mut links: BTreeMap<String, (usize, Option<PathBuf>)> = BTreeMap::new();
+    for p in &doc.placed {
+        let key = link_key(p);
+        let entry = links.entry(key).or_insert_with(|| (0, resolve_link(ai, p)));
+        entry.0 += 1;
+    }
+    let mut missing = Vec::new();
+    let mut files: Vec<(PathBuf, String)> = Vec::new();
+    let mut file_of_link: BTreeMap<String, usize> = BTreeMap::new();
+    for (key, (count, found)) in &links {
+        match found {
+            Some(path) => {
+                if let Some(k) = files.iter().position(|(f, _)| f == path) {
+                    file_of_link.insert(key.clone(), k);
+                    continue;
+                }
+                file_of_link.insert(key.clone(), files.len());
+                files.push((path.clone(), inner_path(ai_folder, path)));
+            }
+            None => missing.push(MissingLink {
+                link: key.split('|').next().unwrap_or(key).to_string(),
+                count: *count,
+                reason: "fichier introuvable".into(),
+            }),
+        }
+    }
+    let stem = ai
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "Illustrator".into());
+    let base = format!(
+        "{}/{}",
+        crate::project::AssetKind::Drawing.directory(),
+        clean(&stem)
+    );
+    let ids = if files.is_empty() {
+        Vec::new()
+    } else {
+        import_files(dir, &base, &files, options, progress)?.1
+    };
+    for (key, k) in &file_of_link {
+        if let Err(reason) = &ids[*k] {
+            missing.push(MissingLink {
+                link: key.split('|').next().unwrap_or(key).to_string(),
+                count: links[key].0,
+                reason: reason.clone(),
+            });
+        }
+    }
+
+    // Relu après l'import de la bibliothèque.
+    let mut project = dir.load()?.project;
+    let mut layer_names: Vec<String> = Vec::new();
+    let mut placements = Vec::new();
+    let mut skewed = 0;
+    for p in &doc.placed {
+        let Some(Ok(drawing)) = file_of_link.get(&link_key(p)).map(|&k| &ids[k]) else {
+            continue;
+        };
+        let flags = doc.layers.iter().find(|l| l.name == p.layer);
+        let top_visible = flags.is_none_or(|l| l.visible);
+        let name = if p.layer.trim().is_empty() {
+            stem.clone()
+        } else {
+            p.layer.clone()
+        };
+        // Masquée dans un sous-calque d'un calque visible : le dessin seul est
+        // masqué (l'app n'a pas de sous-calques).
+        let hidden = !p.visible && top_visible;
+        let layer_id = match project.layers.iter().find(|l| l.name == name) {
+            Some(l) => l.id.clone(),
+            None => {
+                let id = new_id();
+                project.layers.push(Layer {
+                    id: id.clone(),
+                    name: name.clone(),
+                    visible: top_visible,
+                    locked: flags.is_some_and(|l| l.locked),
+                    extra: Default::default(),
+                });
+                id
+            }
+        };
+        if !layer_names.contains(&name) {
+            layer_names.push(name);
+        }
+        let [a, b, c, d, ..] = p.matrix;
+        let dot = a * c + b * d;
+        if dot.abs() > 1e-6 * (a.hypot(b) * c.hypot(d)).max(1e-12) {
+            skewed += 1;
+        }
+        let pose = pose(p, doc.artboard, &frame);
+        placements.push(Placement {
+            id: new_id(),
+            drawing: drawing.clone(),
+            center: pose.center,
+            width: pose.width,
+            height: pose.height,
+            rotation: pose.rotation,
+            mirrored: pose.mirrored,
+            group: None,
+            layer: Some(layer_id),
+            deformation: None,
+            projector: None,
+            adjustment: None,
+            hidden,
+            locked: false,
+            extra: Default::default(),
+        });
+    }
+    if placements.is_empty() {
+        return Err(IllustratorError::NothingPlaced(format!(
+            "aucune image liée du fichier n'a été retrouvée ({} lien(s), {} image(s) incorporée(s)). \
+             Les fichiers liés doivent être à côté du .ai, comme dans Illustrator",
+            links.len(),
+            doc.embedded
+        )));
+    }
+    let placed = placements.len();
+    // Dans l'ordre d'Illustrator : le premier lu est au fond.
+    project.placements.extend(placements);
+    crate::placement::check(&mut project)
+        .map_err(|e| IllustratorError::NotIllustrator(format!("dessins posés refusés : {e}")))?;
+    dir.save(&project)?;
+    let mut drawings: Vec<&String> = ids.iter().filter_map(|r| r.as_ref().ok()).collect();
+    drawings.sort();
+    drawings.dedup();
+    let report = CompositionReport {
+        found: doc.placed.len(),
+        placed,
+        drawings: drawings.len(),
+        folder: base,
+        layers: layer_names,
+        missing,
+        embedded: doc.embedded,
+        skewed,
+    };
+    Ok((project, report))
+}
+
+fn link_key(p: &PlacedImage) -> String {
+    match &p.relative_dir {
+        Some(rel) => format!("{}|{}", p.absolute, rel),
+        None => p.absolute.clone(),
+    }
+}
+
+/// Chemin du fichier dans la bibliothèque : relatif au dossier du `.ai`
+/// s'il y est (`Algues/algue.png`), sinon `Liens/<nom>`.
+fn inner_path(ai_folder: &Path, file: &Path) -> String {
+    let name = file
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let canon = |p: &Path| std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
+    match canon(file).strip_prefix(canon(ai_folder)) {
+        Ok(rel) => rel
+            .components()
+            .map(|c| c.as_os_str().to_string_lossy().into_owned())
+            .collect::<Vec<_>>()
+            .join("/"),
+        Err(_) => format!("Liens/{name}"),
+    }
+}
+
+/// Un nom de dossier acceptable dans le projet.
+fn clean(name: &str) -> String {
+    let cleaned: String = name
+        .chars()
+        .map(|c| {
+            if matches!(c, '/' | '\\' | ':') {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect();
+    let trimmed = cleaned.trim().trim_start_matches('.').to_string();
+    if trimmed.is_empty() {
+        "Illustrator".into()
+    } else {
+        trimmed
+    }
+}

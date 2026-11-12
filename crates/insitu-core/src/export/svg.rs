@@ -505,6 +505,16 @@ pub fn write_svg(drawings: &[SlidePaths], margin: bool, title: &str) -> String {
             escape(&drawing.placement)
         );
     }
+    // Cadre de la diapositive (D-5.3-f), demandé par Benjamin après l'essai
+    // LightBurn : un carré de 280 mm, trait rouge sans remplissage, pour
+    // situer la diapositive. Le rouge en fait un calque à part dans
+    // LightBurn, qu'on peut ne pas graver.
+    let (o, size) = (num(offset), num(SLIDE_SIZE_MM));
+    let _ = writeln!(
+        s,
+        "<rect id=\"cadre-diapositive\" x=\"{o}\" y=\"{o}\" width=\"{size}\" height=\"{size}\" \
+         fill=\"none\" stroke=\"#ff0000\" stroke-width=\"0.1\"/>"
+    );
     s.push_str("</svg>\n");
     s
 }
@@ -605,6 +615,8 @@ mod tests {
             }),
             projector: None,
             adjustment: None,
+            hidden: false,
+            locked: false,
             extra: Default::default(),
         }
     }
@@ -832,6 +844,12 @@ mod tests {
 
         let svg = write_svg(&out, true, "Essai & A");
         assert!(svg.contains("width=\"300mm\""));
+        // Le cadre de la diapositive : 280 mm, décalé de la marge.
+        assert!(svg.contains(
+            "<rect id=\"cadre-diapositive\" x=\"10\" y=\"10\" width=\"280\" height=\"280\""
+        ));
+        let bare = write_svg(&out, false, "Essai");
+        assert!(bare.contains("x=\"0\" y=\"0\" width=\"280\" height=\"280\""));
         assert!(svg.contains("fill-rule=\"evenodd\""));
         assert!(svg.contains("Essai &amp; A"));
     }

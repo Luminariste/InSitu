@@ -5,7 +5,7 @@ projecteur, quelle diapositive il porte, avec quels réglages.
 
 ## Dans l'app
 
-Étape **Façade**, inspecteur à droite, rubrique **Export des diapositives** :
+Étape **Façade**, panneau de droite, onglet **Export**, rubrique **Export des diapositives** :
 **Fiche de calepinage…**, puis choisir où l'enregistrer (nom proposé :
 `<projet> - calepinage.pdf`). Les réglages d'export inscrits sur la fiche
 sont ceux de la rubrique à ce moment-là.
@@ -20,7 +20,7 @@ sont ceux de la rubrique à ce moment-là.
   d'export), les réglages d'export, les alertes de la simulation
   (`docs/simulation.md`) et la légende.
 - **Pages suivantes, les diapositives**, six par page : la vignette de la
-  diapositive calculée (traits noirs sur blanc pour l'impression), son nom,
+  diapositive calculée (traits blancs sur noir, comme la plaque gravée), son nom,
   son fichier d'export, le nombre de points de recalage, la photo redressée
   et la liste de ses dessins. Un projecteur pas encore recalé a une case
   grise qui dit ce qui manque.

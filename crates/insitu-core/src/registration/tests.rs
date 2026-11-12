@@ -243,6 +243,7 @@ fn registration_is_saved_in_the_project() {
         }),
         page: None,
         origin: None,
+        rotation: 0,
         extra: ExtraFields::new(),
     });
     dir.save(&project).unwrap();

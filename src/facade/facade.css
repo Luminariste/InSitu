@@ -67,7 +67,7 @@
   border: 0;
 }
 
-.ui-property-value > .facade-export-dpi {
+.ui-property-value > .ui-input.facade-export-dpi {
   flex: 0 0 72px;
 }
 
@@ -83,4 +83,10 @@
   padding: 0;
   background: none;
   border: 0;
+}
+
+/* Orientation du plan (D15-k) : deux boutons côte à côte. */
+.facade-rotate {
+  display: flex;
+  gap: var(--ui-space-1);
 }

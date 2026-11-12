@@ -54,6 +54,8 @@ fn place(project: &mut Project, id: &str, x: f64, y: f64, width: f64) {
         deformation: None,
         projector: None,
         adjustment: None,
+        hidden: false,
+        locked: false,
         extra: Default::default(),
     });
 }
@@ -163,6 +165,7 @@ fn light_projected_twice_in_an_overlap_is_found_where_it_is() {
             width: 4_800.0,
             height: 2_800.0,
         },
+        vector: None,
         extra: Default::default(),
     });
     // Façade x = 2 400 mm : 240 mm dans A, 40 mm dans B, de y = 500 à

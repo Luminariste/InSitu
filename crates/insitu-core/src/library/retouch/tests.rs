@@ -292,6 +292,8 @@ fn the_export_uses_the_retouched_drawing() {
         deformation: None,
         projector: None,
         adjustment: None,
+        hidden: false,
+        locked: false,
         extra: Default::default(),
     });
     dir.save(&project).unwrap();

@@ -7,7 +7,7 @@
 
 import { Container, Graphics } from "pixi.js";
 import type { FrameContext, Rect, SceneNode } from "../viewer";
-import { HANDLE_PX, frameCorners } from "./gesture";
+import { HANDLE_PX, frameHandles } from "./gesture";
 import type { Point } from "./placement";
 
 /** Bleu de sélection du Mac (`--ui-accent`, thème sombre). */
@@ -89,7 +89,7 @@ export class SelectionNode implements SceneNode {
     if (box) {
       g.rect(box.x, box.y, box.width, box.height).stroke({ width: 1 * px, color: ACCENT, alpha: 0.8 });
       const h = HANDLE_PX * 0.8 * px;
-      for (const c of frameCorners(box)) {
+      for (const c of frameHandles(box)) {
         g.rect(c.x - h, c.y - h, 2 * h, 2 * h)
           .fill({ color: 0xffffff })
           .stroke({ width: 1 * px, color: ACCENT });
