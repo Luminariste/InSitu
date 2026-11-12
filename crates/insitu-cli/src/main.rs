@@ -13,6 +13,10 @@
 //!   présence des fichiers référencés ;
 //! - `insitu library import|list|thumbnail …` : bibliothèque de dessins
 //!   d'un projet (détail : `insitu library --help`) ;
+//! - `insitu fresco <dossier.insitu> <image>` : importe la fresque en une
+//!   image et la pose sur la façade (détail : `insitu fresco --help`) ;
+//! - `insitu export <dossier.insitu> <dossier>` : une diapositive PNG par
+//!   projecteur recalé, pour la gravure (options : `insitu export --help`) ;
 //! - `insitu overview <dossier.insitu>` : vue façade (emprises, maillages,
 //!   recouvrements), en JSON ;
 //! - `insitu registration show|set …` : recalage d'un projecteur sur la
@@ -37,6 +41,7 @@
 //! Code de sortie : 0 si tout va bien, 1 en cas d'échec ou de projet
 //! invalide, 2 si la commande est mal écrite.
 
+mod export;
 mod facade;
 mod geometry;
 mod library;
@@ -116,6 +121,22 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             }
             Err(library::Problem::Usage(message)) => Err(Failure::Usage(message)),
             Err(library::Problem::Failed(message)) => Err(Failure::Failed(message)),
+        },
+        ["fresco", rest @ ..] => match export::fresco(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err((true, message)) => Err(Failure::Usage(message)),
+            Err((false, message)) => Err(Failure::Failed(message)),
+        },
+        ["export", rest @ ..] => match export::export(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err((true, message)) => Err(Failure::Usage(message)),
+            Err((false, message)) => Err(Failure::Failed(message)),
         },
         ["overview", rest @ ..] => match overview::run(rest) {
             Ok(text) => {
@@ -339,7 +360,9 @@ fn usage() -> &'static str {
      info                                          Affiche la carte d'identité du moteur (JSON)\n  \
      geometry fit <fichier.json>                   Ajuste une déformation sur des paires de points\n  \
      geometry --help                               Décrit le fichier attendu et le résultat\n  \
+     export --help                                 Export des diapositives en PNG pour la gravure\n  \
      facade --help                                 Import du plan de façade et mise à l'échelle\n  \
+     fresco --help                                 Import de la fresque en une image\n  \
      library --help                                Bibliothèque de dessins : import, liste, vignettes\n  \
      overview <dossier.insitu>                     Vue façade : emprises, maillages, recouvrements (JSON)\n  \
      project new <dossier.insitu> [--name <nom>]   Crée un projet vide\n  \

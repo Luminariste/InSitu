@@ -483,6 +483,15 @@ pub struct ExportSettings {
     pub mirror: bool,
     /// Noir et blanc inversés.
     pub negative: bool,
+    /// Image de la plaque entière (300 mm), nom et repères gravés dans la
+    /// marge de 10 mm ; sinon, l'image de 280 mm seule (tâche 3.5).
+    pub margin: bool,
+    /// PNG en noir et blanc pur (1 bit), seuillé à `threshold` ; sinon en
+    /// niveaux de gris (tâche 3.5).
+    pub one_bit: bool,
+    /// Seuil du noir et blanc, de 1 à 255 : un pixel au moins aussi clair
+    /// devient blanc.
+    pub threshold: u8,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }
@@ -493,6 +502,9 @@ impl Default for ExportSettings {
             dpi: units::DEFAULT_EXPORT_DPI,
             mirror: units::DEFAULT_EXPORT_MIRROR,
             negative: units::DEFAULT_EXPORT_NEGATIVE,
+            margin: units::DEFAULT_EXPORT_MARGIN,
+            one_bit: false,
+            threshold: units::DEFAULT_EXPORT_THRESHOLD,
             extra: ExtraFields::new(),
         }
     }

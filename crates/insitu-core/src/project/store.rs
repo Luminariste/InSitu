@@ -604,7 +604,7 @@ mod tests {
                     "note": "angle du tympan"
                 }]
             }],
-            "export": { "dpi": 1000.0, "threshold": 128 }
+            "export": { "dpi": 1000.0, "dither": "floyd" }
         });
         fs::write(dir.project_file(), document.to_string()).expect("écriture");
 
@@ -615,7 +615,7 @@ mod tests {
                 "placements",
                 "projectors[0].lens",
                 "projectors[0].registration[0].note",
-                "export.threshold",
+                "export.dither",
             ]
         );
         let mut project = loaded.project;
@@ -633,7 +633,7 @@ mod tests {
             written["projectors"][0]["registration"][0]["note"],
             "angle du tympan"
         );
-        assert_eq!(written["export"]["threshold"], 128);
+        assert_eq!(written["export"]["dither"], "floyd");
         assert_eq!(written["name"], "Essai modifié");
     }
 

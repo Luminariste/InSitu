@@ -1,0 +1,128 @@
+//! Commandes `insitu fresco` et `insitu export` : import de la fresque en une
+//! image et export des diapositives pour la gravure (tâche 3.5).
+
+use std::path::Path;
+
+use insitu_core::export::{export_slides, import_fresco};
+use insitu_core::project::{ProjectDir, RectMm};
+use serde_json::json;
+
+pub const FRESCO_USAGE: &str = r#"Usage :
+  insitu fresco <projet.insitu> <image> [--frame X Y LARGEUR HAUTEUR]
+
+Copie l'image de la fresque dans le projet (dossier fresque/) et la pose sur
+la façade. Sans --frame, elle couvre toute la largeur de la façade à partir
+du coin haut-gauche, en gardant ses proportions : la façade doit alors être
+mise à l'échelle. --frame donne le rectangle de façade occupé, en mm."#;
+
+pub const EXPORT_USAGE: &str = r#"Usage :
+  insitu export <projet.insitu> <dossier> [options]
+
+Écrit un PNG par projecteur recalé (<projet>-<diapositive>.png) : la
+fresque vue par ce projecteur. Les options partent des réglages d'export du
+projet, et ceux utilisés y sont enregistrés.
+
+  --dpi N           Résolution (1 400 par défaut : 15 433 px pour 280 mm)
+  --mirror          Image retournée gauche-droite      (--no-mirror)
+  --negative        Noir et blanc inversés              (--no-negative)
+  --margin          Plaque de 300 mm, nom et repères dans la marge de 10 mm
+  --no-margin       Image de 280 mm seule
+  --one-bit         Noir et blanc pur (PNG 1 bit)       (--gray : niveaux de gris)
+  --threshold N     Seuil du noir et blanc, de 1 à 255 (128 par défaut)
+  --only NOM        Ce projecteur seulement (répétable)
+
+Compte rendu en JSON ; l'avancement s'écrit sur la sortie d'erreur."#;
+
+pub fn fresco(args: &[&str]) -> Result<String, (bool, String)> {
+    let usage = |m: &str| (true, format!("{m} Voir : insitu fresco --help"));
+    match args {
+        [] | ["--help" | "-h"] => Ok(FRESCO_USAGE.to_string()),
+        [folder, image, rest @ ..] => {
+            let frame = match rest {
+                [] => None,
+                ["--frame", x, y, w, h] => {
+                    let n = |s: &str| {
+                        s.replace(',', ".")
+                            .parse::<f64>()
+                            .map_err(|_| usage("Nombre illisible."))
+                    };
+                    Some(RectMm {
+                        x: n(x)?,
+                        y: n(y)?,
+                        width: n(w)?,
+                        height: n(h)?,
+                    })
+                }
+                _ => return Err(usage("Option inconnue ou incomplète.")),
+            };
+            let dir = ProjectDir::open(folder).map_err(|e| (false, e.to_string()))?;
+            let project =
+                import_fresco(&dir, Path::new(image), frame).map_err(|e| (false, e.to_string()))?;
+            Ok(serde_json::to_string_pretty(&project.fresco).expect("sérialisable"))
+        }
+        _ => Err(usage("Il faut le projet et l'image.")),
+    }
+}
+
+pub fn export(args: &[&str]) -> Result<String, (bool, String)> {
+    let usage = |m: &str| (true, format!("{m} Voir : insitu export --help"));
+    match args {
+        [] | ["--help" | "-h"] => Ok(EXPORT_USAGE.to_string()),
+        [folder, destination, rest @ ..] => {
+            let dir = ProjectDir::open(folder).map_err(|e| (false, e.to_string()))?;
+            let mut settings = dir
+                .load()
+                .map_err(|e| (false, e.to_string()))?
+                .project
+                .export;
+            let mut only = Vec::new();
+            let mut rest = rest.iter();
+            while let Some(&option) = rest.next() {
+                match option {
+                    "--mirror" => settings.mirror = true,
+                    "--no-mirror" => settings.mirror = false,
+                    "--negative" => settings.negative = true,
+                    "--no-negative" => settings.negative = false,
+                    "--margin" => settings.margin = true,
+                    "--no-margin" => settings.margin = false,
+                    "--one-bit" => settings.one_bit = true,
+                    "--gray" => settings.one_bit = false,
+                    "--dpi" | "--threshold" | "--only" => {
+                        let value = rest.next().ok_or_else(|| usage("Valeur manquante."))?;
+                        match option {
+                            "--dpi" => {
+                                settings.dpi = value
+                                    .replace(',', ".")
+                                    .parse()
+                                    .map_err(|_| usage("Résolution illisible."))?
+                            }
+                            "--threshold" => {
+                                settings.threshold = value
+                                    .parse()
+                                    .map_err(|_| usage("Seuil illisible (1 à 255)."))?
+                            }
+                            _ => only.push(value.to_string()),
+                        }
+                    }
+                    _ => return Err(usage(&format!("Option inconnue : {option}."))),
+                }
+            }
+            let only = (!only.is_empty()).then_some(only);
+            let report = export_slides(
+                &dir,
+                Path::new(destination),
+                &settings,
+                only.as_deref(),
+                0,
+                &|p| {
+                    if let Some(current) = &p.current {
+                        eprintln!("{}/{} : {current}…", p.done + 1, p.total);
+                    }
+                },
+            )
+            .map_err(|e| (false, e.to_string()))?;
+            Ok(serde_json::to_string_pretty(&json!(report)).expect("sérialisable"))
+        }
+        _ => Err(usage("Il faut le projet et le dossier d'export.")),
+    }
+}

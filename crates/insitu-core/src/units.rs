@@ -18,6 +18,17 @@ pub const DEFAULT_EXPORT_MIRROR: bool = false;
 /// sur fond noir ; jusqu'ici c'est LightBurn qui applique le négatif.
 pub const DEFAULT_EXPORT_NEGATIVE: bool = false;
 
+/// Marge à l'export, par défaut : oui. Le PNG couvre la plaque de 300 mm ;
+/// le nom et les repères de calage sont gravés dans la marge (décision du
+/// 11 novembre 2026, tâche 3.5).
+pub const DEFAULT_EXPORT_MARGIN: bool = true;
+
+/// Seuil du noir et blanc à l'export (PNG 1 bit), par défaut : le milieu.
+pub const DEFAULT_EXPORT_THRESHOLD: u8 = 128;
+
+/// Largeur de la marge de la plaque autour de l'image, en mm.
+pub const PLATE_MARGIN_MM: f64 = (PLATE_SIZE_MM - SLIDE_SIZE_MM) / 2.0;
+
 /// Résolution des photos redressées produites jusqu'ici (A.tiff : 5512 px).
 pub const RECTIFIED_PHOTO_DPI: f64 = 500.0;
 

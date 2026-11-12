@@ -222,3 +222,36 @@
 .facade-overview-problem {
   color: #e0a040;
 }
+
+/* --- Fresque et export (tâche 3.5) --- */
+
+.facade-export {
+  margin-top: 18px;
+  padding-top: 6px;
+  border-top: 1px solid var(--filet);
+}
+
+.facade-export-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.facade-export-dpi {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.facade-export-dpi input {
+  width: 64px;
+}
+
+.facade-export-go {
+  width: 100%;
+}
+
+.facade-export-ok {
+  color: #7fc98a;
+}
