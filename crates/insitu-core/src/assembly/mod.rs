@@ -774,7 +774,7 @@ pub fn render(
         }
     }
     let mut rgb = Vec::with_capacity(width as usize * height as usize * 3);
-    for px in sums.chunks_exact(4) {
+    for px in sums.as_chunks::<4>().0 {
         let weight = px[3];
         for &c in &px[..3] {
             // Aucune photo ici : noir.
