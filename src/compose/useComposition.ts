@@ -231,6 +231,7 @@ export function useComposition(options: Options): Composition {
 
   // --- Bibliothèque et dessins posés ----------------------------------------------------
 
+  const libraryCount = project?.library?.length ?? 0;
   useEffect(() => {
     if (!engine) {
       setDrawings(demoLibrary(12));
@@ -247,7 +248,8 @@ export function useComposition(options: Options): Composition {
     return () => {
       cancelled = true;
     };
-  }, [engine, folder, onError]);
+    // La liste est relue quand la bibliothèque change (import Illustrator, tâche 6.3).
+  }, [engine, folder, onError, libraryCount]);
 
   // Le projet fait foi, sauf pendant un geste.
   const projectPlacements = project?.placements;

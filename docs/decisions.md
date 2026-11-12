@@ -4,6 +4,144 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 6.3 : import Illustrator
+
+Module `crates/insitu-core/src/illustrator/`, commande `insitu illustrator
+inspect|import`, rubrique « Composition Illustrator » de l'onglet Calques de
+l'écran Façade (`src/compose/IllustratorImport.tsx`), mode d'emploi
+`docs/composition.md`, « Importer une composition Illustrator ».
+
+**D-6.3-a. La composition est lue dans les données privées d'Illustrator.**
+La partie PDF d'un `.ai` ne garde que des images recopiées, sans leurs liens.
+La composition telle qu'Illustrator la relit est rangée à part
+(`/PieceInfo /Illustrator /Private /AIPrivateData1…n`), en texte PostScript
+compressé : Zstandard depuis Illustrator 2020 (`%AI24_ZStandard_Data`), zlib
+avant (`%AI12_CompressedData`). Deux dépendances en Rust pur : `ruzstd` et
+`miniz_oxide` (déjà tirée par `png`). Chaque image liée est un bloc
+`%AI5_BeginPlace` : matrice, rectangle de l'image, chemin absolu, et depuis
+Illustrator 2024 son dossier relatif au `.ai`. Les anciens blocs
+`%AI5_BeginRaster` avec un chemin sont lus aussi. Format non documenté par
+Adobe : déduit des fichiers d'Épinal et de Trévarez, et vérifié en
+superposant le résultat au rendu PDF du même `.ai` (Trévarez : 90 % des
+pixels posés tombent sur un trait du PDF à 1 mm près ; le reste vient du PDF,
+dont les images sont réduites à 150 ppi).
+
+**D-6.3-b. Ce qui est repris, ce qui ne l'est pas.** Repris : position,
+taille, rotation, retournement, calque de premier niveau (nom, masqué,
+verrouillé), ordre (le premier lu est au fond). Une image masquée dans un
+sous-calque d'un calque visible est posée masquée, seule (`placements[].hidden`,
+D-4.5-g), dans son calque.
+Non repris, et dit dans le compte rendu : les images incorporées (sans lien),
+le biais (posé sans), et ce que l'app ne sait pas faire : masques
+d'écrêtage, opacité, modes de fusion, tracés vectoriels d'Illustrator.
+
+**D-6.3-c. Les liens sont retrouvés à côté du `.ai`.** Le chemin absolu est
+celui du Mac qui a enregistré le fichier (`/Users/marcsicard/…`). Dans
+l'ordre : le dossier relatif noté par Illustrator, compté depuis le `.ai`
+lui-même (`../Algues/` désigne `Ecuries - Fresque/Algues`) ; le chemin
+absolu ; un fichier du même nom sous le dossier du `.ai` (5 niveaux), de
+préférence dans un dossier du même nom que celui du lien. Les noms sont
+comparés sans accents ni casse (le `.ai` écrit « Mure\u0300ne », décomposé).
+Un lien introuvable est signalé, pas bloquant. Les fichiers temporaires
+d'Illustrator (`/var/folders/…`) sont ignorés.
+
+**D-6.3-d. Le plan de travail couvre la façade, comme la fresque.** Comme
+pour la fresque (D-3.5-b), le plan de travail occupe toute la largeur de la
+façade à partir du coin haut-gauche : la composition se fait sur un plan de
+travail de la taille du plan de façade. La ligne de commande accepte un
+autre rectangle (`--frame`).
+
+**D-6.3-e. L'import s'ajoute.** Les fichiers liés vont dans la bibliothèque
+sous `bibliotheque/<nom du .ai>/`, en gardant leurs sous-dossiers ; un
+fichier déjà importé à l'identique est repris, pas copié deux fois. Les
+dessins posés s'ajoutent à ceux de la façade, dans des calques repris par
+leur nom. ⌘Z annule l'import en deux pas : les dessins posés, puis
+l'ajout à la bibliothèque (deux enregistrements du projet).
+
+## 2026-11-12 — Fresque en .ai, PDF ou SVG (demande de Benjamin)
+
+Benjamin veut importer la fresque depuis un fichier Illustrator `.ai`, un PDF
+ou une image. Module `crates/insitu-core/src/export/fresco.rs`, champ
+`fresco.vector` du projet, option `insitu fresco --page`, bouton de l'écran
+Façade inchangé (il accepte les nouveaux fichiers). Ce n'est pas la tâche
+6.3 : celle-ci relira les images placées d'un `.ai` pour en faire des
+dessins posés un par un (voir plus haut).
+
+**D-3.5-h. Un `.ai` est lu comme un PDF.** Illustrator enregistre par défaut
+(« Créer un fichier compatible PDF ») une copie PDF de la composition dans
+le `.ai`. On la lit avec `hayro`, déjà utilisé pour les plans (D-3.1-a) :
+pas de nouvelle dépendance. Le format est reconnu au contenu (`%PDF-`), pas
+à l'extension. Un `.ai` sans cette copie (ancien format PostScript) est
+refusé avec un message qui dit quoi cocher. Le SVG est lu par `resvg`,
+comme pour les plans. Essayé sur deux vrais fichiers : « Epinal Coupe.ai »
+(Dropbox d'Épinal) et la composition PDF des Écuries de Trévarez.
+
+**D-3.5-i. Le fichier d'origine est gardé et relu pour chaque diapositive.**
+Une façade de 27 m rendue en une seule image à la finesse d'une diapositive
+(≈ 0,25 mm par pixel) ferait plus de 100 000 px de côté. On garde donc le
+PDF (ou `.ai`, ou SVG) dans `fresque/` et, à l'export, on ne rend que la
+partie de façade couverte par la diapositive, à un pixel de fresque par
+pixel de diapositive là où elle est la plus fine (24 000 px de côté au plus,
+576 Mo). Sur Trévarez, une diapositive de 15 433 px se calcule en 13 s en
+session cloud (4 cœurs). À côté, un aperçu en niveaux de gris de 8 192 px au
+plus grand côté (`fresque/<nom>-apercu.png`) sert à l'affichage, aux aperçus
+de diapositives et à la simulation : `fresco.source` garde donc son sens
+d'image, et rien ne change pour les écrans existants. Pas de changement de
+`formatVersion` : le champ est facultatif.
+
+**D-3.5-j. Ce qui n'est couvert par rien est noir.** La page est rendue sur
+du noir, comme une transparence d'image (D-3.5-c) : pas de lumière là où il
+n'y a pas de dessin. En contrepartie, tout ce qui est visible dans le
+fichier est gravé, plan de fond et textes compris : il faut masquer le
+calque du plan avant d'enregistrer (`docs/export.md`).
+
+**D-3.5-k. Première page par défaut.** Dans l'app, seule la première page
+d'un PDF (le premier plan de travail d'un `.ai`) est lue ; la ligne de
+commande accepte `--page N`, gardé dans `fresco.vector.page`. Un choix de
+page dans l'app viendra si Benjamin en a besoin.
+
+## 2026-11-12 — Mise à jour automatique (hors plan, demande de Benjamin)
+
+**D16. L'app se met à jour toute seule, avec l'accord de l'utilisateur.**
+Demande de Benjamin : ne plus réinstaller le `.dmg` à chaque version. Revient
+sur la fin de D12 (« pas de mise à jour automatique ») avec son accord. Au
+lancement, l'app cherche une version plus récente ; si elle en trouve une, un
+dialogue propose « Installer et relancer » ou « Plus tard » (la question
+revient au lancement suivant). Une recherche ratée (pas de réseau) ne dit
+rien. Code : `src-tauri/src/updates.rs`, `src/update/`.
+
+**D16-a. Module de mise à jour de Tauri (`tauri-plugin-updater`), appelé
+depuis la coque.** Deux commandes (`update_check`, `update_install`) passent
+par `src/engine.ts` comme le reste ; l'interface n'utilise pas le module
+JavaScript du greffon. Après installation, la coque relance l'app.
+
+**D16-b. Les mises à jour sont signées par une clé à nous.** Indépendante de
+la signature Apple (toujours « ad hoc », D12). Clé publique dans
+`tauri.conf.json`, clé privée dans le secret GitHub
+`TAURI_SIGNING_PRIVATE_KEY` (sans mot de passe), nulle part ailleurs. L'app
+refuse une archive qui n'est pas signée par cette clé. La fabrication
+contrôle, avant de publier, que la signature vient bien de la clé attendue
+(`.github/scripts/mise_a_jour.py`). Si la clé privée était perdue : en créer
+une autre, et réinstaller une fois l'app à la main.
+
+**D16-c. Le dépôt devient public.** Choix de Benjamin (12 novembre 2026),
+plutôt qu'une clé GitHub en lecture seule gravée dans l'app : les Releases
+d'un dépôt privé ne se téléchargent pas sans identification. Le code et le
+jeu d'essai (images d'Épinal comprises) deviennent visibles de tous ; en
+échange, plus de jeton à renouveler, et les minutes GitHub Actions d'un dépôt
+public sont gratuites. Tant que le dépôt reste privé, la recherche de mise à
+jour échoue sans bruit.
+
+**D16-d. Le manifeste est joint à chaque version.** La fabrication écrit
+`latest.json` (version, signature, adresse de l'archive) et le joint à la
+version avec l'archive `InSitu-X.Y.Z-mac.app.tar.gz`. L'app le lit à
+l'adresse fixe `…/releases/latest/download/latest.json`, qui suit toujours la
+dernière version publiée. Sans le secret de signature, la fabrication publie
+comme avant, sans archive ni manifeste.
+
+**D16-e. La première version qui sait se mettre à jour s'installe à la
+main.** Les versions déjà installées n'ont pas ce module.
+
 ## 2026-11-12 — Jeu d'essai Trévarez (hors plan, demande de Benjamin)
 
 Deuxième projet réel, `jeu-essai/trevarez`, tests dans
@@ -778,6 +916,33 @@ ordre, groupe ; chaque icône a sa bulle d'aide (avec son raccourci) et se
 grise quand elle ne s'applique pas à la sélection. L'inspecteur garde les
 mesures (centre, largeur, rotation, calque, diapositive). Pour la place,
 « Assembler des photos… » et « Tout voir » passent aussi en icônes.
+
+**D15-k. Le plan de façade tourne par quarts de tour, et ce qui est posé
+tourne avec lui.** Demande de Benjamin : « import plan : ajouter fonction de
+rotation ». `facade.rotation` (0 à 3 quarts de tour, sens des aiguilles
+d'une montre) dit comment afficher le fichier ; le repère de la façade (et
+donc les mm) est celui du plan tourné, si bien que tout le reste du moteur
+(export, simulation, recalage) n'a rien à savoir. Choix :
+- *Quarts de tour seulement.* Ils sont exacts : une image est tournée pixel
+  pour pixel, un plan vectoriel est rendu tel quel puis ses tuiles tournées,
+  sans perte de netteté. Un angle libre demanderait de rééchantillonner une
+  photo (perte de netteté), d'agrandir le cadre (coins vides) et de tourner
+  chaque moteur de rendu vectoriel : écarté tant qu'aucun cas réel ne le
+  demande. Pour une photo d'ensemble penchée, la piste serait plutôt
+  « redresser par deux points de l'horizontale ».
+- *Ce qui est posé suit le plan.* La mise à l'échelle est gardée (ses deux
+  points tournent) ; dessins posés (centre, rotation + 90°), cadres de
+  déformation et points de recalage côté façade tournent autour du coin
+  haut-gauche du plan, pour rester au même endroit du dessin
+  d'architecte. Les retouches par diapositive (en mm de diapositive) ne
+  bougent pas. Sans mise à l'échelle, rien n'est en mm et seul le plan
+  tourne.
+- *Une fresque importée bloque la rotation* (message clair) : c'est une
+  image dans un cadre droit, qui ne sait pas tourner.
+- Pyramides : une autre clé de cache par orientation (les plans déjà
+  affichés gardent la leur). Un assemblage de photos recalculé sur un plan
+  tourné repart sans échelle (l'image assemblée n'est pas tournée).
+- Commande : `insitu facade rotate <projet> <quarts>`.
 
 **D15-h. Retirer un dessin ou le plan n'efface aucun fichier.** Comme
 pour un projecteur (D15-f), l'élément sort de `projet.json` et son fichier
@@ -1871,7 +2036,8 @@ une dépendance du moteur (elle n'était utilisée que par ses tests).
 puce Apple ne se lance pas. Avec cette signature locale, elle se lance mais
 macOS la bloque au premier lancement après téléchargement ; la marche à
 suivre est dans `docs/installer.md`. Pas de notarisation, pas de mise à jour
-automatique.
+automatique (mise à jour automatique ajoutée depuis, avec l'accord de
+Benjamin : D16).
 
 **D11. Le numéro de version n'est écrit qu'à un endroit.**
 `Cargo.toml` à la racine, rubrique `[workspace.package]`. `tauri.conf.json`

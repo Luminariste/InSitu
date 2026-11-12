@@ -3,6 +3,7 @@
 //! renvoie le résultat à l'interface.
 
 mod menu;
+mod updates;
 
 use std::path::{Path, PathBuf};
 
@@ -12,6 +13,7 @@ use insitu_core::export::preview::{self as slide_preview, SlideView};
 use insitu_core::export::{self, ExportReport};
 use insitu_core::facade::{self, FacadeDisplay, SourceInfo};
 use insitu_core::geometry::Point;
+use insitu_core::illustrator::{self, CompositionReport};
 use insitu_core::library::silhouette::{self, DrawingSilhouette};
 use insitu_core::library::vectors::{self, VectorSummary, VectorizeReport};
 use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
@@ -93,6 +95,12 @@ fn facade_import(folder: String, path: String, page: Option<u32>) -> Result<Proj
 #[tauri::command(async)]
 fn facade_remove(folder: String) -> Result<Project, String> {
     facade::remove_facade(&project_dir(&folder)?).map_err(|e| e.to_string())
+}
+
+/// Tourne le plan de la façade de quarts de tour (D15-k).
+#[tauri::command(async)]
+fn facade_rotate(folder: String, quarter_turns: i32) -> Result<Project, String> {
+    facade::rotate_facade(&project_dir(&folder)?, quarter_turns).map_err(|e| e.to_string())
 }
 
 /// Met la façade du projet à l'échelle par deux points et une cote.
@@ -340,6 +348,30 @@ fn library_import(
     .map_err(|e| e.to_string())
 }
 
+/// Recrée la composition d'un fichier Illustrator (tâche 6.3) : liens dans la
+/// bibliothèque, images placées en dessins posés.
+#[tauri::command(async)]
+fn illustrator_import(
+    app: AppHandle,
+    folder: String,
+    path: String,
+) -> Result<(Project, CompositionReport), String> {
+    let options = ImportOptions {
+        cache_root: Some(tile_cache_dir(&app)?),
+        threads: 0,
+    };
+    illustrator::import_composition(
+        &project_dir(&folder)?,
+        Path::new(&path),
+        None,
+        &options,
+        &|progress| {
+            let _ = app.emit(LIBRARY_PROGRESS_EVENT, progress);
+        },
+    )
+    .map_err(|e| e.to_string())
+}
+
 /// La bibliothèque du projet, avec la vignette de chaque dessin.
 #[tauri::command(async)]
 fn library_list(app: AppHandle, folder: String) -> Result<Vec<LibraryEntry>, String> {
@@ -494,7 +526,7 @@ fn facade_overview(app: AppHandle, folder: String) -> Result<FacadeOverview, Str
 /// Événement d'avancement d'un export : `{ done, total, current }`.
 const EXPORT_PROGRESS_EVENT: &str = "export-progression";
 
-/// Importe la fresque en une image, posée sur toute la largeur de la façade.
+/// Importe la fresque (image, PDF, .ai ou SVG), posée sur toute la largeur de la façade.
 #[tauri::command(async)]
 fn fresco_import(folder: String, path: String) -> Result<Project, String> {
     export::import_fresco(&project_dir(&folder)?, Path::new(&path), None).map_err(|e| e.to_string())
@@ -609,6 +641,8 @@ fn serve_tile<R: Runtime>(
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updates::PendingUpdate::default())
         .register_asynchronous_uri_scheme_protocol(TILE_SCHEME, serve_tile)
         .setup(|app| {
             if let Ok(cache) = app.path().app_cache_dir() {
@@ -620,6 +654,8 @@ pub fn run() {
         .on_menu_event(menu::on_event)
         .invoke_handler(tauri::generate_handler![
             engine_info,
+            updates::update_check,
+            updates::update_install,
             open_tiled_image,
             test_set_dir,
             project_create,
@@ -627,6 +663,7 @@ pub fn run() {
             facade_inspect,
             facade_import,
             facade_remove,
+            facade_rotate,
             facade_set_scale,
             facade_display,
             projector_add,
@@ -642,6 +679,7 @@ pub fn run() {
             registration_set,
             registration_preview,
             library_import,
+            illustrator_import,
             library_list,
             library_remove,
             library_preview,

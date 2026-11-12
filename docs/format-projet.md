@@ -16,7 +16,7 @@ Le code qui lit et écrit ce format est dans
   facade/              Le plan ou la photo de la façade
   photos-brutes/       Les photos de mire prises en chambre noire
   photos-redressees/   Les photos redressées
-  fresque/             La fresque importée en une image
+  fresque/             La fresque importée (image, ou PDF / .ai / SVG et son aperçu)
   bibliotheque/        Les dessins, rangés comme dans les dossiers importés
   projet.v<N>.json     Copie de l'ancien fichier après une mise à niveau
 ```
@@ -223,12 +223,13 @@ exactement ce que l'app écrit.
 | Champ | Sens |
 | --- | --- |
 | `source` | Le fichier importé (plan, déroulé ou photo d'ensemble) |
-| `sourceWidth`, `sourceHeight` | Dimensions du fichier, dans son unité (voir ci-dessous) |
+| `sourceWidth`, `sourceHeight` | Dimensions du plan affiché, dans l'unité du fichier (voir ci-dessous) : celles du fichier, échangées s'il est tourné d'un quart de tour |
 | `scale` | Mise à l'échelle « par deux points et une cote », ou `null` si elle n'est pas faite |
-| `scale.pointA`, `scale.pointB` | Les deux points, repérés dans le fichier |
+| `scale.pointA`, `scale.pointB` | Les deux points, repérés sur le plan affiché (tourné s'il y a lieu) |
 | `scale.distanceMm` | La distance réelle entre ces deux points, en mm |
 | `page` | PDF seulement : la page retenue, à partir de 1. Absent pour les autres formats |
 | `origin` | DXF seulement : le coin haut-gauche du repère du fichier, en coordonnées du DXF (y vers le haut). Absent sinon |
+| `rotation` | Quarts de tour, dans le sens des aiguilles d'une montre, appliqués au fichier pour l'afficher (1 à 3) ; absent : 0. Le repère de la façade est celui du plan tourné (D15-k) |
 
 L'unité du fichier dépend de son format (tâche 3.1) :
 
@@ -262,8 +263,9 @@ en millimètres réels. Le coin haut-gauche du fichier est l'origine.
 
 | Champ | Sens |
 | --- | --- |
-| `source` | Le fichier image, copié dans `fresque/` (tâche 3.5) |
+| `source` | Le fichier image, copié dans `fresque/` (tâche 3.5). Pour une fresque vectorielle, son aperçu en niveaux de gris (`fresque/<nom>-apercu.png`, 8 192 px au plus grand côté) |
 | `frame` | Le rectangle qu'elle occupe sur la façade, en mm réels : `x`, `y` (coin haut-gauche), `width`, `height` |
+| `vector` | Facultatif : le fichier vectoriel d'origine, `{ "source": "fresque/Composition.ai", "page": 2 }`. `source` : PDF, `.ai` compatible PDF ou SVG, copié dans `fresque/` ; `page` (à partir de 1) absente : la première. Présent, l'export relit ce fichier pour chaque diapositive au lieu de `source` (D-3.5-h à k) |
 
 ### `library[]` — un dessin de la bibliothèque
 

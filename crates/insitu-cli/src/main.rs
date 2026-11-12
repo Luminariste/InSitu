@@ -15,8 +15,10 @@
 //!   d'un projet (détail : `insitu library --help`) ;
 //! - `insitu place list|add|remove|set …` : dessins posés sur la façade
 //!   (détail : `insitu place --help`) ;
-//! - `insitu fresco <dossier.insitu> <image>` : importe la fresque en une
-//!   image et la pose sur la façade (détail : `insitu fresco --help`) ;
+//! - `insitu fresco <dossier.insitu> <fichier>` : importe la fresque (image,
+//!   PDF, `.ai` ou SVG) et la pose sur la façade (détail : `insitu fresco --help`) ;
+//! - `insitu illustrator inspect|import …` : images liées d'un `.ai`,
+//!   recréées en dessins posés (détail : `insitu illustrator --help`) ;
 //! - `insitu export <dossier.insitu> <dossier>` : une diapositive PNG par
 //!   projecteur recalé, pour la gravure (options : `insitu export --help`) ;
 //! - `insitu assembly add|remove|pairs|show|render …` : assemblage de
@@ -56,6 +58,7 @@ mod assembly;
 mod export;
 mod facade;
 mod geometry;
+mod illustrator;
 mod library;
 mod overview;
 mod place;
@@ -144,6 +147,14 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             }
             Err(place::Problem::Usage(message)) => Err(Failure::Usage(message)),
             Err(place::Problem::Failed(message)) => Err(Failure::Failed(message)),
+        },
+        ["illustrator", rest @ ..] => match illustrator::run(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err((true, message)) => Err(Failure::Usage(message)),
+            Err((false, message)) => Err(Failure::Failed(message)),
         },
         ["fresco", rest @ ..] => match export::fresco(rest) {
             Ok(text) => {
@@ -446,7 +457,8 @@ fn usage() -> &'static str {
      geometry --help                               Décrit le fichier attendu et le résultat\n  \
      export --help                                 Export des diapositives en PNG pour la gravure\n  \
      facade --help                                 Import du plan de façade et mise à l'échelle\n  \
-     fresco --help                                 Import de la fresque en une image\n  \
+     fresco --help                                 Import de la fresque (image, PDF, .ai, SVG)\n  \
+     illustrator --help                            Composition Illustrator (.ai) en dessins posés\n  \
      library --help                                Bibliothèque de dessins : import, liste, vignettes\n  \
      place --help                                  Dessins posés sur la façade : liste, ajout, retrait\n  \
      overview <dossier.insitu>                     Vue façade : emprises, maillages, recouvrements (JSON)\n  \

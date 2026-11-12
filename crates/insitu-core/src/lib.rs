@@ -16,6 +16,7 @@ pub mod assembly;
 pub mod export;
 pub mod facade;
 pub mod geometry;
+pub mod illustrator;
 pub mod library;
 pub mod overview;
 pub mod photo;
