@@ -32,15 +32,14 @@ import {
 import { Viewer, placementForWidth, type LayerSpec, type Point, type TileSource, type ViewerHandle } from "../viewer";
 import { mmToScreen, screenToMm } from "../viewer/geometry";
 import { recalledProject, rememberProject } from "../project/current";
-import { isClick } from "../facade/scale";
 import {
-  CORNER_NAMES,
   EXPORT_DPI_CHOICES,
   defaultCorners,
   exportFileName,
   fromXY,
   hitHandle,
   isConvexQuad,
+  orderCorners,
   nextProjectorLabel,
   nodeQuality,
   shortestSide,
@@ -112,7 +111,6 @@ export function RectificationScreen() {
   const engine = hasEngine();
   const viewer = useRef<ViewerHandle>(null);
   const stage = useRef<HTMLDivElement>(null);
-  const pointerDown = useRef<{ x: number; y: number; t: number } | null>(null);
   const setOverlay = useOverlay(viewer);
 
   const [folder, setFolder] = useState<string | null>(null);
@@ -127,8 +125,6 @@ export function RectificationScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [corners, setCorners] = useState<Corners | null>(null);
-  /** Coin à poser au prochain clic (pose des quatre coins dans l'ordre). */
-  const [placing, setPlacing] = useState<number | null>(null);
   const [dragging, setDragging] = useState<number | null>(null);
   const [loupeCenter, setLoupeCenter] = useState<Point | null>(null);
   const [dpi, setDpi] = useState<number>(500);
@@ -155,7 +151,6 @@ export function RectificationScreen() {
   /** Prépare l'affichage d'un projecteur : sa photo, son redressement. */
   const showProjector = useCallback(async (dir: string, p: Projector | null) => {
     setEditing(false);
-    setPlacing(null);
     setCorners(null);
     setView(null);
     setRawSource(null);
@@ -219,9 +214,9 @@ export function RectificationScreen() {
       nodes: nodesInView,
       outline: view && mode === "brute" && !editing ? view.outline.map(fromXY) : null,
       handles,
-      activeHandle: dragging ?? placing,
+      activeHandle: dragging,
     });
-  }, [nodesInView, view, mode, editing, corners, dragging, placing, setOverlay]);
+  }, [nodesInView, view, mode, editing, corners, dragging, setOverlay]);
 
   // Changement d'image : on recadre.
   useEffect(() => {
@@ -281,7 +276,6 @@ export function RectificationScreen() {
       setProject(next);
       setView(detected);
       setEditing(false);
-      setPlacing(null);
       setMode("brute");
       const p = next.projectors.find((q) => q.id === id);
       if (p?.rectifiedPhoto) setRectifiedSource(await openTiledImage(projectFile(dir, p.rectifiedPhoto)));
@@ -289,10 +283,9 @@ export function RectificationScreen() {
       const message = String(failure).replace(/^Error: /, "");
       if (from || !size) throw failure;
       // La recherche automatique a échoué : on passe à la pose des coins.
-      setError(`${message}. Cliquer les quatre coins de la mire, dans l'ordre indiqué, puis « Détecter depuis les coins ».`);
+      setError(`${message}. Glisser les quatre poignées sur les coins de la mire, puis « Détecter depuis les coins ».`);
       setCorners(defaultCorners(size.width, size.height));
       setEditing(true);
-      setPlacing(0);
     }
   };
 
@@ -322,23 +315,23 @@ export function RectificationScreen() {
     setError(null);
     setCorners(view ? (view.corners.map(fromXY) as Corners) : defaultCorners(photoSize.width, photoSize.height));
     setEditing(true);
-    setPlacing(view ? null : 0);
   };
 
   const cancelCorners = () => {
     setEditing(false);
-    setPlacing(null);
     setDragging(null);
     setLoupeCenter(null);
   };
 
   const applyCorners = () => {
     if (!corners) return;
-    if (!isConvexQuad(corners)) {
-      setError("Les quatre coins ne forment pas un quadrilatère : vérifier leur ordre (1 haut-gauche, 2 haut-droit, 3 bas-droit, 4 bas-gauche).");
+    // Les poignées ont pu être glissées dans n'importe quel ordre.
+    const ordered = orderCorners(corners) as Corners;
+    if (!isConvexQuad(ordered)) {
+      setError("Les quatre poignées ne forment pas un quadrilatère : poser chacune sur un coin différent de la mire.");
       return;
     }
-    if (shortestSide(corners) < MIN_SIDE_PX) {
+    if (shortestSide(ordered) < MIN_SIDE_PX) {
       setError("Les coins sont trop rapprochés : les poser sur les quatre coins de la mire.");
       return;
     }
@@ -348,7 +341,7 @@ export function RectificationScreen() {
     }
     void run("Détection à partir des quatre coins…", async () => {
       if (!folder || !selected) return;
-      await detect(folder, selected, corners, photoSize);
+      await detect(folder, selected, ordered, photoSize);
       setLoupeCenter(null);
     });
   };
@@ -383,9 +376,7 @@ export function RectificationScreen() {
       : p;
 
   const onPointerDown = (event: PointerEvent) => {
-    pointerDown.current = { x: event.clientX, y: event.clientY, t: event.timeStamp };
-    // Pendant la pose au clic, un clic pose le coin suivant, même près d'une poignée.
-    if (!editing || mode !== "brute" || !corners || placing !== null) return;
+    if (!editing || mode !== "brute" || !corners) return;
     const scene = viewer.current?.scene();
     const at = scenePoint(event);
     if (!scene || !at) return;
@@ -397,7 +388,6 @@ export function RectificationScreen() {
     event.preventDefault();
     stage.current?.setPointerCapture(event.pointerId);
     setDragging(hit);
-    setPlacing(null);
     setLoupeCenter(corners[hit]);
   };
 
@@ -416,22 +406,9 @@ export function RectificationScreen() {
   };
 
   const onPointerUp = (event: PointerEvent) => {
-    const down = pointerDown.current;
-    pointerDown.current = null;
-    if (dragging !== null) {
-      stage.current?.releasePointerCapture(event.pointerId);
-      setDragging(null);
-      return;
-    }
-    if (!editing || mode !== "brute" || placing === null || !corners || !down) return;
-    if (!isClick(down, { x: event.clientX, y: event.clientY, t: event.timeStamp })) return;
-    const at = scenePoint(event);
-    if (!at) return;
-    const placed = [...corners] as Corners;
-    placed[placing] = clampToPhoto(at.scene);
-    setCorners(placed);
-    setError(null);
-    setPlacing(placing < 3 ? placing + 1 : null);
+    if (dragging === null) return;
+    stage.current?.releasePointerCapture(event.pointerId);
+    setDragging(null);
   };
 
   // --- Affichage ---------------------------------------------------------------
@@ -443,9 +420,7 @@ export function RectificationScreen() {
   let hint: string | null = null;
   if (editing) {
     hint =
-      placing !== null
-        ? `Cliquer le coin ${placing + 1} (${CORNER_NAMES[placing]} de la diapositive). Les petits cercles et le texte de la mire sont en bas à gauche.`
-        : "Glisser les poignées sur les coins de la mire (la loupe aide à viser), puis « Détecter depuis les coins ». La grille affine ensuite.";
+      "Glisser chaque poignée sur un coin de la mire, dans n'importe quel ordre (la loupe aide à viser), puis « Détecter depuis les coins ». Le sens de la mire est retrouvé tout seul, et la grille affine ensuite.";
   }
 
   return (
@@ -496,9 +471,6 @@ export function RectificationScreen() {
             <>
               <button type="button" className="actif" onClick={applyCorners} disabled={!ready}>
                 Détecter depuis les coins
-              </button>
-              <button type="button" onClick={() => setPlacing(0)} disabled={!ready}>
-                Cliquer les 4 coins
               </button>
               <button type="button" onClick={cancelCorners} disabled={!ready}>
                 Annuler

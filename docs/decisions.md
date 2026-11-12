@@ -360,6 +360,16 @@ Le chemin du dernier projet ouvert est gardé au même endroit pour les deux
 écrans (`src/project/current.ts`) : passer d'un onglet à l'autre garde le
 projet. L'écran Redressement ne crée pas de projet : l'écran Façade le fait.
 
+**D-2.5-i. Coins posés à la main : glissés librement, dans n'importe quel ordre.**
+Demande de Benjamin après son essai (12 novembre 2026) : plus de pose au clic
+dans l'ordre 1-2-3-4. Les quatre poignées apparaissent tout de suite et se
+glissent où l'on veut. Le moteur range les coins (sens des aiguilles d'une
+montre à l'écran, en partant du plus proche du coin haut-gauche de la photo,
+`order_corners`), puis lit le sens de la mire sur les six petits cercles,
+comme la détection automatique. Si ce sens reste incertain, il garde celui de
+la photo. Cela remplace la règle de D-2.4a selon laquelle l'ordre des coins
+fixe le sens de la mire.
+
 ## 2026-11-12 — Tâche 2.4a
 
 Détection de l'ancienne mire et redressement : module

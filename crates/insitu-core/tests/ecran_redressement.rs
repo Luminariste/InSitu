@@ -228,6 +228,14 @@ fn four_corners_placed_by_hand_restart_the_detection() {
         eprintln!("croisement (60, 60) : {mm:.4} mm d'écart");
         assert!(mm < 0.05, "{mm:.4} mm");
     }
+    // Les poignées glissées dans n'importe quel ordre (D-2.5-i) : le sens
+    // de la mire est relu sur les petits cercles, le résultat est le même.
+    let shuffled = [corners[2], corners[0], corners[3], corners[1]];
+    let (_, any_order) = rectify_projector(&dir, &id, Some(shuffled)).unwrap();
+    for k in 0..4 {
+        let mm = distance(any_order.corners[k], manual.corners[k]) / automatic.px_per_mm;
+        assert!(mm < 0.05, "coin {k} dans le désordre : {mm:.3} mm");
+    }
     // Même fichier pour la photo redressée du même projecteur.
     assert_eq!(
         project

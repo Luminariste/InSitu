@@ -134,9 +134,9 @@ Le projecteur est désigné par son identifiant ou par son nom (« A »).
   rectify <projet.insitu> <projecteur> [--corners x,y,x,y,x,y,x,y]
       Détecte la mire et enregistre la photo redressée (PNG à 500 dpi, dans
       photos-redressees/). Avec --corners : position approchée, en pixels
-      de la photo, des coins haut-gauche, haut-droit, bas-droit et bas-gauche
-      de la diapositive, à la place de la recherche automatique ; la grille
-      affine ensuite.
+      de la photo, des quatre coins de la mire, dans n'importe quel ordre, à
+      la place de la recherche automatique ; le sens de la mire est lu sur
+      les petits cercles, la grille affine ensuite.
 
   show <projet.insitu> <projecteur> [--nodes]
       Relit le redressement enregistré (écarts, couverture, coins dans la

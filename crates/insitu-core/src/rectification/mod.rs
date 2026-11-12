@@ -61,9 +61,9 @@ pub const CONFIDENCE_CELL_MM: f64 = 2.0;
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct DetectOptions {
     /// Position approchée dans la photo (px) des quatre coins de la mire :
-    /// haut-gauche, haut-droit, bas-droit, bas-gauche de la diapositive. Si
-    /// elle est donnée, elle remplace la recherche du cercle rouge et de la
-    /// croix, et fixe le sens de la mire ; la grille affine ensuite.
+    /// dans n'importe quel ordre (voir D-2.5-i). Si elle est donnée, elle
+    /// remplace la recherche du cercle rouge et de la croix ; le sens de la
+    /// mire est ensuite lu sur les six petits cercles, et la grille affine.
     pub corners: Option<[Point; 4]>,
     /// Lissage de la plaque mince (0 : passe par les croisements).
     pub smoothing: f64,
@@ -236,6 +236,7 @@ pub fn detect(
     let not_found = DetectionError::NotFound;
     let (nodes, raw_count, method, quarters, margin, sectors) = match options.corners {
         Some(corners) => {
+            let corners = order_corners(corners);
             let slide = [
                 Point::new(0.0, 0.0),
                 Point::new(SLIDE_SIZE_MM, 0.0),
@@ -248,7 +249,20 @@ pub fn detect(
             let every = |_: Node| true;
             let (nodes, raw) =
                 grow_and_clean(&gray, &[], Some((&h0, &every))).map_err(not_found)?;
-            (nodes, raw, SeedMethod::Corners, 0, None, None)
+            // Les coins ne disent pas le sens de la mire : on le lit sur les
+            // petits cercles. S'il reste incertain, on garde le sens de la
+            // photo (le coin le plus en haut à gauche est le haut-gauche).
+            match find_orientation(&gray, &nodes) {
+                Some(o) if o.margin >= MIN_ORIENTATION_MARGIN => (
+                    reorient(&nodes, o.quarters),
+                    raw,
+                    SeedMethod::Corners,
+                    o.quarters,
+                    Some(o.margin),
+                    None,
+                ),
+                _ => (nodes, raw, SeedMethod::Corners, 0, None, None),
+            }
         }
         None => {
             let seed = seed_from_circle_and_cross(&color, &gray).map_err(not_found)?;
@@ -260,23 +274,8 @@ pub fn detect(
                     orientation.margin
                 )));
             }
-            // Coordonnées de l'amorce → coordonnées vraies de la diapositive.
-            let back = (4 - orientation.quarters) % 4;
-            let nodes = seed
-                .nodes
-                .iter()
-                .map(|m| {
-                    let p = rotate_quarters(m.node.position(), back);
-                    let node = Node {
-                        i: (p.x / legacy_target::GRID_STEP_MM).round() as usize,
-                        j: (p.y / legacy_target::GRID_STEP_MM).round() as usize,
-                    };
-                    debug_assert!(is_measurable(node));
-                    Measured { node, ..*m }
-                })
-                .collect();
             (
-                nodes,
+                reorient(&seed.nodes, orientation.quarters),
                 seed.raw_count,
                 SeedMethod::RedCircleAndCross,
                 orientation.quarters,
@@ -295,6 +294,43 @@ pub fn detect(
         sectors,
         options.smoothing,
     )
+}
+
+/// Passe des coordonnées de l'amorce aux coordonnées vraies de la
+/// diapositive, `quarters` étant le résultat de [`find_orientation`].
+fn reorient(nodes: &[Measured], quarters: u8) -> Vec<Measured> {
+    let back = (4 - quarters) % 4;
+    nodes
+        .iter()
+        .filter_map(|m| {
+            let p = rotate_quarters(m.node.position(), back);
+            let node = Node {
+                i: (p.x / legacy_target::GRID_STEP_MM).round() as usize,
+                j: (p.y / legacy_target::GRID_STEP_MM).round() as usize,
+            };
+            is_measurable(node).then_some(Measured { node, ..*m })
+        })
+        .collect()
+}
+
+/// Range quatre coins posés dans n'importe quel ordre : sens des aiguilles
+/// d'une montre à l'écran (y vers le bas), en commençant par le plus proche
+/// du coin haut-gauche de la photo.
+pub fn order_corners(corners: [Point; 4]) -> [Point; 4] {
+    let cx = corners.iter().map(|p| p.x).sum::<f64>() / 4.0;
+    let cy = corners.iter().map(|p| p.y).sum::<f64>() / 4.0;
+    let mut sorted = corners;
+    // atan2 croissant = sens horaire à l'écran, puisque y descend.
+    sorted.sort_by(|a, b| {
+        (a.y - cy)
+            .atan2(a.x - cx)
+            .total_cmp(&(b.y - cy).atan2(b.x - cx))
+    });
+    let first = (0..4)
+        .min_by(|&a, &b| (sorted[a].x + sorted[a].y).total_cmp(&(sorted[b].x + sorted[b].y)))
+        .unwrap_or(0);
+    sorted.rotate_left(first);
+    sorted
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -626,5 +662,21 @@ mod tests {
         assert_eq!(s.mean, 2.5);
         assert_eq!(s.max, 4.0);
         assert_eq!(s.p95, 4.0);
+    }
+
+    #[test]
+    fn corners_in_any_order_are_put_back_clockwise_from_top_left() {
+        let tl = Point::new(100.0, 120.0);
+        let tr = Point::new(900.0, 90.0);
+        let br = Point::new(950.0, 880.0);
+        let bl = Point::new(80.0, 860.0);
+        for shuffled in [
+            [tl, tr, br, bl],
+            [br, tl, bl, tr],
+            [bl, br, tr, tl],
+            [tr, bl, tl, br],
+        ] {
+            assert_eq!(order_corners(shuffled), [tl, tr, br, bl]);
+        }
     }
 }

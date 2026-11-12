@@ -5,6 +5,7 @@ import {
   exportFileName,
   hitHandle,
   isConvexQuad,
+  orderCorners,
   loupePosition,
   loupeTiles,
   nextProjectorLabel,
@@ -37,6 +38,17 @@ describe("coins posés à la main", () => {
     expect(hitHandle(handles, { x: 50, y: 50 }, 16)).toBeNull();
     // Deux poignées à portée : la plus proche gagne.
     expect(hitHandle([{ x: 0, y: 0 }, { x: 10, y: 0 }], { x: 7, y: 0 }, 16)).toBe(1);
+  });
+
+  it("range des poignées glissées dans n'importe quel ordre, comme le moteur", () => {
+    const tl = { x: 100, y: 120 };
+    const tr = { x: 900, y: 90 };
+    const br = { x: 950, y: 880 };
+    const bl = { x: 80, y: 860 };
+    for (const shuffled of [[tl, tr, br, bl], [br, tl, bl, tr], [bl, br, tr, tl], [tr, bl, tl, br]]) {
+      expect(orderCorners(shuffled)).toEqual([tl, tr, br, bl]);
+      expect(isConvexQuad(orderCorners(shuffled))).toBe(true);
+    }
   });
 
   it("refuse des coins croisés ou alignés", () => {
