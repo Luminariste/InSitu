@@ -23,6 +23,7 @@ import {
 } from "./geometry";
 import type { FrameContext, LayerSpec, SceneNode } from "./nodes";
 import { TiledLayerNode } from "./tiledLayer";
+import { MeshImageNode, PolygonsNode } from "./overlays";
 import { TileStore, type TileRequest, type TileStoreStatus } from "./tileStore";
 import { FrameMeter, GESTURE_TAIL_MS, type FrameStats } from "./frameMeter";
 
@@ -140,7 +141,7 @@ export class ViewerScene {
         node = existing.node;
       } else {
         if (existing) this.dropNode(existing.node);
-        node = createNode(spec);
+        node = createNode(spec, () => this.invalidate());
         this.nodes.set(spec.id, { kind: spec.kind, node });
         this.world.addChild(node.container);
       }
@@ -419,7 +420,11 @@ export class ViewerScene {
     listen("pointermove", (event) => {
       if (drag && drag.pointerId === event.pointerId) {
         this.setView(panBy(this.view, event.clientX - drag.x, event.clientY - drag.y));
-        drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+        drag = {
+          pointerId: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+        };
       }
       this.listeners.onCursor?.(screenToMm(this.view, this.viewport, local(event)));
     });
@@ -438,10 +443,14 @@ export class ViewerScene {
 }
 
 /** Fabrique l'objet de scène d'un calque. Un nouveau type de calque s'ajoute ici. */
-function createNode(spec: LayerSpec): SceneNode {
+function createNode(spec: LayerSpec, invalidate: () => void): SceneNode {
   switch (spec.kind) {
     case "tiles":
       return new TiledLayerNode(spec);
+    case "mesh-image":
+      return new MeshImageNode(spec, invalidate);
+    case "polygons":
+      return new PolygonsNode(spec);
   }
 }
 
@@ -450,6 +459,14 @@ function updateNode(node: SceneNode, spec: LayerSpec): boolean {
   switch (spec.kind) {
     case "tiles":
       if (!(node instanceof TiledLayerNode) || !node.accepts(spec)) return false;
+      node.apply(spec);
+      return true;
+    case "mesh-image":
+      if (!(node instanceof MeshImageNode) || !node.accepts(spec)) return false;
+      node.apply(spec);
+      return true;
+    case "polygons":
+      if (!(node instanceof PolygonsNode)) return false;
       node.apply(spec);
       return true;
   }

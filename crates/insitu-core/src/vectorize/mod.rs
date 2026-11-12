@@ -21,7 +21,7 @@
 //! transport vers la diapositive (tâche 5.3).
 
 mod check;
-mod contour;
+pub(crate) mod contour;
 mod fit;
 
 use std::fmt::{self, Write as _};

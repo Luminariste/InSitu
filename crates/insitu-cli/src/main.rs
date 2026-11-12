@@ -13,6 +13,8 @@
 //!   présence des fichiers référencés ;
 //! - `insitu library import|list|thumbnail …` : bibliothèque de dessins
 //!   d'un projet (détail : `insitu library --help`) ;
+//! - `insitu overview <dossier.insitu>` : vue façade (emprises, maillages,
+//!   recouvrements), en JSON ;
 //! - `insitu registration show|set …` : recalage d'un projecteur sur la
 //!   façade par points communs (détail : `insitu registration --help`) ;
 //! - `insitu projector add|photo|rectify|show|export …` : redressement de la
@@ -38,6 +40,7 @@
 mod facade;
 mod geometry;
 mod library;
+mod overview;
 mod projector;
 mod rectify;
 mod registration;
@@ -113,6 +116,14 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             }
             Err(library::Problem::Usage(message)) => Err(Failure::Usage(message)),
             Err(library::Problem::Failed(message)) => Err(Failure::Failed(message)),
+        },
+        ["overview", rest @ ..] => match overview::run(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err((true, message)) => Err(Failure::Usage(message)),
+            Err((false, message)) => Err(Failure::Failed(message)),
         },
         ["registration", rest @ ..] => match registration::run(rest) {
             Ok(text) => {
@@ -330,6 +341,7 @@ fn usage() -> &'static str {
      geometry --help                               Décrit le fichier attendu et le résultat\n  \
      facade --help                                 Import du plan de façade et mise à l'échelle\n  \
      library --help                                Bibliothèque de dessins : import, liste, vignettes\n  \
+     overview <dossier.insitu>                     Vue façade : emprises, maillages, recouvrements (JSON)\n  \
      project new <dossier.insitu> [--name <nom>]   Crée un projet vide\n  \
      project info <dossier.insitu>                 Affiche le résumé d'un projet (JSON)\n  \
      project validate <dossier.insitu>             Contrôle le projet et ses fichiers\n  \

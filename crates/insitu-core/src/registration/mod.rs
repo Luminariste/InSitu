@@ -269,8 +269,19 @@ pub fn report(
     Ok(result)
 }
 
-/// Contour du carré de la diapositive envoyé sur la façade.
-fn footprint(warp: &PointWarp) -> Vec<PointMm> {
+/// Correspondance diapositive → façade d'un projecteur : `None` tant qu'il
+/// a moins de 4 paires, ou si elles ne permettent pas d'ajuster le trapèze.
+pub fn slide_to_facade(pairs: &[RegistrationPair]) -> Option<PointWarp> {
+    if pairs.len() < 4 || validate_pairs(pairs).is_err() {
+        return None;
+    }
+    let slide: Vec<Point> = pairs.iter().map(|p| point(p.slide)).collect();
+    let facade: Vec<Point> = pairs.iter().map(|p| point(p.facade)).collect();
+    PointWarp::fit(&slide, &facade, 0.0).ok()
+}
+
+/// Contour du carré de la diapositive envoyé sur la façade (emprise), fermé.
+pub fn footprint(warp: &PointWarp) -> Vec<PointMm> {
     let s = SLIDE_SIZE_MM;
     let corners = [
         Point::new(0.0, 0.0),

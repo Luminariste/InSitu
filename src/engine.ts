@@ -492,3 +492,41 @@ export async function chooseDrawingFolder(): Promise<string | null> {
   const chosen = await open({ directory: true, multiple: false, title: "Importer un dossier de dessins" });
   return typeof chosen === "string" ? chosen : null;
 }
+
+// --- Vue façade (tâche 3.3) ---------------------------------------------------
+
+/** Photo redressée posée sur la façade : grille de `(divisions + 1)²` points (mm). */
+export interface SlideMesh {
+  divisions: number;
+  facade: SourcePoint[];
+}
+
+export interface ProjectorOverview {
+  projectorId: string;
+  label: string;
+  pairs: number;
+  /** Emprise sur la façade (mm), fermée ; vide si pas recalé. */
+  footprint: SourcePoint[];
+  areaM2: number | null;
+  mesh: SlideMesh | null;
+  /** Aperçu de la photo redressée, dans le cache de l'app. */
+  photoPreview: string | null;
+  problem: string | null;
+}
+
+export interface Overlap {
+  projectors: [string, string];
+  areaM2: number;
+  outlines: SourcePoint[][];
+}
+
+export interface FacadeOverview {
+  projectors: ProjectorOverview[];
+  overlaps: Overlap[];
+}
+
+/** Tous les projecteurs du projet posés sur la façade, et leurs recouvrements. */
+export async function fetchFacadeOverview(folder: string): Promise<FacadeOverview> {
+  requireEngine();
+  return invoke<FacadeOverview>("facade_overview", { folder });
+}

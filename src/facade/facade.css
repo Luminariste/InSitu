@@ -135,3 +135,90 @@
 .facade-error {
   color: #ff6b6b;
 }
+
+/* --- Vue façade : panneau des projecteurs (tâche 3.3) --- */
+
+.facade-body {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  min-height: 0;
+}
+
+.facade-overview {
+  overflow-y: auto;
+  padding: 10px 14px;
+  background: var(--surface);
+  border-left: 1px solid var(--filet);
+  user-select: none;
+}
+
+.facade-overview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.facade-overview h2,
+.facade-overview h3 {
+  margin: 4px 0 8px;
+  font-size: 1em;
+}
+
+.facade-overview h3 {
+  margin-top: 16px;
+}
+
+.facade-overview-note,
+.facade-overview-info {
+  color: var(--texte-discret);
+}
+
+.facade-overview-show {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 10px;
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid var(--filet);
+}
+
+.facade-overview-opacity {
+  display: grid;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.facade-overview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.facade-overview-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--filet);
+}
+
+.facade-overview-list label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.facade-overview-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.facade-overview-off strong {
+  color: var(--texte-discret);
+}
+
+.facade-overview-problem {
+  color: #e0a040;
+}
