@@ -3,6 +3,7 @@
 
 use std::path::Path;
 
+use insitu_core::assembly::auto::analyze;
 use insitu_core::assembly::{
     add_photo, remove_photo, render, report, set_pairs, RenderOptions, DEFAULT_MAX_SIDE,
 };
@@ -13,6 +14,7 @@ pub const USAGE: &str = r#"Usage :
   insitu assembly add <projet.insitu> <photo> [--anchor PHOTO]
   insitu assembly remove <projet.insitu> <photo>
   insitu assembly pairs <projet.insitu> <photo> <appui> <paires.json>
+  insitu assembly auto <projet.insitu>
   insitu assembly show <projet.insitu>
   insitu assembly render <projet.insitu> [--max-side PX] [--threads N]
 
@@ -31,6 +33,9 @@ points communs. <photo>, <appui> : identifiant ou nom (sans extension).
             { "pairs": [ { "here": [812, 344], "there": [95, 360] }, … ] }
 
           « here » : dans la photo ; « there » : dans son appui.
+  auto    Raccord automatique : trouve les détails communs entre les
+          photos, choisit l'appui de chacune et remplace ses points
+          communs. Une photo sans détail commun garde les siens.
   show    Compte rendu en JSON : pour chaque photo, placée ou non, écart de
           chaque point (pixels de l'appui, dès 5 points), points aberrants
           (dès 6), coins dans le repère de la référence.
@@ -117,6 +122,10 @@ pub fn run(args: &[&str]) -> Result<String, (bool, String)> {
                 .collect();
             let (_, diagnosis) = set_pairs(&dir, &id, &anchor, pairs).map_err(|e| failed(&e))?;
             Ok(serde_json::to_string_pretty(&diagnosis).expect("sérialisable"))
+        }
+        ["auto", folder] => {
+            let (_, done) = analyze(&open(folder)?).map_err(|e| failed(&e))?;
+            Ok(serde_json::to_string_pretty(&done).expect("sérialisable"))
         }
         ["show", folder] => {
             let project = open(folder)?.load().map_err(|e| failed(&e))?.project;
