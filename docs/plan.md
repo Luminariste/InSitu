@@ -40,10 +40,12 @@ tableau à jour.
 | 6.1 Simulation | Version 0.1.27, **non validée** : essai sur Mac à faire par Benjamin (`docs/simulation.md`) ; critère prouvé par test (chaque alerte donne le dessin concerné et un rectangle qui le contient ; un clic choisit le dessin et cadre la vue) ; décisions D-6.1-a à d |
 | Export des dessins posés (après 4.3, accord de Benjamin) | Fusionné (version 0.1.21), **non validé** : export vers LightBurn à essayer par Benjamin avec des dessins posés (`docs/export.md`) ; décisions D-4.2-g à j |
 | 5.2 Vecteurs en bibliothèque | Fusionnée (version 0.1.13), **non validée** : critère « dix dessins de styles différents validés à l'œil » à faire par Benjamin, idéalement sur des dessins de Marc (`docs/bibliotheque.md`) ; écart mesuré sous 0,5 px sur les dessins d'essai |
-| 6.4 Assemblage de photos | Fusionnée (version 0.1.16), **non validée** : essai sur Mac à faire par Benjamin avec trois vraies photos de façade (`docs/assemblage.md`) ; façade supposée plane (D-6.4-a), rotation EXIF non appliquée (D-6.4-f) |
+| 6.4 Assemblage de photos | Fusionnée (version 0.1.16), essayée par Benjamin : jugée laborieuse, d'où la 6.6 ; **non validée** (`docs/assemblage.md`) ; façade supposée plane (D-6.4-a), rotation EXIF non appliquée (D-6.4-f) |
+| 6.6 Assemblage automatique (demande de Benjamin après essai de la 6.4) | Version 0.1.30, **non validée** : essai sur Mac à faire par Benjamin avec ses vraies photos (`docs/assemblage.md`) ; prouvé par test : trois photos raccordées sans aucun clic, coins à moins de 1 px de leur place (photos simulées), et deux vraies photos d'Épinal raccordées (écart moyen 0,65 px) ; décisions D-6.6-a à e |
 | Renommer / supprimer un projecteur, barre de menus du Mac (hors plan, demande de Benjamin) | Fusionné (version 0.1.18), **non validé** : essai sur Mac ; décisions D15-f et D15-g |
 | Retirer un dessin de la bibliothèque, retirer le plan de la façade (hors plan, demande de Benjamin) | Version 0.1.19, **non validé** : essai sur Mac ; décision D15-h |
 | Jeu d'essai Trévarez (hors plan, demande de Benjamin) | Fait : projet réel de la 0.1.28 relu et diapositive C refaite à l'identique, prouvé par test (`jeu-essai/LISEZMOI.md`, D-JE-a à c) |
+| Panneau de droite de la Façade en onglets, outils des dessins en icônes dans la barre du haut (hors plan, demande de Benjamin) | Version 0.1.31, **non validé** : essai sur Mac ; décisions D15-i et D15-j |
 | Toutes les autres | À faire |
 
 **Ce qui bloque la validation de la tâche 1.5.** Dans la version 0.1.1,
@@ -290,6 +292,7 @@ les tâches « interface » demandent un essai sur Mac.
 | 6.2 | Fiche de calepinage | PDF : plan avec emprises, liste des diapositives, vignettes, réglages d'export | Imprimable en A3, lisible sur site | 6.1 |
 | 6.3 | Import Illustrator | Lecture d'un `.ai` : images placées, positions, liens | Composition A recréée à l'identique dans l'app | 4.2 |
 | 6.4 | Assemblage de photos | Recalage de plusieurs photos de façade entre elles par points | Trois photos assemblées servent de fond de plan | 3.2 |
+| 6.6 | Assemblage automatique | L'app trouve elle-même les points communs entre les photos et l'appui de chacune ; correction à la main toujours possible | Trois photos qui se recouvrent sont raccordées sans aucun clic, à moins de 1 px près | 6.4 |
 | 6.5 | Finitions | Préférences, raccourcis, messages d'erreur clairs, aide intégrée, icône | Marc installe et utilise l'app sans explication | tout |
 
 ## Méthode de travail

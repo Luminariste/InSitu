@@ -5,7 +5,7 @@ projecteur, quelle diapositive il porte, avec quels réglages.
 
 ## Dans l'app
 
-Étape **Façade**, inspecteur à droite, rubrique **Export des diapositives** :
+Étape **Façade**, panneau de droite, onglet **Export**, rubrique **Export des diapositives** :
 **Fiche de calepinage…**, puis choisir où l'enregistrer (nom proposé :
 `<projet> - calepinage.pdf`). Les réglages d'export inscrits sur la fiche
 sont ceux de la rubrique à ce moment-là.

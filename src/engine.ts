@@ -1092,6 +1092,35 @@ export async function saveAssemblyPairs(
   return { project, report };
 }
 
+/** Ce que le raccord automatique dit d'une photo (tâche 6.6). */
+export interface AutoPhotoReport {
+  id: string;
+  name: string;
+  /** Photo d'appui choisie ; `null` pour la référence et une photo non raccordée. */
+  anchor: string | null;
+  /** Détails communs trouvés avec l'appui. */
+  matches: number;
+  /** Points communs enregistrés. */
+  pairs: number;
+  /** Raccordée : ses points ont été remplacés. */
+  linked: boolean;
+}
+
+export interface AutoReport {
+  photos: AutoPhotoReport[];
+  /** Photos sans détail commun avec les autres (leurs points sont gardés). */
+  unlinked: string[];
+  seconds: number;
+  assembly: AssemblyReport;
+}
+
+/** Raccord automatique : le moteur trouve les points communs et l'appui de chaque photo. */
+export async function autoAssembly(folder: string): Promise<{ project: Project; report: AutoReport }> {
+  requireEngine();
+  const [project, report] = await invoke<[Project, AutoReport]>("assembly_auto", { folder });
+  return { project, report };
+}
+
 /** Calcule l'image assemblée ; elle devient la façade du projet. */
 export async function renderAssembly(folder: string): Promise<{ project: Project; report: AssemblyRenderReport }> {
   requireEngine();

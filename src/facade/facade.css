@@ -67,7 +67,7 @@
   border: 0;
 }
 
-.ui-property-value > .facade-export-dpi {
+.ui-property-value > .ui-input.facade-export-dpi {
   flex: 0 0 72px;
 }
 

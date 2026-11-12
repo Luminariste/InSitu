@@ -208,6 +208,95 @@ export function Panel({
   );
 }
 
+// --- Onglets d'un panneau ----------------------------------------------------------------
+
+export interface TabSpec<T extends string> {
+  value: T;
+  label: string;
+  icon: IconName;
+  /** Bulle d'aide : ce que l'onglet règle. */
+  title?: string;
+  /** Pastille : un nombre (sélection) ou un point coloré (à faire). */
+  badge?: number | Tone;
+  disabled?: boolean;
+}
+
+/** Panneau de propriétés en onglets (D15-i) : une rangée d'onglets icône et
+ *  libellé à la place du titre, un seul contenu visible. Tous les contenus
+ *  restent montés (cachés), pour garder leurs raccourcis et leur saisie. */
+export function TabbedPanel<T extends string>({
+  label,
+  side,
+  tabs,
+  value,
+  onChange,
+  panes,
+  className,
+}: {
+  label: string;
+  side: "left" | "right";
+  tabs: TabSpec<T>[];
+  value: T;
+  onChange: (value: T) => void;
+  panes: Record<T, ReactNode>;
+  className?: string;
+}) {
+  const id = useId();
+  const onKey = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
+    if (!step) return;
+    event.preventDefault();
+    const usable = tabs.filter((t) => !t.disabled);
+    const index = usable.findIndex((t) => t.value === value);
+    const next = usable[(index + step + usable.length) % usable.length];
+    onChange(next.value);
+    document.getElementById(`${id}-tab-${next.value}`)?.focus();
+  };
+  return (
+    <aside className={cx("ui-panel", "ui-tabbed", side === "left" ? "ui-sidebar" : "ui-inspector", className)} aria-label={label}>
+      <div className="ui-tabs" role="tablist" aria-label={label} onKeyDown={onKey}>
+        {tabs.map((t) => {
+          const selected = t.value === value;
+          return (
+            <button
+              key={t.value}
+              id={`${id}-tab-${t.value}`}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-controls={`${id}-pane-${t.value}`}
+              tabIndex={selected ? 0 : -1}
+              className={selected ? "is-selected" : undefined}
+              disabled={t.disabled}
+              title={t.title ?? t.label}
+              onClick={() => onChange(t.value)}
+            >
+              <span className="ui-tab-icon">
+                <Icon name={t.icon} />
+                {typeof t.badge === "number" && t.badge > 0 && <span className="ui-tab-count">{t.badge}</span>}
+                {typeof t.badge === "string" && <span className={cx("ui-tab-dot", `tone-${t.badge}`)} />}
+              </span>
+              <span className="ui-tab-label">{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      {tabs.map((t) => (
+        <div
+          key={t.value}
+          id={`${id}-pane-${t.value}`}
+          role="tabpanel"
+          aria-labelledby={`${id}-tab-${t.value}`}
+          className="ui-panel-body"
+          hidden={t.value !== value}
+        >
+          {panes[t.value]}
+        </div>
+      ))}
+    </aside>
+  );
+}
+
 /** Rubrique d'un panneau : un titre en petites capitales, un contenu. */
 export function Section({ title, actions, children, className }: { title?: string; actions?: ReactNode; children: ReactNode; className?: string }) {
   return (

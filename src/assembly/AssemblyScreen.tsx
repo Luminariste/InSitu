@@ -6,6 +6,11 @@
 // point et signale ceux qui semblent mal placés. « Calculer l'assemblage »
 // fabrique une seule image, qui devient la façade du projet.
 //
+// Depuis la tâche 6.6, « Raccorder automatiquement » laisse le moteur
+// trouver lui-même les points communs et l'appui de chaque photo ; il le
+// fait aussi tout seul après l'ajout des premières photos. Les points
+// trouvés s'affichent et se corrigent comme des points cliqués.
+//
 // Tout le calcul et l'enregistrement passent par le moteur (`../engine.ts`).
 // Dans un simple navigateur (`npm run dev`), l'écran montre deux photos
 // d'exemple déjà tuilées dans `tuiles-demo/` si elles existent (voir
@@ -14,6 +19,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, type RefObject } from "react";
 import {
   addAssemblyPhoto,
+  autoAssembly,
   chooseFacadePhotos,
   fetchAssembly,
   hasEngine,
@@ -26,6 +32,7 @@ import {
   type AssemblyPair,
   type AssemblyPhoto,
   type AssemblyReport,
+  type AutoReport,
   type Project,
 } from "../engine";
 import { Viewer, type LayerSpec, type TileSource, type ViewerHandle } from "../viewer";
@@ -59,9 +66,11 @@ import {
 import {
   GRAB_RADIUS_PX,
   NO_PENDING,
+  autoMessage,
   click,
   formatPx,
   formatSize,
+  hasManualPoints,
   hint,
   inside,
   movePoint,
@@ -150,7 +159,8 @@ export function AssemblyScreen({ folder, project: initial, onClose, onRendered }
   const [sources, setSources] = useState<Record<string, TileSource>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<{ kind: "remove" | "anchor"; id: string } | null>(null);
+  const [confirm, setConfirm] = useState<{ kind: "remove" | "anchor" | "auto"; id: string } | null>(null);
+  const [notice, setNotice] = useState<{ tone: "success" | "warning"; text: string } | null>(null);
 
   const photos = useMemo(() => (engine ? (project?.facadeAssembly?.photos ?? []) : demoPhotos), [engine, project, demoPhotos]);
   const names = useMemo(() => new Map(photos.map((p) => [p.id, p.name])), [photos]);
@@ -163,6 +173,7 @@ export function AssemblyScreen({ folder, project: initial, onClose, onRendered }
   const run = useCallback(async (label: string | null, task: () => Promise<void>) => {
     if (label) setBusy(label);
     setError(null);
+    setNotice(null);
     try {
       await task();
     } catch (failure) {
@@ -283,11 +294,39 @@ export function AssemblyScreen({ folder, project: initial, onClose, onRendered }
     );
   };
 
+  /** Montre le résultat du raccord automatique et la première photo raccordée. */
+  const showAuto = (next: Project, done: AutoReport) => {
+    updated(next);
+    setReport(done.assembly);
+    setNotice(autoMessage(done));
+    const all = next.facadeAssembly?.photos ?? [];
+    // La photo affichée garde son identifiant : ses points sont relus ici.
+    const shown = all.find((p) => p.id === selectedId) ?? all[1] ?? null;
+    if (shown) {
+      setSelectedId(shown.id);
+      setPairs(shown.pairs ?? []);
+      setPending(NO_PENDING);
+      setSelected(null);
+    }
+  };
+
+  const LINKING = "Recherche des détails communs aux photos… (quelques secondes par photo)";
+
+  const linkAutomatically = () =>
+    run(LINKING, async () => {
+      if (!folder) return;
+      setConfirm(null);
+      const { project: next, report: done } = await autoAssembly(folder);
+      showAuto(next, done);
+    });
+
   const addPhotos = () =>
     run(null, async () => {
       if (!folder) return;
       const paths = await chooseFacadePhotos();
       if (paths.length === 0) return;
+      // Aucun point posé à la main : le raccord automatique se lance seul.
+      const automatic = !hasManualPoints(photos);
       let first: string | null = null;
       let last: Project | null = null;
       for (const [i, path] of paths.entries()) {
@@ -298,9 +337,15 @@ export function AssemblyScreen({ folder, project: initial, onClose, onRendered }
       }
       setBusy(null);
       if (last) updated(last);
+      const all = last?.facadeAssembly?.photos ?? [];
+      if (automatic && all.length >= 2) {
+        setBusy(LINKING);
+        const { project: next, report: done } = await autoAssembly(folder);
+        showAuto(next, done);
+        return;
+      }
       setReport(await fetchAssembly(folder));
       // La première nouvelle photo, si elle n'est pas la référence.
-      const all = last?.facadeAssembly?.photos ?? [];
       const target = all.findIndex((p) => p.id === first);
       setSelectedId(target > 0 ? first : (all[1]?.id ?? first));
     }).finally(() => setBusy(null));
@@ -444,6 +489,14 @@ export function AssemblyScreen({ folder, project: initial, onClose, onRendered }
         Ajouter des photos…
       </Button>
       <Button
+        icon="link"
+        onClick={() => (hasManualPoints(photos) ? setConfirm({ kind: "auto", id: photos[0]?.id ?? "" }) : void linkAutomatically())}
+        disabled={!engine || !ready || photos.length < 2}
+        title="L'app cherche elle-même les détails communs aux photos et pose les points"
+      >
+        Raccorder automatiquement
+      </Button>
+      <Button
         variant="primary"
         icon="check"
         onClick={() => void render()}
@@ -583,7 +636,7 @@ export function AssemblyScreen({ folder, project: initial, onClose, onRendered }
               })}
             </List>
           ) : (
-            <p className="ui-list-empty">Cliquer un détail sur la photo de gauche, puis le même sur celle de droite. Quatre points au moins, bien répartis.</p>
+            <p className="ui-list-empty">« Raccorder automatiquement » les trouve. À la main : cliquer un détail sur la photo de gauche, puis le même sur celle de droite ; quatre points au moins, bien répartis.</p>
           )}
         </Section>
       )}
@@ -623,10 +676,16 @@ export function AssemblyScreen({ folder, project: initial, onClose, onRendered }
         className="assembly"
         toolbar={toolbar}
         banner={
-          error && (
+          error ? (
             <Banner tone="danger" onClose={() => setError(null)}>
               {error}
             </Banner>
+          ) : (
+            notice && (
+              <Banner tone={notice.tone} onClose={() => setNotice(null)}>
+                {notice.text}
+              </Banner>
+            )
           )
         }
         sidebar={sidebar}
@@ -658,7 +717,7 @@ export function AssemblyScreen({ folder, project: initial, onClose, onRendered }
                 )
               }
             >
-              <p>Sans plan d'architecte : des photos prises de face, qui se recouvrent d'un tiers environ, assemblées en une seule image.</p>
+              <p>Sans plan d'architecte : des photos prises de face, qui se recouvrent d'un tiers environ, assemblées en une seule image. L'app trouve elle-même les détails communs.</p>
               {!engine && <small>Dans ce navigateur, tuiler deux photos dans <code>tuiles-demo/</code> (voir <code>docs/assemblage.md</code>).</small>}
             </EmptyState>
           )}
@@ -676,6 +735,16 @@ export function AssemblyScreen({ folder, project: initial, onClose, onRendered }
           }}
         >
           <p>Ses points communs sont perdus. Le fichier reste dans le dossier du projet.</p>
+        </ConfirmDialog>
+      )}
+      {confirm && confirm.kind === "auto" && (
+        <ConfirmDialog
+          title="Raccorder automatiquement toutes les photos ?"
+          confirmLabel="Raccorder automatiquement"
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => void linkAutomatically()}
+        >
+          <p>Les points communs déjà posés sont remplacés par ceux que l'app trouve, et chaque photo peut changer de photo d'appui. Une photo sans détail commun avec les autres garde ses points.</p>
         </ConfirmDialog>
       )}
       {confirm && confirmed && confirm.kind === "anchor" && (
