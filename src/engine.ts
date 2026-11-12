@@ -950,6 +950,40 @@ export async function fetchSlideViews(folder: string): Promise<SlideView[]> {
   return invoke<SlideView[]>("slide_views", { folder });
 }
 
+// --- Simulation et alertes (tâche 6.1) ------------------------------------------
+
+/** « cut » : dessin coupé ; « outside » : hors emprise ; « doubled » : projeté deux fois. */
+export type AlertKind = "cut" | "outside" | "doubled";
+
+export interface SimulationAlert {
+  kind: AlertKind;
+  /** Le dessin posé concerné (identifiant du placement), s'il y en a un. */
+  placement: string | null;
+  /** Les projecteurs en cause. */
+  projectors: string[];
+  message: string;
+  /** Où regarder sur la façade (mm). */
+  bounds: { x: number; y: number; width: number; height: number };
+}
+
+export interface SimulatedSlide {
+  projectorId: string;
+  /** Aperçu de la diapositive dans le cache de l'app, à tendre sur le maillage de la vue façade. */
+  preview: string | null;
+  problem: string | null;
+}
+
+export interface Simulation {
+  slides: SimulatedSlide[];
+  alerts: SimulationAlert[];
+}
+
+/** Simulation de tous les projecteurs sur la façade, et ses alertes. */
+export async function fetchSimulation(folder: string): Promise<Simulation> {
+  requireEngine();
+  return invoke<Simulation>("facade_simulation", { folder });
+}
+
 // --- Assemblage de photos de façade (tâche 6.4) -------------------------------
 
 /** Un point commun : dans la photo (`here`) et dans sa photo d'appui (`there`), en pixels. */

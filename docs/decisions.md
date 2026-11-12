@@ -4,6 +4,44 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 6.1 : simulation et alertes
+
+Module `crates/insitu-core/src/simulation/` ; écran : rubrique « Simulation »
+du panneau de gauche de l'étape Façade.
+
+**D-6.1-a. La simulation pose les diapositives calculées sur la façade.**
+Chaque aperçu de diapositive (le même que la vue Diapositive, calculé comme
+l'export, `export::preview`) est tendu sur le maillage du projecteur de la
+vue façade, teint de la couleur du projecteur et éclaircissant (« screen ») :
+deux diapositives qui allument le même point mêlent leurs couleurs. Pas de
+nouvelle image de façade calculée par le moteur. La simulation se lance par
+un bouton (« Simuler ») et ne se recalcule pas toute seule après un
+changement : « Simuler à nouveau ».
+
+**D-6.1-b. « Dessin coupé ».** Un dessin posé visible dont la diapositive
+(proposée ou choisie à la main, D-4.5-b) ne le contient pas en entier : soit
+aucune ne le contient (« à cheval », D-4.5-c), soit le choix à la main en
+désigne une dont il dépasse alors qu'une autre le contient (le message la
+nomme). **« Hors emprise »** : un dessin qui ne tombe dans aucune emprise.
+Les dessins d'un calque masqué ne partent pas à l'export : pas d'alerte.
+
+**D-6.1-c. « Doublon en recouvrement » = lumière projetée deux fois.** Depuis
+D-4.5-a, un dessin posé n'est jamais envoyé dans deux diapositives ; ce qui
+peut encore être projeté deux fois, c'est la fresque importée en une image
+(découpée entre les diapositives) ou deux dessins voisins rangés dans deux
+diapositives qui se touchent dans un recouvrement. Le constat se fait sur
+les aperçus (2 048 px) : chaque pixel allumé (≥ 128) de la première
+diapositive est porté sur la façade puis dans la seconde ; s'il y est allumé
+aussi (à un pixel près), le point reçoit deux fois la lumière. Les points
+sont groupés par blocs de 48 pixels d'aperçu : une alerte par groupe (moins
+de 4 points : ignoré). Si un dessin posé de l'une des deux diapositives
+touche la zone, l'alerte mène à lui ; sinon elle nomme la fresque.
+
+**D-6.1-d. Une alerte mène au dessin.** Chaque alerte donne le placement
+concerné (s'il y en a un) et son rectangle sur la façade. Un clic dans la
+liste choisit le dessin et cadre la vue sur ce rectangle, élargi de moitié
+et d'au moins 200 mm (un trait fin reste visible).
+
 ## 2026-11-12 — Tâche 5.3 : export SVG
 
 Module `crates/insitu-core/src/export/svg.rs`.
