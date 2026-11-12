@@ -1,0 +1,87 @@
+/* Écran Diapositive (tâche 3.6). Mêmes codes que les écrans Façade et Recalage. */
+
+.slide {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.slide-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  padding: 8px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--filet);
+  user-select: none;
+}
+
+.slide-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slide-label {
+  color: var(--texte-discret);
+}
+
+.slide-fit {
+  margin-left: auto;
+}
+
+.slide-bar button,
+.slide-bar select {
+  font: inherit;
+  color: var(--texte);
+  background: #222226;
+  border: 1px solid var(--filet);
+  border-radius: 5px;
+  padding: 4px 10px;
+}
+
+.slide-bar button.actif {
+  border-color: var(--accent, #4fc3f7);
+  color: #fff;
+}
+
+.slide-bar button.slide-off {
+  opacity: 0.5;
+}
+
+.slide-bar button:disabled {
+  opacity: 0.45;
+}
+
+.slide-stage {
+  position: relative;
+  min-height: 0;
+}
+
+.slide-stage .viewer {
+  height: 100%;
+}
+
+.slide-message {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 8px 14px;
+  background: rgba(20, 20, 24, 0.9);
+  border: 1px solid var(--filet);
+  border-radius: 6px;
+}
+
+.slide-message.erreur {
+  color: #ff8a80;
+}
+
+.slide-foot {
+  padding: 6px 14px;
+  color: var(--texte-discret);
+  background: var(--surface);
+  border-top: 1px solid var(--filet);
+}

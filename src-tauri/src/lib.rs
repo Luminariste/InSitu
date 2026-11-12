@@ -4,6 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
+use insitu_core::export::preview::{self as slide_preview, SlideView};
 use insitu_core::export::{self, ExportReport};
 use insitu_core::facade::{self, FacadeDisplay, SourceInfo};
 use insitu_core::geometry::Point;
@@ -328,6 +329,19 @@ fn slides_export(
     .map_err(|e| e.to_string())
 }
 
+// --- Vue diapositive (tâche 3.6) ----------------------------------------------------
+
+/// Chaque projecteur : sa photo redressée et l'aperçu de sa diapositive.
+#[tauri::command(async)]
+fn slide_views(app: AppHandle, folder: String) -> Result<Vec<SlideView>, String> {
+    slide_preview::slide_views(
+        &project_dir(&folder)?,
+        &tile_cache_dir(&app)?,
+        slide_preview::SLIDE_PREVIEW_SIDE,
+    )
+    .map_err(|e| e.to_string())
+}
+
 /// Dossier du jeu d'essai, pour l'écran de démonstration. Dans l'ordre :
 /// celui que désigne `INSITU_JEU_ESSAI`, celui du dépôt d'où l'app a été
 /// compilée (lancement depuis le code), puis les images embarquées dans
@@ -404,7 +418,8 @@ pub fn run() {
             library_set_vector_settings,
             facade_overview,
             fresco_import,
-            slides_export
+            slides_export,
+            slide_views
         ])
         .run(tauri::generate_context!())
         .expect("erreur au lancement d'InSitu");

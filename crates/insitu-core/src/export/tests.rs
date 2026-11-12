@@ -315,3 +315,89 @@ fn file_names_and_captions() {
         "Épinal - A - 1400 DPI - MIROIR - NEGATIF"
     );
 }
+
+#[test]
+fn slide_previews_are_computed_once_and_follow_the_registration() {
+    use super::preview::slide_views;
+    let temp = TempDir::new("vue-diapositive");
+    let (dir, mut project) =
+        ProjectDir::create(temp.path().join("Essai.insitu"), Some("Essai")).unwrap();
+    project.add_projector("A").registration = pairs();
+    project.add_projector("B").registration = pairs()[..2].to_vec();
+    dir.save(&project).unwrap();
+    let cache = temp.path().join("cache");
+
+    // Sans fresque : chaque projecteur dit ce qui manque.
+    let views = slide_views(&dir, &cache, 600).unwrap();
+    assert!(views
+        .iter()
+        .all(|v| v.preview.is_none() && v.problem.is_some()));
+
+    let image = temp.path().join("fresque.png");
+    let verre = verre_a_reduit();
+    let fresco = fresco_from(&verre, &slide_to_facade(&pairs()).unwrap(), 1_500);
+    image::save_buffer(
+        &image,
+        &fresco.data,
+        fresco.width,
+        fresco.height,
+        image::ExtendedColorType::L8,
+    )
+    .unwrap();
+    import_fresco(&dir, &image, Some(FRAME)).unwrap();
+
+    let views = slide_views(&dir, &cache, 600).unwrap();
+    let a = &views[0];
+    assert!(a.problem.is_none());
+    let request = a.preview.clone().unwrap();
+    assert!(request.starts_with("diapositives/"));
+    assert!(views[1].problem.as_deref().unwrap().contains("2 paire"));
+    // Blanc à opacité variable : l'opacité est le gris de la diapositive.
+    let png = image::open(cache.join(&request)).unwrap().into_rgba8();
+    assert_eq!(png.dimensions(), (600, 600));
+    let warp = slide_to_facade(&pairs()).unwrap();
+    let fresco =
+        read_fresco(&dir.resolve(&dir.load().unwrap().project.fresco.unwrap().source)).unwrap();
+    let gray = render_slide(
+        &fresco,
+        &FRAME,
+        &warp,
+        "",
+        &settings(600.0 / SLIDE_SIZE_MM * units::MM_PER_INCH),
+        0,
+    )
+    .unwrap();
+    assert!(png
+        .pixels()
+        .zip(&gray.data)
+        .all(|(p, &g)| p.0 == [255, 255, 255, g]));
+
+    // Rien n'a changé : le même fichier est resservi, sans recalcul.
+    let written = std::fs::metadata(cache.join(&request))
+        .unwrap()
+        .modified()
+        .unwrap();
+    assert_eq!(
+        slide_views(&dir, &cache, 600).unwrap()[0]
+            .preview
+            .as_deref(),
+        Some(request.as_str())
+    );
+    assert_eq!(
+        std::fs::metadata(cache.join(&request))
+            .unwrap()
+            .modified()
+            .unwrap(),
+        written
+    );
+
+    // Un recalage modifié donne un nouvel aperçu.
+    let mut project = dir.load().unwrap().project;
+    project.projectors[0].registration[4].facade.x += 50.0;
+    dir.save(&project).unwrap();
+    let moved = slide_views(&dir, &cache, 600).unwrap()[0]
+        .preview
+        .clone()
+        .unwrap();
+    assert_ne!(moved, request);
+}

@@ -17,6 +17,8 @@
 //!   image et la pose sur la façade (détail : `insitu fresco --help`) ;
 //! - `insitu export <dossier.insitu> <dossier>` : une diapositive PNG par
 //!   projecteur recalé, pour la gravure (options : `insitu export --help`) ;
+//! - `insitu slides <dossier.insitu> --cache <dossier>` : aperçu de chaque
+//!   diapositive calculée, pour la vue diapositive (JSON) ;
 //! - `insitu overview <dossier.insitu>` : vue façade (emprises, maillages,
 //!   recouvrements), en JSON ;
 //! - `insitu registration show|set …` : recalage d'un projecteur sur la
@@ -131,6 +133,14 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             Err((false, message)) => Err(Failure::Failed(message)),
         },
         ["export", rest @ ..] => match export::export(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err((true, message)) => Err(Failure::Usage(message)),
+            Err((false, message)) => Err(Failure::Failed(message)),
+        },
+        ["slides", rest @ ..] => match export::slides(rest) {
             Ok(text) => {
                 println!("{text}");
                 Ok(ExitCode::SUCCESS)
@@ -370,6 +380,7 @@ fn usage() -> &'static str {
      project validate <dossier.insitu>             Contrôle le projet et ses fichiers\n  \
      projector --help                              Photo de mire d'un projecteur : import, redressement, export\n  \
      registration --help                           Recalage d'un projecteur sur la façade par points communs\n  \
+     slides <dossier.insitu> --cache <dossier>     Vue diapositive : aperçu calculé de chaque diapositive (JSON)\n  \
      rectify <photo> [--output <image>]            Détecte la mire et redresse la photo (rectify --help)\n  \
      target pdf <fichier.pdf> [--page a3|carre]    Écrit la mire imprimable (PDF, 280 mm)\n  \
      target info                                   Décrit la mire en JSON (repères, grille)\n  \
