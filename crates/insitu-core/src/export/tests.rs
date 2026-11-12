@@ -441,6 +441,7 @@ fn project_with_placed_drawing(label: &str, frame: &RectMm) -> (TempDir, Project
         group: None,
         layer: None,
         deformation: None,
+        projector: None,
         extra: Default::default(),
     });
     dir.save(&project).unwrap();
@@ -659,4 +660,60 @@ fn a_deformed_drawing_is_exported_through_its_mesh() {
     let count = |r: &Raster| r.data.iter().filter(|&&v| v >= 128).count() as f64;
     let ratio = count(&small) / count(&rigid);
     assert!((0.15..0.4).contains(&ratio), "{ratio}");
+}
+
+/// Tâche 4.5 : un dessin dans la zone couverte par deux projecteurs ne part
+/// que dans une diapositive, celle que propose le moteur ou celle choisie à
+/// la main.
+#[test]
+fn a_drawing_in_an_overlap_goes_to_one_slide_only() {
+    let frame = RectMm {
+        x: 3_800.0,
+        y: 2_000.0,
+        width: 1_000.0,
+        height: 900.0,
+    };
+    let (temp, dir, _) = project_with_placed_drawing("export-affectation", &frame);
+    let mut project = dir.load().unwrap().project;
+    // B : le même recalage décalé de 1,5 m vers la droite ; le dessin est
+    // dans les deux emprises, plus loin du bord de B que du bord de A.
+    let b: Vec<RegistrationPair> = pairs()
+        .into_iter()
+        .map(|p| RegistrationPair::new(p.slide, PointMm::new(p.facade.x + 1_500.0, p.facade.y)))
+        .collect();
+    project.add_projector("B").registration = b;
+    dir.save(&project).unwrap();
+    let ids = [
+        project.projectors[0].id.clone(),
+        project.projectors[1].id.clone(),
+    ];
+
+    let lit = |out: &Path| -> Vec<usize> {
+        let s = settings(60.0);
+        let report = export_slides(&dir, out, &s, None, 0, &|_| {}).unwrap();
+        report
+            .slides
+            .iter()
+            .map(|slide| {
+                to_gray(tiles::read_raster(&slide.path).unwrap())
+                    .data
+                    .iter()
+                    .filter(|&&v| v >= 128)
+                    .count()
+            })
+            .collect()
+    };
+    let auto = lit(&temp.path().join("auto"));
+    assert!(auto[0] == 0 && auto[1] > 50, "proposé à B seul : {auto:?}");
+
+    crate::placement::assign(&dir, &["p1".to_string()], Some("A")).unwrap();
+    let manual = lit(&temp.path().join("main"));
+    assert!(
+        manual[0] > 50 && manual[1] == 0,
+        "choisi à la main : A seul : {manual:?}"
+    );
+    let a = crate::placement::assign::assignments(&dir.load().unwrap().project);
+    assert_eq!(a[0].projector.as_deref(), Some(ids[0].as_str()));
+    assert!(a[0].manual && a[0].whole);
+    assert_eq!(a[0].candidates, ids.to_vec());
 }

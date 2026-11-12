@@ -3,6 +3,8 @@
 // alignement, groupes, ordre. Tout s'enregistre aussitôt.
 
 import { useEffect, useState } from "react";
+import type { Assignment } from "../engine";
+import { cssColor, projectorColor } from "../facade/overview";
 import { formatLength, parseDistanceMm } from "../facade/scale";
 import { Button, Property, Section } from "../ui";
 import { layerOf } from "./layers";
@@ -16,6 +18,10 @@ interface Props {
   actions: CompositionActions;
   /** Calques du projet (tâche 4.3) ; le choix n'apparaît qu'à partir de deux. */
   layers: Layer[];
+  /** Projecteurs du projet, dans l'ordre (leurs couleurs suivent cet ordre). */
+  projectors: { id: string; label: string }[];
+  /** Diapositive de chaque dessin posé (tâche 4.5). */
+  assignments: Map<string, Assignment>;
 }
 
 /** Champ qui ne s'applique qu'à ↩ ou en quittant le champ ; Échap rétablit. */
@@ -131,7 +137,68 @@ function DeformationSection({ selected, actions }: { selected: Placement[]; acti
   );
 }
 
-export function PlacementInspector({ selected, frame, drawings, actions, layers }: Props) {
+/** Rubrique « Diapositive » (tâche 4.5) : où part la sélection, et le choix à la main. */
+function SlideChoice({
+  selected,
+  actions,
+  projectors,
+  assignments,
+}: {
+  selected: Placement[];
+  actions: CompositionActions;
+  projectors: { id: string; label: string }[];
+  assignments: Map<string, Assignment>;
+}) {
+  const found = selected.map((p) => assignments.get(p.id));
+  if (projectors.length === 0 || found.some((a) => !a)) return null;
+  const list = found as Assignment[];
+  const label = (id: string | null) => projectors.find((q) => q.id === id)?.label ?? "aucune";
+  const same = (f: (a: Assignment) => unknown) => new Set(list.map(f)).size === 1;
+  // Valeur du menu : « auto » si tout est proposé, l'identifiant si tout est choisi au même endroit.
+  const value = list.every((a) => !a.manual) ? "auto" : same((a) => a.manual && a.projector) ? list[0].projector! : "";
+  const proposal = same((a) => a.projector) ? label(list[0].projector) : "plusieurs";
+  const cut = list.filter((a) => !a.whole).length;
+  const index = projectors.findIndex((q) => q.id === list[0].projector);
+  return (
+    <>
+      <Property label="Diapositive">
+        <select
+          className="ui-select"
+          aria-label="Diapositive de la sélection"
+          value={value}
+          onChange={(e) => {
+            if (e.target.value) actions.assignTo(e.target.value === "auto" ? null : e.target.value);
+          }}
+        >
+          {value === "" && <option value="">Plusieurs</option>}
+          <option value="auto">Automatique{list.every((a) => !a.manual) ? ` (${proposal})` : ""}</option>
+          {projectors.map((q) => (
+            <option key={q.id} value={q.id}>
+              {q.label}
+              {list.every((a) => a.candidates.includes(q.id)) ? "" : " (coupe le dessin)"}
+            </option>
+          ))}
+        </select>
+      </Property>
+      <p className="compose-hint">
+        {same((a) => a.projector) && index >= 0 && (
+          <span className="ui-swatch compose-swatch" style={{ background: cssColor(projectorColor(index)) }} />
+        )}
+        {cut > 0
+          ? `${cut === 1 && list.length === 1 ? "Le dessin est" : `${cut} dessin(s)`} à cheval : ${
+              list.some((a) => a.candidates.length > 0)
+                ? "une autre diapositive le contient en entier."
+                : "aucune diapositive ne le contient en entier (le réduire ou le déplacer)."
+            }`
+          : list.some((a) => a.manual)
+            ? "Choisie à la main."
+            : "Proposée : le dessin y tient en entier, le plus loin du bord."}
+      </p>
+    </>
+  );
+}
+
+export function PlacementInspector({ selected, frame, drawings, actions, layers, projectors, assignments }: Props) {
   if (selected.length === 0 || !frame) return null;
   const center = rectCenter(frame);
   const single = selected.length === 1 ? selected[0] : null;
@@ -167,6 +234,7 @@ export function PlacementInspector({ selected, frame, drawings, actions, layers 
           </select>
         </Property>
       )}
+      <SlideChoice selected={selected} actions={actions} projectors={projectors} assignments={assignments} />
       <Property label="Centre X">
         <Field
           label="Centre, horizontalement"

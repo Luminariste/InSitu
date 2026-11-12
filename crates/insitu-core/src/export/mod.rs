@@ -33,6 +33,7 @@ use serde::Serialize;
 
 use crate::geometry::{Point, PointWarp, Transform};
 use crate::library::flatten_on_black;
+use crate::placement::assign::{assignments, slide_placements_in};
 use crate::project::model::RectMm;
 use crate::project::store::write_atomic;
 use crate::project::{
@@ -489,16 +490,16 @@ pub fn export_slides(
     };
     let px_mm = units::px_size_mm(settings.dpi);
     let (side, _) = sizes_px(settings.dpi);
-    let placements = project.visible_placements();
+    let assigned = assignments(&project);
     let mut cache = drawings::DrawingCache::default();
     let mut slides = Vec::new();
     for (k, (id, label, warp)) in todo.iter().enumerate() {
         let start = Instant::now();
         let text = caption(&project.name, label, settings);
-        // Seuls les dessins qui tombent dans la diapositive sont lus.
-        let seen: Vec<&Placement> = placements
-            .iter()
-            .copied()
+        // Seuls les dessins affectés à cette diapositive (tâche 4.5), et
+        // qui y tombent, sont lus.
+        let seen: Vec<&Placement> = slide_placements_in(&project, &assigned, id)
+            .into_iter()
             .filter(|p| drawings::slide_rect(p, warp, px_mm, side, settings.mirror).is_some())
             .collect();
         cache.load(dir, &project, &seen, px_mm)?;

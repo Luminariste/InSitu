@@ -23,8 +23,9 @@ use serde::Serialize;
 use super::drawings::{slide_rect, DrawingCache};
 use super::{read_fresco, render_artwork, Artwork, ExportError};
 use crate::library::{black_to_alpha, encode_png};
+use crate::placement::assign::{assignments, slide_placements_in};
 use crate::project::model::new_id;
-use crate::project::{ExportSettings, Project, ProjectDir};
+use crate::project::{ExportSettings, Placement, Project, ProjectDir};
 use crate::registration::slide_to_facade;
 use crate::tiles::{self, Raster};
 use crate::units::{self, MM_PER_INCH, SLIDE_SIZE_MM};
@@ -59,6 +60,7 @@ pub fn slide_views(
     let project = dir.load()?.project;
     let mut fresco_image: Option<Raster> = None;
     let placements = project.visible_placements();
+    let assigned = assignments(&project);
     let mut cache = DrawingCache::default();
     let settings = ExportSettings {
         dpi: f64::from(side) / SLIDE_SIZE_MM * MM_PER_INCH,
@@ -91,13 +93,15 @@ pub fn slide_views(
                 ))
             }
             Some(warp) => {
-                let request = preview_request(dir, &project, &p.id, side)?;
+                let mine = slide_placements_in(&project, &assigned, &p.id);
+                let request = preview_request(dir, &project, &p.id, side, &mine)?;
                 if !cache_root.join(&request).is_file() {
                     if let (None, Some(fresco)) = (&fresco_image, &project.fresco) {
                         fresco_image = Some(read_fresco(&dir.resolve(&fresco.source))?);
                     }
                     let (n, _) = super::sizes_px(settings.dpi);
-                    let seen: Vec<_> = placements
+                    // Seuls les dessins affectés à cette diapositive (tâche 4.5).
+                    let seen: Vec<_> = mine
                         .iter()
                         .copied()
                         .filter(|q| slide_rect(q, &warp, px_mm, n, false).is_some())
@@ -127,6 +131,7 @@ fn preview_request(
     project: &Project,
     id: &str,
     side: u32,
+    placements: &[&Placement],
 ) -> Result<String, ExportError> {
     let pairs = project
         .projector(id)
@@ -144,8 +149,8 @@ fn preview_request(
             frame.height
         );
     }
-    // Les dessins posés visibles, et le fichier de chacun.
-    let placements = project.visible_placements();
+    // Les dessins posés visibles affectés à cette diapositive, et le
+    // fichier de chacun.
     identity.push_str(&serde_json::to_string(&placements).expect("sérialisable"));
     let mut used: Vec<&str> = placements.iter().map(|p| p.drawing.as_str()).collect();
     used.sort_unstable();
@@ -156,7 +161,7 @@ fn preview_request(
             identity.push_str(&file_identity(&dir.resolve(&d.source)).unwrap_or_default());
         }
     }
-    let identity = format!("{identity}|{pairs}|{side}|d2");
+    let identity = format!("{identity}|{pairs}|{side}|d3");
     Ok(format!(
         "{SLIDE_PREVIEW_DIR}/{:016x}.png",
         tiles::fnv1a_64(identity.as_bytes())

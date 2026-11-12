@@ -49,6 +49,8 @@ export interface Placement {
   layer?: string | null;
   /** Déformation libre (tâche 4.4) ; absente : le dessin reste droit. */
   deformation?: Deformation | null;
+  /** Diapositive choisie à la main (tâche 4.5) ; absente : celle que propose le moteur. */
+  projector?: string | null;
 }
 
 /** Calque de composition : l'ordre de la liste est l'ordre d'empilement (le premier dessous). */
@@ -331,8 +333,15 @@ export function copyOf(source: Placement[], offset: Point, makeId: () => string 
       group,
       center: { x: p.center.x + offset.x, y: p.center.y + offset.y },
       deformation: p.deformation && translateDeformation(p.deformation, offset.x, offset.y),
+      // Une copie va où le moteur la propose, pas dans la diapositive choisie pour l'original.
+      projector: null,
     };
   });
+}
+
+/** Choisit à la main la diapositive de la sélection ; `null` la rend à la proposition du moteur. */
+export function assignTo(placements: Placement[], ids: Set<string>, projector: string | null): Placement[] {
+  return mapSelected(placements, ids, (p) => ({ ...p, projector }));
 }
 
 export function remove(placements: Placement[], ids: Set<string>): Placement[] {

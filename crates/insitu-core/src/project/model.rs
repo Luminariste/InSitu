@@ -665,6 +665,11 @@ pub struct Placement {
     /// Déformation libre (tâche 4.4) ; absente : le dessin reste droit.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deformation: Option<Deformation>,
+    /// Diapositive choisie à la main (tâche 4.5) : identifiant d'un
+    /// projecteur. Absente, ou projecteur inconnu : la diapositive proposée
+    /// par le moteur (`crate::placement::assign`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub projector: Option<String>,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }

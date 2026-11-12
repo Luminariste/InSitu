@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   align,
   arrange,
+  assignTo,
   bounds,
   constrainMove,
   contains,
@@ -151,5 +152,16 @@ describe("dessins posés", () => {
     expect(d.x).toBeCloseTo(d.y);
     const p = dropped({ id: "merle", width: 2000, height: 1000 }, { x: 5, y: 6 }, 8000, () => "x");
     expect(p).toMatchObject({ id: "x", drawing: "merle", width: 2000, height: 1000, center: { x: 5, y: 6 } });
+  });
+
+  it("choisit la diapositive à la main, et une copie revient à la proposition (tâche 4.5)", () => {
+    const list: Placement[] = [
+      { id: "a", drawing: "merle", center: { x: 0, y: 0 }, width: 10, height: 10, rotation: 0 },
+      { id: "b", drawing: "merle", center: { x: 50, y: 0 }, width: 10, height: 10, rotation: 0 },
+    ];
+    const chosen = assignTo(list, new Set(["a"]), "p3");
+    expect(chosen.map((p) => p.projector ?? null)).toEqual(["p3", null]);
+    expect(copyOf([chosen[0]], { x: 5, y: 5 })[0].projector).toBeNull();
+    expect(assignTo(chosen, new Set(["a"]), null)[0].projector).toBeNull();
   });
 });

@@ -355,6 +355,13 @@ fn placements_set(folder: String, placements: Vec<Placement>) -> Result<Project,
     placement::set_placements(&project_dir(&folder)?, placements).map_err(|e| e.to_string())
 }
 
+/// La diapositive de chaque dessin posé : proposée par le moteur, ou
+/// choisie à la main (tâche 4.5).
+#[tauri::command(async)]
+fn placements_assignment(folder: String) -> Result<Vec<placement::assign::Assignment>, String> {
+    placement::assign::load_assignments(&project_dir(&folder)?).map_err(|e| e.to_string())
+}
+
 const VECTOR_PROGRESS_EVENT: &str = "vecteurs-progression";
 
 /// Vectorise les dessins `drawings` (tous si vide) qui ne le sont pas encore
@@ -545,6 +552,7 @@ pub fn run() {
             library_remove,
             library_preview,
             placements_set,
+            placements_assignment,
             composition_set,
             history_step,
             history_state,

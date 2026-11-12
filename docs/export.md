@@ -48,6 +48,12 @@ le plus clair l'emporte : un trait n'en efface jamais un autre (le masquage
 par silhouette viendra avec la tâche 4.7). La vue Diapositive (⌘4) les
 montre de la même façon.
 
+Depuis la tâche 4.5, chaque dessin posé ne part que dans **une** diapositive,
+celle que montre sa couleur sur la façade : il n'est ni coupé entre deux
+projecteurs, ni projeté deux fois là où deux emprises se recouvrent
+(`docs/composition.md`, « Diapositive de chaque dessin »). La fresque
+importée en une image, elle, reste découpée entre les diapositives.
+
 ## Dans LightBurn
 
 Importer le PNG : il doit mesurer **280 mm** (ou **300 mm** avec la plaque)

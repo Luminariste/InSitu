@@ -4,6 +4,49 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 4.5 : affectation des dessins aux diapositives
+
+Module `crates/insitu-core/src/placement/assign.rs`.
+
+**D-4.5-a. Un dessin posé ne part que dans une diapositive.** L'export et la
+vue Diapositive ne prennent plus tous les dessins qui touchent la
+diapositive, mais seulement ceux qui lui sont affectés. Raison : c'est le
+calepinage (aucun dessin coupé) ; un dessin dans une zone de recouvrement
+n'est plus projeté deux fois. La fresque importée en une image n'est pas
+concernée.
+
+**D-4.5-b. La proposition est recalculée, le choix à la main est
+enregistré.** Le projet ne garde que le choix fait à la main
+(`placements[].projector`) ; la proposition du moteur est recalculée à chaque
+fois, d'après la position des dessins et le recalage. Déplacer un dessin
+fait donc suivre sa proposition ; un choix à la main reste, même si le
+dessin bouge, jusqu'à « Automatique ». Un choix qui désigne un projecteur
+supprimé ou pas encore recalé est ignoré (proposition à la place). Une copie
+d'un dessin repart en proposition.
+
+**D-4.5-c. Règle de proposition.** Le contour du dessin (96 points,
+déformation comprise) est ramené dans chaque diapositive par l'inverse du
+recalage. Parmi les diapositives qui le contiennent en entier : celle où il
+est le plus loin du bord (en mm de diapositive). Si aucune : celle qui en
+contient la plus grande part, et le dessin est signalé « à cheval » (contour
+rouge). À égalité, le premier projecteur du projet. Pas d'équilibrage du
+nombre de dessins entre diapositives.
+
+**D-4.5-d. La composition d'essai du critère est construite par le test.**
+Le plan ne la définit pas : dix projecteurs en trapèze, deux rangées de
+cinq, recouvrements de 0,8 m, 80 dessins tirés au hasard (tirage fixe ;
+tournés, retournés, déformés) et un dessin au milieu de chaque zone de
+recouvrement. Les dessins plus grands que toute diapositive en sont retirés
+(ils ne peuvent pas être posés sans coupe) ; un autre test vérifie qu'ils
+sont signalés.
+
+**D-4.5-e. Couleur par diapositive : le contour du dessin.** Sur la façade,
+chaque dessin visible est entouré de la couleur de son projecteur (mêmes
+couleurs que les emprises) ; en rouge s'il est à cheval, en gris s'il ne
+tombe dans aucune emprise. Le choix à la main se fait dans l'inspecteur
+(« Diapositive »). Sans moteur (navigateur seul), rien de tout cela ne
+s'affiche.
+
 ## 2026-11-12 — Tâche 4.4 : déformation libre
 
 Modules `crates/insitu-core/src/placement/mesh.rs` (moteur) et

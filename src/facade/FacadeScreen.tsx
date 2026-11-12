@@ -460,6 +460,8 @@ export function FacadeScreen() {
         drawings={composition.drawings}
         actions={composition.actions}
         layers={composition.composeLayers}
+        projectors={project?.projectors ?? []}
+        assignments={composition.assignments}
       />
       <Section>
         {view ? (

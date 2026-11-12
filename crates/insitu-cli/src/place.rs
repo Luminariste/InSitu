@@ -1,5 +1,5 @@
 //! Commandes `insitu place …` : dessins posés sur la façade, comme l'écran
-//! Façade de l'app (tâche 4.2).
+//! Façade de l'app (tâches 4.2 à 4.5).
 
 use insitu_core::placement::{self, new_placement};
 use insitu_core::project::{Layer, Placement, PointMm, ProjectDir};
@@ -16,6 +16,8 @@ pub const USAGE: &str = r#"Usage :
   insitu place remove <projet.insitu> <id>…
   insitu place set <projet.insitu> <placements.json> [--history DOSSIER]
   insitu place deform <projet.insitu> <id>… (--corners | --grid CxR | --none)
+  insitu place slides <projet.insitu>
+  insitu place assign <projet.insitu> <id>… (--to PROJECTEUR | --auto)
 
 Dessins posés sur la façade. Longueurs en mm réels de façade, origine en haut
 à gauche, y vers le bas ; rotation en degrés, sens des aiguilles d'une montre.
@@ -34,6 +36,12 @@ Dessins posés sur la façade. Longueurs en mm réels de façade, origine en hau
           4.4) : --corners, quatre coins en perspective ; --grid 3x2, une
           grille lisse de 3 × 2 cases ; --none retire la déformation. Les
           nœuds se déplacent ensuite par set (champ deformation.nodes).
+  slides  Affiche en JSON la diapositive de chaque dessin posé (tâche 4.5) :
+          projecteur, choix à la main ou non, dessin entier ou à cheval, et
+          les diapositives qui le contiennent en entier.
+  assign  Choisit à la main la diapositive des dessins donnés (--to, libellé
+          ou identifiant du projecteur) ; --auto les rend à la proposition
+          du moteur.
 
   --history DOSSIER  Note l'enregistrement dans l'historique d'annulation
                      rangé là (voir insitu project undo)."#;
@@ -56,6 +64,7 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
     let mut group: Option<String> = None;
     let mut history: Option<String> = None;
     let mut grid: Option<(u32, u32)> = None;
+    let mut target: Option<Option<String>> = None;
     let mut words = Vec::new();
     let mut i = 0;
     while i < args.len() {
@@ -93,6 +102,15 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                 i += 1;
             }
             "--mirror" => mirrored = true,
+            "--auto" => target = Some(None),
+            "--to" => {
+                target = Some(Some(
+                    args.get(i + 1)
+                        .ok_or_else(|| usage("--to attend un projecteur."))?
+                        .to_string(),
+                ));
+                i += 1;
+            }
             "--corners" => grid = Some((1, 1)),
             "--none" => grid = Some((0, 0)),
             "--grid" => {
@@ -178,6 +196,22 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                 format!("{} dessin(s) redressé(s).", ids.len())
             } else {
                 format!("Grille de {columns} × {rows} sur {} dessin(s).", ids.len())
+            })
+        }
+        ["slides", folder] => {
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let project = dir.load().map_err(failed)?.project;
+            let all = placement::assign::assignments(&project);
+            Ok(serde_json::to_string_pretty(&all).expect("sérialisable"))
+        }
+        ["assign", folder, ref ids @ ..] if !ids.is_empty() => {
+            let target = target.ok_or_else(|| usage("Choisir --to PROJECTEUR ou --auto."))?;
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let ids: Vec<String> = ids.iter().map(|s| s.to_string()).collect();
+            placement::assign(&dir, &ids, target.as_deref()).map_err(failed)?;
+            Ok(match target {
+                Some(p) => format!("{} dessin(s) dans la diapositive {p}.", ids.len()),
+                None => format!("{} dessin(s) rendu(s) à la proposition.", ids.len()),
             })
         }
         _ => Err(usage("Commande de placement incomplète ou inconnue.")),

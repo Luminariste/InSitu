@@ -5,6 +5,7 @@
 //! et l'enregistre ([`set_placements`]). Les fonctions d'ajout et de retrait
 //! servent à la ligne de commande et aux tests.
 
+pub mod assign;
 pub mod mesh;
 
 use std::collections::BTreeSet;
@@ -26,6 +27,8 @@ pub enum PlacementError {
     UnknownDrawing(String),
     /// Aucun placement ne porte cet identifiant.
     UnknownPlacement(String),
+    /// Aucun projecteur ne porte ce libellé ou cet identifiant.
+    UnknownProjector(String),
     /// Une largeur nulle ou négative demandée.
     InvalidWidth(f64),
     Project(ProjectError),
@@ -46,6 +49,7 @@ impl fmt::Display for PlacementError {
                 write!(f, "Aucun dessin « {name} » dans la bibliothèque.")
             }
             Self::UnknownPlacement(id) => write!(f, "Aucun dessin posé « {id} »."),
+            Self::UnknownProjector(key) => write!(f, "Aucun projecteur « {key} »."),
             Self::InvalidWidth(width) => {
                 write!(
                     f,
@@ -155,6 +159,7 @@ pub fn new_placement(
         group: None,
         layer: None,
         deformation: None,
+        projector: None,
         extra: Default::default(),
     })
 }
@@ -256,6 +261,43 @@ pub fn deform(
     for p in &mut project.placements {
         if wanted.contains(p.id.as_str()) {
             p.deformation = deformation.clone();
+        }
+    }
+    check(&mut project)?;
+    dir.save(&project)?;
+    Ok(project)
+}
+
+/// Choisit à la main la diapositive de dessins posés (tâche 4.5) :
+/// `projector` est le libellé ou l'identifiant d'un projecteur ; aucun rend
+/// ces dessins à la proposition du moteur.
+pub fn assign(
+    dir: &ProjectDir,
+    ids: &[String],
+    projector: Option<&str>,
+) -> Result<Project, PlacementError> {
+    let mut project = dir.load()?.project;
+    let wanted: BTreeSet<&str> = ids.iter().map(String::as_str).collect();
+    if let Some(missing) = wanted
+        .iter()
+        .find(|id| !project.placements.iter().any(|p| p.id == **id))
+    {
+        return Err(PlacementError::UnknownPlacement(missing.to_string()));
+    }
+    let chosen = match projector {
+        None => None,
+        Some(key) => Some(
+            project
+                .projectors
+                .iter()
+                .find(|p| p.id == key || p.label == key)
+                .map(|p| p.id.clone())
+                .ok_or_else(|| PlacementError::UnknownProjector(key.to_string()))?,
+        ),
+    };
+    for p in &mut project.placements {
+        if wanted.contains(p.id.as_str()) {
+            p.projector = chosen.clone();
         }
     }
     check(&mut project)?;
