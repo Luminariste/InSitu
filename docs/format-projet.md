@@ -253,6 +253,7 @@ en millimètres réels. Le coin haut-gauche du fichier est l'origine.
 | `rectification.method` | `manual` (points posés à la main) ou `automatic` (mire détectée) |
 | `rectification.points[]` | Des points de la mire : `photo` (pixels de la photo brute) et `slide` (mm sur la diapositive). Quatre coins en manuel ; davantage en automatique |
 | `rectification.residualMm` | Écart résiduel en mm de diapositive, ou `null` s'il n'est pas connu |
+| `rectification.mirror` | Facultatif : `{ "horizontal": true, "vertical": false }` si la diapositive est retournée par rapport à la mire photographiée. Les `slide` des points (et ceux du recalage) en tiennent déjà compte ; absent, aucun miroir (D-2.5-j) |
 | `registration[]` | Le recalage : des paires de points communs, `slide` (mm sur la diapositive) et `facade` (mm réels sur la façade) |
 
 ### `fresco` — la fresque en une image

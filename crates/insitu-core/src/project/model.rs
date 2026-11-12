@@ -391,8 +391,39 @@ pub struct Rectification {
     /// Écart résiduel du redressement, en mm de diapositive, s'il est connu.
     #[serde(default)]
     pub residual_mm: Option<f64>,
+    /// Miroir appliqué à la diapositive (D-2.5-j) : les coordonnées `slide`
+    /// des points en tiennent déjà compte ; ce réglage sert à le garder
+    /// quand la mire est détectée de nouveau. Absent : aucun miroir.
+    #[serde(default, skip_serializing_if = "Mirror::is_none")]
+    pub mirror: Mirror,
     #[serde(flatten)]
     pub extra: ExtraFields,
+}
+
+/// Retournement de la diapositive par rapport à la mire photographiée.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Mirror {
+    /// Gauche et droite échangées.
+    #[serde(default)]
+    pub horizontal: bool,
+    /// Haut et bas échangés.
+    #[serde(default)]
+    pub vertical: bool,
+}
+
+impl Mirror {
+    pub fn is_none(&self) -> bool {
+        !self.horizontal && !self.vertical
+    }
+
+    /// Image d'un point de la diapositive (mm) par ce miroir.
+    pub fn apply(&self, p: PointMm, size_mm: f64) -> PointMm {
+        PointMm::new(
+            if self.horizontal { size_mm - p.x } else { p.x },
+            if self.vertical { size_mm - p.y } else { p.y },
+        )
+    }
 }
 
 /// Un point de la mire : où il est dans la photo brute, où il est sur la

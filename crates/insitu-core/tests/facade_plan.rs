@@ -414,6 +414,28 @@ fn an_image_facade_keeps_its_pixels() {
 }
 
 #[test]
+fn an_iphone_heic_photo_can_be_the_facade() {
+    // Une photo d'ensemble prise à l'iPhone, en HEIC (retour de Benjamin,
+    // 12 novembre 2026) : ici la photo de mire du jeu d'essai, faute de
+    // photo de façade en HEIC.
+    let heic = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../jeu-essai/heic/a-brut.heic");
+    let scratch = Scratch::new("heic");
+    let (dir, _) = ProjectDir::create(scratch.path("Heic.insitu"), None).unwrap();
+    let project = facade::import_facade(&dir, &heic, None).unwrap();
+    let imported = project.facade.unwrap();
+    let size = insitu_core::photo::dimensions(&heic).unwrap();
+    assert_eq!(
+        (imported.source_width, imported.source_height),
+        (f64::from(size.0), f64::from(size.1))
+    );
+    let shown =
+        facade::open_for_display(&dir.resolve(&imported.source), None, &scratch.path("cache"))
+            .unwrap();
+    assert_eq!(shown.kind, SourceKind::Image);
+    assert_eq!((shown.pyramid.width, shown.pyramid.height), size);
+}
+
+#[test]
 fn scaling_needs_two_distinct_points_and_a_positive_distance() {
     let scratch = Scratch::new("echelle");
     let plan_path = scratch.path("plan.pdf");
@@ -445,7 +467,6 @@ fn unsupported_formats_get_a_useful_message() {
             .to_string()
     };
     assert!(message("plan.dwg").contains("PDF ou en DXF"));
-    assert!(message("photo.heic").contains("JPEG"));
     assert!(message("fresque.ai").contains("PDF"));
     assert!(message("plan.xyz").contains(".xyz"));
 }

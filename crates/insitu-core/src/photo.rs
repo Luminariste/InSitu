@@ -38,25 +38,91 @@ impl fmt::Display for PhotoError {
 
 impl std::error::Error for PhotoError {}
 
-/// Vrai si ces octets sont le début d'un fichier HEIF (HEIC compris).
+/// Marques HEIF reconnues dans la boîte `ftyp`.
+const HEIF_BRANDS: [&[u8; 4]; 10] = [
+    b"heic", b"heix", b"heim", b"heis", b"hevc", b"hevx", b"mif1", b"msf1", b"mif2", b"miaf",
+];
+
+/// Vrai si ces octets sont le début d'un fichier HEIF (HEIC compris) :
+/// boîte `ftyp` en tête, avec une marque HEIF comme marque principale ou
+/// parmi les marques compatibles (certains appareils mettent une autre
+/// marque principale).
 pub fn is_heif(bytes: &[u8]) -> bool {
-    // Boîte `ftyp` en tête, puis la marque principale.
     if bytes.len() < 12 || &bytes[4..8] != b"ftyp" {
         return false;
     }
-    matches!(
-        &bytes[8..12],
-        b"heic" | b"heix" | b"heim" | b"heis" | b"hevc" | b"hevx" | b"mif1" | b"msf1"
-    )
+    let size = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as usize;
+    let end = size.clamp(12, bytes.len());
+    let is_heif_brand = |b: &[u8]| HEIF_BRANDS.iter().any(|brand| b == &brand[..]);
+    // Marque principale (8..12), version (12..16), marques compatibles.
+    is_heif_brand(&bytes[8..12])
+        || (16..end.saturating_sub(3))
+            .step_by(4)
+            .any(|i| is_heif_brand(&bytes[i..i + 4]))
 }
 
 /// Vrai si le fichier est un HEIF, d'après ses premiers octets.
 pub fn is_heif_file(path: &Path) -> bool {
     use std::io::Read;
-    let mut head = [0u8; 12];
+    let mut head = Vec::with_capacity(64);
     std::fs::File::open(path)
-        .and_then(|mut f| f.read_exact(&mut head))
-        .is_ok_and(|()| is_heif(&head))
+        .and_then(|f| f.take(64).read_to_end(&mut head))
+        .is_ok_and(|_| is_heif(&head))
+}
+
+/// Lit un fichier HEIF. Si notre décodeur n'y arrive pas (variante non
+/// prise en charge, par exemple 10 bits), sur Mac on passe par le
+/// convertisseur du système, `sips` (D-2.5-k).
+pub fn read_heif(path: &Path) -> Result<DynamicImage, PhotoError> {
+    let data = std::fs::read(path).map_err(|e| PhotoError(e.to_string()))?;
+    match decode_heif(&data) {
+        Ok(image) => Ok(image),
+        Err(own) => convert_with_system(path).map_err(|system| {
+            PhotoError(match system {
+                Some(system) => format!("{own} ; conversion par le système : {system}"),
+                None => own.0,
+            })
+        }),
+    }
+}
+
+/// Conversion par `sips` (macOS) en PNG provisoire. `Err(None)` : pas de
+/// convertisseur sur ce système.
+#[cfg(target_os = "macos")]
+fn convert_with_system(path: &Path) -> Result<DynamicImage, Option<String>> {
+    let out = std::env::temp_dir().join(format!(
+        "insitu-heic-{}-{}.png",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos())
+    ));
+    let status = std::process::Command::new("/usr/bin/sips")
+        .args(["-s", "format", "png"])
+        .arg(path)
+        .arg("--out")
+        .arg(&out)
+        .output()
+        .map_err(|e| Some(e.to_string()))?;
+    let result = if status.status.success() {
+        let mut reader = ImageReader::open(&out)
+            .map_err(|e| Some(e.to_string()))?
+            .with_guessed_format()
+            .map_err(|e| Some(e.to_string()))?;
+        reader.no_limits();
+        reader.decode().map_err(|e| Some(e.to_string()))
+    } else {
+        Err(Some(
+            String::from_utf8_lossy(&status.stderr).trim().to_string(),
+        ))
+    };
+    let _ = std::fs::remove_file(&out);
+    result
+}
+
+#[cfg(not(target_os = "macos"))]
+fn convert_with_system(_path: &Path) -> Result<DynamicImage, Option<String>> {
+    Err(None)
 }
 
 /// Lit une photo et la renvoie telle quelle (gris, RVB ou RVBA, 8 ou 16
@@ -65,8 +131,7 @@ pub fn read(path: &Path) -> Result<DynamicImage, PhotoError> {
     let unreadable =
         |e: &dyn fmt::Display| PhotoError(format!("{} illisible : {e}", path.display()));
     if is_heif_file(path) {
-        let data = std::fs::read(path).map_err(|e| unreadable(&e))?;
-        return decode_heif(&data).map_err(|e| unreadable(&e));
+        return read_heif(path).map_err(|e| unreadable(&e));
     }
     let mut reader = ImageReader::open(path)
         .map_err(|e| unreadable(&e))?
@@ -90,12 +155,16 @@ pub fn dimensions(path: &Path) -> Result<(u32, u32), PhotoError> {
     if is_heif_file(path) {
         let data = std::fs::read(path).map_err(|e| unreadable(&e))?;
         let mut decoder = HeifDecoder::new_with_options(ZCursor::new(data.as_slice()), options());
-        decoder.decode_headers().map_err(|e| unreadable(&e))?;
-        let (w, h) = (decoder.width(), decoder.height());
-        return match (w, h) {
-            (Some(w), Some(h)) => Ok((w as u32, h as u32)),
-            _ => Err(unreadable(&"dimensions absentes")),
-        };
+        if decoder.decode_headers().is_ok() {
+            if let (Some(w), Some(h)) = (decoder.width(), decoder.height()) {
+                return Ok((w as u32, h as u32));
+            }
+        }
+        // En-têtes que notre décodeur ne lit pas : lecture complète (avec
+        // le secours du système sur Mac).
+        return read_heif(path)
+            .map(|image| (image.width(), image.height()))
+            .map_err(|e| unreadable(&e));
     }
     image::image_dimensions(path).map_err(|e| unreadable(&e))
 }
@@ -271,6 +340,22 @@ mod tests {
         head[8..12].copy_from_slice(b"isom"); // une vidéo MP4
         assert!(!is_heif(&head));
         assert!(!is_heif(b"\xFF\xD8\xFF\xE0JFIF"));
+    }
+
+    #[test]
+    fn heif_is_recognised_by_a_compatible_brand() {
+        // Marque principale inconnue, « heic » parmi les marques compatibles.
+        let mut head = vec![0, 0, 0, 28];
+        head.extend_from_slice(b"ftypXYZ1\0\0\0\0isomheic");
+        assert!(is_heif(&head));
+        // Une vidéo MP4 : marques compatibles sans HEIF.
+        let mut video = vec![0, 0, 0, 24];
+        video.extend_from_slice(b"ftypisom\0\0\x02\0isomiso2");
+        assert!(!is_heif(&video));
+        // Une marque HEIF au-delà de la boîte ftyp ne compte pas.
+        let mut short = vec![0, 0, 0, 16];
+        short.extend_from_slice(b"ftypisom\0\0\0\0heic");
+        assert!(!is_heif(&short));
     }
 
     #[test]

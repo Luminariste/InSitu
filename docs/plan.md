@@ -22,7 +22,7 @@ tableau à jour.
 | 2.2 Nouvelle mire | Fusionnée ; PDF dans `docs/mire/`. **Non validée** : il reste à l'imprimer, la mesurer à 280 mm et relire les 16 repères sur une photo |
 | 2.3 Géométrie | Faite ; seuils réglés sur simulation, à ajuster sur données réelles en 2.4a et 3.2 |
 | 5.1 Moteur de vectorisation | Faite : écart de 0,33 px au plus sur les quatre verres d'Épinal (critère : 0,5 px) ; reste à l'essayer sur des dessins de Marc (5.2) |
-| 2.5 Écran de redressement | Fusionnée (version 0.1.4), **non validée** : essai sur Mac à faire par Benjamin (`docs/redressement.md`) ; un HEIC d'iPhone récent reste à essayer |
+| 2.5 Écran de redressement | Fusionnée (version 0.1.4), essayée par Benjamin : loupe validée ; ses retours (coins glissés sans ordre, miroir, HEIC refusé) sont faits en version 0.1.12, **non validée** : essai à refaire (`docs/redressement.md`) |
 | 3.2 Recalage par points | Fusionnée (version 0.1.5 ; points déplaçables au glisser depuis la 0.1.7, demande de Benjamin), **non validée** : essai sur Mac à faire par Benjamin (`docs/recalage.md`) ; seuil des points aberrants réglé sur simulation, à reprendre sur ses premiers points cliqués ; photo « lum » pas encore prise en charge |
 | 4.1 Bibliothèque | Fusionnée (version 0.1.6), **non validée** : essai sur Mac à faire par Benjamin (`docs/bibliotheque.md`), si possible sur un vrai dossier de dessins de Marc |
 | 3.3 Vue façade | Fusionnée (version 0.1.8), **non validée** : essai sur Mac à faire par Benjamin (`docs/vue-facade.md`) ; le critère « dix projecteurs sans ralentissement » ne se vérifie que sur son Mac |
@@ -30,7 +30,7 @@ tableau à jour.
 | 3.6 Vue diapositive | Fusionnée (version 0.1.10), **non validée** : essai sur Mac à faire par Benjamin (`docs/vue-diapositive.md`) sur un vrai projet recalé avec une fresque |
 | Système de design (hors plan, demande de Benjamin) | Fusionné (version 0.1.11), **non validé** : lisibilité et ergonomie à juger par Benjamin sur Mac ; règles dans `docs/design.md`, décision D15 |
 | 5.2 Vecteurs en bibliothèque | Fusionnée (version 0.1.13), **non validée** : critère « dix dessins de styles différents validés à l'œil » à faire par Benjamin, idéalement sur des dessins de Marc (`docs/bibliotheque.md`) ; écart mesuré sous 0,5 px sur les dessins d'essai |
-| 6.4 Assemblage de photos | Fusionnée (version 0.1.14), **non validée** : essai sur Mac à faire par Benjamin avec trois vraies photos de façade (`docs/assemblage.md`) ; façade supposée plane (D-6.4-a), rotation EXIF non appliquée (D-6.4-f) |
+| 6.4 Assemblage de photos | Fusionnée (version 0.1.16), **non validée** : essai sur Mac à faire par Benjamin avec trois vraies photos de façade (`docs/assemblage.md`) ; façade supposée plane (D-6.4-a), rotation EXIF non appliquée (D-6.4-f) |
 | Toutes les autres | À faire |
 
 **Ce qui bloque la validation de la tâche 1.5.** Dans la version 0.1.1,
