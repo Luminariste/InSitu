@@ -4,6 +4,60 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 6.3 : import Illustrator
+
+Module `crates/insitu-core/src/illustrator/`, commande `insitu illustrator
+inspect|import`, rubrique « Composition Illustrator » de l'onglet Calques de
+l'écran Façade (`src/compose/IllustratorImport.tsx`), mode d'emploi
+`docs/composition.md`, « Importer une composition Illustrator ».
+
+**D-6.3-a. La composition est lue dans les données privées d'Illustrator.**
+La partie PDF d'un `.ai` ne garde que des images recopiées, sans leurs liens.
+La composition telle qu'Illustrator la relit est rangée à part
+(`/PieceInfo /Illustrator /Private /AIPrivateData1…n`), en texte PostScript
+compressé : Zstandard depuis Illustrator 2020 (`%AI24_ZStandard_Data`), zlib
+avant (`%AI12_CompressedData`). Deux dépendances en Rust pur : `ruzstd` et
+`miniz_oxide` (déjà tirée par `png`). Chaque image liée est un bloc
+`%AI5_BeginPlace` : matrice, rectangle de l'image, chemin absolu, et depuis
+Illustrator 2024 son dossier relatif au `.ai`. Les anciens blocs
+`%AI5_BeginRaster` avec un chemin sont lus aussi. Format non documenté par
+Adobe : déduit des fichiers d'Épinal et de Trévarez, et vérifié en
+superposant le résultat au rendu PDF du même `.ai` (Trévarez : 90 % des
+pixels posés tombent sur un trait du PDF à 1 mm près ; le reste vient du PDF,
+dont les images sont réduites à 150 ppi).
+
+**D-6.3-b. Ce qui est repris, ce qui ne l'est pas.** Repris : position,
+taille, rotation, retournement, calque de premier niveau (nom, masqué,
+verrouillé), ordre (le premier lu est au fond). Une image masquée dans un
+sous-calque d'un calque visible est posée masquée, seule (`placements[].hidden`,
+D-4.5-g), dans son calque.
+Non repris, et dit dans le compte rendu : les images incorporées (sans lien),
+le biais (posé sans), et ce que l'app ne sait pas faire : masques
+d'écrêtage, opacité, modes de fusion, tracés vectoriels d'Illustrator.
+
+**D-6.3-c. Les liens sont retrouvés à côté du `.ai`.** Le chemin absolu est
+celui du Mac qui a enregistré le fichier (`/Users/marcsicard/…`). Dans
+l'ordre : le dossier relatif noté par Illustrator, compté depuis le `.ai`
+lui-même (`../Algues/` désigne `Ecuries - Fresque/Algues`) ; le chemin
+absolu ; un fichier du même nom sous le dossier du `.ai` (5 niveaux), de
+préférence dans un dossier du même nom que celui du lien. Les noms sont
+comparés sans accents ni casse (le `.ai` écrit « Mure\u0300ne », décomposé).
+Un lien introuvable est signalé, pas bloquant. Les fichiers temporaires
+d'Illustrator (`/var/folders/…`) sont ignorés.
+
+**D-6.3-d. Le plan de travail couvre la façade, comme la fresque.** Comme
+pour la fresque (D-3.5-b), le plan de travail occupe toute la largeur de la
+façade à partir du coin haut-gauche : la composition se fait sur un plan de
+travail de la taille du plan de façade. La ligne de commande accepte un
+autre rectangle (`--frame`).
+
+**D-6.3-e. L'import s'ajoute.** Les fichiers liés vont dans la bibliothèque
+sous `bibliotheque/<nom du .ai>/`, en gardant leurs sous-dossiers ; un
+fichier déjà importé à l'identique est repris, pas copié deux fois. Les
+dessins posés s'ajoutent à ceux de la façade, dans des calques repris par
+leur nom. ⌘Z annule l'import en deux pas : les dessins posés, puis
+l'ajout à la bibliothèque (deux enregistrements du projet).
+
 ## 2026-11-12 — Fresque en .ai, PDF ou SVG (demande de Benjamin)
 
 Benjamin veut importer la fresque depuis un fichier Illustrator `.ai`, un PDF
@@ -11,7 +65,7 @@ ou une image. Module `crates/insitu-core/src/export/fresco.rs`, champ
 `fresco.vector` du projet, option `insitu fresco --page`, bouton de l'écran
 Façade inchangé (il accepte les nouveaux fichiers). Ce n'est pas la tâche
 6.3 : celle-ci relira les images placées d'un `.ai` pour en faire des
-dessins posés un par un ; elle est prise par un autre fil.
+dessins posés un par un (voir plus haut).
 
 **D-3.5-h. Un `.ai` est lu comme un PDF.** Illustrator enregistre par défaut
 (« Créer un fichier compatible PDF ») une copie PDF de la composition dans

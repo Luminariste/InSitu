@@ -30,6 +30,11 @@ i_overlay = "9.1"
 # Fiche de calepinage en PDF (tâche 6.2, décision D-6.2-a) : écriture de
 # PDF avec images, en Rust pur ; déjà utilisé par les tests.
 pdf-writer = "0.15"
+# Import Illustrator (tâche 6.3, décision D-6.3-a) : les données privées
+# d'un .ai sont compressées en Zstandard (Illustrator 2020 et après) ou en
+# zlib (avant). Rust pur ; miniz_oxide est déjà tiré par png.
+ruzstd = "0.9"
+miniz_oxide = "0.8"
 
 [dev-dependencies]
 sha2 = "0.10"

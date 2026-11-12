@@ -181,6 +181,36 @@ tombent dans aucune emprise. Dans un groupe, le dessin du haut est devant.
    n'est pas dans la diapositive. Le verrouiller : on ne peut plus le
    choisir sur la façade.
 
+## Importer une composition Illustrator (tâche 6.3)
+
+Pour reprendre une fresque déjà composée dans Illustrator, dessin par
+dessin :
+
+1. Dans Illustrator, la composition doit être sur un plan de travail **de la
+   taille du plan de façade** (comme pour la fresque), et les dessins
+   **liés** (pas incorporés). Enregistrer le `.ai` avec « Créer un fichier
+   compatible PDF » (réglage par défaut).
+2. Garder les dossiers des dessins **à côté du `.ai`**, comme Illustrator
+   les attend (Algues/, Poissons/…). Le `.ai` peut venir d'un autre Mac :
+   les liens sont retrouvés par leur dossier relatif, puis par leur nom.
+3. Écran Façade (plan à l'échelle), onglet **Calques**, rubrique
+   **Composition Illustrator** : **Importer un fichier .ai…**.
+4. Chaque fichier lié entre dans la bibliothèque (dossier du nom du `.ai`),
+   chaque image placée devient un dessin posé, avec sa position, sa taille,
+   sa rotation et son retournement, dans un calque du nom de celui
+   d'Illustrator (masqué ou verrouillé comme dans Illustrator).
+5. Le compte rendu dit combien de dessins sont posés, et nomme les liens
+   introuvables, les images incorporées (à lier dans Illustrator pour les
+   retrouver) et les images déformées en biais (posées sans le biais).
+
+⌘Z annule l'import en deux fois (dessins posés, puis bibliothèque). Les masques d'écrêtage, l'opacité et les tracés
+dessinés dans Illustrator ne sont pas repris : seules les images liées.
+
+À essayer sur le Mac : importer ECURIES-COMPOSITION.ai depuis son dossier
+« Ecuries - Fresque » ; comparer à l'écran avec Illustrator (positions,
+rotations, dessins retournés, calques). Les 20 liens vers « 17 - Projection
+gobo finale » doivent être retrouvés s'ils sont sur le Mac.
+
 ## Ce qui n'est pas encore là
 
 - **Export** : fait. Les dessins posés partent dans les diapositives et dans
@@ -198,6 +228,8 @@ insitu place deform <projet.insitu> <id>… (--corners | --grid CxR | --none)
 insitu place slides <projet.insitu>
 insitu place assign <projet.insitu> <id>… (--to PROJECTEUR | --auto)
 insitu place adjust <projet.insitu> <id> (--corners | --grid CxR | --none)
+insitu illustrator inspect <fichier.ai>
+insitu illustrator import <projet.insitu> <fichier.ai> [--frame X Y L H] [--cache DIR]
 insitu project history <projet.insitu> --history DIR
 insitu project undo <projet.insitu> --history DIR
 insitu project redo <projet.insitu> --history DIR

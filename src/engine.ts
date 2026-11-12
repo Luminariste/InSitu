@@ -732,6 +732,55 @@ export async function importDrawingFolder(
   }
 }
 
+/** Un lien d'un fichier Illustrator que l'import n'a pas pu poser. */
+export interface MissingLink {
+  link: string;
+  count: number;
+  reason: string;
+}
+
+/** Compte rendu de l'import d'une composition Illustrator (tâche 6.3). */
+export interface CompositionReport {
+  found: number;
+  placed: number;
+  drawings: number;
+  folder: string;
+  layers: string[];
+  missing: MissingLink[];
+  embedded: number;
+  skewed: number;
+}
+
+/** Demande un fichier Illustrator ; `null` si l'utilisateur renonce. */
+export async function chooseIllustratorFile(): Promise<string | null> {
+  requireEngine();
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const chosen = await open({
+    multiple: false,
+    directory: false,
+    title: "Importer une composition Illustrator (dessins liés)",
+    filters: [{ name: "Illustrator", extensions: ["ai"] }],
+  });
+  return typeof chosen === "string" ? chosen : null;
+}
+
+/** Recrée la composition d'un .ai : ses images liées deviennent des dessins posés. */
+export async function importIllustrator(
+  folder: string,
+  path: string,
+  onProgress: (progress: ImportProgress) => void,
+): Promise<{ project: Project; report: CompositionReport }> {
+  requireEngine();
+  const { listen } = await import("@tauri-apps/api/event");
+  const stop = await listen<ImportProgress>("bibliotheque-progression", (event) => onProgress(event.payload));
+  try {
+    const [project, report] = await invoke<[Project, CompositionReport]>("illustrator_import", { folder, path });
+    return { project, report };
+  } finally {
+    stop();
+  }
+}
+
 /** La bibliothèque du projet ; les vignettes manquantes sont refaites. */
 export async function fetchLibrary(folder: string): Promise<LibraryEntry[]> {
   requireEngine();
