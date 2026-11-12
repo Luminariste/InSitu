@@ -38,6 +38,7 @@ fn project(temp: &TempDir) -> (ProjectDir, Project) {
         }),
         page: None,
         origin: None,
+        rotation: 0,
         extra: ExtraFields::new(),
     });
     project.add_projector("A").registration = pairs_at(1000.0, 500.0, 6);

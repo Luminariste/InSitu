@@ -289,16 +289,20 @@ impl Project {
 /// La façade : le fichier importé (plan d'architecte, déroulé ou photo
 /// d'ensemble) et sa mise à l'échelle.
 ///
-/// Le repère de la façade, en millimètres réels, est celui du fichier source
-/// multiplié par l'échelle : origine au coin haut-gauche du fichier, y vers
-/// le bas.
+/// Le repère de la façade, en millimètres réels, est celui du plan tel
+/// qu'il est affiché (fichier source tourné de `rotation` quarts de tour)
+/// multiplié par l'échelle : origine au coin haut-gauche, y vers le bas.
+/// Les dimensions et les points de la mise à l'échelle sont dans ce plan
+/// tourné (D15-k).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Facade {
     pub source: RelativePath,
-    /// Largeur du fichier source, dans son unité (pixels pour une image).
+    /// Largeur du plan affiché, dans l'unité du fichier (pixels pour une
+    /// image) : celle du fichier, ou sa hauteur s'il est tourné d'un quart
+    /// de tour.
     pub source_width: f64,
-    /// Hauteur du fichier source, dans son unité.
+    /// Hauteur du plan affiché, dans l'unité du fichier.
     pub source_height: f64,
     /// Mise à l'échelle ; absente tant qu'elle n'a pas été faite.
     #[serde(default)]
@@ -311,8 +315,16 @@ pub struct Facade {
     /// D-3.1-d).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub origin: Option<SourcePoint>,
+    /// Quarts de tour, dans le sens des aiguilles d'une montre, appliqués au
+    /// fichier pour l'afficher (0 à 3 ; 0 si absent).
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub rotation: u8,
     #[serde(flatten)]
     pub extra: ExtraFields,
+}
+
+fn is_zero_u8(value: &u8) -> bool {
+    *value == 0
 }
 
 impl Facade {
@@ -704,6 +716,14 @@ pub struct Placement {
     /// la façade ; absente : aucune retouche.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub adjustment: Option<SlideAdjustment>,
+    /// Masqué dans l'arborescence des diapositives : ni affiché, ni exporté,
+    /// comme un dessin d'un calque masqué (D-4.5-g).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hidden: bool,
+    /// Verrouillé : affiché et exporté, mais on ne peut plus le choisir sur
+    /// la façade (D-4.5-g).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub locked: bool,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }
@@ -792,8 +812,8 @@ impl Project {
     }
 
     /// Les dessins posés à exporter : dans l'ordre d'affichage, sans ceux
-    /// des calques masqués (un dessin sans calque, ou sur un calque inconnu,
-    /// suit le premier calque).
+    /// des calques masqués ni ceux masqués un à un (un dessin sans calque,
+    /// ou sur un calque inconnu, suit le premier calque).
     pub fn visible_placements(&self) -> Vec<&Placement> {
         let shown = |p: &Placement| {
             let layer = p
@@ -801,7 +821,7 @@ impl Project {
                 .as_deref()
                 .and_then(|id| self.layers.iter().find(|l| l.id == id))
                 .or(self.layers.first());
-            layer.is_none_or(|l| l.visible)
+            !p.hidden && layer.is_none_or(|l| l.visible)
         };
         self.stacked_placements()
             .into_iter()
@@ -1015,6 +1035,7 @@ mod tests {
             }),
             page: None,
             origin: None,
+            rotation: 0,
             extra: ExtraFields::new(),
         };
         // 300-400-500 : 500 unités pour 2 500 mm, soit 5 mm par unité.

@@ -619,6 +619,76 @@ export function MenuButton({
   );
 }
 
+/**
+ * Menu au clic droit, posé au point (`x`, `y`) de la fenêtre. Échap, un clic
+ * ailleurs ou un défilement le referme ; mêmes entrées que `MenuButton`.
+ */
+export function ContextMenu({ x, y, items, onClose }: { x: number; y: number; items: MenuEntry[]; onClose: () => void }) {
+  const list = useRef<HTMLDivElement>(null);
+  const [at, setAt] = useState({ x, y });
+  useEffect(() => {
+    const close = (event: Event) => {
+      if (!list.current?.contains(event.target as Node)) onClose();
+    };
+    const key = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("mousedown", close);
+    window.addEventListener("wheel", close, { passive: true });
+    window.addEventListener("keydown", key, true);
+    // Reste dans la fenêtre : le menu remonte ou part à gauche s'il dépasse.
+    const box = list.current?.getBoundingClientRect();
+    if (box) setAt({ x: Math.max(4, Math.min(x, window.innerWidth - box.width - 4)), y: Math.max(4, Math.min(y, window.innerHeight - box.height - 4)) });
+    list.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("wheel", close);
+      window.removeEventListener("keydown", key, true);
+    };
+  }, [x, y, onClose]);
+  const onKeyDown = (event: ReactKeyboardEvent) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    const buttons = [...(list.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? [])];
+    const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    buttons[(i + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length]?.focus();
+  };
+  return (
+    <div className="ui-menu ui-context-menu" role="menu" ref={list} style={{ left: at.x, top: at.y }} onKeyDown={onKeyDown} onContextMenu={(e) => e.preventDefault()}>
+      {items.map((item, i) => {
+        if ("separator" in item) return <div key={i} className="ui-menu-separator" role="separator" />;
+        if ("heading" in item)
+          return (
+            <div key={i} className="ui-menu-heading">
+              {item.heading}
+            </div>
+          );
+        return (
+          <button
+            key={i}
+            type="button"
+            role={item.checked === undefined ? "menuitem" : "menuitemradio"}
+            aria-checked={item.checked}
+            className={cx("ui-menu-item", item.danger && "is-danger")}
+            disabled={item.disabled}
+            onClick={() => {
+              onClose();
+              item.onSelect();
+            }}
+          >
+            <span className="ui-menu-check">{item.checked ? <Icon name="check" size={12} /> : item.icon ? <Icon name={item.icon} size={14} /> : null}</span>
+            <span className="ui-menu-label">{item.label}</span>
+            {item.shortcut && <span className="ui-menu-shortcut">{formatShortcut(item.shortcut, isMac())}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // --- Dialogues ----------------------------------------------------------------------------
 
 /** Fenêtre de dialogue posée sur l'écran. Échap ferme ; ↩ valide l'action principale. */

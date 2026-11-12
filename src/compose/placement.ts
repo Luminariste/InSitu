@@ -15,6 +15,7 @@ import {
   rotateDeformation,
   sameDeformation,
   scaleDeformation,
+  stretchDeformation,
   translateDeformation,
   type Deformation,
   type DeformationFrame,
@@ -53,6 +54,10 @@ export interface Placement {
   projector?: string | null;
   /** Retouche dans une diapositive (tâche 4.6), sans effet sur la façade. */
   adjustment?: SlideAdjustment | null;
+  /** Masqué un à un (arborescence des diapositives) : ni affiché, ni exporté (D-4.5-g). */
+  hidden?: boolean;
+  /** Verrouillé un à un : affiché, exporté, mais plus choisi à la souris (D-4.5-g). */
+  locked?: boolean;
 }
 
 /** Retouche d'un dessin dans la diapositive d'un projecteur : grille en mm de diapositive. */
@@ -276,6 +281,52 @@ export function scale(placements: Placement[], ids: Set<string>, factor: number,
     height: p.height * f,
     deformation: p.deformation && scaleDeformation(p.deformation, f, anchor),
   }));
+}
+
+/**
+ * Étire la sélection de `sx` en x et `sy` en y (axes de la façade) depuis
+ * `anchor`, comme les poignées du cadre d'Illustrator (D-4.2-l). Un dessin
+ * droit (ou tourné d'un quart) change simplement de largeur et de hauteur ;
+ * un dessin tourné ou déformé reçoit une déformation qui porte l'étirement
+ * exact (sinon il faudrait le cisailler). Les facteurs sont limités pour
+ * qu'aucun dessin ne descende sous `MIN_SIZE_MM`.
+ */
+export function stretch(placements: Placement[], ids: Set<string>, sx: number, sy: number, anchor: Point): Placement[] {
+  const chosen = placements.filter((p) => ids.has(p.id));
+  if (chosen.length === 0 || !Number.isFinite(sx) || !Number.isFinite(sy)) return placements;
+  const box = bounds(chosen);
+  if (!box) return placements;
+  const fx = Math.max(sx, box.width > 0 ? MIN_SIZE_MM / box.width : 1);
+  const fy = Math.max(sy, box.height > 0 ? MIN_SIZE_MM / box.height : 1);
+  if (fx === 1 && fy === 1) return placements;
+  const k = Math.sqrt(fx * fy);
+  const shift = (c: Point, f: number, g: number) => ({
+    x: anchor.x + (c.x - anchor.x) * f,
+    y: anchor.y + (c.y - anchor.y) * g,
+  });
+  return mapSelected(placements, ids, (p) => {
+    const quarter = Math.round(p.rotation / 90);
+    const straight = Math.abs(p.rotation - quarter * 90) < 1e-9;
+    if (!p.deformation && straight) {
+      const swap = Math.abs(quarter) % 2 === 1;
+      return {
+        ...p,
+        center: shift(p.center, fx, fy),
+        width: p.width * (swap ? fy : fx),
+        height: p.height * (swap ? fx : fy),
+      };
+    }
+    const own =
+      p.deformation ??
+      identity({ center: { ...p.center }, width: p.width, height: p.height, rotation: p.rotation }, 1, 1);
+    return {
+      ...p,
+      center: shift(p.center, k, k),
+      width: p.width * k,
+      height: p.height * k,
+      deformation: stretchDeformation(own, fx, fy, k, anchor),
+    };
+  });
 }
 
 export type FlipAxis = "horizontal" | "vertical";

@@ -12,6 +12,8 @@ import { CompositionToolbar } from "../compose/CompositionToolbar";
 import { DrawingsSection } from "../compose/DrawingsSection";
 import { LayersSection } from "../compose/LayersSection";
 import { PlacementInspector } from "../compose/PlacementInspector";
+import { SlidesSection } from "../compose/SlidesSection";
+import { slideTree } from "../compose/slideTree";
 import { useComposition } from "../compose/useComposition";
 import "../compose/compose.css";
 import {
@@ -22,6 +24,7 @@ import {
   hasEngine,
   importFacade,
   removeFacade,
+  rotateFacade,
   inspectPlan,
   openFacadeView,
   openProject,
@@ -47,6 +50,7 @@ import type { TileSource } from "../viewer";
 import { useExportPanel } from "./ExportPanel";
 import { contextTab, readFacadeTab, saveFacadeTab, type FacadeTab, type TabContext } from "./inspectorTabs";
 import { frescoPlacement } from "./exportLogic";
+import { rotationLabel } from "./rotation";
 import { DEFAULT_DISPLAY, overviewLayers, type OverviewDisplay } from "./overview";
 import { demoOverview, demoSimulation } from "./overviewDemo";
 import { OverviewPanel } from "./OverviewPanel";
@@ -318,6 +322,26 @@ export function FacadeScreen() {
   });
   const viewerLayers = useMemo(() => [...layers, ...composition.layers], [layers, composition.layers]);
 
+  // Arborescence des dessins par diapositive : il faut les affectations du moteur.
+  const tree = useMemo(
+    () =>
+      slideTree(
+        composition.placements,
+        composition.composeLayers,
+        (project?.projectors ?? []).map((q) => ({ id: q.id, label: q.label, registered: (q.registration?.length ?? 0) >= 4 })),
+        composition.assignments,
+      ),
+    [composition.placements, composition.composeLayers, project?.projectors, composition.assignments],
+  );
+  const selectedIds = useMemo(() => new Set(composition.selected.map((p) => p.id)), [composition.selected]);
+  const describePlacement = useCallback(
+    (p: { drawing: string }) => {
+      const d = composition.drawings.find((x) => x.id === p.drawing);
+      return { name: d?.name ?? p.drawing, url: d?.url };
+    },
+    [composition.drawings],
+  );
+
   // --- Simulation (tâche 6.1) ----------------------------------------------
 
   const simulationBlocked = !overview
@@ -386,6 +410,15 @@ export function FacadeScreen() {
       const next = await removeFacade(folder);
       await load(folder, next);
       setNotice("Plan retiré du projet. Le fichier reste dans le dossier facade/ du projet.");
+    });
+
+  // Tourner le plan d'un quart de tour (D15-k) : l'échelle, les dessins
+  // posés et les points de recalage tournent avec lui (moteur).
+  const rotatePlan = (turns: number) =>
+    run("Rotation du plan…", async () => {
+      if (!folder) return;
+      const next = await rotateFacade(folder, turns);
+      await load(folder, next);
     });
 
   const choosePlan = () =>
@@ -576,6 +609,28 @@ export function FacadeScreen() {
                 <p>Aucun plan pour l'instant.</p>
               )}
               {engine && facade && (
+                <Property label="Orientation" hint={rotationLabel(facade.rotation)}>
+                  <div className="facade-rotate">
+                    <IconButton
+                      icon="rotateLeft"
+                      label="Tourner le plan d'un quart de tour à gauche"
+                      variant="default"
+                      size="sm"
+                      onClick={() => rotatePlan(-1)}
+                      disabled={!ready || picking !== "off"}
+                    />
+                    <IconButton
+                      icon="rotateRight"
+                      label="Tourner le plan d'un quart de tour à droite"
+                      variant="default"
+                      size="sm"
+                      onClick={() => rotatePlan(1)}
+                      disabled={!ready || picking !== "off"}
+                    />
+                  </div>
+                </Property>
+              )}
+              {engine && facade && (
                 <Button variant="danger" size="sm" icon="trash" onClick={() => setRemovingPlan(true)} disabled={!ready}>
                   Retirer le plan…
                 </Button>
@@ -634,13 +689,22 @@ export function FacadeScreen() {
           </>
         ),
         calques: (
-          <LayersSection
-            layers={composition.composeLayers}
-            active={composition.activeLayer}
-            counts={composition.layerCounts}
-            actions={composition.layerActions}
-            blocked={composeBlocked}
-          />
+          <>
+            <SlidesSection
+              groups={composition.placements.length > 0 ? tree : []}
+              selected={selectedIds}
+              describe={describePlacement}
+              actions={composition.actions}
+              blocked={composeBlocked}
+            />
+            <LayersSection
+              layers={composition.composeLayers}
+              active={composition.activeLayer}
+              counts={composition.layerCounts}
+              actions={composition.layerActions}
+              blocked={composeBlocked}
+            />
+          </>
         ),
         export: (
           <>
