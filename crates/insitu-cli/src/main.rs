@@ -25,6 +25,8 @@
 //!   diapositive calculée, pour la vue diapositive (JSON) ;
 //! - `insitu overview <dossier.insitu>` : vue façade (emprises, maillages,
 //!   recouvrements), en JSON ;
+//! - `insitu sheet <dossier.insitu> <fiche.pdf> --cache <dossier>` : fiche
+//!   de calepinage en PDF A3, pour le site ;
 //! - `insitu simulate <dossier.insitu> --cache <dossier>` : simulation de
 //!   tous les projecteurs et ses alertes (dessin coupé, hors emprise,
 //!   projeté deux fois) ;
@@ -60,6 +62,7 @@ mod place;
 mod projector;
 mod rectify;
 mod registration;
+mod sheet;
 mod simulate;
 mod target;
 mod vectorize;
@@ -175,6 +178,14 @@ fn run(args: &[&str]) -> Result<ExitCode, Failure> {
             Err((false, message)) => Err(Failure::Failed(message)),
         },
         ["overview", rest @ ..] => match overview::run(rest) {
+            Ok(text) => {
+                println!("{text}");
+                Ok(ExitCode::SUCCESS)
+            }
+            Err((true, message)) => Err(Failure::Usage(message)),
+            Err((false, message)) => Err(Failure::Failed(message)),
+        },
+        ["sheet", rest @ ..] => match sheet::run(rest) {
             Ok(text) => {
                 println!("{text}");
                 Ok(ExitCode::SUCCESS)
@@ -447,6 +458,7 @@ fn usage() -> &'static str {
      projector --help                              Photo de mire d'un projecteur : import, redressement, export\n  \
      registration --help                           Recalage d'un projecteur sur la façade par points communs\n  \
      slides <dossier.insitu> --cache <dossier>     Vue diapositive : aperçu calculé de chaque diapositive (JSON)\n  \
+     sheet --help                                  Fiche de calepinage en PDF A3, pour le site\n  \
      simulate --help                               Simulation de tous les projecteurs et ses alertes\n  \
      rectify <photo> [--output <image>]            Détecte la mire et redresse la photo (rectify --help)\n  \
      target pdf <fichier.pdf> [--page a3|carre]    Écrit la mire imprimable (PDF, 280 mm)\n  \

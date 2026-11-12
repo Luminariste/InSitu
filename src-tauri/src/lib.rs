@@ -23,6 +23,7 @@ use insitu_core::project::{
 };
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
+use insitu_core::sheet::{self, SheetReport};
 use insitu_core::simulation::{self, Simulation};
 use insitu_core::tiles;
 use tauri::http::{header, Request, Response, StatusCode};
@@ -517,6 +518,24 @@ fn facade_simulation(app: AppHandle, folder: String) -> Result<Simulation, Strin
     simulation::simulate(&project_dir(&folder)?, &tile_cache_dir(&app)?).map_err(|e| e.to_string())
 }
 
+// --- Fiche de calepinage (tâche 6.2) ----------------------------------------------
+
+#[tauri::command(async)]
+fn layout_sheet(
+    app: AppHandle,
+    folder: String,
+    path: String,
+    settings: ExportSettings,
+) -> Result<SheetReport, String> {
+    sheet::write_sheet(
+        &project_dir(&folder)?,
+        &tile_cache_dir(&app)?,
+        Path::new(&path),
+        Some(&settings),
+    )
+    .map_err(|e| e.to_string())
+}
+
 /// Dossier du jeu d'essai, pour l'écran de démonstration. Dans l'ordre :
 /// celui que désigne `INSITU_JEU_ESSAI`, celui du dépôt d'où l'app a été
 /// compilée (lancement depuis le code), puis les images embarquées dans
@@ -617,6 +636,7 @@ pub fn run() {
             slides_export,
             slide_views,
             facade_simulation,
+            layout_sheet,
             assembly_show,
             assembly_add,
             assembly_remove,

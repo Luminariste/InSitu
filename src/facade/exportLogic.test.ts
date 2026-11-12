@@ -6,6 +6,8 @@ import {
   exportSizeLabel,
   exportSummary,
   frescoPlacement,
+  sheetFileName,
+  sheetSummary,
   validDpi,
 } from "./exportLogic";
 
@@ -40,5 +42,16 @@ describe("export des diapositives", () => {
     );
     const withSvg = { ...report, slides: report.slides.map((s) => ({ ...s, svg: s.path.replace(".png", ".svg") })) };
     expect(exportSummary(withSvg, "/Users/b/Gravure")).toMatch(/^2 diapositives écrites \(PNG et SVG\) dans/);
+  });
+
+  it("nomme et résume la fiche de calepinage", () => {
+    expect(sheetFileName("Épinal")).toBe("Épinal - calepinage.pdf");
+    expect(sheetFileName("a/b")).toBe("a-b - calepinage.pdf");
+    expect(sheetFileName(undefined)).toBe("Projet - calepinage.pdf");
+    const report = { pages: 3, slides: 7, alerts: 2, smallestTextMm: 3 };
+    expect(sheetSummary(report, "/x/Épinal - calepinage.pdf")).toBe(
+      "Fiche de calepinage écrite dans « Épinal - calepinage.pdf » : 3 pages A3, 7 diapositives, 2 alertes.",
+    );
+    expect(sheetSummary({ ...report, alerts: 0 }, "f.pdf")).toMatch(/aucune alerte\.$/);
   });
 });

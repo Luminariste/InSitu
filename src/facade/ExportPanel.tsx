@@ -6,14 +6,24 @@ import { useEffect, useState } from "react";
 import {
   chooseExportFolder,
   chooseFrescoFile,
+  chooseSheetPath,
   exportSlides,
   importFresco,
+  writeLayoutSheet,
   type ExportProgress,
   type ExportSettings,
   type Project,
 } from "../engine";
 import { Button, Progress, Property, Section, useShortcuts } from "../ui";
-import { exportSettingsOf, exportSizeLabel, exportSummary, fileName, validDpi } from "./exportLogic";
+import {
+  exportSettingsOf,
+  exportSizeLabel,
+  exportSummary,
+  fileName,
+  sheetFileName,
+  sheetSummary,
+  validDpi,
+} from "./exportLogic";
 
 interface Props {
   engine: boolean;
@@ -84,6 +94,18 @@ export function ExportPanel({ engine, folder, project, onProject, showFresco, on
       setMessage(exportSummary(report, destination));
     });
 
+  // Fiche de calepinage (tâche 6.2), avec les réglages tels qu'ils sont à l'écran.
+  const writeSheet = () =>
+    run("Fiche de calepinage…", async () => {
+      if (!folder) return;
+      const dpi = Number(dpiText.replace(",", "."));
+      if (!validDpi(dpi)) throw new Error("la résolution doit être comprise entre 50 et 3 000 dpi");
+      const path = await chooseSheetPath(sheetFileName(project?.name));
+      if (!path) return;
+      const report = await writeLayoutSheet(folder, path, { ...settings, dpi });
+      setMessage(sheetSummary(report, path));
+    });
+
   const dpiValue = Number(dpiText.replace(",", "."));
   useShortcuts([{ keys: "mod+e", run: () => void exportAll(), enabled: ready && artwork }]);
 
@@ -150,6 +172,14 @@ export function ExportPanel({ engine, folder, project, onProject, showFresco, on
         <div className="facade-export-go">
           <Button variant="primary" icon="export" shortcut="mod+e" title="Un PNG par projecteur recalé : la fresque et les dessins posés" onClick={() => void exportAll()} disabled={!ready || !artwork}>
             Exporter les diapositives…
+          </Button>
+          <Button
+            icon="document"
+            title="PDF A3 pour le site : plan avec les emprises et les dessins, liste des diapositives, réglages d'export, alertes, vignettes"
+            onClick={() => void writeSheet()}
+            disabled={!ready || project?.projectors.length === 0}
+          >
+            Fiche de calepinage…
           </Button>
         </div>
         {progress && progress.total > 0 && (

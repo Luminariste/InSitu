@@ -4,6 +4,35 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Tâche 6.2 : fiche de calepinage
+
+Module `crates/insitu-core/src/sheet/` ; bouton « Fiche de calepinage… » sous
+l'export des diapositives (étape Façade) ; `insitu sheet`.
+
+**D-6.2-a. Le PDF est écrit avec `pdf-writer`.** Déjà utilisé par les tests
+(plans d'essai), en Rust pur, il passe en dépendance du moteur pour écrire
+des images (plan, vignettes, en JPEG) en plus des tracés. La mire (2.2)
+reste écrite à la main.
+
+**D-6.2-b. Mise en page fixe, A3 couché.** Page 1 : le plan éclairci (gris
+à 45 %) avec emprises, recouvrements en tirets rouges, contours des dessins
+posés dans la couleur de leur diapositive (rouge : coupé, gris en tirets :
+hors emprise) et noms des projecteurs ; à droite la liste des diapositives
+(16 au plus, les autres sur les pages suivantes), les réglages d'export
+(ceux de l'écran au moment de la fiche, sinon ceux du projet), les alertes
+de la simulation (6.1) et une légende. Pages suivantes : six diapositives
+par page. Couleurs des projecteurs : les teintes de l'écran, plus foncées
+pour le papier blanc.
+
+**D-6.2-c. Vignettes en traits noirs sur blanc.** La diapositive gravée est
+blanche sur noir ; à l'impression, des carrés noirs useraient l'encre et se
+liraient mal. La vignette est donc inversée.
+
+**D-6.2-d. « Lisible sur site » = corps de 3 mm au moins.** Aucun texte de
+la fiche sous 3 mm (environ 8,5 points), vérifié par test ; les noms des
+projecteurs font 7 mm. Les lignes trop longues sont coupées d'après une
+largeur approchée de l'Helvetica, sans mesure exacte des lettres.
+
 ## 2026-11-12 — Tâche 6.1 : simulation et alertes
 
 Module `crates/insitu-core/src/simulation/` ; écran : rubrique « Simulation »
