@@ -38,6 +38,7 @@ fn corners_follow_size_rotation_and_mirror() {
         layer: None,
         deformation: None,
         projector: None,
+        adjustment: None,
         extra: Default::default(),
     };
     let c = p.corners();
@@ -181,6 +182,7 @@ fn drawing_point_undoes_facade_point() {
         layer: None,
         deformation: None,
         projector: None,
+        adjustment: None,
         extra: Default::default(),
     };
     for mirrored in [false, true] {
@@ -209,6 +211,7 @@ fn hidden_layers_are_not_exported() {
         layer: layer.map(str::to_string),
         deformation: None,
         projector: None,
+        adjustment: None,
         extra: Default::default(),
     };
     let layer = |id: &str, visible: bool| Layer {
@@ -257,6 +260,7 @@ fn straight(rotation: f64, mirrored: bool) -> Placement {
         layer: None,
         deformation: None,
         projector: None,
+        adjustment: None,
         extra: Default::default(),
     }
 }
@@ -562,6 +566,7 @@ fn assignment_test_project(label: &str) -> (TempDir, ProjectDir) {
             layer: None,
             deformation: None,
             projector: None,
+            adjustment: None,
             extra: Default::default(),
         };
         if k % 5 == 0 {

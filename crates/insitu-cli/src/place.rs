@@ -1,5 +1,5 @@
 //! Commandes `insitu place …` : dessins posés sur la façade, comme l'écran
-//! Façade de l'app (tâches 4.2 à 4.5).
+//! Façade de l'app (tâches 4.2 à 4.6).
 
 use insitu_core::placement::{self, new_placement};
 use insitu_core::project::{Layer, Placement, PointMm, ProjectDir};
@@ -18,6 +18,7 @@ pub const USAGE: &str = r#"Usage :
   insitu place deform <projet.insitu> <id>… (--corners | --grid CxR | --none)
   insitu place slides <projet.insitu>
   insitu place assign <projet.insitu> <id>… (--to PROJECTEUR | --auto)
+  insitu place adjust <projet.insitu> <id> (--corners | --grid CxR | --none)
 
 Dessins posés sur la façade. Longueurs en mm réels de façade, origine en haut
 à gauche, y vers le bas ; rotation en degrés, sens des aiguilles d'une montre.
@@ -42,6 +43,10 @@ Dessins posés sur la façade. Longueurs en mm réels de façade, origine en hau
   assign  Choisit à la main la diapositive des dessins donnés (--to, libellé
           ou identifiant du projecteur) ; --auto les rend à la proposition
           du moteur.
+  adjust  Retouche le dessin dans la diapositive qui le porte, sans toucher
+          à la façade (tâche 4.6) : --corners ou --grid CxR tend une grille
+          au repos en mm de diapositive ; --none retire la retouche. Les
+          nœuds se déplacent ensuite par set (champ adjustment).
 
   --history DOSSIER  Note l'enregistrement dans l'historique d'annulation
                      rangé là (voir insitu project undo)."#;
@@ -197,6 +202,29 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             } else {
                 format!("Grille de {columns} × {rows} sur {} dessin(s).", ids.len())
             })
+        }
+        ["adjust", folder, id] => {
+            let (columns, rows) =
+                grid.ok_or_else(|| usage("Choisir --corners, --grid CxR ou --none."))?;
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let project = placement::adjust::adjust(&dir, id, columns, rows).map_err(failed)?;
+            Ok(
+                match project
+                    .placements
+                    .iter()
+                    .find(|p| p.id == id)
+                    .and_then(|p| p.adjustment.as_ref())
+                {
+                    Some(a) => format!(
+                        "Retouche de {columns} × {rows} dans la diapositive {}.",
+                        project
+                            .projector(&a.projector)
+                            .map(|p| p.label.as_str())
+                            .unwrap_or("?")
+                    ),
+                    None => "Retouche retirée.".to_string(),
+                },
+            )
         }
         ["slides", folder] => {
             let dir = ProjectDir::open(folder).map_err(failed)?;

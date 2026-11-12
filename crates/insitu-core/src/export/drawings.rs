@@ -17,7 +17,8 @@ use std::collections::HashMap;
 use super::{to_gray, ExportError};
 use crate::geometry::{Point, PointWarp, Transform};
 use crate::library::{flatten_on_black, read::decode};
-use crate::project::{Placement, PointMm, Project, ProjectDir};
+use crate::placement::mesh;
+use crate::project::{Deformation, Placement, PointMm, Project, ProjectDir};
 use crate::resample::{warp_raster, WarpOptions};
 use crate::tiles::Raster;
 
@@ -38,15 +39,34 @@ pub struct PixelRect {
     pub y1: u32,
 }
 
-/// Le rectangle de la diapositive (`side` pixels de `px_mm` mm, retournée
-/// si `mirror`) que le dessin posé peut toucher ; `None` s'il n'y tombe pas.
-pub fn slide_rect(
-    placement: &Placement,
-    warp: &PointWarp,
-    px_mm: f64,
-    side: u32,
-    mirror: bool,
-) -> Option<PixelRect> {
+/// Où l'on pose les dessins : la diapositive (`side` pixels de `px_mm` mm,
+/// retournée si `mirror`), son recalage, et son projecteur, dont les
+/// retouches de dessins s'appliquent (tâche 4.6).
+pub struct Placing<'a> {
+    pub warp: &'a PointWarp,
+    pub px_mm: f64,
+    pub side: u32,
+    pub mirror: bool,
+    pub projector: Option<&'a str>,
+}
+
+impl Placing<'_> {
+    fn adjustment<'p>(&self, placement: &'p Placement) -> Option<&'p Deformation> {
+        self.projector.and_then(|id| placement.adjustment_for(id))
+    }
+}
+
+/// Le rectangle de la diapositive que le dessin posé peut toucher ; `None`
+/// s'il n'y tombe pas.
+pub fn slide_rect(placement: &Placement, place: &Placing) -> Option<PixelRect> {
+    let Placing {
+        warp,
+        px_mm,
+        side,
+        mirror,
+        ..
+    } = *place;
+    let adjustment = place.adjustment(placement);
     let n = OUTLINE_POINTS_PER_SIDE;
     let corners = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)];
     let (mut x0, mut y0) = (f64::INFINITY, f64::INFINITY);
@@ -65,6 +85,14 @@ pub fn slide_rect(
                     x1: side,
                     y1: side,
                 });
+            };
+            // La retouche déplace le dessin dans la diapositive.
+            let s = match adjustment {
+                Some(d) => {
+                    let q = mesh::forward(d, PointMm::new(s.x, s.y));
+                    Point::new(q.x, q.y)
+                }
+                None => s,
             };
             let x = s.x / px_mm;
             let x = if mirror { f64::from(side) - x } else { x };
@@ -90,27 +118,38 @@ pub fn slide_rect(
 pub fn draw(
     slide: &mut Raster,
     drawings: &[(&Placement, &Raster)],
-    warp: &PointWarp,
-    px_mm: f64,
-    mirror: bool,
+    place: &Placing,
     threads: usize,
 ) -> Result<(), ExportError> {
-    let side = slide.width;
+    let Placing {
+        warp,
+        px_mm,
+        side,
+        mirror,
+        ..
+    } = *place;
+    debug_assert_eq!(side, slide.width);
     let options = WarpOptions {
         threads,
         ..WarpOptions::default()
     };
     for &(placement, image) in drawings {
-        let Some(rect) = slide_rect(placement, warp, px_mm, side, mirror) else {
+        let Some(rect) = slide_rect(placement, place) else {
             continue;
         };
+        let adjustment = place.adjustment(placement);
         let (w, h) = (rect.x1 - rect.x0, rect.y1 - rect.y0);
         let (iw, ih) = (f64::from(image.width), f64::from(image.height));
         let map = |q: Point| {
             let x = q.x + f64::from(rect.x0);
             let x = if mirror { f64::from(side) - x } else { x };
             let y = q.y + f64::from(rect.y0);
-            let facade = warp.apply(Point::new(x * px_mm, y * px_mm))?;
+            // La retouche se défait avant de revenir sur la façade.
+            let s = match adjustment {
+                Some(d) => mesh::inverse(d, PointMm::new(x * px_mm, y * px_mm))?,
+                None => PointMm::new(x * px_mm, y * px_mm),
+            };
+            let facade = warp.apply(Point::new(s.x, s.y))?;
             let (u, v) = placement.drawing_point(PointMm::new(facade.x, facade.y))?;
             Some(Point::new(u * iw, v * ih))
         };

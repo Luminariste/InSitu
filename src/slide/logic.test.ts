@@ -8,6 +8,7 @@ const view = (id: string, photo: boolean, preview: boolean, problem: string | nu
   rectifiedPhoto: photo ? `photos-redressees/${id}.png` : null,
   preview: preview ? `diapositives/${id}.png` : null,
   problem,
+  drawings: [],
 });
 
 describe("vue diapositive", () => {

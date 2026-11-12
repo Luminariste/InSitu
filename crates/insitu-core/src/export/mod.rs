@@ -208,6 +208,9 @@ pub fn sizes_px(dpi: f64) -> (u32, u32) {
 pub struct Artwork<'a> {
     pub fresco: Option<(&'a Raster, &'a RectMm)>,
     pub drawings: Vec<(&'a Placement, &'a Raster)>,
+    /// Le projecteur de la diapositive : ses retouches de dessins (tâche
+    /// 4.6) s'appliquent.
+    pub projector: Option<&'a str>,
 }
 
 /// Calcule l'image d'une diapositive, en niveaux de gris : la fresque vue
@@ -226,6 +229,7 @@ pub fn render_slide(
     let art = Artwork {
         fresco: Some((fresco, frame)),
         drawings: Vec::new(),
+        projector: None,
     };
     render_artwork(&art, warp, caption, settings, threads)
 }
@@ -264,7 +268,14 @@ pub fn render_artwork(
         }
         None => Raster::new(side, side, 1, vec![0; side as usize * side as usize]),
     };
-    drawings::draw(&mut slide, &art.drawings, warp, px_mm, mirror, threads)?;
+    let place = drawings::Placing {
+        warp,
+        px_mm,
+        side,
+        mirror,
+        projector: art.projector,
+    };
+    drawings::draw(&mut slide, &art.drawings, &place, threads)?;
     let mut image = if settings.margin {
         let n = side + 2 * margin;
         let mut plate = Raster::new(n, n, 1, vec![0; n as usize * n as usize]);
@@ -500,12 +511,22 @@ pub fn export_slides(
         // qui y tombent, sont lus.
         let seen: Vec<&Placement> = slide_placements_in(&project, &assigned, id)
             .into_iter()
-            .filter(|p| drawings::slide_rect(p, warp, px_mm, side, settings.mirror).is_some())
+            .filter(|p| {
+                let place = drawings::Placing {
+                    warp,
+                    px_mm,
+                    side,
+                    mirror: settings.mirror,
+                    projector: Some(id),
+                };
+                drawings::slide_rect(p, &place).is_some()
+            })
             .collect();
         cache.load(dir, &project, &seen, px_mm)?;
         let art = Artwork {
             fresco: image.as_ref().zip(fresco.as_ref().map(|f| &f.frame)),
             drawings: cache.pair(&seen),
+            projector: Some(id),
         };
         let rendered = render_artwork(&art, warp, &text, settings, threads)?;
         let bytes = encode_png(&rendered, settings)?;

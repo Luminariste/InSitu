@@ -51,6 +51,14 @@ export interface Placement {
   deformation?: Deformation | null;
   /** Diapositive choisie à la main (tâche 4.5) ; absente : celle que propose le moteur. */
   projector?: string | null;
+  /** Retouche dans une diapositive (tâche 4.6), sans effet sur la façade. */
+  adjustment?: SlideAdjustment | null;
+}
+
+/** Retouche d'un dessin dans la diapositive d'un projecteur : grille en mm de diapositive. */
+export interface SlideAdjustment {
+  projector: string;
+  deformation: Deformation;
 }
 
 /** Calque de composition : l'ordre de la liste est l'ordre d'empilement (le premier dessous). */
@@ -335,6 +343,8 @@ export function copyOf(source: Placement[], offset: Point, makeId: () => string 
       deformation: p.deformation && translateDeformation(p.deformation, offset.x, offset.y),
       // Une copie va où le moteur la propose, pas dans la diapositive choisie pour l'original.
       projector: null,
+      // Ni sa retouche de diapositive (tâche 4.6), faite pour l'original à sa place.
+      adjustment: null,
     };
   });
 }

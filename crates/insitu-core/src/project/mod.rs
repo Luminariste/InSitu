@@ -37,7 +37,8 @@ pub use model::{
     AssemblyOutput, AssemblyPair, AssemblyPhoto, Deformation, DeformationFrame, Drawing,
     ExportSettings, ExtraFields, Facade, FacadeAssembly, FacadeScale, FrescoImage, Layer, Mirror,
     Placement, PointMm, Project, Projector, RectMm, Rectification, RectificationMethod,
-    RectificationPoint, RegistrationPair, SilhouettePolygon, SourcePoint, VectorSettings,
+    RectificationPoint, RegistrationPair, SilhouettePolygon, SlideAdjustment, SourcePoint,
+    VectorSettings,
 };
 pub use path::RelativePath;
 pub use store::{AssetKind, LoadedProject, ProjectDir, PROJECT_EXTENSION, PROJECT_FILE};
