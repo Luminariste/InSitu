@@ -6,9 +6,6 @@ import type { Point, Pyramid } from "../viewer";
 import { tilePath, tileRect } from "../viewer/geometry";
 import type { RectificationView, XY } from "../engine";
 
-/** Les quatre coins de la diapositive, dans l'ordre attendu par le moteur. */
-export const CORNER_NAMES = ["haut-gauche", "haut-droit", "bas-droit", "bas-gauche"] as const;
-
 export type Corners = [Point, Point, Point, Point];
 
 export function toXY(p: Point): XY {
@@ -33,6 +30,22 @@ export function defaultCorners(width: number, height: number): Corners {
     { x: x0 + side, y: y0 + side },
     { x: x0, y: y0 + side },
   ];
+}
+
+/**
+ * Range quatre coins posés dans n'importe quel ordre, comme le moteur
+ * (`order_corners`) : sens des aiguilles d'une montre à l'écran (y vers le
+ * bas), en commençant par le plus proche du coin haut-gauche de la photo.
+ */
+export function orderCorners(corners: Point[]): Point[] {
+  const cx = corners.reduce((s, p) => s + p.x, 0) / corners.length;
+  const cy = corners.reduce((s, p) => s + p.y, 0) / corners.length;
+  const sorted = [...corners].sort((a, b) => Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx));
+  let first = 0;
+  sorted.forEach((p, i) => {
+    if (p.x + p.y < sorted[first].x + sorted[first].y) first = i;
+  });
+  return [...sorted.slice(first), ...sorted.slice(0, first)];
 }
 
 /**
@@ -105,11 +118,13 @@ export function summarize(view: RectificationView): { text: string; quality: Nod
   const precision = `écart estimé ${mm2.format(view.leaveOneOutMm.mean)} mm en moyenne, ${mm2.format(view.leaveOneOutMm.p95)} mm pour 95 % des croisements`;
   const coverage = `mire couverte à ${Math.round(view.coverage * 100)} %`;
   const time = view.seconds !== null ? ` · calcul ${s1.format(view.seconds)} s` : "";
+  const axes = [view.mirror?.horizontal && "gauche-droite", view.mirror?.vertical && "haut-bas"].filter(Boolean);
+  const mirror = axes.length ? ` · miroir ${axes.join(" et ")}` : "";
   // Jugé comme le critère de la tâche 2.4a : 95 % des croisements à moins de
   // 0,3 mm (l'écart de validation croisée est un majorant).
   const p95 = view.leaveOneOutMm.p95;
   const quality: NodeQuality = view.coverage < 0.8 || p95 >= 0.6 ? "mauvais" : p95 < 0.3 ? "bon" : "moyen";
-  return { text: `${how} : ${nodes}, ${precision}, ${coverage}${time}`, quality };
+  return { text: `${how} : ${nodes}, ${precision}, ${coverage}${mirror}${time}`, quality };
 }
 
 /** Nom proposé pour l'export : « A-redressee-500dpi.tif ». */

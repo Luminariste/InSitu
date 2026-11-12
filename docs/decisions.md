@@ -433,6 +433,39 @@ Le chemin du dernier projet ouvert est gardé au même endroit pour les deux
 écrans (`src/project/current.ts`) : passer d'un onglet à l'autre garde le
 projet. L'écran Redressement ne crée pas de projet : l'écran Façade le fait.
 
+**D-2.5-i. Coins posés à la main : glissés librement, dans n'importe quel ordre.**
+Demande de Benjamin après son essai (12 novembre 2026) : plus de pose au clic
+dans l'ordre 1-2-3-4. Les quatre poignées apparaissent tout de suite et se
+glissent où l'on veut. Le moteur range les coins (sens des aiguilles d'une
+montre à l'écran, en partant du plus proche du coin haut-gauche de la photo,
+`order_corners`), puis lit le sens de la mire sur les six petits cercles,
+comme la détection automatique. Si ce sens reste incertain, il garde celui de
+la photo. Cela remplace la règle de D-2.4a selon laquelle l'ordre des coins
+fixe le sens de la mire.
+
+**D-2.5-j. Miroir de la diapositive, à l'écran de redressement.**
+Demande de Benjamin (12 novembre 2026). Deux boutons à bascule, gauche-droite
+et haut-bas, retournent la diapositive du projecteur. Le miroir est appliqué
+aux coordonnées `slide` des points du redressement **et** des points du
+recalage déjà posés : tout ce qui suit (photo redressée, export, recalage,
+déformation) reste cohérent sans rien savoir du miroir. Le réglage est noté
+dans `rectification.mirror` (champ facultatif, ancien fichier lisible tel
+quel) pour être réappliqué quand la mire est détectée de nouveau. Ce n'est
+pas le miroir de l'export pour la gravure (tâche 3.5), qui reste à part.
+
+**D-2.5-k. HEIC : aussi pour la façade, et un secours par le Mac.**
+Benjamin a vu un HEIC refusé (12 novembre 2026). Trois changements :
+l'écran Façade accepte maintenant le HEIC (il le refusait exprès, avec un
+message demandant un JPEG) ; un fichier est reconnu comme HEIF aussi par ses
+marques compatibles, pas seulement par sa marque principale ; si notre
+décodeur échoue (variante non prise en charge : c'était le cas de la photo
+« C BRUT.heic » de Benjamin, en couleurs 4:4:4 ; ou 10 bits), le
+moteur demande à `sips`, le convertisseur fourni avec macOS, d'en faire un
+PNG provisoire. Ce secours dépend du système, mais seulement sur Mac et en
+dernier recours ; les tests (Linux) ne le parcourent pas. Le décodeur à
+nous reste le premier, pour que Mac et tests donnent les mêmes pixels
+(D-2.5-a).
+
 ## 2026-11-12 — Tâche 2.4a
 
 Détection de l'ancienne mire et redressement : module
