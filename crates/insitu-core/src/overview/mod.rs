@@ -233,7 +233,7 @@ fn rasterize(
             }
         }
         crossings.sort_by(f64::total_cmp);
-        for span in crossings.chunks_exact(2) {
+        for span in crossings.as_chunks::<2>().0 {
             // Cases dont le centre x0 + (i + 0,5) × cell est entre les deux.
             let first = ((span[0] - x0) / cell - 0.5).ceil().max(0.0) as usize;
             let last = ((span[1] - x0) / cell - 0.5).floor();
