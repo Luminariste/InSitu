@@ -10,7 +10,10 @@ use insitu_core::facade::{self, FacadeDisplay, SourceInfo};
 use insitu_core::geometry::Point;
 use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
 use insitu_core::overview::{self, FacadeOverview};
-use insitu_core::project::{ExportSettings, Project, ProjectDir, RegistrationPair, SourcePoint};
+use insitu_core::placement;
+use insitu_core::project::{
+    ExportSettings, Placement, Project, ProjectDir, RegistrationPair, SourcePoint,
+};
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
 use insitu_core::tiles;
@@ -234,6 +237,15 @@ fn library_preview(app: AppHandle, folder: String, drawing: String) -> Result<St
         .map_err(|e| e.to_string())
 }
 
+// --- Dessins posés sur la façade (tâche 4.2) ----------------------------------
+
+/// Remplace tous les dessins posés, à la fin d'un geste ; rien n'est
+/// enregistré si l'un d'eux est incorrect.
+#[tauri::command(async)]
+fn placements_set(folder: String, placements: Vec<Placement>) -> Result<Project, String> {
+    placement::set_placements(&project_dir(&folder)?, placements).map_err(|e| e.to_string())
+}
+
 // --- Vue façade (tâche 3.3) -------------------------------------------------------
 
 /// Emprises, maillages des photos, recouvrements de tous les projecteurs.
@@ -359,6 +371,7 @@ pub fn run() {
             library_import,
             library_list,
             library_preview,
+            placements_set,
             facade_overview,
             fresco_import,
             slides_export,

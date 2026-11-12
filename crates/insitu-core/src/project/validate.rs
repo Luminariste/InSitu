@@ -225,6 +225,49 @@ pub fn check_model(project: &Project, report: &mut ValidationReport) {
     if project.export.dpi <= 0.0 {
         report.error("export.dpi", "la résolution d'export doit être positive");
     }
+    for (location, message) in placement_errors(project) {
+        report.error(location, message);
+    }
+}
+
+/// Erreurs des placements (tâche 4.2) : dessin inconnu, identifiant en
+/// double, taille nulle ou négative.
+pub(crate) fn placement_errors(project: &Project) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    let mut seen: BTreeMap<&str, usize> = BTreeMap::new();
+    for (i, placement) in project.placements.iter().enumerate() {
+        let here = format!("placements[{i}]");
+        if placement.id.trim().is_empty() {
+            out.push((
+                format!("{here}.id"),
+                "le placement n'a pas d'identifiant".to_string(),
+            ));
+        } else if let Some(first) = seen.insert(&placement.id, i) {
+            out.push((
+                format!("{here}.id"),
+                format!(
+                    "identifiant « {} » déjà utilisé par placements[{first}]",
+                    placement.id
+                ),
+            ));
+        }
+        if project.drawing(&placement.drawing).is_none() {
+            out.push((
+                format!("{here}.drawing"),
+                format!(
+                    "aucun dessin « {} » dans la bibliothèque",
+                    placement.drawing
+                ),
+            ));
+        }
+        if !(placement.width > 0.0 && placement.height > 0.0) {
+            out.push((
+                here,
+                "la largeur et la hauteur d'un dessin posé doivent être positives".to_string(),
+            ));
+        }
+    }
+    out
 }
 
 fn on_slide(x: f64, y: f64) -> bool {
@@ -359,12 +402,12 @@ mod tests {
         let (dir, _) =
             ProjectDir::create(temp.path().join("Essai.insitu"), None).expect("création");
         let text = fs::read_to_string(dir.project_file()).expect("lecture");
-        let text = text.replacen('{', "{\n  \"placements\": [],", 1);
+        let text = text.replacen('{', "{\n  \"sheets\": [],", 1);
         fs::write(dir.project_file(), text).expect("écriture");
         let report = validate(&dir);
         assert!(report.is_valid());
         let warnings: Vec<&Issue> = report.warnings().collect();
         assert_eq!(warnings.len(), 1);
-        assert_eq!(warnings[0].location, "placements");
+        assert_eq!(warnings[0].location, "sheets");
     }
 }

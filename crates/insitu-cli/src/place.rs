@@ -1,0 +1,125 @@
+//! Commandes `insitu place …` : dessins posés sur la façade, comme l'écran
+//! Façade de l'app (tâche 4.2).
+
+use insitu_core::placement::{self, new_placement};
+use insitu_core::project::{Placement, PointMm, ProjectDir};
+
+/// Ce qui peut mal tourner.
+pub enum Problem {
+    Usage(String),
+    Failed(String),
+}
+
+pub const USAGE: &str = r#"Usage :
+  insitu place list <projet.insitu>
+  insitu place add <projet.insitu> <dessin> --at X,Y --width MM [--rotation DEG] [--mirror] [--group NOM]
+  insitu place remove <projet.insitu> <id>…
+  insitu place set <projet.insitu> <placements.json>
+
+Dessins posés sur la façade. Longueurs en mm réels de façade, origine en haut
+à gauche, y vers le bas ; rotation en degrés, sens des aiguilles d'une montre.
+
+  list    Affiche les placements en JSON, du plus au fond au plus en avant.
+  add     Pose un dessin de la bibliothèque (nom ou identifiant) au premier
+          plan, centré en X,Y, large de --width mm ; la hauteur suit les
+          proportions du fichier. Affiche l'identifiant du placement.
+  remove  Retire des dessins posés (la bibliothèque n'est pas touchée).
+  set     Remplace tous les placements par ceux du fichier JSON (même forme
+          que la sortie de list), comme l'app à la fin de chaque geste.
+          Rien n'est enregistré si un placement est incorrect."#;
+
+pub fn run(args: &[&str]) -> Result<String, Problem> {
+    if matches!(args, [] | ["--help" | "-h"]) {
+        return Ok(USAGE.to_string());
+    }
+    let usage = |message: &str| Problem::Usage(format!("{message} Voir : insitu place --help"));
+    let number = |value: Option<&&str>, what: &str| {
+        value
+            .and_then(|v| v.parse::<f64>().ok())
+            .filter(|v| v.is_finite())
+            .ok_or_else(|| usage(&format!("{what} attend un nombre.")))
+    };
+    let mut at: Option<PointMm> = None;
+    let mut width: Option<f64> = None;
+    let mut rotation = 0.0;
+    let mut mirrored = false;
+    let mut group: Option<String> = None;
+    let mut words = Vec::new();
+    let mut i = 0;
+    while i < args.len() {
+        match args[i] {
+            "--at" => {
+                let point = args.get(i + 1).and_then(|v| {
+                    let (x, y) = v.split_once(',')?;
+                    Some(PointMm::new(x.trim().parse().ok()?, y.trim().parse().ok()?))
+                });
+                at = Some(point.ok_or_else(|| usage("--at attend X,Y en mm."))?);
+                i += 1;
+            }
+            "--width" => {
+                width = Some(number(args.get(i + 1), "--width")?);
+                i += 1;
+            }
+            "--rotation" => {
+                rotation = number(args.get(i + 1), "--rotation")?;
+                i += 1;
+            }
+            "--group" => {
+                group = Some(
+                    args.get(i + 1)
+                        .ok_or_else(|| usage("--group attend un nom."))?
+                        .to_string(),
+                );
+                i += 1;
+            }
+            "--mirror" => mirrored = true,
+            other if other.starts_with("--") => {
+                return Err(usage(&format!("Option inconnue : {other}")))
+            }
+            word => words.push(word),
+        }
+        i += 1;
+    }
+    match words[..] {
+        ["list", folder] => {
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let project = dir.load().map_err(failed)?.project;
+            Ok(serde_json::to_string_pretty(&project.placements).expect("sérialisable"))
+        }
+        ["add", folder, drawing] => {
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let project = dir.load().map_err(failed)?.project;
+            let center = at.ok_or_else(|| usage("--at X,Y est nécessaire."))?;
+            let width = width.ok_or_else(|| usage("--width est nécessaire."))?;
+            let mut placement = new_placement(&project, drawing, center, width).map_err(failed)?;
+            placement.rotation = rotation;
+            placement.mirrored = mirrored;
+            placement.group = group;
+            let (_, id) = placement::add(&dir, placement).map_err(failed)?;
+            Ok(id)
+        }
+        ["remove", folder, ref ids @ ..] if !ids.is_empty() => {
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let ids: Vec<String> = ids.iter().map(|s| s.to_string()).collect();
+            let project = placement::remove(&dir, &ids).map_err(failed)?;
+            Ok(format!(
+                "{} dessin(s) posé(s) restent.",
+                project.placements.len()
+            ))
+        }
+        ["set", folder, file] => {
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let text = std::fs::read_to_string(file)
+                .map_err(|e| Problem::Failed(format!("Impossible de lire « {file} » : {e}")))?;
+            let placements: Vec<Placement> = serde_json::from_str(&text)
+                .map_err(|e| Problem::Failed(format!("« {file} » est incorrect : {e}")))?;
+            let project = placement::set_placements(&dir, placements).map_err(failed)?;
+            Ok(format!("{} dessin(s) posé(s).", project.placements.len()))
+        }
+        _ => Err(usage("Commande de placement incomplète ou inconnue.")),
+    }
+}
+
+fn failed(error: impl std::fmt::Display) -> Problem {
+    Problem::Failed(error.to_string())
+}
