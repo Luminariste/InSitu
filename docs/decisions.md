@@ -4,6 +4,26 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-12 — Jeu d'essai Trévarez (hors plan, demande de Benjamin)
+
+Deuxième projet réel, `jeu-essai/trevarez`, tests dans
+`crates/insitu-core/tests/trevarez.rs`.
+
+**D-JE-a. Un vrai `projet.json` enregistré par l'app entre au jeu
+d'essai.** Copie exacte du projet de Benjamin (0.1.28). Les tests vérifient
+qu'il se relit tel quel et que la diapositive C, refaite depuis ce projet,
+retombe sur celle qu'il a exportée (à 0,5 mm près, à 100 dpi). Un
+changement du format qui casserait la relecture d'un projet réel se voit
+donc tout de suite.
+
+**D-JE-b. Seule la diapositive C sert de référence.** Le dessin posé sur B
+a été déformé autrement après l'export : comparer B testerait l'historique
+du projet, pas le moteur.
+
+**D-JE-c. Rien n'est versé sans test.** Les photos HEIC C à H, les photos
+« lum », les 93 autres dessins et la composition Illustrator restent dans
+le Dropbox (environ 5,9 Mo versés au total).
+
 ## 2026-11-12 — Étude du pli (Trévarez, hors plan)
 
 **D-PLI-a. Constat, pas encore de changement du moteur.** Un projecteur qui

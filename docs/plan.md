@@ -44,6 +44,7 @@ tableau à jour.
 | 6.6 Assemblage automatique (demande de Benjamin après essai de la 6.4) | Version 0.1.30, **non validée** : essai sur Mac à faire par Benjamin avec ses vraies photos (`docs/assemblage.md`) ; prouvé par test : trois photos raccordées sans aucun clic, coins à moins de 1 px de leur place (photos simulées), et deux vraies photos d'Épinal raccordées (écart moyen 0,65 px) ; décisions D-6.6-a à e |
 | Renommer / supprimer un projecteur, barre de menus du Mac (hors plan, demande de Benjamin) | Fusionné (version 0.1.18), **non validé** : essai sur Mac ; décisions D15-f et D15-g |
 | Retirer un dessin de la bibliothèque, retirer le plan de la façade (hors plan, demande de Benjamin) | Version 0.1.19, **non validé** : essai sur Mac ; décision D15-h |
+| Jeu d'essai Trévarez (hors plan, demande de Benjamin) | Fait : projet réel de la 0.1.28 relu et diapositive C refaite à l'identique, prouvé par test (`jeu-essai/LISEZMOI.md`, D-JE-a à c) |
 | Panneau de droite de la Façade en onglets, outils des dessins en icônes dans la barre du haut (hors plan, demande de Benjamin) | Version 0.1.31, **non validé** : essai sur Mac ; décisions D15-i et D15-j |
 | Toutes les autres | À faire |
 
