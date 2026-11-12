@@ -1,6 +1,8 @@
 node_modules/
 dist/
 target/
+# …sauf le module de la mire du moteur, qui porte ce nom (vocabulaire : mire = target)
+!crates/insitu-core/src/target/
 src-tauri/gen/
 .DS_Store
 *.log
