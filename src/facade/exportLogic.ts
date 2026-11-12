@@ -1,7 +1,7 @@
 // Fresque et export des diapositives (tâche 3.5) : logique pure de l'écran
 // Façade, testée dans exportLogic.test.ts.
 
-import type { ExportReport, ExportSettings, FrescoImage } from "../engine";
+import type { ExportReport, ExportSettings, FrescoImage, SheetReport } from "../engine";
 import type { Placement } from "../viewer/geometry";
 
 /** Réglages par défaut, les mêmes que ceux du moteur (`units.rs`). */
@@ -58,4 +58,16 @@ export function exportSummary(report: ExportReport, destination: string): string
   if (report.skipped.length === 0) return `${written}${time}.`;
   const skipped = report.skipped.map((s) => s.label).join(", ");
   return `${written}${time}. Non exporté${report.skipped.length > 1 ? "s" : ""} (recalage incomplet) : ${skipped}.`;
+}
+
+/** Nom proposé pour la fiche de calepinage. */
+export function sheetFileName(projectName: string | undefined): string {
+  const name = (projectName ?? "").replace(/[/\\:*?"<>|]/g, "-").trim();
+  return `${name || "Projet"} - calepinage.pdf`;
+}
+
+/** Ce qu'on dit après l'écriture de la fiche. */
+export function sheetSummary(report: SheetReport, path: string): string {
+  const alerts = report.alerts === 0 ? "aucune alerte" : `${report.alerts} alerte${report.alerts > 1 ? "s" : ""}`;
+  return `Fiche de calepinage écrite dans « ${fileName(path)} » : ${report.pages} pages A3, ${report.slides} diapositive${report.slides > 1 ? "s" : ""}, ${alerts}.`;
 }

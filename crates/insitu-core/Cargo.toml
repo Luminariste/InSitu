@@ -27,8 +27,9 @@ tiff = { version = "0.11", default-features = false, features = ["lzw"] }
 # Export SVG (tâche 5.3, décision D-5.3-c) : découpe des dessins par les
 # silhouettes (différence de polygones), en Rust pur.
 i_overlay = "9.1"
+# Fiche de calepinage en PDF (tâche 6.2, décision D-6.2-a) : écriture de
+# PDF avec images, en Rust pur ; déjà utilisé par les tests.
+pdf-writer = "0.15"
 
 [dev-dependencies]
 sha2 = "0.10"
-# Fabrique des PDF d'essai dans les tests.
-pdf-writer = "0.15"

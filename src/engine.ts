@@ -984,6 +984,34 @@ export async function fetchSimulation(folder: string): Promise<Simulation> {
   return invoke<Simulation>("facade_simulation", { folder });
 }
 
+// --- Fiche de calepinage (tâche 6.2) --------------------------------------------
+
+export interface SheetReport {
+  pages: number;
+  slides: number;
+  alerts: number;
+  /** Plus petit corps de texte de la fiche, en mm. */
+  smallestTextMm: number;
+}
+
+/** Demande où écrire la fiche de calepinage ; `null` si l'utilisateur renonce. */
+export async function chooseSheetPath(defaultName: string): Promise<string | null> {
+  requireEngine();
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  const chosen = await save({
+    title: "Fiche de calepinage",
+    defaultPath: defaultName,
+    filters: [{ name: "PDF", extensions: ["pdf"] }],
+  });
+  return chosen ?? null;
+}
+
+/** Écrit la fiche de calepinage (PDF A3), avec les réglages d'export donnés. */
+export async function writeLayoutSheet(folder: string, path: string, settings: ExportSettings): Promise<SheetReport> {
+  requireEngine();
+  return invoke<SheetReport>("layout_sheet", { folder, path, settings });
+}
+
 // --- Assemblage de photos de façade (tâche 6.4) -------------------------------
 
 /** Un point commun : dans la photo (`here`) et dans sa photo d'appui (`there`), en pixels. */
