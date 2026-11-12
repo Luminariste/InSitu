@@ -177,7 +177,7 @@ fn an_architect_pdf_is_sharp_at_every_zoom_and_to_scale() {
     let cache = scratch.path("cache");
     let started = std::time::Instant::now();
     let shown =
-        facade::open_for_display(&dir.resolve(&scaled.source), scaled.page, &cache).unwrap();
+        facade::open_for_display(&dir.resolve(&scaled.source), scaled.page, 0, &cache).unwrap();
     eprintln!(
         "préparation de l'affichage : {:.1} s",
         started.elapsed().as_secs_f64()
@@ -194,7 +194,7 @@ fn an_architect_pdf_is_sharp_at_every_zoom_and_to_scale() {
     assert!((f64::from(shown.pyramid.width) * mm_per_pixel - width_mm).abs() < width_mm * 1e-4);
     // Une seconde ouverture réutilise le cache.
     let again =
-        facade::open_for_display(&dir.resolve(&scaled.source), scaled.page, &cache).unwrap();
+        facade::open_for_display(&dir.resolve(&scaled.source), scaled.page, 0, &cache).unwrap();
     assert_eq!(again.key, shown.key);
 
     // À chaque niveau, du plus fin au plus grossier, le trait de 0,5 pt.
@@ -282,7 +282,7 @@ fn bad_tile_requests_are_refused() {
     let plan_path = scratch.path("plan.pdf");
     fs::write(&plan_path, architect_pdf()).unwrap();
     let cache = scratch.path("cache");
-    let shown = facade::open_for_display(&plan_path, Some(2), &cache).unwrap();
+    let shown = facade::open_for_display(&plan_path, Some(2), 0, &cache).unwrap();
     let key = &shown.key;
     for request in [
         format!("{key}/0/9999_0.png"),
@@ -318,7 +318,7 @@ fn an_svg_plan_is_rendered_from_its_vectors() {
         (info.kind, info.width, info.height),
         (SourceKind::Svg, 1000.0, 500.0)
     );
-    let shown = facade::open_for_display(&plan_path, None, &scratch.path("cache")).unwrap();
+    let shown = facade::open_for_display(&plan_path, None, 0, &scratch.path("cache")).unwrap();
     assert_eq!(shown.pyramid.width, VECTOR_LEVEL0_SIDE);
     assert_eq!(shown.pyramid.height, VECTOR_LEVEL0_SIDE / 2);
     // Niveau 0 : 65,5 px par unité ; le trait de 0,2 fait 13 px, net.
@@ -376,7 +376,7 @@ fn a_dxf_plan_is_imported_with_its_origin() {
 
     // Le cercle est tracé d'un trait d'un pixel, au centre de la façade.
     let cache = scratch.path("cache");
-    let shown = facade::open_for_display(&dir.resolve(&imported.source), None, &cache).unwrap();
+    let shown = facade::open_for_display(&dir.resolve(&imported.source), None, 0, &cache).unwrap();
     let coarsest = shown.pyramid.levels.last().unwrap();
     let (_, bytes) =
         facade::read_or_render(&cache, &format!("{}/{}/0_0.png", shown.key, coarsest.level))
@@ -405,9 +405,13 @@ fn an_image_facade_keeps_its_pixels() {
         (imported.source_width, imported.source_height),
         (f64::from(image.0), f64::from(image.1))
     );
-    let shown =
-        facade::open_for_display(&dir.resolve(&imported.source), None, &scratch.path("cache"))
-            .unwrap();
+    let shown = facade::open_for_display(
+        &dir.resolve(&imported.source),
+        None,
+        0,
+        &scratch.path("cache"),
+    )
+    .unwrap();
     assert_eq!(shown.kind, SourceKind::Image);
     assert_eq!(shown.source_units_per_pixel, 1.0);
     assert_eq!(shown.pyramid.width, image.0);
@@ -428,9 +432,13 @@ fn an_iphone_heic_photo_can_be_the_facade() {
         (imported.source_width, imported.source_height),
         (f64::from(size.0), f64::from(size.1))
     );
-    let shown =
-        facade::open_for_display(&dir.resolve(&imported.source), None, &scratch.path("cache"))
-            .unwrap();
+    let shown = facade::open_for_display(
+        &dir.resolve(&imported.source),
+        None,
+        0,
+        &scratch.path("cache"),
+    )
+    .unwrap();
     assert_eq!(shown.kind, SourceKind::Image);
     assert_eq!((shown.pyramid.width, shown.pyramid.height), size);
 }

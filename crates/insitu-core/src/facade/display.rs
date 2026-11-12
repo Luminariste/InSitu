@@ -54,6 +54,9 @@ pub struct VectorRecord {
     pub page: Option<u32>,
     /// Pixels du niveau 0 par unité du fichier.
     pub scale: f64,
+    /// Quarts de tour appliqués au plan (D15-k) ; 0 si absent.
+    #[serde(default)]
+    pub rotation: u8,
 }
 
 /// Ce que l'interface reçoit pour afficher un plan.
@@ -72,16 +75,23 @@ pub struct FacadeDisplay {
     pub source_units_per_pixel: f64,
 }
 
-/// Prépare l'affichage du plan `path` dans le cache `cache_root`. Rapide si
+/// Prépare l'affichage du plan `path`, tourné de `rotation` quarts de tour
+/// (sens des aiguilles d'une montre), dans le cache `cache_root`. Rapide si
 /// c'est déjà fait : un plan inchangé n'est jamais rendu deux fois.
 pub fn open_for_display(
     path: &Path,
     page: Option<u32>,
+    rotation: u8,
     cache_root: &Path,
 ) -> Result<FacadeDisplay, FacadeError> {
     let kind = SourceKind::of(path)?;
+    let rotation = rotation % 4;
     if kind == SourceKind::Image {
-        let cached = tiles::ensure_pyramid(path, cache_root, &TileOptions::default())?;
+        let options = TileOptions {
+            quarter_turns: rotation,
+            ..TileOptions::default()
+        };
+        let cached = tiles::ensure_pyramid(path, cache_root, &options)?;
         let (width, height) = (cached.pyramid.width, cached.pyramid.height);
         return Ok(FacadeDisplay {
             key: cached.key,
@@ -94,7 +104,7 @@ pub fn open_for_display(
     }
 
     let page = (kind == SourceKind::Pdf).then(|| page.unwrap_or(1));
-    let key = vector_key(path, page)?;
+    let key = vector_key(path, page, rotation)?;
     let dir = cache_root.join(&key);
     if let (Ok(pyramid), Ok(record)) = (read_descriptor(&dir), read_record(&dir)) {
         if pyramid.version == PYRAMID_VERSION && record.render_version == VECTOR_RENDER_VERSION {
@@ -102,7 +112,7 @@ pub fn open_for_display(
         }
     }
 
-    let plan: Arc<dyn VectorPlan> = Arc::from(open_vector(path, kind, page)?);
+    let plan: Arc<dyn VectorPlan> = rotate_plan(open_vector(path, kind, page)?, rotation);
     let (width, height) = plan.size();
     let scale = f64::from(VECTOR_LEVEL0_SIDE) / width.max(height);
     let width0 = ((width * scale).ceil() as u32).max(1);
@@ -115,6 +125,7 @@ pub fn open_for_display(
         kind,
         page,
         scale,
+        rotation,
     };
 
     // Le plus petit niveau dit si le plan est en couleur ; sinon les tuiles
@@ -342,7 +353,7 @@ fn read_record(dir: &Path) -> Result<VectorRecord, String> {
     serde_json::from_str(&text).map_err(|e| e.to_string())
 }
 
-fn vector_key(path: &Path, page: Option<u32>) -> Result<String, FacadeError> {
+fn vector_key(path: &Path, page: Option<u32>, rotation: u8) -> Result<String, FacadeError> {
     let canonical = fs::canonicalize(path).map_err(|e| FacadeError::Io(path.to_path_buf(), e))?;
     let metadata = fs::metadata(&canonical).map_err(|e| FacadeError::Io(path.to_path_buf(), e))?;
     let modified = metadata
@@ -350,8 +361,14 @@ fn vector_key(path: &Path, page: Option<u32>) -> Result<String, FacadeError> {
         .ok()
         .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
         .map_or(0, |since| since.as_nanos());
+    // Les quarts de tour n'entrent dans la clé que s'il y en a : les plans
+    // déjà rendus gardent leur clé.
+    let turns = match rotation % 4 {
+        0 => String::new(),
+        n => format!("|q{n}"),
+    };
     let identity = format!(
-        "plan|{}|{}|{modified}|{page:?}|{VECTOR_LEVEL0_SIDE}|r{VECTOR_RENDER_VERSION}|v{PYRAMID_VERSION}",
+        "plan|{}|{}|{modified}|{page:?}{turns}|{VECTOR_LEVEL0_SIDE}|r{VECTOR_RENDER_VERSION}|v{PYRAMID_VERSION}",
         canonical.display(),
         metadata.len(),
     );
@@ -389,8 +406,10 @@ fn plan_for(key: &str, record: &VectorRecord) -> Option<Arc<dyn VectorPlan>> {
         return Some(plan.clone());
     }
     // Ouvert hors du verrou : la lecture d'un gros DXF prend du temps.
-    let plan: Arc<dyn VectorPlan> =
-        Arc::from(open_vector(&record.source, record.kind, record.page).ok()?);
+    let plan = rotate_plan(
+        open_vector(&record.source, record.kind, record.page).ok()?,
+        record.rotation,
+    );
     remember(key, plan.clone());
     Some(plan)
 }
@@ -427,16 +446,18 @@ impl Drop for RenderPermit {
     }
 }
 
-/// Rend un plan vectoriel entier en une image dont le plus grand côté fait
-/// `max_side` pixels (au plus 16 384), en RVBA. Sert à contrôler un rendu
-/// sans visionneuse (`insitu facade render`).
+/// Rend un plan vectoriel entier, tourné de `rotation` quarts de tour, en
+/// une image dont le plus grand côté fait `max_side` pixels (au plus
+/// 16 384), en RVBA. Sert à contrôler un rendu sans visionneuse (`insitu
+/// facade render`) et à la fiche de calepinage.
 pub fn render_whole(
     path: &Path,
     page: Option<u32>,
+    rotation: u8,
     max_side: u32,
 ) -> Result<(u32, u32, Vec<u8>), FacadeError> {
     let kind = SourceKind::of(path)?;
-    let plan = open_vector(path, kind, page)?;
+    let plan = rotate_plan(open_vector(path, kind, page)?, rotation);
     let (width, height) = plan.size();
     let side = max_side.clamp(16, 16_384);
     let scale = f64::from(side) / width.max(height);
@@ -452,5 +473,53 @@ pub fn open_project_facade(
 ) -> Result<FacadeDisplay, FacadeError> {
     let project = dir.load()?.project;
     let facade = project.facade.ok_or(FacadeError::NoFacade)?;
-    open_for_display(&dir.resolve(&facade.source), facade.page, cache_root)
+    open_for_display(
+        &dir.resolve(&facade.source),
+        facade.page,
+        facade.rotation,
+        cache_root,
+    )
+}
+
+/// Le plan tourné de `rotation` quarts de tour (D15-k), ou tel quel.
+pub fn rotate_plan(plan: Box<dyn VectorPlan>, rotation: u8) -> Arc<dyn VectorPlan> {
+    match rotation % 4 {
+        0 => Arc::from(plan),
+        turns => Arc::new(RotatedPlan { inner: plan, turns }),
+    }
+}
+
+/// Un plan vectoriel tourné d'un, deux ou trois quarts de tour dans le sens
+/// des aiguilles d'une montre. Un rectangle du plan tourné est un rectangle
+/// du plan d'origine : il est rendu tel quel, puis ses pixels sont tournés.
+struct RotatedPlan {
+    inner: Box<dyn VectorPlan>,
+    turns: u8,
+}
+
+impl VectorPlan for RotatedPlan {
+    fn size(&self) -> (f64, f64) {
+        let (width, height) = self.inner.size();
+        if self.turns % 2 == 1 {
+            (height, width)
+        } else {
+            (width, height)
+        }
+    }
+
+    fn render(&self, scale: f64, offset_x: f64, offset_y: f64, width: u32, height: u32) -> Vec<u8> {
+        let (w0, h0) = self.inner.size();
+        let (w0, h0) = (w0 * scale, h0 * scale);
+        let (fx, fy) = (f64::from(width), f64::from(height));
+        // Rectangle du plan d'origine (en pixels à cette échelle) qui vient
+        // dans le rectangle demandé, et sa taille.
+        let (inner_x, inner_y, inner_w, inner_h) = match self.turns {
+            1 => (offset_y, h0 - offset_x - fx, height, width),
+            2 => (w0 - offset_x - fx, h0 - offset_y - fy, width, height),
+            _ => (w0 - offset_y - fy, offset_x, height, width),
+        };
+        let source = self.inner.render(scale, inner_x, inner_y, inner_w, inner_h);
+        let raster = crate::tiles::Raster::new(inner_w, inner_h, 4, source);
+        raster.rotated(self.turns).data
+    }
 }
