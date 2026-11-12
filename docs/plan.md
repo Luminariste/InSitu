@@ -46,7 +46,7 @@ tableau à jour.
 | Retirer un dessin de la bibliothèque, retirer le plan de la façade (hors plan, demande de Benjamin) | Version 0.1.19, **non validé** : essai sur Mac ; décision D15-h |
 | Jeu d'essai Trévarez (hors plan, demande de Benjamin) | Fait : projet réel de la 0.1.28 relu et diapositive C refaite à l'identique, prouvé par test (`jeu-essai/LISEZMOI.md`, D-JE-a à c) |
 | Panneau de droite de la Façade en onglets, outils des dessins en icônes dans la barre du haut (hors plan, demande de Benjamin) | Version 0.1.31, **non validé** : essai sur Mac ; décisions D15-i et D15-j |
-| Fresque en .ai, PDF ou SVG (hors plan, demande de Benjamin) | Version 0.1.33, **non validée** : import d'un vrai `.ai` dans l'app et gravure à essayer par Benjamin (`docs/export.md`) ; prouvé par test : bords nets et à leur place dans la diapositive, rendu à la résolution de la diapositive ; lu sans erreur sur « Epinal Coupe.ai » et la composition de Trévarez ; décisions D-3.5-h à k |
+| Fresque en .ai, PDF ou SVG (hors plan, demande de Benjamin) | Version 0.1.34, **non validée** : import d'un vrai `.ai` dans l'app et gravure à essayer par Benjamin (`docs/export.md`) ; prouvé par test : bords nets et à leur place dans la diapositive, rendu à la résolution de la diapositive ; lu sans erreur sur « Epinal Coupe.ai » et la composition de Trévarez ; décisions D-3.5-h à k |
 | Toutes les autres | À faire |
 
 **Ce qui bloque la validation de la tâche 1.5.** Dans la version 0.1.1,
