@@ -64,11 +64,3 @@
   stroke-width: 2;
 }
 
-.loupe-handle text {
-  fill: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  paint-order: stroke;
-  stroke: #000;
-  stroke-width: 3px;
-}

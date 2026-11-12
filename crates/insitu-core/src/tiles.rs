@@ -398,8 +398,7 @@ pub fn detect_format(raster: &Raster) -> TileFormat {
 pub fn read_raster(path: &Path) -> Result<Raster, TileError> {
     let image_error = |message: String| TileError::Image(path.to_path_buf(), message);
     let image = if crate::photo::is_heif_file(path) {
-        let data = fs::read(path).map_err(io_error(path))?;
-        crate::photo::decode_heif(&data).map_err(|e| image_error(e.0))?
+        crate::photo::read_heif(path).map_err(|e| image_error(e.0))?
     } else {
         let mut reader = ImageReader::open(path)
             .map_err(io_error(path))?

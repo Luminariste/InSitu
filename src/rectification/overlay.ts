@@ -3,9 +3,9 @@
 // et les quatre poignées de coins.
 // Tailles en pixels d'écran, quel que soit le zoom.
 
-import { Container, Graphics, Text } from "pixi.js";
+import { Container, Graphics } from "pixi.js";
 import type { FrameContext, Point, Rect, SceneNode } from "../viewer";
-import type { NodeQuality } from "./logic";
+import { orderCorners, type NodeQuality } from "./logic";
 
 const COLORS: Record<NodeQuality, number> = { bon: 0x3ccf6e, moyen: 0xe8b04a, mauvais: 0xff4d4d };
 const RED = 0xed1c24; // le rouge du cercle de la mire
@@ -27,20 +27,12 @@ const EMPTY: OverlayContent = { nodes: [], outline: null, handles: null, activeH
 export class RectificationOverlay implements SceneNode {
   readonly container = new Container();
   private readonly graphics = new Graphics();
-  private readonly labels: Text[] = [];
   private content: OverlayContent = EMPTY;
   private drawnZoom = 0;
 
   constructor() {
     this.container.label = "redressement:repères";
     this.container.addChild(this.graphics);
-    for (let i = 0; i < 4; i++) {
-      const label = new Text({ text: String(i + 1) });
-      label.style = { fill: 0xffffff, fontSize: 13, fontWeight: "700", fontFamily: "-apple-system, sans-serif" };
-      label.visible = false;
-      this.labels.push(label);
-      this.container.addChild(label);
-    }
   }
 
   set(content: OverlayContent): void {
@@ -84,8 +76,11 @@ export class RectificationOverlay implements SceneNode {
     }
 
     if (handles) {
-      g.moveTo(handles[0].x, handles[0].y);
-      for (const p of [...handles.slice(1), handles[0]]) g.lineTo(p.x, p.y);
+      // Les poignées se posent dans n'importe quel ordre : le contour les relie
+      // dans le sens où le moteur les rangera.
+      const quad = handles.length === 4 ? orderCorners(handles) : handles;
+      g.moveTo(quad[0].x, quad[0].y);
+      for (const p of [...quad.slice(1), quad[0]]) g.lineTo(p.x, p.y);
       g.stroke({ width: 1 * px, color: RED, alpha: 0.7 });
       handles.forEach((p, i) => {
         const active = i === activeHandle;
@@ -94,13 +89,7 @@ export class RectificationOverlay implements SceneNode {
         g.moveTo(p.x - 2 * r, p.y).lineTo(p.x + 2 * r, p.y).stroke({ width: 1 * px, color: RED });
         g.moveTo(p.x, p.y - 2 * r).lineTo(p.x, p.y + 2 * r).stroke({ width: 1 * px, color: RED });
         g.circle(p.x, p.y, r).stroke({ width: (active ? 3 : 2) * px, color: RED });
-        const label = this.labels[i];
-        label.visible = true;
-        label.scale.set(px);
-        label.position.set(p.x + r + 3 * px, p.y + r - 2 * px);
       });
-    } else {
-      for (const label of this.labels) label.visible = false;
     }
   }
 
