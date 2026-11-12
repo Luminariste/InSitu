@@ -172,3 +172,41 @@ fn ten_projectors_with_many_points_are_computed_quickly() {
     );
     assert!(seconds < 2.0, "vue façade trop lente : {seconds:.2} s");
 }
+
+#[test]
+fn an_unregistered_photo_gets_a_preview_too() {
+    // Pose par les coins (D-3.2-h) : la photo se montre avant le 4e point.
+    let temp = TempDir::new("vue-facade-apercu-sans-recalage");
+    let (dir, mut project) = project(&temp);
+    fs::create_dir_all(dir.root().join("photos-redressees")).unwrap();
+    image::save_buffer(
+        dir.root().join("photos-redressees/c.png"),
+        &vec![128u8; 200 * 200],
+        200,
+        200,
+        image::ColorType::L8,
+    )
+    .unwrap();
+    project.projectors[2].rectified_photo =
+        Some(RelativePath::new("photos-redressees/c.png").unwrap());
+    let cache = temp.path().join("cache");
+    let view = overview(&dir, &project, Some(&cache));
+    let c = &view.projectors[2];
+    assert!(c.mesh.is_none(), "C n'a que 3 points");
+    assert!(c.photo_preview.is_some(), "mais sa photo a un aperçu");
+}
+
+#[test]
+fn the_preview_of_unsaved_pairs_matches_the_overview() {
+    let temp = TempDir::new("vue-facade-provisoire");
+    let (dir, project) = project(&temp);
+    let view = overview(&dir, &project, None);
+    let a = registration_preview(&project.projectors[0].registration);
+    assert_eq!(a.footprint, view.projectors[0].footprint);
+    assert_eq!(a.mesh, view.projectors[0].mesh);
+    let c = registration_preview(&project.projectors[2].registration);
+    assert!(
+        c.footprint.is_empty() && c.mesh.is_none(),
+        "3 points : rien"
+    );
+}

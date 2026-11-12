@@ -29,7 +29,7 @@ use serde::Serialize;
 
 use crate::geometry::{Point, Transform};
 use crate::project::model::new_id;
-use crate::project::{PointMm, Project, ProjectDir, ProjectError};
+use crate::project::{PointMm, Project, ProjectDir, ProjectError, RegistrationPair};
 use crate::registration::{footprint, slide_to_facade};
 use crate::tiles::{self, Raster};
 use crate::units::SLIDE_SIZE_MM;
@@ -127,12 +127,13 @@ pub fn overview(dir: &ProjectDir, project: &Project, cache_root: Option<&Path>) 
                 item.mesh = mesh(&warp);
             }
         }
+        // L'aperçu existe dès que la photo est redressée, recalée ou non :
+        // l'écran Recalage la pose sur la façade avant le premier point
+        // enregistré (pose par les coins, D-3.2-h).
         if let (Some(cache), Some(photo)) = (cache_root, &projector.rectified_photo) {
-            if item.mesh.is_some() {
-                match ensure_photo_preview(&dir.resolve(photo), cache, PHOTO_PREVIEW_SIDE) {
-                    Ok(request) => item.photo_preview = Some(request),
-                    Err(error) => item.problem = Some(error),
-                }
+            match ensure_photo_preview(&dir.resolve(photo), cache, PHOTO_PREVIEW_SIDE) {
+                Ok(request) => item.photo_preview = Some(request),
+                Err(error) => item.problem = Some(error),
             }
         }
         projectors.push(item);
@@ -155,6 +156,32 @@ pub fn overview(dir: &ProjectDir, project: &Project, cache_root: Option<&Path>) 
     FacadeOverview {
         projectors,
         overlaps,
+    }
+}
+
+/// Pose provisoire d'une diapositive sur la façade, pour des paires qui ne
+/// sont pas (encore) enregistrées : l'écran Recalage la redessine pendant
+/// qu'on glisse un point (D-3.2-h). Même calcul que [`overview`].
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegistrationPreview {
+    /// Emprise sur la façade (mm), fermée ; vide sous 4 paires.
+    pub footprint: Vec<PointMm>,
+    pub mesh: Option<SlideMesh>,
+}
+
+/// Emprise et maillage de la diapositive pour ces paires, sans rien
+/// enregistrer. Vide si les paires ne donnent pas de correspondance.
+pub fn registration_preview(pairs: &[RegistrationPair]) -> RegistrationPreview {
+    match slide_to_facade(pairs) {
+        Some(warp) => RegistrationPreview {
+            footprint: footprint(&warp),
+            mesh: mesh(&warp),
+        },
+        None => RegistrationPreview {
+            footprint: Vec::new(),
+            mesh: None,
+        },
     }
 }
 

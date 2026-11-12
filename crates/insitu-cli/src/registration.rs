@@ -16,6 +16,7 @@ pub enum Problem {
 pub const USAGE: &str = r#"Usage :
   insitu registration show <projet.insitu> <projecteur> [--factor F] [--floor MM]
   insitu registration set <projet.insitu> <projecteur> <paires.json> [--factor F] [--floor MM]
+  insitu registration preview <paires.json>
 
 Recalage d'un projecteur sur la façade : des points communs entre sa photo
 redressée (mm de diapositive, 0 à 280) et la façade (mm réels, façade mise
@@ -26,6 +27,10 @@ redressée (mm de diapositive, 0 à 280) et la façade (mm réels, façade mise
          le projet et affiche le compte rendu. Fichier :
 
            { "pairs": [ { "slide": [21.4, 18.9], "facade": [612.0, 480.0] }, … ] }
+
+  preview  Pose provisoire, sans projet ni enregistrement : emprise et
+           maillage de la diapositive sur la façade pour ces paires (ce que
+           l'écran Recalage redessine pendant qu'on glisse un point).
 
   --factor F   Un point est aberrant si son score dépasse F fois le score
                médian des autres (6 par défaut).
@@ -79,6 +84,10 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             }
             word => words.push(word),
         }
+    }
+    if let ["preview", file] = words[..] {
+        let preview = insitu_core::overview::registration_preview(&read_pairs(file)?);
+        return Ok(serde_json::to_string_pretty(&preview).expect("sérialisable"));
     }
     let report = match words[..] {
         ["show", folder, projector] => {

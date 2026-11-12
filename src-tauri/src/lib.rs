@@ -15,7 +15,7 @@ use insitu_core::geometry::Point;
 use insitu_core::library::silhouette::{self, DrawingSilhouette};
 use insitu_core::library::vectors::{self, VectorSummary, VectorizeReport};
 use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
-use insitu_core::overview::{self, FacadeOverview};
+use insitu_core::overview::{self, FacadeOverview, RegistrationPreview};
 use insitu_core::placement;
 use insitu_core::project::history::{self, HistoryState};
 use insitu_core::project::{
@@ -255,6 +255,13 @@ fn registration_set(
         &RegistrationOptions::default(),
     )
     .map_err(|e| e.to_string())
+}
+
+/// Pose provisoire de la diapositive sur la façade pendant un glisser (D-3.2-h) :
+/// rien n'est enregistré.
+#[tauri::command(async)]
+fn registration_preview(pairs: Vec<RegistrationPair>) -> RegistrationPreview {
+    overview::registration_preview(&pairs)
 }
 
 // --- Assemblage de photos de façade (tâche 6.4) -----------------------------
@@ -633,6 +640,7 @@ pub fn run() {
             projector_rotate,
             registration_show,
             registration_set,
+            registration_preview,
             library_import,
             library_list,
             library_remove,
