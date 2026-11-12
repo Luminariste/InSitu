@@ -4,7 +4,7 @@
   grid-template-rows: 1fr auto;
   min-width: 0;
   min-height: 0;
-  background: #1d1d20;
+  background: var(--ui-canvas, #161618);
 }
 
 .viewer-canvas {
@@ -23,12 +23,12 @@
   display: flex;
   gap: 24px;
   align-items: baseline;
-  min-height: 28px;
-  padding: 5px 14px;
-  background: var(--surface, #151517);
-  border-top: 1px solid var(--filet, #2a2a2e);
-  color: var(--texte-discret, #9a9aa0);
-  font-size: 12px;
+  min-height: var(--ui-statusbar-h, 26px);
+  padding: 4px 12px;
+  background: var(--ui-surface, #262628);
+  border-top: 1px solid var(--ui-separator, #303033);
+  color: var(--ui-text-secondary, #a9a9b0);
+  font-size: var(--ui-text-sm, 12px);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   user-select: none;
@@ -36,7 +36,7 @@
 
 .viewer-zoom {
   min-width: 52px;
-  color: var(--texte, #f2f2f0);
+  color: var(--ui-text, #f2f2f4);
 }
 
 .viewer-cursor {
@@ -49,11 +49,11 @@
 
 .viewer-failure {
   position: absolute;
-  inset: 0 0 28px;
+  inset: 0 0 var(--ui-statusbar-h, 26px);
   display: grid;
   place-items: center;
   margin: 0;
   padding: 32px;
-  color: var(--repere, #ed1c24);
+  color: var(--ui-danger, #ff453a);
   text-align: center;
 }

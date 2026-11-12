@@ -1,53 +1,94 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FacadeScreen } from "./facade/FacadeScreen";
 import { LibraryScreen } from "./library/LibraryScreen";
 import { RectificationScreen } from "./rectification/RectificationScreen";
 import { RegistrationScreen } from "./registration/RegistrationScreen";
 import { SlideScreen } from "./slide/SlideScreen";
 import { ViewerDemo } from "./ViewerDemo";
+import {
+  APPEARANCES,
+  APP_SHORTCUTS,
+  Button,
+  Dialog,
+  Kbd,
+  MenuButton,
+  Segmented,
+  applyAppearance,
+  readAppearance,
+  useShortcuts,
+  type Appearance,
+} from "./ui";
 
 type Screen = "facade" | "redressement" | "recalage" | "diapositive" | "bibliotheque" | "demo";
 
-// Six écrans pour l'instant : la façade (tâche 3.1), le redressement des
-// photos de mire (tâche 2.5), le recalage des projecteurs sur la façade
-// (tâche 3.2), la vue diapositive (tâche 3.6), la bibliothèque de dessins
-// (tâche 4.1) et la démonstration de la visionneuse (jalon 1, provisoire,
-// voir D13).
+/** Les étapes du travail, dans l'ordre, chacune avec son raccourci ⌘1…⌘5. */
+const STEPS: { value: Exclude<Screen, "demo">; label: string; keys: string; title: string }[] = [
+  { value: "facade", label: "Façade", keys: "mod+1", title: "Projet, plan de la façade, échelle, projecteurs" },
+  { value: "redressement", label: "Redressement", keys: "mod+2", title: "Photos de mire redressées, projecteur par projecteur" },
+  { value: "recalage", label: "Recalage", keys: "mod+3", title: "Points communs entre chaque photo et la façade" },
+  { value: "diapositive", label: "Diapositive", keys: "mod+4", title: "Chaque diapositive calculée, sur sa photo redressée" },
+  { value: "bibliotheque", label: "Bibliothèque", keys: "mod+5", title: "Les dessins du projet" },
+];
+
+// Barre de l'app (tout en haut) : les étapes, puis le menu Présentation.
+// Chaque écran a ensuite sa barre d'outils, son espace de travail et sa barre
+// d'état, selon le gabarit de docs/design.md. La démonstration de la
+// visionneuse (provisoire, D13) est rangée dans le menu Présentation.
 export function App() {
   const [screen, setScreen] = useState<Screen>("facade");
+  const [appearance, setAppearance] = useState<Appearance>(readAppearance);
+  const [help, setHelp] = useState(false);
+
+  useEffect(() => applyAppearance(appearance), [appearance]);
+
+  useShortcuts([
+    ...STEPS.map((s) => ({ keys: s.keys, run: () => setScreen(s.value) })),
+    { keys: "mod+/", run: () => setHelp(true) },
+  ]);
+
   return (
     <div className="app">
-      <nav className="app-tabs" aria-label="Écrans">
-        <button type="button" className={screen === "facade" ? "actif" : ""} onClick={() => setScreen("facade")}>
-          Façade
-        </button>
-        <button
-          type="button"
-          className={screen === "redressement" ? "actif" : ""}
-          onClick={() => setScreen("redressement")}
-        >
-          Redressement
-        </button>
-        <button type="button" className={screen === "recalage" ? "actif" : ""} onClick={() => setScreen("recalage")}>
-          Recalage
-        </button>
-        <button
-          type="button"
-          className={screen === "diapositive" ? "actif" : ""}
-          onClick={() => setScreen("diapositive")}
-        >
-          Diapositive
-        </button>
-        <button
-          type="button"
-          className={screen === "bibliotheque" ? "actif" : ""}
-          onClick={() => setScreen("bibliotheque")}
-        >
-          Bibliothèque
-        </button>
-        <button type="button" className={screen === "demo" ? "actif" : ""} onClick={() => setScreen("demo")}>
-          Démonstration
-        </button>
+      <nav className="app-bar" aria-label="Étapes">
+        <span className="app-name">InSitu</span>
+        <Segmented
+          label="Étapes"
+          size="lg"
+          value={screen === "demo" ? ("" as Screen) : screen}
+          onChange={setScreen}
+          options={STEPS.map((s, i) => ({
+            value: s.value,
+            title: s.title,
+            shortcut: s.keys,
+            label: (
+              <>
+                <span className="app-step-number">{i + 1}</span>
+                {s.label}
+              </>
+            ),
+          }))}
+        />
+        <span className="app-bar-end">
+          <MenuButton
+            label="Présentation"
+            variant="quiet"
+            align="end"
+            items={[
+              { heading: "Apparence" },
+              ...APPEARANCES.map((a) => ({
+                label: a.label,
+                checked: appearance === a.value,
+                onSelect: () => setAppearance(a.value),
+              })),
+              { separator: true },
+              { label: "Raccourcis clavier", shortcut: "mod+/", icon: "keyboard", onSelect: () => setHelp(true) },
+              {
+                label: "Démonstration de la visionneuse",
+                checked: screen === "demo" ? true : undefined,
+                onSelect: () => setScreen("demo"),
+              },
+            ]}
+          />
+        </span>
       </nav>
       <div className="app-screen">
         {screen === "facade" ? (
@@ -64,6 +105,43 @@ export function App() {
           <ViewerDemo />
         )}
       </div>
+      {help && <ShortcutsDialog onClose={() => setHelp(false)} />}
     </div>
+  );
+}
+
+function ShortcutsDialog({ onClose }: { onClose: () => void }) {
+  return (
+    <Dialog
+      title="Raccourcis clavier"
+      onClose={onClose}
+      wide
+      actions={
+        <Button variant="primary" onClick={onClose}>
+          Fermer
+        </Button>
+      }
+    >
+      <div className="app-shortcuts">
+        {APP_SHORTCUTS.map((group) => (
+          <section key={group.group}>
+            <h3>{group.group}</h3>
+            <dl>
+              {group.items.map((item) => (
+                <div key={item.keys}>
+                  <dt>{item.label}</dt>
+                  <dd>
+                    <Kbd keys={item.keys} />
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ))}
+      </div>
+      <p className="app-shortcuts-note">
+        Dans les images : glisser pour se déplacer, pincer ou ⌘ + défilement pour zoomer, double-clic pour 100 %.
+      </p>
+    </Dialog>
   );
 }

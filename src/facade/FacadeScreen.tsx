@@ -49,6 +49,25 @@ import {
   withProjectExtension,
 } from "./scale";
 import { recalledProject as recalled, rememberProject as remember } from "../project/current";
+import { ProjectMenu } from "../project/ProjectMenu";
+import {
+  Banner,
+  Busy,
+  Button,
+  Dialog,
+  Dot,
+  EmptyState,
+  Panel,
+  Property,
+  Screen,
+  Section,
+  StatusBar,
+  StatusText,
+  ToolSeparator,
+  ToolSpacer,
+  Toolbar,
+  useShortcuts,
+} from "../ui";
 import "./facade.css";
 
 const KIND_LABEL: Record<string, string> = { pdf: "PDF", svg: "SVG", dxf: "DXF", image: "image" };
@@ -344,172 +363,237 @@ export function FacadeScreen() {
   const span = points.length === 2 ? sourceDistance(points[0], points[1]) : null;
   const projectName = project?.name ?? (folder ? projectNameFromPath(folder) : null);
 
-  return (
-    <main className="facade">
-      <header className="facade-bar">
-        <div className="facade-group">
-          <span className="facade-label">Projet</span>
-          <strong className="facade-project" title={folder ?? undefined}>
-            {projectName ?? (engine ? "aucun" : "essai sans moteur")}
-          </strong>
-          <button type="button" onClick={newProject} disabled={!engine || busy !== null}>
-            Nouveau…
-          </button>
-          <button type="button" onClick={openExisting} disabled={!engine || busy !== null}>
-            Ouvrir…
-          </button>
-        </div>
+  const planName = facade
+    ? `${facade.source.replace(/^facade\//, "")}${facade.page ? `, page ${facade.page}` : ""}`
+    : view
+      ? "plan d'essai"
+      : null;
+  const ready = busy === null;
+  const canImport = engine && folder !== null && ready;
 
-        <div className="facade-group">
-          <span className="facade-label">Plan</span>
-          <span className="facade-value">
-            {facade
-              ? `${facade.source.replace(/^facade\//, "")}${facade.page ? `, page ${facade.page}` : ""}`
-              : view
-                ? "plan d'essai"
-                : "aucun"}
-          </span>
-          <button type="button" onClick={choosePlan} disabled={!engine || !folder || busy !== null}>
-            Importer un plan…
-          </button>
-        </div>
+  useShortcuts([
+    { keys: "mod+i", run: () => void choosePlan(), enabled: canImport },
+    { keys: "mod+0", run: () => viewer.current?.fitAll(), enabled: view !== null },
+    { keys: "escape", run: () => setPicking("off"), enabled: picking !== "off" },
+  ]);
 
-        <form className="facade-group facade-scale" onSubmit={validateScale}>
-          <span className="facade-label">Échelle</span>
-          <button
-            type="button"
-            className={picking !== "off" ? "actif" : ""}
-            onClick={startPicking}
-            disabled={!view || busy !== null}
-            title="Cliquer deux points du plan dont on connaît la distance réelle"
-          >
-            {picking === "a" ? "Cliquer le point A…" : picking === "b" ? "Cliquer le point B…" : "Poser A et B"}
-          </button>
-          <label className="facade-distance">
-            cote A–B
+  const toolbar = (
+    <Toolbar>
+      <ProjectMenu
+        name={projectName}
+        folder={folder}
+        ready={ready}
+        placeholder="Essai sans moteur"
+        onOpen={(path) => void load(path)}
+        onReload={() => folder && void load(folder)}
+        onError={setError}
+      />
+      <ToolSeparator />
+      <Button icon="import" shortcut="mod+i" title="Importer le plan de la façade" onClick={() => void choosePlan()} disabled={!canImport}>
+        {facade ? "Remplacer le plan…" : "Importer un plan…"}
+      </Button>
+      <ToolSpacer />
+      <Button icon="fit" shortcut="mod+0" title="Voir toute la façade" onClick={() => viewer.current?.fitAll()} disabled={!view}>
+        Tout voir
+      </Button>
+    </Toolbar>
+  );
+
+  const inspector = (
+    <Panel side="right" title="Plan">
+      <Section>
+        {view ? (
+          <dl className="ui-facts">
+            <dt>Fichier</dt>
+            <dd title={planName ?? undefined}>{planName}</dd>
+            <dt>Format</dt>
+            <dd>{KIND_LABEL[view.kind]}</dd>
+            <dt>Taille</dt>
+            <dd>
+              {Math.round(view.sourceWidth).toLocaleString("fr-FR")} × {Math.round(view.sourceHeight).toLocaleString("fr-FR")} {unit}
+            </dd>
+            {sizeMm && (
+              <>
+                <dt>Façade</dt>
+                <dd>
+                  {formatLength(sizeMm.width)} × {formatLength(sizeMm.height)}
+                </dd>
+              </>
+            )}
+          </dl>
+        ) : (
+          <p>Aucun plan pour l'instant.</p>
+        )}
+      </Section>
+      <Section title="Échelle">
+        <form className="facade-scale" onSubmit={validateScale}>
+          <p className={k ? "facade-scale-ok" : undefined}>
+            {k ? `1 ${unit} = ${formatLength(k)}` : "Pas encore à l'échelle : cliquer deux points dont on connaît la distance réelle."}
+          </p>
+          <Property label="Points A et B">
+            <Button
+              icon="ruler"
+              active={picking !== "off"}
+              onClick={picking === "off" ? startPicking : () => setPicking("off")}
+              disabled={!view || !ready}
+              title="Cliquer deux points du plan dont on connaît la distance réelle"
+            >
+              {picking === "a" ? "Cliquer A…" : picking === "b" ? "Cliquer B…" : points.length === 2 ? "Reposer A et B" : "Poser A et B"}
+            </Button>
+          </Property>
+          <Property label="Distance A–B" hint={span !== null ? `Sur le plan : ${span.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} ${unit}` : "Par exemple 12,5 m, 1250 cm ou 12500 (mm)."}>
             <input
+              className="ui-input"
               type="text"
               inputMode="decimal"
               placeholder="ex. 12,5 m"
               value={distanceText}
               onChange={(event) => setDistanceText(event.target.value)}
               disabled={!view}
+              aria-label="Distance réelle entre A et B"
             />
-          </label>
-          <button type="submit" disabled={!view || points.length < 2 || busy !== null}>
-            Valider
-          </button>
+          </Property>
+          <div className="facade-scale-actions">
+            <Button type="submit" variant="primary" disabled={!view || points.length < 2 || !ready}>
+              {k ? "Mettre à jour l'échelle" : "Valider l'échelle"}
+            </Button>
+          </div>
         </form>
+      </Section>
+      <ExportPanel
+        engine={engine}
+        folder={folder}
+        project={project}
+        onProject={setProject}
+        showFresco={showFresco}
+        onShowFresco={setShowFresco}
+      />
+    </Panel>
+  );
 
-        <div className="facade-group facade-zoom">
-          <button type="button" onClick={() => viewer.current?.fitAll()} disabled={!view}>
-            Tout voir
-          </button>
-        </div>
-      </header>
+  const status = (
+    <StatusBar>
+      {view ? (
+        <>
+          {sizeMm ? (
+            <StatusText tone="success">
+              <Dot tone="success" /> À l'échelle : façade de {formatLength(sizeMm.width)} × {formatLength(sizeMm.height)}
+            </StatusText>
+          ) : (
+            <StatusText tone="warning">
+              <Dot tone="warning" /> Pas encore à l'échelle : les longueurs sont en {unit}, pas en mm.
+            </StatusText>
+          )}
+          {span !== null && (
+            <StatusText>
+              A–B : {span.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} {unit}
+              {k ? ` = ${formatLength(span * k)}` : ""}
+            </StatusText>
+          )}
+          {picking !== "off" && (
+            <StatusText tone="info" push>
+              Cliquer le point {picking === "a" ? "A" : "B"} sur le plan (Échap : annuler)
+            </StatusText>
+          )}
+        </>
+      ) : (
+        <StatusText>{folder ? "Pas de plan" : "Pas de projet ouvert"}</StatusText>
+      )}
+    </StatusBar>
+  );
 
-      <div className="facade-body">
-        <div
-          className={`facade-stage${picking !== "off" ? " facade-picking" : ""}`}
-          ref={stage}
-          onPointerDownCapture={onPointerDown}
-          onPointerUpCapture={onPointerUp}
-        >
-          <Viewer ref={viewer} layers={layers} />
-          {!view && !busy && (
-            <div className="facade-message">
-              {!engine ? (
-                <p>
-                  Dans un simple navigateur, le moteur n'est pas là : ouvrir l'app pour importer un plan.
-                  <br />
-                  <small>
-                    Pour essayer l'écran ici, tuiler un plan dans <code>tuiles-demo/facade</code> (voir{" "}
-                    <code>docs/facade.md</code>).
-                  </small>
-                </p>
-              ) : !folder ? (
-                <p>Créer un projet ou ouvrir un projet existant, puis importer le plan de la façade.</p>
-              ) : (
-                <p>
-                  Importer le plan de la façade : PDF d'architecte, image (PNG, JPEG, TIFF, HEIC), SVG ou DXF.
-                  <br />
-                  <small>Un DWG est à exporter d'abord en PDF ou en DXF.</small>
-                </p>
-              )}
-            </div>
-          )}
-          {busy && <p className="facade-message">{busy}</p>}
-          {pending && (
-            <div className="facade-message facade-pages">
-              <p>
-                Ce PDF a {pending.info.pageCount} pages. Laquelle est la façade ?
-              </p>
-              <p>
-                <select
-                  value={pending.page}
-                  onChange={(event) => setPending({ ...pending, page: Number(event.target.value) })}
-                >
-                  {Array.from({ length: pending.info.pageCount ?? 1 }, (_, i) => (
-                    <option key={i + 1} value={i + 1}>
-                      Page {i + 1}
-                    </option>
-                  ))}
-                </select>{" "}
-                <button type="button" onClick={() => void importPlan(pending.path, pending.page)}>
-                  Importer cette page
-                </button>{" "}
-                <button type="button" onClick={() => setPending(null)}>
-                  Annuler
-                </button>
-              </p>
-            </div>
-          )}
-        </div>
+  return (
+    <Screen
+      className="facade"
+      toolbar={toolbar}
+      banner={error && <Banner tone="danger" onClose={() => setError(null)}>{error}</Banner>}
+      sidebar={
         <OverviewPanel
           overview={overview}
           display={display}
           onDisplay={setDisplay}
           onReload={engine && folder ? () => void loadOverview(folder) : null}
           busy={overviewBusy}
-        >
-          <ExportPanel
-            engine={engine}
-            folder={folder}
-            project={project}
-            onProject={setProject}
-            showFresco={showFresco}
-            onShowFresco={setShowFresco}
-          />
-        </OverviewPanel>
-      </div>
-
-      <footer className="facade-foot">
-        {error && <span className="facade-error">{error}</span>}
-        {!error && view && (
-          <>
-            <span>
-              {KIND_LABEL[view.kind]} de {Math.round(view.sourceWidth).toLocaleString("fr-FR")} ×{" "}
-              {Math.round(view.sourceHeight).toLocaleString("fr-FR")} {unit}
-            </span>
-            {sizeMm ? (
-              <span className="facade-ok">
-                À l'échelle : façade de {formatLength(sizeMm.width)} × {formatLength(sizeMm.height)} ·{" "}
-                1 {unit} = {formatLength(k ?? 0)}
-              </span>
-            ) : (
-              <span className="facade-warning">
-                Pas encore à l'échelle : les longueurs affichées sont en {unit}, pas en mm.
-              </span>
-            )}
-            {span !== null && (
-              <span>
-                A–B : {span.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} {unit}
-                {k ? ` = ${formatLength(span * k)}` : ""}
-              </span>
-            )}
-          </>
+        />
+      }
+      inspector={inspector}
+      status={status}
+    >
+      <div
+        className={`facade-stage${picking !== "off" ? " facade-picking" : ""}`}
+        ref={stage}
+        onPointerDownCapture={onPointerDown}
+        onPointerUpCapture={onPointerUp}
+      >
+        <Viewer ref={viewer} layers={layers} />
+        {!view && !busy && (
+          !engine ? (
+            <EmptyState icon="document" title="Pas de moteur dans ce navigateur">
+              <p>Ouvrir l'app pour importer un plan.</p>
+              <small>
+                Pour essayer l'écran ici, tuiler un plan dans <code>tuiles-demo/facade</code> (voir <code>docs/facade.md</code>).
+              </small>
+            </EmptyState>
+          ) : !folder ? (
+            <EmptyState
+              icon="folder"
+              title="Aucun projet ouvert"
+              actions={
+                <>
+                  <Button variant="primary" onClick={() => void newProject()}>
+                    Nouveau projet…
+                  </Button>
+                  <Button onClick={() => void openExisting()}>Ouvrir un projet…</Button>
+                </>
+              }
+            >
+              <p>Un projet InSitu est un dossier .insitu, partagé par Dropbox.</p>
+            </EmptyState>
+          ) : (
+            <EmptyState
+              icon="document"
+              title="Pas encore de plan"
+              actions={
+                <Button variant="primary" icon="import" onClick={() => void choosePlan()}>
+                  Importer un plan…
+                </Button>
+              }
+            >
+              <p>PDF d'architecte, image (PNG, JPEG, TIFF, HEIC), SVG ou DXF.</p>
+              <small>Un DWG est à exporter d'abord en PDF ou en DXF.</small>
+            </EmptyState>
+          )
         )}
-      </footer>
-    </main>
+        {busy && <Busy>{busy}</Busy>}
+      </div>
+      {pending && (
+        <Dialog
+          title="Quelle page est la façade ?"
+          onClose={() => setPending(null)}
+          actions={
+            <>
+              <Button onClick={() => setPending(null)}>Annuler</Button>
+              <Button variant="primary" onClick={() => void importPlan(pending.path, pending.page)}>
+                Importer cette page
+              </Button>
+            </>
+          }
+        >
+          <p>Ce PDF a {pending.info.pageCount} pages.</p>
+          <select
+            className="ui-select"
+            value={pending.page}
+            onChange={(event) => setPending({ ...pending, page: Number(event.target.value) })}
+            aria-label="Page"
+          >
+            {Array.from({ length: pending.info.pageCount ?? 1 }, (_, i) => (
+              <option key={i + 1} value={i + 1}>
+                Page {i + 1}
+              </option>
+            ))}
+          </select>
+        </Dialog>
+      )}
+    </Screen>
   );
 }

@@ -14,7 +14,6 @@ import {
   addProjector,
   chooseExportPath,
   choosePhotoFile,
-  chooseProjectFolder,
   exportRectified,
   fetchProjectorView,
   hasEngine,
@@ -51,6 +50,27 @@ import {
 } from "./logic";
 import { Loupe } from "./Loupe";
 import { RectificationOverlay, type OverlayContent } from "./overlay";
+import { ProjectMenu } from "../project/ProjectMenu";
+import {
+  Banner,
+  Busy,
+  Button,
+  Dot,
+  EmptyState,
+  IconButton,
+  List,
+  ListRow,
+  Panel,
+  Screen,
+  Segmented,
+  StatusBar,
+  StatusText,
+  ToolGroup,
+  ToolSeparator,
+  ToolSpacer,
+  Toolbar,
+  useShortcuts,
+} from "../ui";
 import "./rectification.css";
 
 type Mode = "brute" | "redressee";
@@ -245,12 +265,6 @@ export function RectificationScreen() {
 
   // --- Actions -----------------------------------------------------------------
 
-  const openExisting = () =>
-    run("Ouverture du projet…", async () => {
-      const chosen = await chooseProjectFolder();
-      if (chosen) await load(chosen);
-    });
-
   const choose = (id: string) =>
     run("Ouverture du projecteur…", async () => {
       if (!folder || !project) return;
@@ -431,7 +445,6 @@ export function RectificationScreen() {
 
   const ready = busy === null;
   const summary = view ? summarize(view) : null;
-  const projectName = project?.name ?? (engine ? "aucun" : "exemple sans moteur");
 
   let hint: string | null = null;
   if (editing) {
@@ -439,126 +452,181 @@ export function RectificationScreen() {
       "Glisser chaque poignée sur un coin de la mire, dans n'importe quel ordre (la loupe aide à viser), puis « Détecter depuis les coins ». Le sens de la mire est retrouvé tout seul, et la grille affine ensuite.";
   }
 
-  return (
-    <main className="rectification">
-      <header className="rectification-bar">
-        <div className="rectification-group">
-          <span className="rectification-label">Projet</span>
-          <strong className="rectification-value" title={folder ?? undefined}>
-            {projectName}
-          </strong>
-          <button type="button" onClick={openExisting} disabled={!engine || !ready}>
-            Ouvrir…
-          </button>
-        </div>
+  const projectors = project?.projectors ?? [];
+  const moveSelection = (step: -1 | 1) => {
+    const at = projectors.findIndex((p) => p.id === selected);
+    const next = projectors[Math.min(projectors.length - 1, Math.max(0, at + step))];
+    if (next && next.id !== selected && ready) void choose(next.id);
+  };
+  const canExport = engine && !!projector?.rectification && ready;
 
-        <div className="rectification-group">
-          <span className="rectification-label">Projecteur</span>
-          <select
-            value={selected ?? ""}
-            onChange={(event) => void choose(event.target.value)}
-            disabled={!project || project.projectors.length === 0 || !ready}
-          >
-            {project?.projectors.length ? null : <option value="">aucun</option>}
-            {project?.projectors.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label} — {projectorStatus(p)}
-              </option>
-            ))}
-          </select>
-          <button type="button" onClick={newProjector} disabled={!folder || !ready}>
-            Ajouter
-          </button>
-          <button type="button" onClick={importPhoto} disabled={!projector || !ready}>
-            Importer la photo…
-          </button>
-        </div>
+  useShortcuts([
+    { keys: "mod+i", run: () => void importPhoto(), enabled: !!projector && ready },
+    { keys: "mod+e", run: () => void exportImage(), enabled: canExport },
+    { keys: "mod+0", run: () => viewer.current?.fitAll(), enabled: layers.length > 0 },
+    { keys: "escape", run: cancelCorners, enabled: editing },
+  ]);
 
-        <div className="rectification-group">
-          <span className="rectification-label">Mire</span>
-          <button type="button" onClick={detectAgain} disabled={!engine || !projector?.rawPhoto || !ready || editing}>
-            Détecter
-          </button>
-          {!editing ? (
-            <button type="button" onClick={startCorners} disabled={!photoSize || !ready}>
+  const toolbar = (
+    <Toolbar>
+      <ProjectMenu
+        name={project?.name ?? null}
+        folder={folder}
+        ready={ready}
+        onOpen={(path) => void load(path)}
+        onReload={() => folder && void load(folder, selected)}
+        onError={setError}
+      />
+      <ToolSeparator />
+      <Button icon="import" shortcut="mod+i" title="Importer la photo de la mire du projecteur choisi" onClick={() => void importPhoto()} disabled={!projector || !ready}>
+        Importer la photo…
+      </Button>
+      <ToolGroup label="Mire">
+        {!editing ? (
+          <>
+            <Button icon="target" onClick={() => void detectAgain()} disabled={!engine || !projector?.rawPhoto || !ready}>
+              Détecter
+            </Button>
+            <Button icon="corners" onClick={startCorners} disabled={!photoSize || !ready}>
               Poser les coins
-            </button>
-          ) : (
-            <>
-              <button type="button" className="actif" onClick={applyCorners} disabled={!ready}>
-                Détecter depuis les coins
-              </button>
-              <button type="button" onClick={cancelCorners} disabled={!ready}>
-                Annuler
-              </button>
-            </>
-          )}
-        </div>
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button variant="primary" onClick={applyCorners} disabled={!ready}>
+              Détecter depuis les coins
+            </Button>
+            <Button variant="quiet" onClick={cancelCorners} disabled={!ready} shortcut="escape" title="Abandonner les coins">
+              Annuler
+            </Button>
+          </>
+        )}
+      </ToolGroup>
+      <ToolSpacer />
+      <Segmented
+        label="Photo affichée"
+        value={mode}
+        onChange={(next) => {
+          if (next === "redressee") cancelCorners();
+          setMode(next);
+        }}
+        options={[
+          { value: "brute", label: "Photo brute" },
+          { value: "redressee", label: "Photo redressée", disabled: !rectifiedSource },
+        ]}
+      />
+      <Button icon="fit" shortcut="mod+0" title="Voir toute la photo" onClick={() => viewer.current?.fitAll()} disabled={layers.length === 0}>
+        Tout voir
+      </Button>
+      <ToolSeparator />
+      <ToolGroup label="Miroir">
+        <Button
+          active={!!view?.mirror?.horizontal}
+          onClick={() => void mirror("horizontal")}
+          disabled={!engine || !view || !ready || editing}
+          title="Échanger la gauche et la droite de la diapositive (photo redressée, export et points du recalage)"
+        >
+          ↔ Gauche-droite
+        </Button>
+        <Button
+          active={!!view?.mirror?.vertical}
+          onClick={() => void mirror("vertical")}
+          disabled={!engine || !view || !ready || editing}
+          title="Échanger le haut et le bas de la diapositive (photo redressée, export et points du recalage)"
+        >
+          ↕ Haut-bas
+        </Button>
+      </ToolGroup>
+      <ToolSeparator />
+      <ToolGroup label="Export">
+        <select className="ui-select" value={dpi} onChange={(event) => setDpi(Number(event.target.value))} aria-label="Résolution">
+          {EXPORT_DPI_CHOICES.map((d) => (
+            <option key={d} value={d}>
+              {d} dpi ({slidePixels(d).toLocaleString("fr-FR")} px)
+            </option>
+          ))}
+        </select>
+        <select className="ui-select" value={format} onChange={(event) => setFormat(event.target.value as "tif" | "png")} aria-label="Format">
+          <option value="tif">TIFF</option>
+          <option value="png">PNG</option>
+        </select>
+        <Button icon="export" shortcut="mod+e" title="Exporter la photo redressée" onClick={() => void exportImage()} disabled={!canExport}>
+          Exporter…
+        </Button>
+      </ToolGroup>
+    </Toolbar>
+  );
 
-        <div className="rectification-group">
-          <span className="rectification-label">Voir</span>
-          <div className="rectification-switch" role="group" aria-label="Photo affichée">
-            <button type="button" className={mode === "brute" ? "actif" : ""} onClick={() => setMode("brute")}>
-              Photo brute
-            </button>
-            <button
-              type="button"
-              className={mode === "redressee" ? "actif" : ""}
-              onClick={() => {
-                cancelCorners();
-                setMode("redressee");
-              }}
-              disabled={!rectifiedSource}
-            >
-              Photo redressée
-            </button>
-          </div>
-          <button type="button" onClick={() => viewer.current?.fitAll()} disabled={layers.length === 0}>
-            Tout voir
-          </button>
-        </div>
+  const sidebar = (
+    <Panel
+      side="left"
+      title="Projecteurs"
+      actions={<IconButton icon="plus" label="Ajouter un projecteur" size="sm" onClick={() => void newProjector()} disabled={!folder || !ready} />}
+    >
+      {projectors.length > 0 ? (
+        <List label="Projecteurs" onMove={moveSelection}>
+          {projectors.map((p) => (
+            <ListRow
+              key={p.id}
+              selected={p.id === selected}
+              onSelect={() => ready && p.id !== selected && void choose(p.id)}
+              leading={<Dot tone={p.rectification ? "success" : p.rawPhoto ? "warning" : undefined} />}
+              title={p.label}
+              detail={projectorStatus(p)}
+            />
+          ))}
+        </List>
+      ) : (
+        <p className="ui-list-empty">
+          {!engine ? "Exemple sans moteur : un seul projecteur, sans nom." : !folder ? "Pas de projet ouvert." : "Aucun projecteur. Le bouton + en ajoute un."}
+        </p>
+      )}
+    </Panel>
+  );
 
-        <div className="rectification-group">
-          <span className="rectification-label">Miroir</span>
-          <button
-            type="button"
-            className={view?.mirror?.horizontal ? "actif" : ""}
-            onClick={() => mirror("horizontal")}
-            disabled={!engine || !view || !ready || editing}
-            title="Échanger la gauche et la droite de la diapositive (photo redressée, export et points du recalage)"
-          >
-            ↔ Gauche-droite
-          </button>
-          <button
-            type="button"
-            className={view?.mirror?.vertical ? "actif" : ""}
-            onClick={() => mirror("vertical")}
-            disabled={!engine || !view || !ready || editing}
-            title="Échanger le haut et le bas de la diapositive (photo redressée, export et points du recalage)"
-          >
-            ↕ Haut-bas
-          </button>
-        </div>
+  const status = (
+    <StatusBar>
+      {hint ? (
+        <StatusText tone="info">{hint}</StatusText>
+      ) : summary ? (
+        <StatusText tone={summary.quality === "bon" ? "success" : summary.quality === "moyen" ? "warning" : "danger"}>{summary.text}</StatusText>
+      ) : (
+        <StatusText>{projector ? `Projecteur ${projector.label} : ${projectorStatus(projector)}` : "Aucun projecteur choisi"}</StatusText>
+      )}
+      {view && !hint && (
+        <span className="ui-legend push">
+          <span>
+            <Dot tone="success" /> &lt; 0,15 mm
+          </span>
+          <span>
+            <Dot tone="warning" /> &lt; 0,3 mm
+          </span>
+          <span>
+            <Dot tone="danger" /> au-delà
+          </span>
+        </span>
+      )}
+    </StatusBar>
+  );
 
-        <div className="rectification-group rectification-export">
-          <span className="rectification-label">Export</span>
-          <select value={dpi} onChange={(event) => setDpi(Number(event.target.value))} aria-label="Résolution">
-            {EXPORT_DPI_CHOICES.map((d) => (
-              <option key={d} value={d}>
-                {d} dpi ({slidePixels(d).toLocaleString("fr-FR")} px)
-              </option>
-            ))}
-          </select>
-          <select value={format} onChange={(event) => setFormat(event.target.value as "tif" | "png")} aria-label="Format">
-            <option value="tif">TIFF</option>
-            <option value="png">PNG</option>
-          </select>
-          <button type="button" onClick={exportImage} disabled={!engine || !projector?.rectification || !ready}>
-            Exporter…
-          </button>
-        </div>
-      </header>
-
+  return (
+    <Screen
+      className="rectification"
+      toolbar={toolbar}
+      banner={
+        error ? (
+          <Banner tone="danger" onClose={() => setError(null)}>
+            {error}
+          </Banner>
+        ) : notice ? (
+          <Banner tone="success" onClose={() => setNotice(null)}>
+            {notice}
+          </Banner>
+        ) : null
+      }
+      sidebar={sidebar}
+      status={status}
+    >
       <div
         className={`rectification-stage${editing ? " rectification-editing" : ""}${dragging !== null ? " rectification-dragging" : ""}`}
         ref={stage}
@@ -573,47 +641,46 @@ export function RectificationScreen() {
             <Loupe source={rawSource} center={loupeCenter} zoom={LOUPE_ZOOM} size={LOUPE_SIZE} handles={corners ?? []} />
           </div>
         )}
-        {layers.length === 0 && !busy && (
-          <div className="rectification-message">
-            {!engine ? (
-              <p>
-                Dans un simple navigateur, le moteur n'est pas là : ouvrir l'app pour redresser une photo.
-                <br />
-                <small>
-                  Pour essayer l'écran ici, préparer l'exemple dans <code>tuiles-demo/</code> (voir{" "}
-                  <code>docs/redressement.md</code>).
-                </small>
-              </p>
-            ) : !folder ? (
-              <p>Ouvrir un projet (ou en créer un dans l'écran Façade), puis ajouter un projecteur.</p>
-            ) : !projector ? (
-              <p>Ajouter un projecteur, puis importer la photo de sa mire.</p>
-            ) : (
-              <p>
-                Importer la photo de la mire du projecteur {projector.label} : HEIC, JPEG, PNG ou TIFF.
-                <br />
-                <small>La mire est cherchée dès l'import.</small>
-              </p>
-            )}
-          </div>
-        )}
-        {busy && <p className="rectification-message">{busy}</p>}
+        {layers.length === 0 &&
+          !busy &&
+          (!engine ? (
+            <EmptyState icon="image" title="Pas de moteur dans ce navigateur">
+              <p>Ouvrir l'app pour redresser une photo.</p>
+              <small>
+                Pour essayer l'écran ici, préparer l'exemple dans <code>tuiles-demo/</code> (voir <code>docs/redressement.md</code>).
+              </small>
+            </EmptyState>
+          ) : !folder ? (
+            <EmptyState icon="folder" title="Aucun projet ouvert">
+              <p>Ouvrir un projet avec le menu Projet (⌘O), ou en créer un (⌘N).</p>
+            </EmptyState>
+          ) : !projector ? (
+            <EmptyState
+              icon="projector"
+              title="Aucun projecteur"
+              actions={
+                <Button variant="primary" icon="plus" onClick={() => void newProjector()}>
+                  Ajouter un projecteur
+                </Button>
+              }
+            >
+              <p>Chaque projecteur reçoit la photo de sa mire, prise en chambre noire.</p>
+            </EmptyState>
+          ) : (
+            <EmptyState
+              icon="image"
+              title={`Pas encore de photo pour ${projector.label}`}
+              actions={
+                <Button variant="primary" icon="import" onClick={() => void importPhoto()}>
+                  Importer la photo…
+                </Button>
+              }
+            >
+              <p>HEIC, JPEG, PNG ou TIFF. La mire est cherchée dès l'import.</p>
+            </EmptyState>
+          ))}
+        {busy && <Busy>{busy}</Busy>}
       </div>
-
-      <footer className="rectification-foot">
-        {error && <span className="rectification-error">{error}</span>}
-        {!error && hint && <span className="rectification-hint">{hint}</span>}
-        {!error && !hint && notice && <span className="rectification-ok">{notice}</span>}
-        {!error && !hint && !notice && summary && (
-          <span className={`rectification-quality-${summary.quality}`}>{summary.text}</span>
-        )}
-        {!error && !hint && !notice && view && (
-          <span className="rectification-legend">
-            <i className="pastille bon" /> &lt; 0,15 mm <i className="pastille moyen" /> &lt; 0,3 mm{" "}
-            <i className="pastille mauvais" /> au-delà
-          </span>
-        )}
-      </footer>
-    </main>
+    </Screen>
   );
 }
