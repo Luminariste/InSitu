@@ -304,6 +304,8 @@ mod tests {
                 distance_mm: 1000.0,
                 extra: ExtraFields::new(),
             }),
+            page: None,
+            origin: None,
             extra: ExtraFields::new(),
         });
         let first = project.add_projector("A").id.clone();

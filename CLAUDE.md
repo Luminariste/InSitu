@@ -74,6 +74,7 @@ src-tauri/            Coque de bureau (Tauri 2). Appelle le moteur, ne calcule r
 src/                  Interface (React + TypeScript).
 src/engine.ts         Seul fichier de l'interface qui appelle le moteur.
 src/viewer/           Visionneuse haute résolution (PixiJS), base des vues façade et diapositive.
+src/facade/           Écran Façade : projet, import du plan, mise à l'échelle.
 docs/                 Plan, décisions, notice d'installation, publication d'une version.
 jeu-essai/            Fichiers réels pour les tests (voir jeu-essai/LISEZMOI.md).
 etudes/               Scripts des études (hors moteur) ; rapports dans docs/etudes/.

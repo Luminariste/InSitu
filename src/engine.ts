@@ -68,3 +68,151 @@ export async function fetchTestSetDir(): Promise<string | null> {
   if (!isTauri()) return null;
   return invoke<string | null>("test_set_dir");
 }
+
+// --- Projet et façade (tâche 3.1) ------------------------------------------
+
+/** Un point repéré dans un fichier importé, dans l'unité de ce fichier. */
+export interface SourcePoint {
+  x: number;
+  y: number;
+}
+
+export interface FacadeScale {
+  pointA: SourcePoint;
+  pointB: SourcePoint;
+  distanceMm: number;
+}
+
+/** La façade d'un projet, telle qu'enregistrée dans `projet.json`. */
+export interface Facade {
+  /** Chemin relatif au dossier du projet, par exemple `facade/plan.pdf`. */
+  source: string;
+  sourceWidth: number;
+  sourceHeight: number;
+  scale: FacadeScale | null;
+  page?: number;
+  origin?: SourcePoint;
+}
+
+/** Ce que l'interface lit d'un projet ; les autres champs sont ignorés ici. */
+export interface Project {
+  formatVersion: number;
+  id: string;
+  name: string;
+  facade: Facade | null;
+}
+
+export type PlanKind = "image" | "pdf" | "svg" | "dxf";
+
+/** Ce que le moteur dit d'un fichier de plan avant import. */
+export interface PlanInfo {
+  kind: PlanKind;
+  width: number;
+  height: number;
+  unit: string;
+  pageCount?: number;
+  page?: number;
+  origin?: [number, number];
+  declaredMmPerUnit?: number;
+}
+
+/** Plan prêt à afficher : ses tuiles, et l'unité du fichier par pixel. */
+export interface FacadeView {
+  kind: PlanKind;
+  source: TileSource;
+  sourceWidth: number;
+  sourceHeight: number;
+  sourceUnitsPerPixel: number;
+}
+
+function requireEngine(): void {
+  if (!isTauri()) throw new Error("cette action demande l'application (le moteur n'est pas joignable dans un simple navigateur)");
+}
+
+export async function createProject(folder: string, name: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("project_create", { folder, name });
+}
+
+export async function openProject(folder: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("project_open", { folder });
+}
+
+export async function inspectPlan(path: string, page?: number): Promise<PlanInfo> {
+  requireEngine();
+  return invoke<PlanInfo>("facade_inspect", { path, page: page ?? null });
+}
+
+export async function importFacade(folder: string, path: string, page?: number): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("facade_import", { folder, path, page: page ?? null });
+}
+
+export async function setFacadeScale(
+  folder: string,
+  a: SourcePoint,
+  b: SourcePoint,
+  distanceMm: number,
+): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("facade_set_scale", { folder, a, b, distanceMm });
+}
+
+/**
+ * Prépare l'affichage de la façade du projet. Pour un plan vectoriel, les
+ * tuiles fines sont rendues par le moteur au moment où la visionneuse les
+ * demande : le plan reste net à tout zoom.
+ */
+export async function openFacadeView(folder: string): Promise<FacadeView> {
+  requireEngine();
+  const shown = await invoke<{
+    key: string;
+    pyramid: Pyramid;
+    kind: PlanKind;
+    sourceWidth: number;
+    sourceHeight: number;
+    sourceUnitsPerPixel: number;
+  }>("facade_display", { folder });
+  return {
+    kind: shown.kind,
+    source: { pyramid: shown.pyramid, baseUrl: `${TILE_SCHEME_ROOT}/${shown.key}` },
+    sourceWidth: shown.sourceWidth,
+    sourceHeight: shown.sourceHeight,
+    sourceUnitsPerPixel: shown.sourceUnitsPerPixel,
+  };
+}
+
+// --- Fenêtres de choix de fichiers (macOS) ----------------------------------
+
+/** Extensions de plan acceptées pour la façade. */
+export const PLAN_EXTENSIONS = ["pdf", "png", "jpg", "jpeg", "tif", "tiff", "svg", "dxf"];
+
+/** Demande un dossier de projet existant ; `null` si l'utilisateur renonce. */
+export async function chooseProjectFolder(): Promise<string | null> {
+  requireEngine();
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const chosen = await open({ directory: true, multiple: false, title: "Ouvrir un projet InSitu (dossier .insitu)" });
+  return typeof chosen === "string" ? chosen : null;
+}
+
+/** Demande où créer un nouveau projet ; `null` si l'utilisateur renonce. */
+export async function chooseNewProjectPath(): Promise<string | null> {
+  requireEngine();
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  const chosen = await save({ title: "Nouveau projet InSitu", defaultPath: "Nouveau projet.insitu" });
+  return chosen ?? null;
+}
+
+/** Demande un fichier de plan ; `null` si l'utilisateur renonce. */
+export async function choosePlanFile(): Promise<string | null> {
+  requireEngine();
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const chosen = await open({
+    multiple: false,
+    directory: false,
+    title: "Importer le plan de façade",
+    filters: [{ name: "Plan de façade", extensions: PLAN_EXTENSIONS }],
+  });
+  return typeof chosen === "string" ? chosen : null;
+}

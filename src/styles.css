@@ -159,3 +159,40 @@ body {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
+
+/* --- Onglets des écrans ------------------------------------------------------ */
+
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.app-screen {
+  min-height: 0;
+}
+
+.app-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 10px 0;
+  background: var(--fond);
+  border-bottom: 1px solid var(--filet);
+  user-select: none;
+}
+
+.app-tabs button {
+  font: inherit;
+  color: var(--texte-discret);
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  padding: 5px 14px;
+}
+
+.app-tabs button.actif {
+  color: var(--texte);
+  background: var(--surface);
+  border-color: var(--filet);
+}
