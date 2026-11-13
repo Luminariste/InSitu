@@ -262,7 +262,7 @@ fn a_composition_is_recreated_from_its_links() {
 
     // Sans façade à l'échelle, il faut un rectangle.
     assert!(matches!(
-        import_composition(&dir, &ai, None, &ImportOptions::default(), &|_| {}),
+        import_composition(&dir, &ai, None, None, &ImportOptions::default(), &|_| {}),
         Err(IllustratorError::NoFacadeScale)
     ));
     let frame = RectMm {
@@ -271,8 +271,15 @@ fn a_composition_is_recreated_from_its_links() {
         width: 20_000.0,
         height: 10_000.0,
     };
-    let (project, report) =
-        import_composition(&dir, &ai, Some(frame), &ImportOptions::default(), &|_| {}).unwrap();
+    let (project, report) = import_composition(
+        &dir,
+        &ai,
+        Some(frame),
+        None,
+        &ImportOptions::default(),
+        &|_| {},
+    )
+    .unwrap();
     assert_eq!(report.found, 4);
     assert_eq!(report.placed, 3);
     assert_eq!(report.drawings, 2);
@@ -315,8 +322,15 @@ fn a_composition_is_recreated_from_its_links() {
     // Relu, le projet est le même ; un second import ne double pas la
     // bibliothèque.
     assert_eq!(dir.load().unwrap().project, project);
-    let (again, _) =
-        import_composition(&dir, &ai, Some(frame), &ImportOptions::default(), &|_| {}).unwrap();
+    let (again, _) = import_composition(
+        &dir,
+        &ai,
+        Some(frame),
+        None,
+        &ImportOptions::default(),
+        &|_| {},
+    )
+    .unwrap();
     assert_eq!(again.library.len(), 2);
     assert_eq!(again.placements.len(), 6);
     assert_eq!(again.layers.len(), 2);
@@ -348,4 +362,160 @@ fn a_link_is_found_by_its_absolute_path_or_by_name() {
     // Un fichier temporaire d'Illustrator n'est jamais cherché.
     image.absolute = "/var/folders/xy/T/merle.png".into();
     assert_eq!(resolve_link(&ai, &image), None);
+}
+
+/// L'aperçu dit ce que l'import ferait, sans rien écrire ; l'import reprend
+/// les dessins déjà dans la bibliothèque (même fichier, ou même nom quand
+/// le fichier lié manque) et n'importe que les images choisies.
+#[test]
+fn the_preview_links_to_the_library_and_the_import_follows_the_choice() {
+    let temp = TempDir::new("apercu-illustrator");
+    let (dir, project) =
+        ProjectDir::create(temp.path().join("Essai.insitu"), Some("Essai")).unwrap();
+    dir.save(&project).unwrap();
+    // La bibliothèque a déjà le merle (même fichier, importé d'ailleurs) et
+    // un « absent.png » dont le fichier lié n'est pas sur ce Mac.
+    let earlier = temp.path().join("Avant");
+    write_png(&earlier.join("Oiseaux/merle.png"), 1000, 500);
+    write_png(&earlier.join("Divers/absent.png"), 20, 30);
+    crate::library::import_folder(&dir, &earlier, &ImportOptions::default(), &|_| {}).unwrap();
+    let before = dir.load().unwrap().project;
+    assert_eq!(before.library.len(), 2);
+    let merle_id = before
+        .library
+        .iter()
+        .find(|d| d.name == "merle")
+        .unwrap()
+        .id
+        .clone();
+    let absent_id = before
+        .library
+        .iter()
+        .find(|d| d.name == "absent")
+        .unwrap()
+        .id
+        .clone();
+
+    let work = temp.path().join("Fresque");
+    write_png(&work.join("Oiseaux/merle.png"), 1000, 500);
+    write_png(&work.join("Poissons/Murène.png"), 400, 400);
+    let ai = work.join("Composition.ai");
+    std::fs::write(
+        &ai,
+        sample_ai(
+            &sample_text("/Users/autre/Dessins/Oiseaux/merle.png"),
+            false,
+        ),
+    )
+    .unwrap();
+    let frame = RectMm {
+        x: 0.0,
+        y: 0.0,
+        width: 20_000.0,
+        height: 10_000.0,
+    };
+
+    let preview = preview_composition(&dir, &ai, Some(frame)).unwrap();
+    // Rien n'a été écrit.
+    assert_eq!(dir.load().unwrap().project, before);
+    assert_eq!(preview.name, "Composition");
+    assert_eq!(preview.images.len(), 4);
+    assert_eq!(preview.embedded, 1);
+    let layers: Vec<_> = preview
+        .layers
+        .iter()
+        .map(|l| (l.name.as_str(), l.visible, l.images, l.embedded, l.color))
+        .collect();
+    assert_eq!(
+        layers,
+        [
+            ("Fond", true, 2, 1, Some([79, 128, 255])),
+            ("Esquisses", false, 2, 0, Some([79, 128, 255])),
+        ]
+    );
+    let status: Vec<_> = preview
+        .links
+        .iter()
+        .map(|l| (l.name.as_str(), l.status, l.count, l.drawing.clone()))
+        .collect();
+    assert_eq!(
+        status,
+        [
+            ("merle.png", LinkStatus::Library, 2, Some(merle_id.clone())),
+            ("Mure\u{300}ne.png", LinkStatus::New, 1, None),
+            (
+                "absent.png",
+                LinkStatus::LibraryByName,
+                1,
+                Some(absent_id.clone())
+            ),
+        ]
+    );
+    // Chaque image est là où l'import la posera.
+    assert_eq!(preview.images[0].link, 0);
+    assert_eq!(preview.images[2].layer, 1);
+    assert!((preview.images[0].center.x - 3_000.0).abs() < 1e-6);
+    assert!(preview.images[2].mirrored);
+
+    // On n'importe que le calque « Fond » : merle (repris) et murène (ajoutée).
+    let only: Vec<usize> = preview
+        .images
+        .iter()
+        .enumerate()
+        .filter(|(_, im)| im.layer == 0)
+        .map(|(i, _)| i)
+        .collect();
+    assert_eq!(only, [0, 1]);
+    let (project, report) = import_composition(
+        &dir,
+        &ai,
+        Some(frame),
+        Some(&only),
+        &ImportOptions::default(),
+        &|_| {},
+    )
+    .unwrap();
+    assert_eq!(report.placed, 2);
+    assert_eq!(report.skipped, 2);
+    assert_eq!(report.reused, 1);
+    assert_eq!(report.drawings, 2);
+    assert!(report.missing.is_empty());
+    assert_eq!(report.layers, ["Fond"]);
+    // Un seul fichier ajouté : la murène ; le merle n'est pas copié deux fois.
+    assert_eq!(project.library.len(), 3);
+    assert_eq!(project.placements.len(), 2);
+    assert_eq!(project.placements[0].drawing, merle_id);
+    assert_eq!(project.layers.len(), 1);
+
+    // Puis le reste : « absent.png » reprend le dessin du même nom.
+    let (project, report) = import_composition(
+        &dir,
+        &ai,
+        Some(frame),
+        Some(&[2, 3]),
+        &ImportOptions::default(),
+        &|_| {},
+    )
+    .unwrap();
+    assert_eq!(report.placed, 2);
+    assert_eq!(report.reused, 2);
+    assert!(report.missing.is_empty());
+    assert_eq!(project.library.len(), 3);
+    assert_eq!(project.placements[3].drawing, absent_id);
+    let names: Vec<_> = project.layers.iter().map(|l| l.name.as_str()).collect();
+    assert_eq!(names, ["Fond", "Esquisses"]);
+    assert!(!project.layers[1].visible);
+
+    // Une liste vide n'importe rien.
+    assert!(matches!(
+        import_composition(
+            &dir,
+            &ai,
+            Some(frame),
+            Some(&[]),
+            &ImportOptions::default(),
+            &|_| {}
+        ),
+        Err(IllustratorError::NothingPlaced(_))
+    ));
 }

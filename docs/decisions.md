@@ -27,6 +27,45 @@ imprimer rendu par le moteur, dans les quatre sens, détection seule et
 coins donnés dans le désordre ; pas encore sur une vraie photo de la mire
 imprimée.
 
+## 2026-11-13 — Import Illustrator : aperçu, choix, lien avec la bibliothèque (demande de Benjamin)
+
+Benjamin veut que l'import d'un `.ai` crée un dessin par image, fasse le lien
+avec les dessins déjà dans la bibliothèque, garde les calques d'Illustrator,
+et passe par une fenêtre qui montre le résultat et laisse choisir quoi
+importer. Module `crates/insitu-core/src/illustrator/plan.rs`, commande
+`insitu illustrator preview` et options `--images`, `--layer` de `import`,
+fenêtre `src/compose/IllustratorPreviewDialog.tsx`.
+
+**D-6.3-f. Un lien reprend le dessin déjà dans la bibliothèque.** Avant
+toute copie, chaque fichier lié est comparé à la bibliothèque du projet :
+même contenu, octet pour octet (taille d'abord, quel que soit le dossier) →
+ce dessin est repris, avec ses retouches, sa silhouette et ses réglages ; si
+le fichier lié n'est pas sur ce Mac, un dessin du même nom de fichier (sans
+accents ni casse, de préférence dans un dossier du même nom) est repris.
+Sinon le fichier entre dans `bibliotheque/<nom du .ai>/` comme avant
+(D-6.3-e). Raison : Benjamin importe souvent les dossiers de dessins avant
+la composition ; les copier une seconde fois doublait la bibliothèque et
+perdait les retouches. Limite : un dessin du même nom mais d'un autre
+contenu, quand le fichier lié est présent, n'est pas repris (le fichier du
+`.ai` fait foi).
+
+**D-6.3-g. L'import passe par un aperçu, sans rien écrire.** La lecture du
+`.ai` rend calques (nom, masqué, verrouillé, couleur d'Illustrator, images
+liées et incorporées), fichiers liés (bibliothèque, bibliothèque par le nom,
+nouveau, introuvable) et chaque image à sa place sur la façade. La fenêtre
+dessine les images en rectangles de la couleur de leur calque, liste les
+calques (l'avant en haut, comme dans Illustrator) et leurs fichiers, avec
+des cases à cocher. Tout ce qui peut être importé est coché au départ ; un
+lien introuvable ne se coche pas. Le moteur reçoit le rang des images
+choisies. Les calques sans image liée (tracés seulement) sont nommés, pas
+repris. Une image incorporée hors de tout calque (réserve de symboles) n'est
+comptée que dans le total.
+
+**D-6.3-h. Calques : ceux de premier niveau, toujours.** Le fichier de
+Trévarez n'a pas de sous-calques ; l'app non plus (D-4.3). Les images d'un
+sous-calque restent dans le calque de premier niveau, comme en D-6.3-b. Si
+un fichier réel en a besoin, ce sera une demande à part.
+
 ## 2026-11-12 — Tâche 6.3 : import Illustrator
 
 Module `crates/insitu-core/src/illustrator/`, commande `insitu illustrator
