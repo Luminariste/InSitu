@@ -35,7 +35,9 @@ colonnes, fenêtres.
    gris bleuté sous les dessins, pour se repérer. Ce sont les mêmes cases
    que le menu **Affichage** de la Façade : cachée là-bas, la fresque l'est
    ici. L'export grave toujours la fresque et jamais le plan.
-6. **Exporter cette diapositive…** (⌘E), en haut à droite : le PNG de la
+6. **Plan de contrôle…** : le plan vu par ce projecteur, à graver pour
+   vérifier le recalage (voir `docs/export.md`).
+   **Exporter cette diapositive…** (⌘E), en haut à droite : le PNG de la
    diapositive affichée seulement, avec les réglages de l'onglet Export de
    la Façade.
 7. Zoomer pour juger d'un détail. L'aperçu fait 2 048 px (0,14 mm par

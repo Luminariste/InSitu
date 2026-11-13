@@ -4,6 +4,27 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-13 — Plan de contrôle à graver (demande de Benjamin)
+
+Demande de Benjamin : « pouvoir graver le plan vu d'une diapositive, pour
+vérifier que le recalage est bon : on grave le plan, via la déformation ;
+si c'est juste, tous les dessins seront nickel ».
+
+**D-3.5-m. Le plan de contrôle est un export à part.** `export_control_plans`
+(`insitu export --plan-de-controle`, boutons **Plans de contrôle…** dans
+l'onglet Export et **Plan de contrôle…** dans la Diapositive) écrit pour
+chaque projecteur choisi `<projet>-<diapositive> - PLAN DE CONTROLE.png` :
+le plan de la façade sous l'emprise (D-3.6-e), en traits blancs sur noir,
+passé par le recalage et par la même chaîne que les diapositives (marge,
+miroir, négatif, noir et blanc pur, résolution), « PLAN DE CONTROLE »
+ajouté au texte de la marge. Le plan n'est pas mêlé aux dessins : un
+fichier distinct évite de le graver par erreur sur la plaque définitive.
+Les réglages d'export du projet ne sont pas réenregistrés. Le plan est
+rendu en 8 192 px au plus grand côté de l'emprise (mémoire raisonnable) :
+pour une emprise de 4 m, un pixel du plan fait 0,5 mm sur la façade, assez
+pour juger un recalage. Il faut un plan mis à l'échelle ; un projecteur
+dont l'emprise tombe hors du plan est signalé, pas exporté.
+
 ## 2026-11-13 — Fresque et plan dans la Diapositive (demande de Benjamin)
 
 Demande de Benjamin : « fresque : si elle est masquée, elle reste affichée

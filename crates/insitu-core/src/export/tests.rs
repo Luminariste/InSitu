@@ -1264,4 +1264,68 @@ fn plan_seen_through_registration(vector: bool) {
     // Resservi depuis le cache.
     let again = slide_views_with(&dir, &cache, 600, content).unwrap();
     assert_eq!(again[0].plan.as_deref(), Some(request.as_str()));
+
+    // Le plan de contrôle à graver (D-3.5-m) : la même image que l'aperçu,
+    // traits blancs sur noir, dans son propre fichier ; les réglages
+    // d'export du projet ne changent pas.
+    let before = dir.load().unwrap().project.export;
+    let out = temp.path().join("export");
+    let flat = ExportSettings {
+        dpi: 600.0 / SLIDE_SIZE_MM * units::MM_PER_INCH,
+        margin: false,
+        mirror: false,
+        negative: false,
+        one_bit: false,
+        ..ExportSettings::default()
+    };
+    let report =
+        export_control_plans(&dir, &out, &flat, Some(&["A".to_string()]), 1, &|_| {}).unwrap();
+    assert_eq!(report.slides.len(), 1);
+    let file = &report.slides[0].path;
+    assert_eq!(
+        file.file_name().unwrap().to_string_lossy(),
+        "Essai-A - PLAN DE CONTROLE.png"
+    );
+    let engraved = image::open(file).unwrap().into_luma8();
+    assert_eq!(engraved.dimensions(), (600, 600));
+    let worst = engraved
+        .pixels()
+        .zip(png.pixels())
+        .map(|(e, p)| e.0[0].abs_diff(p.0[3]))
+        .max()
+        .unwrap();
+    if vector {
+        // Plan vectoriel rendu plus finement pour la gravure : le même trait,
+        // au même endroit.
+        let lit: Vec<u32> = (0..600)
+            .filter(|&x| engraved.get_pixel(x, 300).0[0] >= 128)
+            .collect();
+        assert!(
+            !lit.is_empty() && lit.iter().all(|&x| (280..=320).contains(&x)),
+            "{lit:?}"
+        );
+    } else {
+        assert!(worst <= 1, "écart {worst}");
+    }
+    assert_eq!(dir.load().unwrap().project.export, before);
+}
+
+/// Sans plan à l'échelle, pas de plan de contrôle.
+#[test]
+fn no_control_plan_without_a_scaled_facade() {
+    let temp = TempDir::new("plan-controle-absent");
+    let (dir, mut project) =
+        ProjectDir::create(temp.path().join("Essai.insitu"), Some("Essai")).unwrap();
+    project.add_projector("A").registration = pairs();
+    dir.save(&project).unwrap();
+    let error = export_control_plans(
+        &dir,
+        &temp.path().join("x"),
+        &settings(300.0),
+        None,
+        1,
+        &|_| {},
+    )
+    .unwrap_err();
+    assert!(matches!(error, ExportError::NoFacadeScale), "{error}");
 }

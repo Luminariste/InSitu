@@ -22,6 +22,8 @@ import { isIllustratorFile } from "../compose/IllustratorImport";
 import {
   ALL_SLIDES,
   exportButtonLabel,
+  controlPlanButtonLabel,
+  controlPlanSummary,
   exportSettingsOf,
   exportTargets,
   keptTarget,
@@ -120,6 +122,20 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
       const report = await exportSlides(folder, destination, chosen, setProgress, target === ALL_SLIDES ? undefined : [target]);
       setSettings(chosen);
       setMessage(exportSummary(report, destination));
+    });
+
+  // Plan de contrôle (D-3.5-m) : le plan vu par chaque projecteur, à graver
+  // pour vérifier le recalage ; mêmes réglages, ceux du projet ne changent pas.
+  const exportControlPlans = () =>
+    run("Export des plans de contrôle…", async () => {
+      if (!folder) return;
+      const dpi = Number(dpiText.replace(",", "."));
+      if (!validDpi(dpi)) throw new Error("la résolution doit être comprise entre 50 et 3 000 dpi");
+      const destination = await chooseExportFolder();
+      if (!destination) return;
+      const only = target === ALL_SLIDES ? undefined : [target];
+      const report = await exportSlides(folder, destination, { ...settings, dpi }, setProgress, only, true);
+      setMessage(controlPlanSummary(report, destination));
     });
 
   // Fiche de calepinage (tâche 6.2), avec les réglages tels qu'ils sont à l'écran.
@@ -241,6 +257,14 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
             disabled={!ready || !artwork}
           >
             {exportButtonLabel(target, targets)}
+          </Button>
+          <Button
+            icon="export"
+            title="Le plan de la façade vu par le projecteur, passé par la même déformation que les dessins : gravé et projeté, il doit tomber sur la façade. Vérifie le recalage avant de graver les dessins."
+            onClick={() => void exportControlPlans()}
+            disabled={!ready || !scaled || targets.length === 0}
+          >
+            {controlPlanButtonLabel(target, targets)}
           </Button>
           <Button
             icon="document"

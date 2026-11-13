@@ -26,7 +26,7 @@ import {
   type SlideView,
 } from "../engine";
 import { useSlideAdjust } from "./useSlideAdjust";
-import { exportSettingsOf, exportSummary } from "../facade/exportLogic";
+import { controlPlanSummary, exportSettingsOf, exportSummary } from "../facade/exportLogic";
 import { GRIDS } from "../compose/CompositionToolbar";
 import { recalledProject } from "../project/current";
 import { Viewer, placementForWidth, type LayerSpec, type TileSource, type ViewerHandle } from "../viewer";
@@ -254,17 +254,21 @@ export function SlideScreen() {
   // Exporter la seule diapositive affichée, avec les réglages d'export du
   // projet (ceux de l'onglet Export de la Façade, relus au moment d'exporter).
   const canExport = engine && folder !== null && ready && view !== null && view.preview !== null;
-  const exportThis = async () => {
+  // Le plan de contrôle (D-3.5-m) : il suffit que le projecteur soit recalé.
+  const canControlPlan =
+    engine && folder !== null && ready && view !== null && !(view.problem ?? "").startsWith("recalage incomplet");
+  const exportThis = async (controlPlan = false) => {
     if (!folder || !view) return;
     setError(null);
     setNotice(null);
     try {
       const destination = await chooseExportFolder();
       if (!destination) return;
-      setBusy(`Export de la diapositive ${view.label}…`);
+      setBusy(controlPlan ? `Export du plan de contrôle ${view.label}…` : `Export de la diapositive ${view.label}…`);
       const project = await openProject(folder);
-      const report = await exportSlides(folder, destination, exportSettingsOf(project.export), () => {}, [view.projectorId]);
-      setNotice(exportSummary(report, destination));
+      const settings = exportSettingsOf(project.export);
+      const report = await exportSlides(folder, destination, settings, () => {}, [view.projectorId], controlPlan);
+      setNotice(controlPlan ? controlPlanSummary(report, destination) : exportSummary(report, destination));
     } catch (failure) {
       setError(String(failure).replace(/^Error: /, ""));
     } finally {
@@ -413,6 +417,18 @@ export function SlideScreen() {
         Tout voir
       </Button>
       <ToolSeparator />
+      <Button
+        icon="export"
+        title={
+          engine
+            ? "Le plan de la façade vu par ce projecteur, à graver pour vérifier le recalage : projeté, il doit tomber sur la façade"
+            : "Dans l'app seulement"
+        }
+        onClick={() => void exportThis(true)}
+        disabled={!canControlPlan}
+      >
+        Plan de contrôle…
+      </Button>
       <Button
         variant="primary"
         icon="export"

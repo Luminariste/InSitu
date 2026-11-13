@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use insitu_core::export::{export_slides, import_fresco_page};
+use insitu_core::export::{export_control_plans, export_slides, import_fresco_page};
 use insitu_core::project::{ProjectDir, RectMm};
 use serde_json::json;
 
@@ -39,6 +39,11 @@ projet, et ceux utilisés y sont enregistrés.
   --svg             Un SVG en mm à côté de chaque PNG : les courbes des
                     dessins posés (--no-svg)
   --only NOM        Ce projecteur seulement (répétable)
+  --plan-de-controle
+                    À la place des diapositives : le plan de la façade vu
+                    par chaque projecteur, pour graver une plaque qui
+                    vérifie le recalage (<projet>-<diapositive> - PLAN DE
+                    CONTROLE.png). Les réglages du projet ne changent pas.
 
 Compte rendu en JSON ; l'avancement s'écrit sur la sortie d'erreur."#;
 
@@ -100,6 +105,7 @@ pub fn export(args: &[&str]) -> Result<String, (bool, String)> {
                 .project
                 .export;
             let mut only = Vec::new();
+            let mut control_plan = false;
             let mut rest = rest.iter();
             while let Some(&option) = rest.next() {
                 match option {
@@ -113,6 +119,7 @@ pub fn export(args: &[&str]) -> Result<String, (bool, String)> {
                     "--gray" => settings.one_bit = false,
                     "--svg" => settings.svg = true,
                     "--no-svg" => settings.svg = false,
+                    "--plan-de-controle" => control_plan = true,
                     "--dpi" | "--threshold" | "--only" => {
                         let value = rest.next().ok_or_else(|| usage("Valeur manquante."))?;
                         match option {
@@ -134,7 +141,12 @@ pub fn export(args: &[&str]) -> Result<String, (bool, String)> {
                 }
             }
             let only = (!only.is_empty()).then_some(only);
-            let report = export_slides(
+            let run = if control_plan {
+                export_control_plans
+            } else {
+                export_slides
+            };
+            let report = run(
                 &dir,
                 Path::new(destination),
                 &settings,

@@ -526,44 +526,7 @@ pub fn export_slides(
     if fresco.is_none() && project.visible_placements().is_empty() {
         return Err(ExportError::NoFresco);
     }
-    if let Some(keys) = only {
-        for key in keys {
-            if !project
-                .projectors
-                .iter()
-                .any(|p| &p.id == key || &p.label == key)
-            {
-                return Err(ExportError::UnknownProjector(key.clone()));
-            }
-        }
-    }
-    let mut todo = Vec::new();
-    let mut skipped = Vec::new();
-    for p in &project.projectors {
-        if let Some(keys) = only {
-            if !keys.iter().any(|k| k == &p.id || k == &p.label) {
-                continue;
-            }
-        }
-        match slide_to_facade(&p.registration) {
-            Some(warp) => todo.push((p.id.clone(), p.label.clone(), warp)),
-            None => skipped.push(SkippedSlide {
-                projector_id: p.id.clone(),
-                label: p.label.clone(),
-                reason: format!(
-                    "recalage incomplet : {} paire(s) de points sur 4 au moins",
-                    p.registration.len()
-                ),
-            }),
-        }
-    }
-    if todo.is_empty() {
-        return Err(ExportError::Nothing(if project.projectors.is_empty() {
-            "le projet n'a aucun projecteur".into()
-        } else {
-            "aucun projecteur n'est recalé (4 paires de points au moins)".into()
-        }));
-    }
+    let (todo, skipped) = recaled_projectors(&project, only)?;
     std::fs::create_dir_all(destination)
         .map_err(|e| ExportError::Destination(format!("{} : {e}", destination.display())))?;
 
@@ -667,4 +630,141 @@ pub fn export_slides(
         skipped,
         settings: settings.clone(),
     })
+}
+
+/// Nom du fichier du plan de contrôle d'une diapositive (D-3.5-m) :
+/// `<projet>-<diapositive> - PLAN DE CONTROLE.png`.
+pub fn control_plan_file_name(project: &str, label: &str) -> String {
+    let name = slide_file_name(project, label);
+    let stem = name.strip_suffix(".png").unwrap_or(&name);
+    format!("{stem} - PLAN DE CONTROLE.png")
+}
+
+/// Exporte le plan de contrôle des projecteurs recalés (tous, ou ceux de
+/// `only`) : le plan de la façade vu par le projecteur, passé par la même
+/// déformation que les dessins, avec la marge, le miroir, le négatif et la
+/// résolution de `settings` (D-3.5-m). Gravé et projeté, il doit tomber sur
+/// l'architecture : c'est la vérification du recalage. Les réglages
+/// d'export du projet ne changent pas.
+pub fn export_control_plans(
+    dir: &ProjectDir,
+    destination: &Path,
+    settings: &ExportSettings,
+    only: Option<&[String]>,
+    threads: usize,
+    progress: &dyn Fn(ExportProgress),
+) -> Result<ExportReport, ExportError> {
+    check_settings(settings)?;
+    let project = dir.load()?.project;
+    let facade = project
+        .facade
+        .as_ref()
+        .filter(|f| f.size_mm().is_some())
+        .ok_or(ExportError::NoFacadeScale)?;
+    let (todo, mut skipped) = recaled_projectors(&project, only)?;
+    std::fs::create_dir_all(destination)
+        .map_err(|e| ExportError::Destination(format!("{} : {e}", destination.display())))?;
+    let total = todo.len();
+    progress(ExportProgress {
+        done: 0,
+        total,
+        current: Some(todo[0].1.clone()),
+    });
+    let mut slides = Vec::new();
+    for (k, (id, label, warp)) in todo.iter().enumerate() {
+        let start = Instant::now();
+        match plan_view::plan_under_footprint(dir, facade, warp, plan_view::CONTROL_PLAN_WINDOW_PX)
+        {
+            None => skipped.push(SkippedSlide {
+                projector_id: id.clone(),
+                label: label.clone(),
+                reason: "le plan ne couvre pas son emprise, ou il est illisible".into(),
+            }),
+            Some((plan, frame)) => {
+                let text = format!(
+                    "{} - PLAN DE CONTROLE",
+                    caption(&project.name, label, settings)
+                );
+                let art = Artwork {
+                    fresco: Some((&plan, &frame)),
+                    drawings: Vec::new(),
+                    projector: None,
+                };
+                let rendered = render_artwork(&art, warp, &text, settings, threads)?;
+                let bytes = encode_png(&rendered, settings)?;
+                let path = destination.join(control_plan_file_name(&project.name, label));
+                write_atomic(&path, &bytes).map_err(|e| ExportError::Destination(e.to_string()))?;
+                slides.push(ExportedSlide {
+                    projector_id: id.clone(),
+                    label: label.clone(),
+                    path,
+                    size_px: rendered.width,
+                    size_mm: f64::from(rendered.width) * units::px_size_mm(settings.dpi),
+                    bytes: bytes.len() as u64,
+                    svg: None,
+                    seconds: start.elapsed().as_secs_f64(),
+                });
+            }
+        }
+        progress(ExportProgress {
+            done: k + 1,
+            total,
+            current: todo.get(k + 1).map(|t| t.1.clone()),
+        });
+    }
+    Ok(ExportReport {
+        slides,
+        skipped,
+        settings: settings.clone(),
+    })
+}
+
+/// Un projecteur à exporter : identifiant, nom, recalage.
+type Recaled = (String, String, PointWarp);
+
+/// Les projecteurs recalés à exporter (tous, ou ceux de `only`, par nom ou
+/// identifiant), et ceux laissés de côté faute de recalage.
+fn recaled_projectors(
+    project: &Project,
+    only: Option<&[String]>,
+) -> Result<(Vec<Recaled>, Vec<SkippedSlide>), ExportError> {
+    if let Some(keys) = only {
+        for key in keys {
+            if !project
+                .projectors
+                .iter()
+                .any(|p| &p.id == key || &p.label == key)
+            {
+                return Err(ExportError::UnknownProjector(key.clone()));
+            }
+        }
+    }
+    let mut todo = Vec::new();
+    let mut skipped = Vec::new();
+    for p in &project.projectors {
+        if let Some(keys) = only {
+            if !keys.iter().any(|k| k == &p.id || k == &p.label) {
+                continue;
+            }
+        }
+        match slide_to_facade(&p.registration) {
+            Some(warp) => todo.push((p.id.clone(), p.label.clone(), warp)),
+            None => skipped.push(SkippedSlide {
+                projector_id: p.id.clone(),
+                label: p.label.clone(),
+                reason: format!(
+                    "recalage incomplet : {} paire(s) de points sur 4 au moins",
+                    p.registration.len()
+                ),
+            }),
+        }
+    }
+    if todo.is_empty() {
+        return Err(ExportError::Nothing(if project.projectors.is_empty() {
+            "le projet n'a aucun projecteur".into()
+        } else {
+            "aucun projecteur n'est recalé (4 paires de points au moins)".into()
+        }));
+    }
+    Ok((todo, skipped))
 }
