@@ -61,17 +61,6 @@
   gap: var(--ui-space-2);
 }
 
-/* Placement automatique (D-3.2-i) : la place montrée et ses boutons. */
-.registration-proposal-count {
-  font-size: var(--ui-text-lg);
-  font-weight: var(--ui-weight-bold);
-}
-
-.registration-proposal-nav {
-  display: flex;
-  gap: var(--ui-space-2);
-}
-
 .registration-opacity {
   width: 90px;
 }

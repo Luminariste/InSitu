@@ -148,15 +148,6 @@ export const APP_SHORTCUTS: { group: string; items: { keys: ShortcutSpec; label:
     ],
   },
   {
-    group: "Placement automatique (Recalage)",
-    items: [
-      { keys: "arrowleft", label: "Place précédente" },
-      { keys: "arrowright", label: "Place suivante" },
-      { keys: "enter", label: "Garder cette place" },
-      { keys: "escape", label: "Annuler (remettre la photo comme avant)" },
-    ],
-  },
-  {
     group: "Gomme et crayon (Bibliothèque)",
     items: [
       { keys: "e", label: "Gomme" },

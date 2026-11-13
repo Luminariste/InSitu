@@ -2,7 +2,7 @@
 //! façade, comme le fait l'écran Recalage de l'app (tâche 3.2).
 
 use insitu_core::project::{PointMm, ProjectDir, RegistrationPair};
-use insitu_core::registration::auto::{projector_proposals, AutoOptions, RegionMm};
+use insitu_core::registration::auto::projector_adjustment;
 use insitu_core::registration::{
     projector_report, set_registration, RegistrationOptions, RegistrationReport,
 };
@@ -18,7 +18,7 @@ pub const USAGE: &str = r#"Usage :
   insitu registration show <projet.insitu> <projecteur> [--factor F] [--floor MM]
   insitu registration set <projet.insitu> <projecteur> <paires.json> [--factor F] [--floor MM]
   insitu registration preview <paires.json>
-  insitu registration propose <projet.insitu> <projecteur> [--region x,y,l,h] [--side MM] [--count N]
+  insitu registration adjust <projet.insitu> <projecteur> [<paires.json>]
 
 Recalage d'un projecteur sur la façade : des points communs entre sa photo
 redressée (mm de diapositive, 0 à 280) et la façade (mm réels, façade mise
@@ -34,18 +34,13 @@ redressée (mm de diapositive, 0 à 280) et la façade (mm réels, façade mise
            maillage de la diapositive sur la façade pour ces paires (ce que
            l'écran Recalage redessine pendant qu'on glisse un point).
 
-  propose  Placement automatique : cherche où la photo redressée tombe sur
-           le plan de la façade et affiche en JSON les propositions, de la
-           plus probable à la moins probable. Chacune donne un accord des
-           contours (« score », de 0 à 1), les quatre paires aux coins de la
-           diapositive et l'emprise. Rien n'est enregistré : pour garder une
-           proposition, passer ses paires à « set ».
-             --region x,y,l,h  zone de la façade où chercher (mm) ; toute
-                               la façade par défaut ;
-             --side MM         côté approché de l'emprise sur la façade
-                               (par défaut : celui des projecteurs déjà
-                               recalés, sinon une large fourchette) ;
-             --count N         nombre de propositions (5 par défaut).
+  adjust   Ajustement automatique : part de la pose de la photo sur la
+           façade (les paires enregistrées, ou celles du fichier) et la cale
+           sur les lignes du plan. Affiche en JSON les quatre paires aux
+           coins de la diapositive, l'emprise, l'accord des contours avant
+           et après (« startScore », « score », de 0 à 1) et le plus grand
+           déplacement d'un coin (« movedMm »). Rien n'est enregistré : pour
+           garder le résultat, passer ses paires à « set ».
 
   --factor F   Un point est aberrant si son score dépasse F fois le score
                médian des autres (6 par défaut).
@@ -78,7 +73,6 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
     let usage =
         |message: &str| Problem::Usage(format!("{message} Voir : insitu registration --help"));
     let mut options = RegistrationOptions::default();
-    let mut auto = AutoOptions::default();
     let mut words = Vec::new();
     let mut rest = args.iter().copied();
     while let Some(arg) = rest.next() {
@@ -95,37 +89,6 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                     .and_then(|v| v.replace(',', ".").parse().ok())
                     .ok_or_else(|| usage("--floor attend un nombre de mm."))?;
             }
-            "--region" => {
-                let values: Vec<f64> = rest
-                    .next()
-                    .unwrap_or("")
-                    .split(',')
-                    .filter_map(|v| v.trim().parse().ok())
-                    .collect();
-                let [x, y, width, height] = values[..] else {
-                    return Err(usage("--region attend x,y,largeur,hauteur en mm."));
-                };
-                auto.region = Some(RegionMm {
-                    x,
-                    y,
-                    width,
-                    height,
-                });
-            }
-            "--side" => {
-                auto.footprint_side_mm = Some(
-                    rest.next()
-                        .and_then(|v| v.replace(',', ".").parse().ok())
-                        .ok_or_else(|| usage("--side attend un nombre de mm."))?,
-                );
-            }
-            "--count" => {
-                auto.proposals = rest
-                    .next()
-                    .and_then(|v| v.parse().ok())
-                    .filter(|n: &usize| *n > 0)
-                    .ok_or_else(|| usage("--count attend un nombre entier positif."))?;
-            }
             other if other.starts_with("--") => {
                 return Err(usage(&format!("Option inconnue : {other}")));
             }
@@ -136,9 +99,14 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
         let preview = insitu_core::overview::registration_preview(&read_pairs(file)?);
         return Ok(serde_json::to_string_pretty(&preview).expect("sérialisable"));
     }
-    if let ["propose", folder, projector] = words[..] {
+    if let ["adjust", folder, projector, ref file @ ..] = words[..] {
+        let pairs = match file {
+            [] => None,
+            [file] => Some(read_pairs(file)?),
+            _ => return Err(usage("adjust prend au plus un fichier de paires.")),
+        };
         let dir = ProjectDir::open(folder).map_err(failed)?;
-        let report = projector_proposals(&dir, projector, &auto).map_err(failed)?;
+        let report = projector_adjustment(&dir, projector, pairs.as_deref()).map_err(failed)?;
         return Ok(serde_json::to_string_pretty(&report).expect("sérialisable"));
     }
     let report = match words[..] {

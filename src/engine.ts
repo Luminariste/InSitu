@@ -604,39 +604,28 @@ export async function previewRegistration(pairs: RegistrationPair[]): Promise<Re
   return invoke<RegistrationPreview>("registration_preview", { pairs });
 }
 
-/** Zone de la façade où chercher, en mm. */
-export interface RegionMm {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-/** Une place possible de la photo sur la façade (D-3.2-i). */
-export interface PlacementProposal {
-  /** Ressemblance photo ↔ plan, de 0 à 1 (sert à classer, pas une garantie). */
-  score: number;
-  /** Les quatre coins de la diapositive et leur place sur la façade. */
+/** Résultat de « Ajuster » (D-3.2-i) : la photo calée sur les lignes du plan. */
+export interface RegistrationAdjustment {
+  projectorId: string;
+  /** Les quatre coins de la diapositive et leur place sur la façade (ceux de départ si rien de mieux). */
   pairs: RegistrationPair[];
   footprint: SourcePoint[];
-}
-
-export interface AutoRegistrationReport {
-  projectorId: string;
-  /** La plus probable d'abord ; peut être vide. */
-  proposals: PlacementProposal[];
-  region: RegionMm;
+  /** Accord des contours photo ↔ plan, de 0 à 1, après et avant. */
+  score: number;
+  startScore: number;
+  /** Plus grand déplacement d'un coin, en mm (0 : rien n'a bougé). */
+  movedMm: number;
   seconds: number;
 }
 
-/** Cherche où la photo redressée se place sur la façade ; rien n'est enregistré. */
-export async function proposeRegistration(
+/** Cale la pose `pairs` de la photo sur les lignes du plan ; rien n'est enregistré. */
+export async function adjustRegistration(
   folder: string,
   projector: string,
-  region: RegionMm | null,
-): Promise<AutoRegistrationReport> {
+  pairs: RegistrationPair[],
+): Promise<RegistrationAdjustment> {
   requireEngine();
-  return invoke<AutoRegistrationReport>("registration_propose", { folder, projector, region });
+  return invoke<RegistrationAdjustment>("registration_adjust", { folder, projector, pairs });
 }
 
 // --- Dessins posés sur la façade (tâche 4.2) ------------------------------------

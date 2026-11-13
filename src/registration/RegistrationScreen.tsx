@@ -20,12 +20,11 @@ import {
   openProject,
   openTiledImage,
   openTileFolder,
+  adjustRegistration,
   previewRegistration,
   projectFile,
-  proposeRegistration,
   saveRegistration,
   type FacadeOverview,
-  type PlacementProposal,
   type Project,
   type RegistrationPair,
   type RegistrationReport,
@@ -98,14 +97,6 @@ type Drag =
   | { kind: "move"; start: XYPoint; before: RegistrationPair[] }
   /** Un détail de la photo attrapé sur la façade : nouvelle paire au premier mouvement. */
   | { kind: "pin"; slide: XYPoint; before: RegistrationPair[] };
-
-/** Places proposées par le placement automatique (D-3.2-i), et ce qu'il y avait avant. */
-type Proposals = {
-  list: PlacementProposal[];
-  index: number;
-  before: RegistrationPair[];
-  beforeReport: RegistrationReport | null;
-};
 
 /** Contour d'un maillage (pour l'emprise de l'exemple du navigateur). */
 function meshOutline(mesh: MeshLike): XYPoint[] {
@@ -188,8 +179,9 @@ export function RegistrationScreen() {
   const [overview, setOverview] = useState<FacadeOverview | null>(null);
   const [showPhoto, setShowPhoto] = useState(true);
   const [photoOpacity, setPhotoOpacity] = useState(0.6);
-  /** Placement automatique en cours de choix : rien n'est enregistré avant « Garder ». */
-  const [proposals, setProposals] = useState<Proposals | null>(null);
+  /** Points d'avant le dernier « Ajuster », tant qu'on peut l'annuler (D-3.2-i). */
+  const [adjustUndo, setAdjustUndo] = useState<RegistrationPair[] | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const projector = project?.projectors.find((p) => p.id === selectedProjector) ?? null;
   const facadeInfo = project?.facade ?? null;
@@ -226,7 +218,8 @@ export function RegistrationScreen() {
     setPhoto(null);
     setReport(null);
     setLive(null);
-    setProposals(null);
+    setAdjustUndo(null);
+    setNotice(null);
     const p = opened.projectors.find((q) => q.id === id) ?? null;
     setPairs(p?.registration ?? []);
     if (!p?.rectifiedPhoto) return;
@@ -356,8 +349,8 @@ export function RegistrationScreen() {
 
   /** Enregistre les paires et relit le compte rendu du moteur. */
   const commit = (next: RegistrationPair[], previous: RegistrationPair[] = pairs) => {
-    // Toucher la photo pendant le choix d'une place, c'est garder celle-ci.
-    setProposals(null);
+    // Toute autre retouche rend l'ajustement définitif.
+    setAdjustUndo(null);
     setPairs(next);
     if (!engine || !folder || !projector) return;
     saveRegistration(folder, projector.id, next).then(
@@ -430,56 +423,36 @@ export function RegistrationScreen() {
     commit(next);
   };
 
-  /** Montre la place numéro `index` des propositions, sans l'enregistrer. */
-  const showProposal = (list: PlacementProposal[], index: number) => {
-    const next = list[index].pairs;
-    setPairs(next);
-    setLive(null);
-    requestPreview(next);
-  };
-
   /**
-   * Cherche où la photo se place sur la partie visible de la façade
-   * (D-3.2-i) et montre la plus probable ; on passe aux suivantes avant de
-   * garder la bonne.
+   * Cale la pose affichée sur les lignes du plan (D-3.2-i) : le moteur part
+   * des points actuels et rend les quatre coins ajustés, qu'on enregistre.
    */
-  const placeAutomatically = () =>
-    run("Recherche des places possibles…", async () => {
-      if (!folder || !projector) return;
-      const found = await proposeRegistration(folder, projector.id, visibleFacade());
-      if (found.proposals.length === 0) {
-        setError(
-          "Aucune place trouvée sur la partie visible de la façade. Cadrer la façade sur la zone du projecteur et recommencer, ou poser la photo à la main.",
-        );
+  const adjustNow = () =>
+    run("Ajustement sur les lignes du plan…", async () => {
+      if (!folder || !projector || pairs.length < 4) return;
+      setNotice(null);
+      const result = await adjustRegistration(folder, projector.id, pairs);
+      if (result.movedMm < 1) {
+        setNotice("Rien de mieux autour de cette pose : la photo reste où elle est. La rapprocher à la main et réessayer.");
         return;
       }
+      const before = pairs;
       setPending(NO_PENDING);
       setSelected(null);
       setShowPhoto(true);
-      setProposals({ list: found.proposals, index: 0, before: proposals?.before ?? pairs, beforeReport: proposals?.beforeReport ?? report });
-      setReport(null);
-      showProposal(found.proposals, 0);
+      requestPreview(result.pairs);
+      commit(result.pairs, before);
+      setAdjustUndo(before);
+      setNotice(
+        `Photo calée sur le plan : un coin a bougé de ${(result.movedMm / 10).toFixed(0)} cm au plus. Vérifier que les fenêtres tombent juste ; sinon « Annuler l'ajustement ».`,
+      );
     });
 
-  const stepProposal = (step: -1 | 1) => {
-    if (!proposals) return;
-    const n = proposals.list.length;
-    const index = (proposals.index + step + n) % n;
-    setProposals({ ...proposals, index });
-    showProposal(proposals.list, index);
-  };
-
-  const keepProposal = () => {
-    if (!proposals) return;
-    commit(proposals.list[proposals.index].pairs, proposals.before);
-  };
-
-  const cancelProposals = () => {
-    if (!proposals) return;
-    setPairs(proposals.before);
-    setReport(proposals.beforeReport);
-    setLive(null);
-    setProposals(null);
+  const undoAdjust = () => {
+    if (!adjustUndo) return;
+    setNotice(null);
+    requestPreview(adjustUndo);
+    commit(adjustUndo);
   };
 
   const chooseProjector = (id: string) =>
@@ -689,11 +662,7 @@ export function RegistrationScreen() {
         facadeViewer.current?.fitAll();
       },
     },
-    { keys: "backspace", run: () => selected !== null && remove(selected), enabled: selected !== null && ready && !proposals },
-    { keys: "arrowleft", run: () => stepProposal(-1), enabled: proposals !== null },
-    { keys: "arrowright", run: () => stepProposal(1), enabled: proposals !== null },
-    { keys: "enter", run: keepProposal, enabled: proposals !== null && ready },
-    { keys: "escape", run: cancelProposals, enabled: proposals !== null },
+    { keys: "backspace", run: () => selected !== null && remove(selected), enabled: selected !== null && ready },
   ]);
 
   const toolbar = (
@@ -763,49 +732,10 @@ export function RegistrationScreen() {
 
   const inspector = (
     <Panel side="right" title="Points communs">
-      {proposals && (
-        <div className="registration-advice registration-proposals">
-          <p className="registration-proposal-count">
-            Place {proposals.index + 1} sur {proposals.list.length}
-            {proposals.index === 0 ? " · la plus probable" : ""}
-          </p>
-          <div className="registration-proposal-nav">
-            <Button icon="chevronLeft" onClick={() => stepProposal(-1)} disabled={!ready} shortcut="arrowleft">
-              Précédente
-            </Button>
-            <Button icon="chevronRight" onClick={() => stepProposal(1)} disabled={!ready} shortcut="arrowright">
-              Suivante
-            </Button>
-          </div>
-          <Button variant="primary" icon="check" onClick={keepProposal} disabled={!ready} shortcut="enter">
-            Garder cette place
-          </Button>
-          <Button onClick={cancelProposals} disabled={!ready} shortcut="escape">
-            Annuler
-          </Button>
-          <p className="ui-note">
-            Les places sont classées de la plus probable à la moins probable, sans garantie : comparer les fenêtres de la
-            photo et du plan. Après « Garder », ajuster les coins à la main ; si la façade n'est pas plate, épingler des
-            détails.
-          </p>
-        </div>
-      )}
-      {!proposals && pairs.length === 0 && (
+      {pairs.length === 0 && (
         <div className="registration-advice">
           <Button
             variant="primary"
-            icon="search"
-            onClick={() => void placeAutomatically()}
-            disabled={!engine || !ready || !photo || !facade || !projector}
-            title={
-              engine
-                ? "Cherche où la photo se place sur la partie visible de la façade et propose plusieurs places"
-                : "Demande l'application (le moteur n'est pas là dans un simple navigateur)"
-            }
-          >
-            Placer automatiquement
-          </Button>
-          <Button
             icon="link"
             onClick={placeByCorners}
             disabled={!ready || !photo || !facade || (engine && !projector)}
@@ -814,9 +744,8 @@ export function RegistrationScreen() {
             Poser la photo sur la façade
           </Button>
           <p className="ui-note">
-            « Placer automatiquement » cherche sur la partie de la façade visible à droite : cadrer d'abord la zone du
-            projecteur. Ensuite, ou après « Poser la photo », glisser ses quatre coins jusqu'à ce que les fenêtres de la photo
-            tombent sur celles du plan. La poignée du centre déplace toute la photo.
+            Puis l'amener à peu près à sa place (poignée du centre, coins) et cliquer « Ajuster sur le plan » : la photo se
+            cale sur les lignes du plan. Retoucher ensuite à la main si besoin.
           </p>
         </div>
       )}
@@ -829,16 +758,28 @@ export function RegistrationScreen() {
           </p>
         </div>
       )}
-      {!proposals && pairs.length >= 4 && (
+      {pairs.length >= 4 && (
         <div className="registration-advice">
           <Button
+            variant="primary"
             icon="search"
-            onClick={() => void placeAutomatically()}
+            onClick={() => void adjustNow()}
             disabled={!engine || !ready || !photo || !facade || !projector}
-            title="Propose d'autres places sur la partie visible de la façade ; « Annuler » remet les points actuels"
+            title={
+              !engine
+                ? "Demande l'application (le moteur n'est pas là dans un simple navigateur)"
+                : pairs.length > 4
+                  ? "Cale la photo sur les lignes du plan, autour de la pose actuelle ; remplace les points par les quatre coins"
+                  : "Cale la photo sur les lignes du plan, autour de la pose actuelle"
+            }
           >
-            Replacer automatiquement
+            Ajuster sur le plan
           </Button>
+          {adjustUndo && (
+            <Button icon="refresh" onClick={undoAdjust} disabled={!ready} title="Remet les points d'avant l'ajustement">
+              Annuler l'ajustement
+            </Button>
+          )}
           <p className="ui-note">
             Pour affiner : sur la façade, attraper un détail de la photo (coin de fenêtre…) et le lâcher sur le même détail du
             plan. Chaque détail ainsi posé devient un point. Barre d'espace + glisser : déplacer la vue.
@@ -876,12 +817,7 @@ export function RegistrationScreen() {
 
   const status = (
     <StatusBar>
-      {proposals ? (
-        <StatusText tone="info">
-          Place {proposals.index + 1} sur {proposals.list.length} : ← → pour passer d'une place à l'autre, ↩ pour garder, Échap
-          pour annuler
-        </StatusText>
-      ) : instruction ? <StatusText tone="info">{instruction} (Échap : annuler)</StatusText> : <StatusText>{summary(report, pairs.length)}</StatusText>}
+      {instruction ? <StatusText tone="info">{instruction} (Échap : annuler)</StatusText> : <StatusText>{summary(report, pairs.length)}</StatusText>}
       <span className="ui-legend push">
         <span>
           <Dot tone="success" /> &lt; 1 mm
@@ -904,10 +840,16 @@ export function RegistrationScreen() {
       className="registration"
       toolbar={toolbar}
       banner={
-        error && (
+        error ? (
           <Banner tone="danger" onClose={() => setError(null)}>
             {error}
           </Banner>
+        ) : (
+          notice && (
+            <Banner tone="success" onClose={() => setNotice(null)}>
+              {notice}
+            </Banner>
+          )
         )
       }
       sidebar={sidebar}

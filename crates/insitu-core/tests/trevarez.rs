@@ -15,9 +15,7 @@ use insitu_core::export::{export_slides, ExportProgress};
 use insitu_core::geometry::{Homography, Point, Transform};
 use insitu_core::project::{ExportSettings, ProjectDir};
 use insitu_core::rectification::{self, DetectOptions};
-use insitu_core::registration::auto::{
-    projector_proposals, propose, render_plan, AutoOptions, RegionMm,
-};
+use insitu_core::registration::auto::{adjust, adjust_region, render_plan};
 
 fn trevarez() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../jeu-essai/trevarez")
@@ -292,40 +290,23 @@ fn rectified_by(photo: &image::RgbImage, slide_to_photo: &Homography, side: u32)
     })
 }
 
-/// Placement automatique (D-3.2-i) sur les deux photos réelles de Trévarez
-/// qu'on sait redresser : A (par les quatre coins posés à la main par
-/// Benjamin, sa grille ne se lit pas) et B (sans aide). Zone de recherche :
-/// la façade du haut, comme si la vue de l'écran Recalage y était cadrée.
+/// Ajustement automatique (D-3.2-i) sur les deux photos réelles de
+/// Trévarez qu'on sait redresser : A (par les quatre coins posés à la main
+/// par Benjamin, sa grille ne se lit pas) et B (par les croisements trouvés
+/// par l'app). Chaque photo est posée « à la main » en plusieurs endroits
+/// faux d'un demi-mètre à un mètre, un peu trop grande ou trop petite.
 ///
 /// Les places attendues ont été vérifiées à l'œil en superposant la photo et
 /// le plan (étude `docs/etudes/recalage-automatique.md`) : pour A, le bord de
-/// l'avant-toit et le bandeau ; pour B, l'arc de la travée du milieu. Celle
-/// de A est aussi, à 1 m près, celle où Benjamin a posé la photo à la main.
+/// l'avant-toit et le bandeau ; pour B, l'arc de la travée du milieu.
 #[test]
-fn le_placement_automatique_retrouve_a_et_b_parmi_les_propositions() {
-    let root = TempDir::new("auto");
+fn l_ajustement_cale_a_et_b_depuis_une_pose_approchee() {
+    let root = TempDir::new("ajuster");
     let dir = mount_project(&root.0);
     let project = dir.load().unwrap().project;
     let facade = project.facade.as_ref().unwrap();
     let mm_per_unit = facade.scale.as_ref().unwrap().mm_per_source_unit().unwrap();
-    let pt = |x: f64, y: f64| (x * mm_per_unit, y * mm_per_unit);
-    let (x0, y0) = pt(280.0, 150.0);
-    let (x1, y1) = pt(1120.0, 500.0);
-    let region = RegionMm {
-        x: x0,
-        y: y0,
-        width: x1 - x0,
-        height: y1 - y0,
-    };
-    let plan = render_plan(
-        &dir.resolve(&facade.source),
-        facade.page,
-        facade.rotation,
-        mm_per_unit,
-        Some(region),
-        1024,
-    )
-    .unwrap();
+    let pt = |x: f64, y: f64| Point::new(x * mm_per_unit, y * mm_per_unit);
 
     // A : coins de la mire posés par Benjamin (projet du 13 novembre 2026),
     // sur la photo pleine résolution.
@@ -363,89 +344,58 @@ fn le_placement_automatique_retrouve_a_et_b_parmi_les_propositions() {
         rectification::read_photo(&trevarez().join("references/photos-brutes/b-brut.jpg")).unwrap();
     let b = rectified_by(&b, &Homography::fit(&slide, &photo).unwrap(), 560);
 
-    // Chemin complet de l'app pour B : photo redressée dans le projet,
-    // taille de l'emprise tirée des autres projecteurs recalés. Sur ce
-    // projet (état du 12 novembre), la bonne place de B n'est pas dans les
-    // cinq : on vérifie seulement que les propositions sont bien formées
-    // et restent dans la zone (limite notée dans docs/etudes/recalage-automatique.md).
-    fs::create_dir_all(root.0.join("photos-redressees")).unwrap();
-    b.save(root.0.join("photos-redressees/b.png")).unwrap();
-    let report = projector_proposals(
-        &dir,
-        "B",
-        &AutoOptions {
-            region: Some(region),
-            ..AutoOptions::default()
-        },
-    )
-    .unwrap();
-    assert_eq!(report.proposals.len(), 5);
-    for p in &report.proposals {
-        assert_eq!(p.pairs.len(), 4);
-        let (cx, cy) = (
-            p.pairs.iter().map(|q| q.facade.x).sum::<f64>() / 4.0,
-            p.pairs.iter().map(|q| q.facade.y).sum::<f64>() / 4.0,
-        );
-        assert!(
-            cx > region.x
-                && cx < region.x + region.width
-                && cy > region.y
-                && cy < region.y + region.height
-        );
-    }
-
-    // Sans rien savoir de la taille de l'emprise (premier projecteur
-    // recalé), puis en la connaissant (9 m environ, celle des autres
-    // projecteurs de Benjamin) : la fourchette des échelles se resserre.
-    // « Bonne place » : centre à moins d'un mètre (l'emprise fait 9 à 10 m
-    // de côté), le reste se règle à la main.
-    let cases = [
-        (
-            "A sans taille",
-            propose(&a, &plan, &AutoOptions::default()),
-            pt(458.0, 325.0),
-            3,
-        ),
-        (
-            "B sans taille",
-            propose(&b, &plan, &AutoOptions::default()),
-            pt(635.0, 342.0),
-            3,
-        ),
-        (
-            "A avec 9 m",
-            propose(
-                &a,
-                &plan,
-                &AutoOptions {
-                    footprint_side_mm: Some(9_000.0),
-                    ..AutoOptions::default()
-                },
-            ),
-            pt(458.0, 325.0),
-            1,
-        ),
-    ];
-    for (label, proposals, expected, rank) in cases {
-        let centers: Vec<(f64, f64, f64)> = proposals
-            .iter()
-            .map(|p| {
-                let x = p.pairs.iter().map(|q| q.facade.x).sum::<f64>() / 4.0;
-                let y = p.pairs.iter().map(|q| q.facade.y).sum::<f64>() / 4.0;
-                (x, y, p.score)
-            })
-            .collect();
-        eprintln!("{label} : {centers:.2?}");
-        let found = centers
-            .iter()
-            .position(|&(x, y, _)| (x - expected.0).hypot(y - expected.1) < 1_000.0);
-        match found {
-            Some(f) => assert!(
-                f < rank,
-                "{label} : bonne place en {}e position, attendue dans les {rank} premières",
-                f + 1
-            ),
-            None => panic!("{label} : bonne place absente des propositions"),
+    for (label, photo, expected) in [("A", &a, pt(458.0, 325.0)), ("B", &b, pt(635.0, 342.0))] {
+        let mut centers = Vec::new();
+        for (dx, dy, side) in [
+            (0.0, 0.0, 9_500.0),
+            (800.0, 0.0, 9_000.0),
+            (-800.0, 300.0, 10_000.0),
+            (0.0, -600.0, 9_500.0),
+            (500.0, 500.0, 10_500.0),
+        ] {
+            let h = side / 2.0;
+            let (cx, cy) = (expected.x + dx, expected.y + dy);
+            let start = [
+                Point::new(cx - h, cy - h),
+                Point::new(cx + h, cy - h),
+                Point::new(cx + h, cy + h),
+                Point::new(cx - h, cy + h),
+            ];
+            let plan = render_plan(
+                &dir.resolve(&facade.source),
+                facade.page,
+                facade.rotation,
+                mm_per_unit,
+                Some(adjust_region(&start)),
+                1024,
+            )
+            .unwrap();
+            let adjusted = adjust(photo, &plan, start);
+            let c = Point::new(
+                adjusted.pairs.iter().map(|q| q.facade.x).sum::<f64>() / 4.0,
+                adjusted.pairs.iter().map(|q| q.facade.y).sum::<f64>() / 4.0,
+            );
+            eprintln!(
+                "{label} départ ({dx}, {dy}, {side}) : centre ({:.0}, {:.0}), écart {:.0} mm, accord {} → {}",
+                c.x,
+                c.y,
+                c.distance(expected),
+                adjusted.start_score,
+                adjusted.score
+            );
+            assert!(adjusted.score >= adjusted.start_score);
+            centers.push(c);
         }
+        let near = centers
+            .iter()
+            .filter(|c| c.distance(expected) < 1_000.0)
+            .count();
+        // Mesuré le 13 novembre 2026 : 4 sur 5 pour A comme pour B ; la pose
+        // décalée de 80 cm et trop petite reste à 1,0-1,2 m (accord égal à
+        // celui de la bonne place : le plan n'en dit pas plus).
+        assert!(
+            near >= 4,
+            "{label} : seulement {near} poses sur 5 calées à moins d'un mètre"
+        );
     }
 }

@@ -25,7 +25,7 @@ use insitu_core::project::{
     RetouchStroke, SilhouettePolygon, SlideAdjustment, SourcePoint, VectorSettings,
 };
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
-use insitu_core::registration::auto::{AutoOptions, AutoReport, RegionMm};
+use insitu_core::registration::auto::AdjustReport;
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
 use insitu_core::sheet::{self, SheetReport};
 use insitu_core::simulation::{self, Simulation};
@@ -273,19 +273,15 @@ fn registration_preview(pairs: Vec<RegistrationPair>) -> RegistrationPreview {
     overview::registration_preview(&pairs)
 }
 
-/// Places possibles de la photo redressée sur la façade, la plus probable
-/// d'abord (D-3.2-i) : rien n'est enregistré.
+/// Cale la pose affichée de la photo sur les lignes du plan (D-3.2-i) :
+/// rien n'est enregistré.
 #[tauri::command(async)]
-fn registration_propose(
+fn registration_adjust(
     folder: String,
     projector: String,
-    region: Option<RegionMm>,
-) -> Result<AutoReport, String> {
-    let options = AutoOptions {
-        region,
-        ..AutoOptions::default()
-    };
-    registration::auto::projector_proposals(&project_dir(&folder)?, &projector, &options)
+    pairs: Vec<RegistrationPair>,
+) -> Result<AdjustReport, String> {
+    registration::auto::projector_adjustment(&project_dir(&folder)?, &projector, Some(&pairs))
         .map_err(|e| e.to_string())
 }
 
@@ -735,7 +731,7 @@ pub fn run() {
             registration_show,
             registration_set,
             registration_preview,
-            registration_propose,
+            registration_adjust,
             library_import,
             illustrator_import,
             library_list,

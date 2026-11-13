@@ -1,12 +1,11 @@
-//! Placement automatique de la photo redressée sur la façade (demande de
+//! Ajustement automatique de la photo redressée sur la façade (demande de
 //! Benjamin du 13 novembre 2026, décision D-3.2-i).
 //!
-//! Le moteur cherche où la photo redressée d'un projecteur tombe sur le plan
-//! de la façade, et rend quelques **propositions** classées : on passe de
-//! l'une à l'autre dans l'écran Recalage, on garde la bonne, puis on retouche
-//! à la main comme avant (coins, épingles). Chaque proposition est un
-//! trapèze, donné par quatre paires aux coins de la diapositive, comme
-//! « Poser la photo sur la façade » : le format du projet ne change pas.
+//! On pose la photo à peu près à la main (« Poser la photo sur la façade »,
+//! coins, poignée) ; « Ajuster » la cale ensuite sur les lignes du plan,
+//! autour de cette position. Le résultat est un trapèze donné par quatre
+//! paires aux coins de la diapositive : le format du projet ne change pas,
+//! et on retouche à la main comme avant (coins, épingles).
 //!
 //! La photo (prise de nuit, à travers la mire) et le plan (des traits ou des
 //! aplats) ne se ressemblent pas pixel à pixel. Ce qu'ils partagent, ce sont
@@ -17,19 +16,20 @@
 //!
 //! 1. la grille de la mire, faite de traits fins et sombres, est effacée par
 //!    une fermeture (maximum puis minimum sur un petit voisinage) ;
-//! 2. **recherche** : la photo réduite, tournée (±6°) et mise à plusieurs
-//!    échelles, est corrélée avec tout le plan par transformée de Fourier ;
-//!    les meilleurs pics donnent des places candidates (similitudes) ;
-//! 3. **ajustement** : chaque candidate devient un trapèze (huit nombres,
-//!    les coins sur la façade), poussé coin par coin tant que les contours
-//!    s'accordent mieux ;
-//! 4. les places trop proches sont fondues, les meilleures rendues.
+//! 2. **recherche locale** : autour de la pose à la main, la photo réduite,
+//!    tournée (±6°) et mise à quelques échelles voisines, est corrélée avec
+//!    le plan par transformée de Fourier ; les meilleurs pics proches de la
+//!    pose donnent d'autres points de départ ;
+//! 3. **ajustement** : depuis la pose à la main et depuis ces points de
+//!    départ, le trapèze (les quatre coins sur la façade) est poussé coin par
+//!    coin tant que les contours s'accordent mieux ; le meilleur gagne, et
+//!    seulement s'il fait mieux que la pose à la main.
 //!
-//! Limites, mesurées dans `docs/etudes/recalage-automatique.md` : quand la
-//! façade répète les mêmes travées, plusieurs places se valent et la bonne
-//! n'est pas toujours la première ; sur un plan très schématique, il arrive
-//! qu'aucune ne soit juste. Une façade non plane n'est pas suivie par un
-//! trapèze : le relief se corrige ensuite par des épingles.
+//! Limites, mesurées dans `docs/etudes/recalage-automatique.md` : la pose à
+//! la main doit être à moins d'une demi-travée environ de la bonne place
+//! (sinon une travée voisine, presque identique, peut l'emporter). Une
+//! façade non plane n'est pas suivie par un trapèze : le relief se corrige
+//! ensuite par des épingles.
 
 use std::f64::consts::PI;
 use std::path::Path;
@@ -45,7 +45,7 @@ use super::{footprint, projector_id, slide_to_facade, RegistrationError};
 use crate::facade::display::rotate_plan;
 use crate::facade::{open_vector, SourceKind};
 use crate::geometry::{Homography, Point, Transform};
-use crate::project::{PointMm, Project, ProjectDir, RegistrationPair};
+use crate::project::{PointMm, ProjectDir, RegistrationPair};
 use crate::units::SLIDE_SIZE_MM;
 
 /// Côté de la photo pendant la recherche, en pixels.
@@ -65,42 +65,22 @@ const SEARCH_PLAN_PX: usize = 448;
 /// Rotations essayées, en degrés : la photo redressée est déjà à peu près
 /// droite (la mire est posée d'aplomb sur le projecteur).
 const ANGLES_DEG: [f64; 5] = [-6.0, -3.0, 0.0, 3.0, 6.0];
-/// Échelles essayées.
-const SCALE_STEPS: usize = 14;
+/// Échelles essayées autour de la pose à la main (fraction de son côté).
+const ADJUST_SCALES: [f64; 5] = [0.8, 0.89, 1.0, 1.12, 1.25];
 /// Pics retenus par échelle et rotation.
 const PEAKS_PER_MAP: usize = 8;
-/// Candidates ajustées en trapèze.
-const REFINED_CANDIDATES: usize = 10;
+/// Points de départ tirés de la recherche locale, en plus de la pose.
+const LOCAL_STARTS: usize = 3;
+/// Marge autour de la pose où l'on regarde le plan, en fraction de son côté.
+const ADJUST_MARGIN: f64 = 0.5;
+/// Un point de départ de la recherche locale doit avoir son centre à moins
+/// de cette fraction du côté du centre de la pose à la main.
+const ADJUST_REACH: f64 = 0.25;
+/// Deux points de départ dont les centres sont plus proches que cette
+/// fraction du côté sont le même.
+const SAME_PLACE: f64 = 0.3;
 /// Lissage avant de mesurer les contours, en pixels.
 const EDGE_SIGMA: f64 = 1.0;
-/// Deux places dont les centres sont plus proches que cette fraction du
-/// côté de l'emprise sont la même place.
-const SAME_PLACE: f64 = 0.3;
-
-/// Ce qu'on demande au placement automatique.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", default)]
-pub struct AutoOptions {
-    /// Zone de la façade où chercher, en mm (en général ce que montre la
-    /// vue). `None` : toute la façade.
-    pub region: Option<RegionMm>,
-    /// Côté approché de l'emprise du projecteur sur la façade, en mm, s'il
-    /// est connu (sinon : déduit des projecteurs déjà recalés, ou d'une
-    /// fourchette large).
-    pub footprint_side_mm: Option<f64>,
-    /// Nombre de propositions rendues au plus.
-    pub proposals: usize,
-}
-
-impl Default for AutoOptions {
-    fn default() -> Self {
-        Self {
-            region: None,
-            footprint_side_mm: None,
-            proposals: 5,
-        }
-    }
-}
 
 /// Un rectangle de la façade, en mm.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -112,31 +92,33 @@ pub struct RegionMm {
     pub height: f64,
 }
 
-/// Une place possible de la photo sur la façade.
+/// Résultat de l'ajustement d'une pose.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Proposal {
-    /// Accord des contours de la photo et du plan à cette place, de 0 (aucun)
-    /// à 1 (parfait). Sert à classer ; une valeur de 0,3 à 0,4 est déjà bonne
-    /// entre une photo de nuit et un plan schématique.
-    pub score: f64,
+pub struct Adjustment {
     /// Les quatre paires aux coins de la diapositive (haut-gauche,
-    /// haut-droit, bas-droit, bas-gauche) : ce qu'on enregistre si on garde
-    /// cette place.
+    /// haut-droit, bas-droit, bas-gauche) : ce qu'on enregistre. Ce sont
+    /// celles de la pose de départ si rien de mieux n'a été trouvé.
     pub pairs: Vec<RegistrationPair>,
-    /// Contour de la diapositive posée à cette place (emprise), fermé.
+    /// Contour de la diapositive posée ainsi (emprise), fermé.
     pub footprint: Vec<PointMm>,
+    /// Accord des contours de la photo et du plan, de 0 (aucun) à 1
+    /// (parfait), après et avant l'ajustement. 0,3 à 0,4 est déjà bon entre
+    /// une photo de nuit et un plan schématique.
+    pub score: f64,
+    pub start_score: f64,
+    /// Plus grand déplacement d'un coin, en mm (0 : pose gardée telle quelle).
+    pub moved_mm: f64,
 }
 
-/// Compte rendu du placement automatique.
+/// Compte rendu de l'ajustement d'un projecteur.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AutoReport {
+pub struct AdjustReport {
     pub projector_id: String,
-    /// Les propositions, de la plus probable à la moins probable. Vide si
-    /// rien d'utilisable n'a été trouvé.
-    pub proposals: Vec<Proposal>,
-    /// Zone de la façade explorée, en mm.
+    #[serde(flatten)]
+    pub adjustment: Adjustment,
+    /// Zone de la façade regardée, en mm.
     pub region: RegionMm,
     pub seconds: f64,
 }
@@ -913,101 +895,119 @@ fn prepared_photo(photo: &GrayImage) -> Gray {
         .closed(CLEAN_RADIUS_PX)
 }
 
-/// Côtés d'emprise essayés (mm), en progression géométrique.
-fn sides(region: &RegionMm, expected: Option<f64>) -> Vec<f64> {
-    let long = region.width.max(region.height);
-    let (low, high) = match expected {
-        Some(side) if side > 0.0 => ((0.5 * side).max(0.04 * long), (2.0 * side).min(1.2 * long)),
-        _ => (0.08 * long, 0.6 * long),
-    };
-    let (low, high) = if low < high {
-        (low, high)
-    } else {
-        (high * 0.5, high)
-    };
-    (0..SCALE_STEPS)
-        .map(|k| low * (high / low).powf(k as f64 / (SCALE_STEPS - 1) as f64))
+fn corner_pairs(corners: &[Point; 4]) -> Vec<RegistrationPair> {
+    slide_corners()
+        .iter()
+        .zip(corners)
+        .map(|(s, f)| RegistrationPair::new(PointMm::new(s.x, s.y), PointMm::new(f.x, f.y)))
         .collect()
 }
 
-/// Cherche les places possibles de la photo redressée `photo` (le carré de
-/// la diapositive) sur le plan `plan`.
-pub fn propose(photo: &GrayImage, plan: &PlanRaster, options: &AutoOptions) -> Vec<Proposal> {
+fn centroid(c: &[Point; 4]) -> Point {
+    Point::new(
+        (c[0].x + c[1].x + c[2].x + c[3].x) / 4.0,
+        (c[0].y + c[1].y + c[2].y + c[3].y) / 4.0,
+    )
+}
+
+/// Zone du plan à regarder pour ajuster la pose `start` : son cadre, élargi
+/// d'une demi-emprise de chaque côté.
+pub fn adjust_region(start: &[Point; 4]) -> RegionMm {
+    let side = polygon_area(start).sqrt();
+    let margin = ADJUST_MARGIN * side;
+    let (mut x0, mut y0, mut x1, mut y1) = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
+    for p in start {
+        x0 = x0.min(p.x);
+        y0 = y0.min(p.y);
+        x1 = x1.max(p.x);
+        y1 = y1.max(p.y);
+    }
+    RegionMm {
+        x: x0 - margin,
+        y: y0 - margin,
+        width: x1 - x0 + 2.0 * margin,
+        height: y1 - y0 + 2.0 * margin,
+    }
+}
+
+/// Cale la photo redressée `photo` sur le plan `plan` à partir de la pose
+/// à la main `start` (coins de la diapositive sur la façade, en mm :
+/// haut-gauche, haut-droit, bas-droit, bas-gauche). Le plan doit couvrir la
+/// pose et ses environs ([`adjust_region`]).
+pub fn adjust(photo: &GrayImage, plan: &PlanRaster, start: [Point; 4]) -> Adjustment {
     let cleaned = prepared_photo(photo);
-    let search_photo = Field::of(
-        &cleaned.resized(SEARCH_PHOTO_PX, SEARCH_PHOTO_PX),
-        EDGE_SIGMA,
-    );
     let refine_photo = Field::of(
         &cleaned.resized(REFINE_PHOTO_PX, REFINE_PHOTO_PX),
         EDGE_SIGMA,
     );
-    let search_plan = plan.reduced(SEARCH_PLAN_PX);
-    let region = plan.region();
+    let side = polygon_area(&start).sqrt();
+    let center = centroid(&start);
+    let search_photo = Field::of(
+        &cleaned.resized(SEARCH_PHOTO_PX, SEARCH_PHOTO_PX),
+        EDGE_SIGMA,
+    );
     let candidates = search(
         &search_photo,
-        &search_plan,
-        &sides(&region, options.footprint_side_mm),
+        &plan.reduced(SEARCH_PLAN_PX),
+        &ADJUST_SCALES.map(|k| k * side),
     );
-    let starts = distinct(&candidates, |c| (c.center, c.side), REFINED_CANDIDATES);
-    let mut refined: Vec<([Point; 4], f64)> = starts
-        .iter()
-        .map(|c| refine(&refine_photo, plan, c.corners()))
-        .collect();
-    refined.sort_by(|a, b| b.1.total_cmp(&a.1));
-    let centers = |r: &([Point; 4], f64)| {
-        let c = r.0;
-        let center = Point::new(
-            (c[0].x + c[1].x + c[2].x + c[3].x) / 4.0,
-            (c[0].y + c[1].y + c[2].y + c[3].y) / 4.0,
-        );
-        (center, polygon_area(&c).sqrt())
-    };
-    distinct(&refined, centers, options.proposals.max(1))
+    let near: Vec<Candidate> = candidates
         .into_iter()
-        .filter(|(_, score)| *score > 0.0)
-        .map(|(corners, score)| {
-            let pairs: Vec<RegistrationPair> = slide_corners()
-                .iter()
-                .zip(corners)
-                .map(|(s, f)| RegistrationPair::new(PointMm::new(s.x, s.y), PointMm::new(f.x, f.y)))
-                .collect();
-            let outline = slide_to_facade(&pairs)
-                .map(|w| footprint(&w))
-                .unwrap_or_default();
-            Proposal {
-                score: (score * 1000.0).round() / 1000.0,
-                pairs,
-                footprint: outline,
-            }
-        })
-        .collect()
-}
-
-/// Côté moyen des emprises des projecteurs déjà recalés (mm), sauf `except`.
-fn usual_side(project: &Project, except: &str) -> Option<f64> {
-    let sides: Vec<f64> = project
-        .projectors
-        .iter()
-        .filter(|p| p.id != except && p.registration.len() >= 4)
-        .filter_map(|p| slide_to_facade(&p.registration))
-        .map(|w| {
-            let outline: Vec<Point> = footprint(&w).iter().map(|p| Point::new(p.x, p.y)).collect();
-            polygon_area(&outline).sqrt()
-        })
-        .filter(|s| s.is_finite() && *s > 0.0)
+        .filter(|c| c.center.distance(center) <= ADJUST_REACH * side)
         .collect();
-    (!sides.is_empty()).then(|| sides.iter().sum::<f64>() / sides.len() as f64)
+    let mut starts = vec![start];
+    starts.extend(
+        distinct(&near, |c| (c.center, c.side), LOCAL_STARTS)
+            .iter()
+            .map(Candidate::corners),
+    );
+    let start_score = refine_score(&refine_photo, plan, &start);
+    let (mut best, mut score) = (start, start_score);
+    for s in starts {
+        let (corners, value) = refine(&refine_photo, plan, s);
+        // Une place trouvée loin de la pose n'est pas un ajustement.
+        if value > score && centroid(&corners).distance(center) <= ADJUST_REACH * side {
+            best = corners;
+            score = value;
+        }
+    }
+    let pairs = corner_pairs(&best);
+    let outline = slide_to_facade(&pairs)
+        .map(|w| footprint(&w))
+        .unwrap_or_default();
+    let round = |v: f64| (v * 1000.0).round() / 1000.0;
+    Adjustment {
+        pairs,
+        footprint: outline,
+        score: round(score.max(0.0)),
+        start_score: round(start_score.max(0.0)),
+        moved_mm: (0..4)
+            .map(|k| best[k].distance(start[k]))
+            .fold(0.0, f64::max),
+    }
 }
 
-/// Propositions de placement de la photo redressée d'un projecteur sur la
-/// façade du projet. Rien n'est enregistré : on garde une proposition en
-/// enregistrant ses paires ([`super::set_registration`]).
-pub fn projector_proposals(
+/// Coins de la diapositive sur la façade pour ces paires (4 au moins).
+pub fn pose_corners(pairs: &[RegistrationPair]) -> Option<[Point; 4]> {
+    let warp = slide_to_facade(pairs)?;
+    let c = slide_corners();
+    Some([
+        warp.apply(c[0])?,
+        warp.apply(c[1])?,
+        warp.apply(c[2])?,
+        warp.apply(c[3])?,
+    ])
+}
+
+/// Ajuste la pose d'un projecteur du projet : `pairs` (la pose affichée,
+/// même pas encore enregistrée), ou à défaut ses paires enregistrées. Rien
+/// n'est enregistré : on enregistre les paires rendues
+/// ([`super::set_registration`]).
+pub fn projector_adjustment(
     dir: &ProjectDir,
     projector: &str,
-    options: &AutoOptions,
-) -> Result<AutoReport, RegistrationError> {
+    pairs: Option<&[RegistrationPair]>,
+) -> Result<AdjustReport, RegistrationError> {
     let started = Instant::now();
     let project = dir.load()?.project;
     let id = projector_id(&project, projector)?;
@@ -1027,6 +1027,12 @@ pub fn projector_proposals(
             p.label
         ))
     })?;
+    let pairs = pairs.unwrap_or(&p.registration);
+    let start = pose_corners(pairs).ok_or_else(|| {
+        RegistrationError::BadOptions(
+            "poser d'abord la photo sur la façade (4 points au moins)".into(),
+        )
+    })?;
     let photo = crate::photo::read(&dir.resolve(rectified))
         .map_err(|e| RegistrationError::BadOptions(format!("photo redressée illisible : {e}")))?
         .into_luma8();
@@ -1035,17 +1041,13 @@ pub fn projector_proposals(
         facade.page,
         facade.rotation,
         mm_per_unit,
-        options.region,
+        Some(adjust_region(&start)),
         REFINE_PLAN_PX,
     )?;
-    let mut options = options.clone();
-    if options.footprint_side_mm.is_none() {
-        options.footprint_side_mm = usual_side(&project, &id);
-    }
-    let proposals = propose(&photo, &plan, &options);
-    Ok(AutoReport {
+    let adjustment = adjust(&photo, &plan, start);
+    Ok(AdjustReport {
         projector_id: id,
-        proposals,
+        adjustment,
         region: plan.region(),
         seconds: started.elapsed().as_secs_f64(),
     })
@@ -1116,9 +1118,9 @@ mod tests {
     }
 
     #[test]
-    fn la_photo_retrouve_sa_place_sur_un_plan_invente() {
+    fn l_ajustement_cale_une_pose_approchee_sur_un_plan_invente() {
         // Façade de 32 m × 18 m, rendue à 40 mm par pixel.
-        let plan = PlanRaster {
+        let whole = PlanRaster {
             image: synthetic_plan(800, 450),
             origin: PointMm::new(0.0, 0.0),
             mm_per_px: 40.0,
@@ -1132,22 +1134,74 @@ mod tests {
             Point::new(11_700.0, 16_200.0),
         ];
         let truth = homography(&truth_corners).unwrap();
-        let photo = synthetic_photo(&plan, &truth, 700);
-        let proposals = propose(&photo, &plan, &AutoOptions::default());
-        assert!(!proposals.is_empty(), "aucune proposition");
-        let best = &proposals[0];
-        let error = best
+        let photo = synthetic_photo(&whole, &truth, 700);
+        // Pose « à la main » : un carré décalé d'un mètre, 8 % trop grand.
+        let start = Candidate {
+            score: 0.0,
+            center: Point::new(17_850.0 + 1_000.0, 11_025.0 - 700.0),
+            side: 11_800.0,
+            angle: 0.0,
+        }
+        .corners();
+        let error = |c: &[Point; 4]| {
+            (0..4)
+                .map(|k| c[k].distance(truth_corners[k]))
+                .fold(0.0, f64::max)
+        };
+        let adjusted = adjust(&photo, &whole, start);
+        let corners: Vec<Point> = adjusted
             .pairs
             .iter()
-            .zip(truth_corners)
-            .map(|(pair, t)| Point::new(pair.facade.x, pair.facade.y).distance(t))
-            .fold(0.0, f64::max);
+            .map(|p| Point::new(p.facade.x, p.facade.y))
+            .collect();
+        let corners: [Point; 4] = corners.try_into().unwrap();
         // Moins de 2 % du côté de l'emprise (environ 11 m) au pire coin.
         assert!(
-            error < 220.0,
-            "coin le plus loin à {error:.0} mm ; propositions : {proposals:?}"
+            error(&corners) < 220.0,
+            "coin le plus loin à {:.0} mm (départ : {:.0}) ; {adjusted:?}",
+            error(&corners),
+            error(&start)
         );
-        assert!(best.score > 0.3, "accord trop faible : {}", best.score);
+        assert!(adjusted.score > adjusted.start_score && adjusted.score > 0.3);
+        assert!(adjusted.moved_mm > 500.0);
+    }
+
+    #[test]
+    fn une_pose_deja_juste_ne_bouge_presque_pas() {
+        let whole = PlanRaster {
+            image: synthetic_plan(800, 450),
+            origin: PointMm::new(0.0, 0.0),
+            mm_per_px: 40.0,
+        };
+        let truth_corners = [
+            Point::new(11_200.0, 5_400.0),
+            Point::new(22_600.0, 5_900.0),
+            Point::new(21_900.0, 16_600.0),
+            Point::new(11_700.0, 16_200.0),
+        ];
+        let photo = synthetic_photo(&whole, &homography(&truth_corners).unwrap(), 700);
+        let adjusted = adjust(&photo, &whole, truth_corners);
+        assert!(adjusted.moved_mm < 150.0, "{adjusted:?}");
+    }
+
+    #[test]
+    fn la_zone_regardee_entoure_la_pose() {
+        let start = [
+            Point::new(1_000.0, 2_000.0),
+            Point::new(11_000.0, 2_000.0),
+            Point::new(11_000.0, 12_000.0),
+            Point::new(1_000.0, 12_000.0),
+        ];
+        let r = adjust_region(&start);
+        assert_eq!(
+            r,
+            RegionMm {
+                x: -4_000.0,
+                y: -3_000.0,
+                width: 20_000.0,
+                height: 20_000.0
+            }
+        );
     }
 
     #[test]
@@ -1164,22 +1218,5 @@ mod tests {
         }
         let closed = image.closed(2);
         assert!(closed.data.iter().all(|&v| v > 190.0));
-    }
-
-    #[test]
-    fn la_zone_de_recherche_choisit_les_echelles() {
-        let region = RegionMm {
-            x: 0.0,
-            y: 0.0,
-            width: 30_000.0,
-            height: 12_000.0,
-        };
-        let free = sides(&region, None);
-        assert_eq!(free.len(), SCALE_STEPS);
-        assert!((free[0] - 2_400.0).abs() < 1.0 && (free[SCALE_STEPS - 1] - 18_000.0).abs() < 1.0);
-        let known = sides(&region, Some(9_000.0));
-        assert!(
-            (known[0] - 4_500.0).abs() < 1.0 && (known[SCALE_STEPS - 1] - 18_000.0).abs() < 1.0
-        );
     }
 }
