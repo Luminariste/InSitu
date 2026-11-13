@@ -637,6 +637,23 @@ export async function fetchAssignments(folder: string): Promise<Assignment[]> {
   return invoke<Assignment[]>("placements_assignment", { folder });
 }
 
+/** La part d'un dessin posé que sa diapositive ne projette pas (D-4.5-h). */
+export interface LostPart {
+  placement: string;
+  /** La diapositive du dessin ; aucune s'il ne tombe dans aucune emprise. */
+  projector: string | null;
+  /** Morceaux perdus sur la façade (mm) : contour extérieur puis trous. */
+  shapes: { x: number; y: number }[][][];
+  /** Surface perdue, en m². */
+  areaM2: number;
+}
+
+/** Ce que les diapositives ne projetteront pas des dessins posés. */
+export async function fetchLostParts(folder: string): Promise<LostPart[]> {
+  requireEngine();
+  return invoke<LostPart[]>("placements_lost", { folder });
+}
+
 // --- Annulation (tâche 4.3) -----------------------------------------------------
 
 /** Annule la dernière action (ou la rétablit) ; rend le projet et ce qui a changé. */
@@ -1093,6 +1110,8 @@ export interface SlideView {
   problem: string | null;
   /** Dessins posés que porte cette diapositive, avant leur retouche (tâche 4.6). */
   drawings: SlideDrawing[];
+  /** Dessins de cette diapositive qui en dépassent : la part perdue est en rouge sur la façade (D-4.5-h). */
+  cut: { placement: string; name: string; lostM2: number }[];
 }
 
 /** Un dessin posé situé dans une diapositive, avant sa retouche (tâche 4.6). */

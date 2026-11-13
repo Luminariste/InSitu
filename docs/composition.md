@@ -157,6 +157,17 @@ deux projecteurs. Sur la façade, son contour a la couleur de son projecteur
 choisie à la main le coupe. Un contour gris : il ne tombe dans aucune
 emprise.
 
+**Ce qui ne sera pas projeté est en rouge** (version 0.1.45) : la part
+d'un dessin qui sort de l'emprise de sa diapositive est couverte d'un aplat
+rouge sur la façade. Personne ne la projette, même si une diapositive
+voisine couvre cet endroit (un dessin ne part que dans une diapositive).
+Seuls les traits comptent (la silhouette du dessin, pas son rectangle) : un
+dessin dont seule la marge vide dépasse n'a pas de rouge. Un dessin envoyé
+à la main dans une diapositive qui ne l'atteint pas est rouge en entier.
+Pour corriger : déplacer le dessin, le réduire, ou le rendre à
+« Automatique ». La vue Diapositive le rappelle dans un bandeau orange
+(« … dépasse de cette diapositive ; 0,32 m² ne seront pas projetés »).
+
 La proposition est automatique : parmi les diapositives qui contiennent le
 dessin en entier, celle où il est le plus loin du bord. Elle suit le dessin
 quand on le déplace.

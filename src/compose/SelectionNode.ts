@@ -3,7 +3,8 @@
 // chaque dessin choisi, le cadre de la sélection avec ses huit poignées et
 // sa poignée ronde de rotation (D-4.2-m),
 // la grille de déformation et ses nœuds (tâche 4.4), et le cadre de
-// sélection tracé à la souris. Mêmes épaisseurs à l'écran
+// sélection tracé à la souris. En rouge par-dessus, ce que les
+// diapositives ne projetteront pas (D-4.5-h). Mêmes épaisseurs à l'écran
 // quel que soit le zoom.
 
 import { Container, Graphics } from "pixi.js";
@@ -14,7 +15,7 @@ import type { Point } from "./placement";
 /** Bleu de sélection du Mac (`--ui-accent`, thème sombre). */
 const ACCENT = 0x0a84ff;
 
-/** Rouge d'alerte du Mac : dessin à cheval sur deux diapositives. */
+/** Rouge d'alerte du Mac : dessin à cheval, part non projetée. */
 const WARNING = 0xff453a;
 
 /** Contour d'un dessin posé dans la couleur de sa diapositive (tâche 4.5). */
@@ -29,6 +30,11 @@ export interface SlideOutline {
 export interface SelectionDrawing {
   /** Tous les dessins visibles, chacun dans la couleur de sa diapositive. */
   slides: SlideOutline[];
+  /**
+   * Parts de dessins qu'aucune diapositive ne projettera (D-4.5-h) : pour
+   * chaque morceau, le contour extérieur puis ses trous, en mm de façade.
+   */
+  lost: Point[][][];
   /** Contours des dessins choisis (quatre coins chacun). */
   outlines: Point[][];
   /** Cadre de la sélection, avec poignées ; absent si rien n'est choisi. */
@@ -42,7 +48,7 @@ export interface SelectionDrawing {
 export class SelectionNode implements SceneNode {
   readonly container = new Container();
   private readonly graphics = new Graphics();
-  private drawing: SelectionDrawing = { slides: [], outlines: [], frame: null, marquee: null, mesh: null };
+  private drawing: SelectionDrawing = { slides: [], lost: [], outlines: [], frame: null, marquee: null, mesh: null };
   private drawnZoom = 0;
 
   constructor() {
@@ -70,7 +76,18 @@ export class SelectionNode implements SceneNode {
     const px = 1 / zoom;
     const g = this.graphics;
     g.clear();
-    const { slides, outlines, frame: box, marquee, mesh } = this.drawing;
+    const { slides, lost, outlines, frame: box, marquee, mesh } = this.drawing;
+    for (const [outer, ...holes] of lost) {
+      if (!outer || outer.length < 3) continue;
+      g.poly(outer.flatMap((p) => [p.x, p.y]), true);
+      g.fill({ color: WARNING, alpha: 0.45 });
+      for (const hole of holes) {
+        if (hole.length < 3) continue;
+        g.poly(hole.flatMap((p) => [p.x, p.y]), true);
+        g.cut();
+      }
+      g.poly(outer.flatMap((p) => [p.x, p.y]), true).stroke({ width: 1.5 * px, color: WARNING, alpha: 0.95 });
+    }
     for (const s of slides) {
       g.poly(
         s.outline.flatMap((p) => [p.x, p.y]),

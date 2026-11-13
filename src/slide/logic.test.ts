@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SlideView } from "../engine";
-import { drawingsLayer, nextProjector, viewProblem } from "./logic";
+import { cutNotice, drawingsLayer, nextProjector, viewProblem } from "./logic";
 
 const view = (id: string, photo: boolean, preview: boolean, problem: string | null = null): SlideView => ({
   projectorId: id,
@@ -9,6 +9,7 @@ const view = (id: string, photo: boolean, preview: boolean, problem: string | nu
   preview: preview ? `diapositives/${id}.png` : null,
   problem,
   drawings: [],
+  cut: [],
 });
 
 describe("vue diapositive", () => {
@@ -25,6 +26,21 @@ describe("vue diapositive", () => {
     const [layer] = drawingsLayer("tuiles://x.png", true, 0.9, 0x00e5ff);
     expect(layer.kind === "mesh-image" && layer.points[3]).toEqual({ x: 280, y: 280 });
     expect(drawingsLayer(null, true, 1, 0)).toEqual([]);
+  });
+
+  it("prévient des dessins qui dépassent de la diapositive (D-4.5-h)", () => {
+    expect(cutNotice(view("a", true, true))).toBeNull();
+    const one = { ...view("b", true, true), cut: [{ placement: "p", name: "Algue-H02", lostM2: 1.22 }] };
+    expect(cutNotice(one)).toBe(
+      "B : « Algue-H02 » dépasse de cette diapositive ; 1,22 m² ne seront pas projetés (en rouge sur la façade).",
+    );
+    const two = {
+      ...one,
+      cut: [...one.cut, { placement: "q", name: "Murène", lostM2: 0.01 }],
+    };
+    expect(cutNotice(two)).toBe(
+      "B : « Algue-H02 », « Murène » dépassent de cette diapositive ; 1,23 m² ne seront pas projetés (en rouge sur la façade).",
+    );
   });
 
   it("dit ce qui manque", () => {

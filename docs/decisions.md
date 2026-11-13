@@ -522,6 +522,30 @@ façade, mieux vaut la refaire (« Réinitialiser »). Une copie du dessin part
 sans retouche. Si le dessin change de diapositive, la retouche de l'ancienne
 est ignorée.
 
+**D-4.6-e. Le bleu ne reste que le temps du recalcul.** Retour d'essai de
+Benjamin (13 novembre 2026) : après une retouche, il devait désélectionner
+le dessin pour voir le résultat. Le dessin retouché, montré en bleu par-dessus
+l'aperçu tant qu'il était choisi, cachait l'aperçu recalculé. Désormais le
+bleu s'affiche pendant le geste et jusqu'à l'arrivée de l'aperçu recalculé
+(« Recalcul de la diapositive… » dans la barre d'état) ; ensuite seuls le
+contour et les points restent. Sans moteur (navigateur seul), l'aperçu ne se
+recalcule pas : le bleu reste.
+
+**D-4.6-f. Les outils du dessin dans la barre, comme sur la façade.**
+Demande de Benjamin (13 novembre 2026) : déplacer un dessin dans la
+diapositive sans toucher à la façade lui convient ; il veut la même barre
+d'outils que sur la façade et un retour au dessin calé sur la façade. La
+barre montre, quand un dessin est choisi : tourner d'un quart de tour (à
+gauche, à droite), quatre coins, grille (mêmes tailles que sur la façade),
+et « Comme sur la façade », qui retire la retouche (ancien
+« Réinitialiser »). Tourner fait tourner les **nœuds** de la retouche autour
+du centre du dessin retouché (le cadre seul ne changerait rien) : c'est une
+rotation exacte, en quatre coins comme en grille, prouvée par test ; sans
+retouche, on part de quatre coins au repos. Pas de miroir ni d'alignement,
+d'ordre ou de groupe : un miroir dans la retouche replierait la grille (le
+moteur la refuse, D-4.4), et les autres changent la façade, donc toutes les
+diapositives.
+
 ## 2026-11-12 — Tâche 4.5 : affectation des dessins aux diapositives
 
 Module `crates/insitu-core/src/placement/assign.rs`.
@@ -597,6 +621,31 @@ envoi vers une diapositive ou « Automatique », Supprimer. Il porte sur la
 sélection si la ligne en fait partie, sinon sur la ligne seule. Écart
 assumé avec Illustrator : on ne peut pas choisir un dessin masqué depuis
 l'arborescence (seuls l'œil et le cadenas s'y appliquent).
+
+**D-4.5-h. Ce qui ne sera pas projeté est montré en rouge.** Essai de
+Benjamin sur la 0.1.39 (13 novembre 2026) : « dans diapositive, je ne
+retrouve pas le travail fait dans l'onglet façade ». Sur son projet
+Trévarez (relu dans le Dropbox), le calage était juste : chaque trait
+projeté tombait à sa place. Ce qui manquait venait de D-4.5-a : un dessin
+envoyé à la main dans B mais posé dans A n'était projeté par personne, et
+le bout d'un dessin qui sortait de A n'était pas repris par B, qui couvre
+pourtant cet endroit. Deux voies lui ont été proposées : faire compléter
+par la diapositive voisine, ou garder la règle et montrer ce qui se perd.
+**Benjamin a choisi de garder la règle et de montrer.** Le moteur calcule,
+pour chaque dessin posé visible qui n'est pas projeté en entier, la part
+perdue (`placement::lost`, `insitu place lost`, commande
+`placements_lost`) : sa silhouette (tâche 4.7 ; sans silhouette, son
+rectangle) posée sur la façade, moins l'emprise de sa diapositive
+(différence de polygones, `i_overlay`, remplissage pair-impair) ; hors de
+toute emprise, tout est perdu. Les morceaux de moins de 25 mm² (bruit le
+long du bord) sont oubliés. La façade les couvre d'un aplat rouge (45 %)
+cerné de rouge, par-dessus les dessins ; la vue Diapositive affiche un
+bandeau qui nomme les dessins de cette diapositive qui en dépassent et la
+surface perdue (`SlideView.cut`). La silhouette sert parce que le rectangle
+d'un fichier a souvent de grandes marges vides : sur Trévarez, deux dessins
+« à cheval » au sens de D-4.5-c ne perdent en fait aucun trait. Si une
+silhouette ne peut être lue (fichier absent), le dessin compte pour son
+rectangle, sans bloquer l'écran.
 
 ## 2026-11-12 — Tâche 4.4 : déformation libre
 

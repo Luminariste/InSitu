@@ -471,6 +471,17 @@ fn placements_assignment(folder: String) -> Result<Vec<placement::assign::Assign
     placement::assign::load_assignments(&project_dir(&folder)?).map_err(|e| e.to_string())
 }
 
+/// La part de chaque dessin posé que sa diapositive ne projette pas
+/// (D-4.5-h), montrée en rouge sur la façade.
+#[tauri::command(async)]
+fn placements_lost(
+    app: AppHandle,
+    folder: String,
+) -> Result<Vec<placement::lost::LostPart>, String> {
+    placement::lost::load_lost_parts(&project_dir(&folder)?, &tile_cache_dir(&app)?)
+        .map_err(|e| e.to_string())
+}
+
 const VECTOR_PROGRESS_EVENT: &str = "vecteurs-progression";
 
 /// Vectorise les dessins `drawings` (tous si vide) qui ne le sont pas encore
@@ -726,6 +737,7 @@ pub fn run() {
             library_set_retouch,
             placements_set,
             placements_assignment,
+            placements_lost,
             placement_adjust,
             composition_set,
             history_step,

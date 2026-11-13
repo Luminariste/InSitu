@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { SlideDrawing } from "../engine";
 import { nodePoints } from "../compose/deformation";
-import { adjustedOutline, adjustedPoints, applyAdjustGesture, drawingAt, restAdjustment, restFrame } from "./adjust";
+import {
+  adjustedCenter,
+  adjustedOutline,
+  adjustedPoints,
+  applyAdjustGesture,
+  drawingAt,
+  restAdjustment,
+  restFrame,
+  rotateAdjustment,
+} from "./adjust";
 
 function drawing(placement: string, x: number, y: number, w: number, h: number): SlideDrawing {
   const n = 4;
@@ -52,5 +61,26 @@ describe("retouche d'un dessin dans la diapositive (tâche 4.6)", () => {
     expect(drawingAt([a, b], of, { x: 25, y: 25 })).toBeNull();
     expect(drawingAt([a, b], of, { x: 200, y: 25 })?.placement).toBe("a");
     expect(adjustedOutline(a, shifted).length).toBe(16);
+  });
+
+  it("tourner d'un quart de tour fait tourner le dessin autour de son centre", () => {
+    const d = drawing("a", 10, 20, 100, 50);
+    for (const [columns, rows] of [
+      [1, 1],
+      [3, 3],
+    ]) {
+      const rest = restAdjustment(d, columns, rows)!;
+      const center = adjustedCenter(d, rest);
+      const turned = rotateAdjustment(rest, 90, center);
+      // Un quart de tour (y vers le bas) : (x, y) → (cx − (y − cy), cy + (x − cx)).
+      adjustedPoints(d, turned).forEach((p, k) => {
+        const q = d.points[k];
+        close(p, { x: center.x - (q.y - center.y), y: center.y + (q.x - center.x) });
+      });
+      // Et un tour complet revient au départ.
+      let back = rest;
+      for (let k = 0; k < 4; k++) back = rotateAdjustment(back, 90, center);
+      adjustedPoints(d, back).forEach((p, k) => close(p, d.points[k]));
+    }
   });
 });
