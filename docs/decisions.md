@@ -518,6 +518,31 @@ sélection si la ligne en fait partie, sinon sur la ligne seule. Écart
 assumé avec Illustrator : on ne peut pas choisir un dessin masqué depuis
 l'arborescence (seuls l'œil et le cadenas s'y appliquent).
 
+**D-4.5-h. Ce qui ne sera pas projeté est montré en rouge.** Essai de
+Benjamin sur la 0.1.39 (13 novembre 2026) : « dans diapositive, je ne
+retrouve pas le travail fait dans l'onglet façade ». Sur son projet
+Trévarez (relu dans le Dropbox), le calage était juste : chaque trait
+projeté tombait à sa place. Ce qui manquait venait de D-4.5-a : un dessin
+envoyé à la main dans B mais posé dans A n'était projeté par personne, et
+le bout d'un dessin qui sortait de A n'était pas repris par B, qui couvre
+pourtant cet endroit. Deux voies lui ont été proposées : faire compléter
+par la diapositive voisine, ou garder la règle et montrer ce qui se perd.
+**Benjamin a choisi de garder la règle et de montrer.** Le moteur calcule,
+pour chaque dessin posé visible qui n'est pas projeté en entier, la part
+perdue (`placement::lost`, `insitu place lost`, commande
+`placements_lost`) : sa silhouette (tâche 4.7 ; sans silhouette, son
+rectangle) posée sur la façade, moins l'emprise de sa diapositive
+(différence de polygones, `i_overlay`, remplissage pair-impair) ; hors de
+toute emprise, tout est perdu. Les morceaux de moins de 25 mm² (bruit le
+long du bord) sont oubliés. La façade les couvre d'un aplat rouge (45 %)
+cerné de rouge, par-dessus les dessins ; la vue Diapositive affiche un
+bandeau qui nomme les dessins de cette diapositive qui en dépassent et la
+surface perdue (`SlideView.cut`). La silhouette sert parce que le rectangle
+d'un fichier a souvent de grandes marges vides : sur Trévarez, deux dessins
+« à cheval » au sens de D-4.5-c ne perdent en fait aucun trait. Si une
+silhouette ne peut être lue (fichier absent), le dessin compte pour son
+rectangle, sans bloquer l'écran.
+
 ## 2026-11-12 — Tâche 4.4 : déformation libre
 
 Modules `crates/insitu-core/src/placement/mesh.rs` (moteur) et

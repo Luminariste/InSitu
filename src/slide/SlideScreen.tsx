@@ -26,7 +26,7 @@ import { useSlideAdjust } from "./useSlideAdjust";
 import { recalledProject } from "../project/current";
 import { Viewer, placementForWidth, type LayerSpec, type TileSource, type ViewerHandle } from "../viewer";
 import { demoSlideViews, demoImages } from "./demo";
-import { SLIDE_MM, SLIDE_SQUARE, TINTS, drawingsLayer, nextProjector, viewProblem } from "./logic";
+import { SLIDE_MM, SLIDE_SQUARE, TINTS, cutNotice, drawingsLayer, nextProjector, viewProblem } from "./logic";
 import { ProjectMenu } from "../project/ProjectMenu";
 import {
   Banner,
@@ -179,6 +179,7 @@ export function SlideScreen() {
   }, [folder, demo]);
 
   const problem = viewProblem(view);
+  const cut = cutNotice(view);
 
   const ready = busy === null;
   useShortcuts([{ keys: "mod+0", run: () => viewer.current?.fitAll(), enabled: view !== null }]);
@@ -281,6 +282,8 @@ export function SlideScreen() {
           </Banner>
         ) : problem ? (
           <Banner tone="warning">{problem}</Banner>
+        ) : cut ? (
+          <Banner tone="warning">{cut}</Banner>
         ) : null
       }
       sidebar={sidebar}

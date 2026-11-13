@@ -140,6 +140,7 @@ export function useSlideAdjust(options: Options): SlideAdjust {
   useEffect(() => {
     node.current?.set({
       slides: [],
+      lost: [],
       outlines: selected ? [adjustedOutline(selected, adjustment)] : [],
       frame: null,
       marquee: null,

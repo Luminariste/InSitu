@@ -51,6 +51,18 @@ pub struct SlideView {
     /// Les dessins posés que porte cette diapositive, situés dedans avant
     /// leur retouche (tâche 4.6).
     pub drawings: Vec<SlideDrawing>,
+    /// Les dessins de cette diapositive qui en dépassent : leur nom, et la
+    /// part qui ne sera pas projetée, en m² (D-4.5-h).
+    pub cut: Vec<CutDrawing>,
+}
+
+/// Un dessin que sa diapositive ne projette qu'en partie (D-4.5-h).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CutDrawing {
+    pub placement: String,
+    pub name: String,
+    pub lost_m2: f64,
 }
 
 /// La vue diapositive de tous les projecteurs du projet : l'aperçu de
@@ -65,6 +77,8 @@ pub fn slide_views(
     let mut fresco_image: Option<Raster> = None;
     let placements = project.visible_placements();
     let assigned = assignments(&project);
+    let lost = crate::placement::lost::project_lost_parts(dir, &project, &assigned, cache_root)
+        .unwrap_or_default();
     let mut cache = DrawingCache::default();
     let settings = ExportSettings {
         dpi: f64::from(side) / SLIDE_SIZE_MM * MM_PER_INCH,
@@ -84,6 +98,20 @@ pub fn slide_views(
             preview: None,
             problem: None,
             drawings: Vec::new(),
+            cut: lost
+                .iter()
+                .filter(|l| l.projector.as_deref() == Some(p.id.as_str()))
+                .map(|l| CutDrawing {
+                    placement: l.placement.clone(),
+                    name: project
+                        .placements
+                        .iter()
+                        .find(|q| q.id == l.placement)
+                        .and_then(|q| project.drawing(&q.drawing))
+                        .map_or_else(|| l.placement.clone(), |d| d.name.clone()),
+                    lost_m2: l.area_m2,
+                })
+                .collect(),
         };
         let warp = slide_to_facade(&p.registration);
         let nothing = project.fresco.is_none() && placements.is_empty();
