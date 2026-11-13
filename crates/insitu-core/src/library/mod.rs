@@ -25,6 +25,7 @@ pub mod organize;
 pub mod psd;
 pub mod read;
 pub mod retouch;
+pub mod shared;
 pub mod silhouette;
 pub mod vectors;
 

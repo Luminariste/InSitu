@@ -1,0 +1,18 @@
+/* Fenêtre Réglages (D-4.1-j). */
+
+.settings-help {
+  margin: 0 0 var(--ui-space-2);
+  color: var(--ui-text-secondary);
+  font-size: var(--ui-text-sm);
+}
+
+.settings-path {
+  margin: 0 0 var(--ui-space-2);
+  overflow-wrap: anywhere;
+}
+
+.settings-actions {
+  display: flex;
+  gap: var(--ui-space-2);
+  margin-bottom: var(--ui-space-2);
+}

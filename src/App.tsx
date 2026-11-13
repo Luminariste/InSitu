@@ -5,6 +5,7 @@ import { RectificationScreen } from "./rectification/RectificationScreen";
 import { RegistrationScreen } from "./registration/RegistrationScreen";
 import { SlideScreen } from "./slide/SlideScreen";
 import { ViewerDemo } from "./ViewerDemo";
+import { SettingsDialog } from "./settings/SettingsDialog";
 import { CHECK_UPDATES_MENU, UpdateCheck } from "./update/UpdateDialog";
 import { hasEngine, listenMenu } from "./engine";
 import { listenProject, type OpenProject } from "./project/current";
@@ -47,6 +48,7 @@ export function App() {
   const [screen, setScreen] = useState<Screen>("facade");
   const [appearance, setAppearance] = useState<Appearance>(readAppearance);
   const [help, setHelp] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => applyAppearance(appearance), [appearance]);
 
@@ -75,6 +77,7 @@ export function App() {
   useShortcuts([
     ...STEPS.map((s) => ({ keys: s.keys, run: () => setScreen(s.value) })),
     { keys: "mod+/", run: () => setHelp(true) },
+    { keys: "mod+,", run: () => setSettingsOpen(true) },
   ]);
 
   return (
@@ -115,6 +118,7 @@ export function App() {
                   onSelect: () => setAppearance(a.value),
                 })),
                 { separator: true },
+                { label: "Réglages…", shortcut: "mod+,", onSelect: () => setSettingsOpen(true) },
                 { label: "Raccourcis clavier", shortcut: "mod+/", icon: "keyboard", onSelect: () => setHelp(true) },
                 {
                   label: "Démonstration de la visionneuse",
@@ -142,6 +146,9 @@ export function App() {
         )}
       </div>
       {help && <ShortcutsDialog onClose={() => setHelp(false)} />}
+      {settingsOpen && (
+        <SettingsDialog appearance={appearance} onAppearance={setAppearance} onClose={() => setSettingsOpen(false)} />
+      )}
       <UpdateCheck request={updateRequest} />
     </div>
   );

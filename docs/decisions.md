@@ -4,7 +4,47 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
-## 2026-11-13 — Ranger la bibliothèque (demande de Benjamin)
+## 2026-11-13 — Bibliothèque commune et fenêtre Réglages (demande de Benjamin)
+
+Demande de Benjamin (13 novembre 2026) : « penser une bibliothèque partagée
+entre les projets ». Trois options lui ont été proposées ; il a choisi
+l'option A : un dossier commun dans Dropbox, dont les dessins sont copiés
+dans le projet. Puis : « on crée un menu setting pour définir ce genre de
+chose ». Module `crates/insitu-core/src/library/shared.rs` et
+`crates/insitu-core/src/settings.rs`, commandes `insitu library
+shared-create | shared-status | shared-copy | shared-send`, fenêtre
+`src/settings/SettingsDialog.tsx`.
+
+**D-4.1-i. La bibliothèque commune est un projet InSitu, et ses dessins sont
+copiés dans les projets.** Le dossier choisi dans les Réglages est un projet
+`.insitu` (créé sous le nom « Bibliothèque commune.insitu » si le dossier
+n'en est pas un), dont seule la bibliothèque sert. Import, rangement, gomme
+et crayon, silhouette et vecteurs s'y font donc avec les outils de l'écran
+Bibliothèque, vue « Commune ». « Copier dans le projet » copie le fichier
+sous `bibliotheque/Commune/<dossier commun>/`, avec le nom, les retouches,
+la silhouette et les réglages de vecteurs, et le range dans le même dossier
+qu'en commun. Le projet note l'origine et une empreinte du dessin commun
+(`sharedLinks` : fichier, retouches, silhouette, vecteurs ; le nom et le
+dossier n'y entrent pas). Quand le dessin commun change, la vignette du
+projet affiche « Nouvelle version » ; « Reprendre la nouvelle version »
+remplace le fichier et les réglages sans changer l'identifiant du dessin
+(ses placements restent) ; l'ancien fichier reste dans le projet, ⌘Z le
+retrouve. Rien n'est jamais repris tout seul : un site déjà gravé ne change
+pas (raison du choix de Benjamin). « Envoyer dans la bibliothèque commune »
+fait l'inverse, sous `bibliotheque/<nom du projet>/` de la commune. Écartées
+(non choisies par Benjamin) : le lien direct (contraire à D-1.4-b) et la
+copie depuis un autre projet. Dans la vue « Commune », ⌘Z annule dans la
+bibliothèque commune.
+
+**D-4.1-j. Une fenêtre Réglages… pour les choix propres à un Mac.** Menu
+InSitu, « Réglages… », ⌘, comme les autres apps Mac. Les réglages sont dans
+`reglages.json` du dossier de l'app (`~/Library/Application Support/`),
+jamais dans un projet ; un réglage inconnu est gardé, un fichier illisible
+donne les réglages par défaut. Rubriques : Bibliothèque commune, Apparence
+(la même que dans le menu Présentation). Un futur réglage du même genre
+(propre au Mac, commun aux projets) y prend une rubrique.
+
+
 
 Demande de Benjamin (13 novembre 2026) : « pouvoir renommer fichier,
 dossier, réorganiser fichiers dans dossier ». Module

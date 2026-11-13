@@ -1089,6 +1089,87 @@ export async function removeLibraryFolder(folder: string, path: string): Promise
   return invoke<Project>("library_folder_remove", { folder, path });
 }
 
+// --- Bibliothèque commune et réglages de l'app (D-4.1-i, D-4.1-j) -------------------
+
+/** Réglages de l'app, propres à ce Mac (fenêtre Réglages…, ⌘,). */
+export interface AppSettings {
+  /** Bibliothèque commune (un projet InSitu, en général dans Dropbox) ; absente : aucune. */
+  sharedLibrary?: string | null;
+}
+
+export async function fetchSettings(): Promise<AppSettings> {
+  requireEngine();
+  return invoke<AppSettings>("settings_get");
+}
+
+/** Choisit le dossier de la bibliothèque commune (`null` : aucune) ; elle y est créée au besoin. */
+export async function saveSharedLibrary(folder: string | null): Promise<AppSettings> {
+  requireEngine();
+  return invoke<AppSettings>("settings_set_shared_library", { folder });
+}
+
+/** Choisit un dossier (fenêtre du Mac). */
+export async function chooseFolder(title: string): Promise<string | null> {
+  requireEngine();
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const chosen = await open({ directory: true, multiple: false, title });
+  return typeof chosen === "string" ? chosen : null;
+}
+
+/** Où en est un dessin copié depuis la bibliothèque commune. */
+export interface SharedStatus {
+  /** Le dessin du projet. */
+  drawing: string;
+  /** Le dessin de la bibliothèque commune. */
+  origin: string;
+  state: "upToDate" | "newer" | "missing";
+}
+
+/** Compte rendu d'une copie entre le projet et la bibliothèque commune. */
+export interface SharedCopyReport {
+  added: string[];
+  alreadyPresent: number;
+  updated: string[];
+  failures: string[];
+}
+
+export async function fetchSharedStatus(folder: string, shared: string): Promise<SharedStatus[]> {
+  requireEngine();
+  return invoke<SharedStatus[]>("library_shared_status", { folder, shared });
+}
+
+async function withLibraryProgress<T>(onProgress: (progress: ImportProgress) => void, task: () => Promise<T>): Promise<T> {
+  const { listen } = await import("@tauri-apps/api/event");
+  const stop = await listen<ImportProgress>("bibliotheque-progression", (event) => onProgress(event.payload));
+  try {
+    return await task();
+  } finally {
+    stop();
+  }
+}
+
+/** Copie des dessins communs dans le projet (ou reprend leur nouvelle version). */
+export async function copyFromShared(
+  folder: string,
+  shared: string,
+  drawings: string[],
+  onProgress: (progress: ImportProgress) => void,
+): Promise<[Project, SharedCopyReport]> {
+  requireEngine();
+  return withLibraryProgress(onProgress, () => invoke<[Project, SharedCopyReport]>("library_shared_copy", { folder, shared, drawings }));
+}
+
+/** Envoie des dessins du projet dans la bibliothèque commune. */
+export async function sendToShared(
+  folder: string,
+  shared: string,
+  drawings: string[],
+  onProgress: (progress: ImportProgress) => void,
+): Promise<[Project, SharedCopyReport]> {
+  requireEngine();
+  return withLibraryProgress(onProgress, () => invoke<[Project, SharedCopyReport]>("library_shared_send", { folder, shared, drawings }));
+}
+
 /** Adresse de l'aperçu (1 024 px, fond transparent) d'un dessin ; `original` : sans ses retouches. */
 export async function fetchDrawingPreview(folder: string, drawing: string, original = false): Promise<string> {
   requireEngine();
