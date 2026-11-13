@@ -1276,6 +1276,23 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
 }
 
 /**
+ * Recherche demandée à la main (menu InSitu → Rechercher les mises à
+ * jour…) : comme `checkForUpdate`, mais une erreur (pas de réseau…) est
+ * remontée pour être dite, au lieu d'être tue.
+ */
+export async function checkForUpdateNow(): Promise<UpdateInfo | null> {
+  if (!isTauri()) return null;
+  return invoke<UpdateInfo | null>("update_check");
+}
+
+/** Numéro de la version installée de l'app ; `null` hors de l'app. */
+export async function appVersion(): Promise<string | null> {
+  if (!isTauri()) return null;
+  const { getVersion } = await import("@tauri-apps/api/app");
+  return getVersion();
+}
+
+/**
  * Télécharge, vérifie et installe la mise à jour trouvée par
  * `checkForUpdate`, puis relance l'app (la promesse ne se résout alors
  * jamais). `onProgress` reçoit l'avancement du téléchargement.

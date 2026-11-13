@@ -1,10 +1,11 @@
 // Mise à jour automatique (D16) : au lancement, l'app cherche une version
-// plus récente ; si elle en trouve une, ce dialogue la propose. « Installer »
+// plus récente ; si elle en trouve une, ce dialogue la propose. Le menu
+// InSitu → Rechercher les mises à jour… relance la recherche (D16-f). « Installer »
 // télécharge, vérifie la signature, remplace l'app et la relance.
 import { useEffect, useState } from "react";
-import { checkForUpdate, hasEngine, installUpdate, type UpdateInfo, type UpdateProgress } from "../engine";
+import { appVersion, checkForUpdate, checkForUpdateNow, hasEngine, installUpdate, type UpdateInfo, type UpdateProgress } from "../engine";
 import { Banner, Button, Dialog, Progress } from "../ui";
-import { failureMessage, isDownloaded, progressLabel, progressShare } from "./update";
+import { checkFailureMessage, failureMessage, isDownloaded, progressLabel, progressShare, upToDateMessage } from "./update";
 import "./update.css";
 
 type Step = { kind: "offer" } | { kind: "installing"; progress: UpdateProgress | null } | { kind: "failed"; message: string };
@@ -15,9 +16,21 @@ function demoUpdate(): UpdateInfo | null {
   return { currentVersion: "0.1.31", version: "0.1.32", notes: null };
 }
 
-/** Cherche une fois au lancement ; n'affiche rien si l'app est à jour. */
-export function UpdateCheck() {
+/** Identifiant de l'entrée « Rechercher les mises à jour… » du menu InSitu (src-tauri/src/menu.rs). */
+export const CHECK_UPDATES_MENU = "mises-a-jour";
+
+/** Résultat d'une recherche demandée à la main. */
+type Manual = { kind: "searching" } | { kind: "upToDate"; version: string | null } | { kind: "failed"; message: string };
+
+/**
+ * Cherche une fois au lancement, sans rien dire si l'app est à jour ou si
+ * la recherche échoue. Chaque nouvelle valeur de `request` (menu InSitu →
+ * Rechercher les mises à jour…) relance la recherche, et dit cette fois
+ * le résultat : à jour, ou pourquoi on ne sait pas.
+ */
+export function UpdateCheck({ request = 0 }: { request?: number }) {
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [manual, setManual] = useState<Manual | null>(null);
   useEffect(() => {
     const demo = demoUpdate();
     if (demo) return setUpdate(demo);
@@ -27,8 +40,46 @@ export function UpdateCheck() {
       alive = false;
     };
   }, []);
-  if (!update) return null;
-  return <UpdateDialog update={update} onClose={() => setUpdate(null)} />;
+  useEffect(() => {
+    if (request === 0) return;
+    let alive = true;
+    setUpdate(null);
+    setManual({ kind: "searching" });
+    checkForUpdateNow().then(
+      async (found) => {
+        if (!alive) return;
+        if (found) {
+          setManual(null);
+          setUpdate(found);
+          return;
+        }
+        const version = await appVersion().catch(() => null);
+        if (alive) setManual({ kind: "upToDate", version });
+      },
+      (error: unknown) => alive && setManual({ kind: "failed", message: checkFailureMessage(error) }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [request]);
+  if (update) return <UpdateDialog update={update} onClose={() => setUpdate(null)} />;
+  if (!manual) return null;
+  const close = () => setManual(null);
+  return (
+    <Dialog
+      title={manual.kind === "searching" ? "Recherche de mise à jour…" : manual.kind === "upToDate" ? "InSitu est à jour" : "Recherche impossible"}
+      onClose={close}
+      actions={
+        <Button variant="primary" onClick={close}>
+          {manual.kind === "searching" ? "Annuler" : "OK"}
+        </Button>
+      }
+    >
+      {manual.kind === "searching" && <p>Recherche d'une version plus récente sur GitHub…</p>}
+      {manual.kind === "upToDate" && <p>{upToDateMessage(manual.version)}</p>}
+      {manual.kind === "failed" && <Banner tone="warning">{manual.message}</Banner>}
+    </Dialog>
+  );
 }
 
 export function UpdateDialog({ update, onClose }: { update: UpdateInfo; onClose: () => void }) {

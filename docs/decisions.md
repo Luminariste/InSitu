@@ -234,6 +234,13 @@ comme avant, sans archive ni manifeste.
 **D16-e. La première version qui sait se mettre à jour s'installe à la
 main.** Les versions déjà installées n'ont pas ce module.
 
+**D16-f. « Rechercher les mises à jour… » dans le menu InSitu** (demande de
+Benjamin, 13 novembre). Même recherche qu'au lancement, mais dite : à jour
+(avec le numéro), nouvelle version (même dialogue qu'au lancement), ou
+pourquoi on ne sait pas (pas de réseau…). L'entrée n'a pas de raccourci ;
+elle passe par l'évènement `menu` avec l'identifiant `mises-a-jour`, que
+l'interface reconnaît avant les raccourcis.
+
 ## 2026-11-12 — Jeu d'essai Trévarez (hors plan, demande de Benjamin)
 
 Deuxième projet réel, `jeu-essai/trevarez`, tests dans

@@ -5,7 +5,7 @@ import { RectificationScreen } from "./rectification/RectificationScreen";
 import { RegistrationScreen } from "./registration/RegistrationScreen";
 import { SlideScreen } from "./slide/SlideScreen";
 import { ViewerDemo } from "./ViewerDemo";
-import { UpdateCheck } from "./update/UpdateDialog";
+import { CHECK_UPDATES_MENU, UpdateCheck } from "./update/UpdateDialog";
 import { listenMenu } from "./engine";
 import { listenProject, type OpenProject } from "./project/current";
 import {
@@ -46,7 +46,17 @@ export function App() {
   useEffect(() => applyAppearance(appearance), [appearance]);
 
   // Barre de menus du Mac : chaque entrée envoie son raccourci (src-tauri/src/menu.rs).
-  useEffect(() => listenMenu((keys) => void runShortcut(keys)), []);
+  // « Rechercher les mises à jour… » (menu InSitu du Mac) : chaque demande
+  // relance la recherche ; le reste du menu passe par les raccourcis.
+  const [updateRequest, setUpdateRequest] = useState(0);
+  useEffect(
+    () =>
+      listenMenu((keys) => {
+        if (keys === CHECK_UPDATES_MENU) setUpdateRequest((n) => n + 1);
+        else void runShortcut(keys);
+      }),
+    [],
+  );
 
   // Le projet ouvert, à côté du nom de l'app (le menu Projet est dans la
   // barre de menus du Mac, D15-o).
@@ -121,7 +131,7 @@ export function App() {
         )}
       </div>
       {help && <ShortcutsDialog onClose={() => setHelp(false)} />}
-      <UpdateCheck />
+      <UpdateCheck request={updateRequest} />
     </div>
   );
 }
