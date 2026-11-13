@@ -11,7 +11,7 @@ use insitu_core::assembly::auto::AutoReport;
 use insitu_core::assembly::{self, AssemblyReport, RenderOptions, RenderReport};
 use insitu_core::export::preview::{self as slide_preview, SlideView};
 use insitu_core::export::{self, ExportReport};
-use insitu_core::facade::{self, FacadeDisplay, SourceInfo};
+use insitu_core::facade::{self, Alignment, FacadeDisplay, PlanChoice, SourceInfo};
 use insitu_core::geometry::Point;
 use insitu_core::illustrator::{self, CompositionPreview, CompositionReport};
 use insitu_core::library::silhouette::{self, DrawingSilhouette};
@@ -21,8 +21,9 @@ use insitu_core::overview::{self, FacadeOverview, RegistrationPreview};
 use insitu_core::placement;
 use insitu_core::project::history::{self, HistoryState};
 use insitu_core::project::{
-    AssemblyPair, ExportSettings, Layer, Mirror, Placement, Project, ProjectDir, RegistrationPair,
-    RetouchStroke, SilhouettePolygon, SlideAdjustment, SourcePoint, VectorSettings,
+    AssemblyPair, ExportSettings, Layer, Mirror, Placement, PointMm, Project, ProjectDir,
+    RegistrationPair, RetouchStroke, SilhouettePolygon, SlideAdjustment, SourcePoint,
+    VectorSettings,
 };
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::auto::AdjustReport;
@@ -120,6 +121,108 @@ fn facade_set_scale(
 fn facade_display(app: AppHandle, folder: String) -> Result<FacadeDisplay, String> {
     let dir = project_dir(&folder)?;
     facade::open_project_facade(&dir, &tile_cache_dir(&app)?).map_err(|e| e.to_string())
+}
+
+// --- Plans ajoutés à l'espace de travail (D-PL-a à g) ---------------------------
+
+/// Ajoute un groupe de plans tiré d'un fichier (une vue par choix).
+#[tauri::command(async)]
+fn plans_add(folder: String, path: String, choices: Vec<PlanChoice>) -> Result<Project, String> {
+    facade::add_plan_group(&project_dir(&folder)?, Path::new(&path), &choices)
+        .map_err(|e| e.to_string())
+}
+
+/// Ajoute des vues (pages, calques) à un groupe de plans.
+#[tauri::command(async)]
+fn plans_add_views(
+    folder: String,
+    group: String,
+    choices: Vec<PlanChoice>,
+) -> Result<Project, String> {
+    facade::add_plans(&project_dir(&folder)?, &group, &choices).map_err(|e| e.to_string())
+}
+
+/// Pose un groupe : coin haut-gauche (mm) et mm par unité du fichier.
+#[tauri::command(async)]
+fn plans_place(
+    folder: String,
+    group: String,
+    origin: PointMm,
+    mm_per_unit: f64,
+) -> Result<Project, String> {
+    facade::place_plan_group(&project_dir(&folder)?, &group, origin, mm_per_unit)
+        .map_err(|e| e.to_string())
+}
+
+/// Cale un groupe par deux paires de points (mm de façade).
+#[tauri::command(async)]
+fn plans_align(
+    folder: String,
+    group: String,
+    from: [PointMm; 2],
+    to: [PointMm; 2],
+) -> Result<Alignment, String> {
+    facade::align_plan_group(&project_dir(&folder)?, &group, from, to).map_err(|e| e.to_string())
+}
+
+/// Tourne un groupe de quarts de tour autour de son centre.
+#[tauri::command(async)]
+fn plans_rotate(folder: String, group: String, quarter_turns: i32) -> Result<Project, String> {
+    facade::rotate_plan_group(&project_dir(&folder)?, &group, quarter_turns)
+        .map_err(|e| e.to_string())
+}
+
+/// Montre ou cache un groupe, ou une de ses vues.
+#[tauri::command(async)]
+fn plans_set_hidden(
+    folder: String,
+    group: String,
+    plan: Option<String>,
+    hidden: bool,
+) -> Result<Project, String> {
+    facade::set_plan_hidden(&project_dir(&folder)?, &group, plan.as_deref(), hidden)
+        .map_err(|e| e.to_string())
+}
+
+/// Renomme un groupe, ou une de ses vues.
+#[tauri::command(async)]
+fn plans_rename(
+    folder: String,
+    group: String,
+    plan: Option<String>,
+    name: String,
+) -> Result<Project, String> {
+    facade::rename_plan(&project_dir(&folder)?, &group, plan.as_deref(), &name)
+        .map_err(|e| e.to_string())
+}
+
+/// Retire un groupe, ou une de ses vues ; le fichier reste dans le projet.
+#[tauri::command(async)]
+fn plans_remove(folder: String, group: String, plan: Option<String>) -> Result<Project, String> {
+    facade::remove_plan(&project_dir(&folder)?, &group, plan.as_deref()).map_err(|e| e.to_string())
+}
+
+/// Change la place d'un groupe dans la pile (0 : au fond).
+#[tauri::command(async)]
+fn plans_move(folder: String, group: String, to: usize) -> Result<Project, String> {
+    facade::move_plan_group(&project_dir(&folder)?, &group, to).map_err(|e| e.to_string())
+}
+
+/// Prépare l'affichage d'une vue d'un groupe (tuiles dans le cache).
+#[tauri::command(async)]
+fn plans_display(
+    app: AppHandle,
+    folder: String,
+    group: String,
+    plan: String,
+) -> Result<FacadeDisplay, String> {
+    facade::open_plan_display(
+        &project_dir(&folder)?,
+        &group,
+        &plan,
+        &tile_cache_dir(&app)?,
+    )
+    .map_err(|e| e.to_string())
 }
 
 // --- Redressement des photos de mire (tâche 2.5) ------------------------------
@@ -740,6 +843,16 @@ pub fn run() {
             facade_rotate,
             facade_set_scale,
             facade_display,
+            plans_add,
+            plans_add_views,
+            plans_place,
+            plans_align,
+            plans_rotate,
+            plans_set_hidden,
+            plans_rename,
+            plans_remove,
+            plans_move,
+            plans_display,
             projector_add,
             projector_rename,
             projector_remove,

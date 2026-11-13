@@ -36,7 +36,7 @@ pub use model::{retouch_problem, silhouette_problem};
 pub use model::{
     AssemblyOutput, AssemblyPair, AssemblyPhoto, Deformation, DeformationFrame, Drawing,
     ExportSettings, ExtraFields, Facade, FacadeAssembly, FacadeScale, FrescoImage, FrescoVector,
-    Layer, Mirror, Placement, PointMm, Project, Projector, RectMm, Rectification,
+    Layer, Mirror, Placement, Plan, PlanGroup, PointMm, Project, Projector, RectMm, Rectification,
     RectificationMethod, RectificationPoint, RegistrationPair, RetouchStroke, RetouchTool,
     SilhouettePolygon, SlideAdjustment, SourcePoint, VectorSettings,
 };

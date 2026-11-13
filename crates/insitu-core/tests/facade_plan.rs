@@ -475,6 +475,20 @@ fn unsupported_formats_get_a_useful_message() {
             .to_string()
     };
     assert!(message("plan.dwg").contains("PDF ou en DXF"));
-    assert!(message("fresque.ai").contains("PDF"));
     assert!(message("plan.xyz").contains(".xyz"));
+}
+
+#[test]
+fn an_ai_file_is_read_as_a_pdf() {
+    // Un .ai « compatible PDF » se lit comme un PDF ; un .ai sans sa partie
+    // PDF reçoit un conseil.
+    let scratch = Scratch::new("plan-ai");
+    let fake = scratch.path("ancien.ai");
+    std::fs::write(
+        &fake,
+        b"%!PS-Adobe-3.0 EPSF\n%%Creator: Adobe Illustrator\n",
+    )
+    .unwrap();
+    let message = facade::inspect(&fake, None).unwrap_err().to_string();
+    assert!(message.contains("compatible PDF"), "{message}");
 }

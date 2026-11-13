@@ -73,7 +73,7 @@ export class MeshImageNode implements SceneNode {
     this.spec = spec;
     this.container.alpha = spec.opacity ?? 1;
     this.container.visible = spec.visible ?? true;
-    this.container.blendMode = spec.blend === "screen" ? "screen" : "normal";
+    this.container.blendMode = spec.blend ?? "normal";
     if (this.mesh) {
       this.mesh.tint = spec.tint ?? 0xffffff;
       this.setVertices(this.mesh);

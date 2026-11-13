@@ -156,6 +156,27 @@ pub fn check_model(project: &Project, report: &mut ValidationReport) {
         }
     }
 
+    for (i, group) in project.plan_groups.iter().enumerate() {
+        let here = format!("planGroups[{i}]");
+        if group.mm_per_unit.is_nan() || group.mm_per_unit <= 0.0 {
+            report.error(
+                format!("{here}.mmPerUnit"),
+                "l'échelle du plan doit être positive",
+            );
+        }
+        if group.plans.is_empty() {
+            report.warning(here.clone(), "le groupe de plans n'a aucune vue");
+        }
+        for (j, plan) in group.plans.iter().enumerate() {
+            if plan.source_width <= 0.0 || plan.source_height <= 0.0 {
+                report.error(
+                    format!("{here}.plans[{j}]"),
+                    "les dimensions du plan doivent être positives",
+                );
+            }
+        }
+    }
+
     let mut ids: BTreeMap<&str, usize> = BTreeMap::new();
     let mut labels: BTreeMap<&str, usize> = BTreeMap::new();
     for (i, projector) in project.projectors.iter().enumerate() {

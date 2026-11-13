@@ -104,6 +104,11 @@ pub struct Project {
     /// photo n'a été ajoutée.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub facade_assembly: Option<FacadeAssembly>,
+    /// Plans ajoutés à l'espace de travail de la façade, par-dessus le plan
+    /// de référence (`facade`), du fond vers l'avant (demande de Benjamin,
+    /// 13 novembre 2026, D-PL-a). Absent tant qu'il n'y en a pas.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub plan_groups: Vec<PlanGroup>,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }
@@ -124,8 +129,17 @@ impl Project {
             placements: Vec::new(),
             layers: Vec::new(),
             facade_assembly: None,
+            plan_groups: Vec::new(),
             extra: ExtraFields::new(),
         }
+    }
+
+    pub fn plan_group(&self, id: &str) -> Option<&PlanGroup> {
+        self.plan_groups.iter().find(|g| g.id == id)
+    }
+
+    pub fn plan_group_mut(&mut self, id: &str) -> Option<&mut PlanGroup> {
+        self.plan_groups.iter_mut().find(|g| g.id == id)
     }
 
     pub fn drawing(&self, id: &str) -> Option<&Drawing> {
@@ -175,6 +189,9 @@ impl Project {
                 files.push((format!("facadeAssembly.photos[{i}].source"), &photo.source));
             }
         }
+        for (i, group) in self.plan_groups.iter().enumerate() {
+            files.push((format!("planGroups[{i}].source"), &group.source));
+        }
         files
     }
 
@@ -223,6 +240,12 @@ impl Project {
         for (i, layer) in self.layers.iter().enumerate() {
             collect(&format!("layers[{i}]."), &layer.extra);
         }
+        for (i, group) in self.plan_groups.iter().enumerate() {
+            collect(&format!("planGroups[{i}]."), &group.extra);
+            for (j, plan) in group.plans.iter().enumerate() {
+                collect(&format!("planGroups[{i}].plans[{j}]."), &plan.extra);
+            }
+        }
         found
     }
 
@@ -244,6 +267,21 @@ impl Project {
                 out.push(("facade.scale.pointB.x".to_string(), scale.point_b.x));
                 out.push(("facade.scale.pointB.y".to_string(), scale.point_b.y));
                 out.push(("facade.scale.distanceMm".to_string(), scale.distance_mm));
+            }
+        }
+        for (i, group) in self.plan_groups.iter().enumerate() {
+            out.push((format!("planGroups[{i}].origin.x"), group.origin.x));
+            out.push((format!("planGroups[{i}].origin.y"), group.origin.y));
+            out.push((format!("planGroups[{i}].mmPerUnit"), group.mm_per_unit));
+            for (j, plan) in group.plans.iter().enumerate() {
+                out.push((
+                    format!("planGroups[{i}].plans[{j}].sourceWidth"),
+                    plan.source_width,
+                ));
+                out.push((
+                    format!("planGroups[{i}].plans[{j}].sourceHeight"),
+                    plan.source_height,
+                ));
             }
         }
         for (i, projector) in self.projectors.iter().enumerate() {
@@ -341,6 +379,71 @@ impl Facade {
     pub fn to_mm(&self, point: SourcePoint) -> Option<PointMm> {
         let factor = self.scale.as_ref()?.mm_per_source_unit()?;
         Some(PointMm::new(point.x * factor, point.y * factor))
+    }
+}
+
+/// Un groupe de plans : un même fichier (PDF, `.ai`, image, SVG, DXF) posé
+/// sur la façade, dont on montre une ou plusieurs vues (pages ou calques).
+/// Toutes ses vues partagent sa place et son échelle : tirées du même
+/// fichier, elles restent calées entre elles (D-PL-b).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanGroup {
+    /// Identifiant stable.
+    pub id: String,
+    /// Nom affiché ; celui du fichier, sans son extension, à l'import.
+    pub name: String,
+    /// Le fichier, sous `facade/plans/`.
+    pub source: RelativePath,
+    /// Coin haut-gauche des vues, en mm de façade.
+    pub origin: PointMm,
+    /// Millimètres de façade par unité du fichier.
+    pub mm_per_unit: f64,
+    /// Quarts de tour, sens des aiguilles d'une montre (0 à 3).
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub rotation: u8,
+    /// Groupe caché : aucune de ses vues n'est montrée.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hidden: bool,
+    /// Les vues du fichier, du fond vers l'avant.
+    pub plans: Vec<Plan>,
+    #[serde(flatten)]
+    pub extra: ExtraFields,
+}
+
+/// Une vue d'un groupe : une page, éventuellement réduite à certains
+/// calques.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Plan {
+    pub id: String,
+    /// Nom affiché : le calque ou la page, par exemple « Plan simplifié ».
+    pub name: String,
+    /// Page d'un PDF, à partir de 1 ; absente sinon.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub page: Option<u32>,
+    /// Calques montrés d'un PDF ; absent : tous.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layers: Option<Vec<String>>,
+    /// Dimensions de la vue affichée (rotation du groupe appliquée), dans
+    /// l'unité du fichier.
+    pub source_width: f64,
+    pub source_height: f64,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hidden: bool,
+    #[serde(flatten)]
+    pub extra: ExtraFields,
+}
+
+impl PlanGroup {
+    /// Taille du groupe sur la façade, en mm : celle de sa première vue.
+    pub fn size_mm(&self) -> (f64, f64) {
+        self.plans.first().map_or((0.0, 0.0), |plan| {
+            (
+                plan.source_width * self.mm_per_unit,
+                plan.source_height * self.mm_per_unit,
+            )
+        })
     }
 }
 

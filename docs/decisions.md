@@ -48,6 +48,75 @@ réglages d'export enregistrés dans le projet, relus au moment d'exporter
 endroit où le faire). Le choix « une ou toutes » n'est pas gardé dans le
 projet : il revient à « Toutes » d'un lancement à l'autre.
 
+## 2026-11-13 — Plusieurs plans dans un projet (demande de Benjamin)
+
+Demande de Benjamin (13 novembre) : « pouvoir importer plusieurs plans, les
+déplacer et mettre à l'échelle […] un espace de travail qu'on compose selon
+les projets » ; « un groupe de plans (plan archi détaillé, plan simplifié,
+plan avec des guides, tous issus du même fichier) […] afficher ou non chaque
+plan, en fonction des moments du travail ».
+
+**D-PL-a. Le premier plan reste la référence** (choix de Benjamin, carte du
+13 novembre, « valable pour un groupe de plans »). `project.facade` ne change
+pas : il donne l'échelle et le repère en mm ; dessins posés, recalages,
+fresque y restent attachés, et il ne se déplace pas. Les autres plans sont
+dans `project.planGroups` (absent tant qu'il n'y en a pas : un projet comme
+Trévarez s'écrit exactement comme avant). Tourner le plan de référence fait
+tourner les groupes avec lui (comme le reste, D15-k). Retirer ou remplacer
+le plan de référence garde les groupes, en mm.
+
+**D-PL-b. Un groupe = un fichier, posé à une place et une échelle ; ses vues
+bougent ensemble.** `PlanGroup` : `source` (copiée dans `facade/plans/`),
+`origin` (coin haut-gauche, mm), `mmPerUnit`, `rotation` (quarts de tour),
+`hidden`, `plans` (les vues : `page`, `layers`, dimensions, `hidden`). Tirées
+du même fichier, les vues restent calées entre elles : c'est la règle « le
+premier sert de référence » dans le groupe. La taille du groupe est celle de
+sa première vue (pages de tailles différentes : alignées sur leur coin
+haut-gauche).
+
+**D-PL-c. Les calques d'un PDF ou d'un `.ai` deviennent des vues.** Un `.ai`
+enregistré « compatible PDF » (réglage par défaut d'Illustrator) garde ses
+calques en « contenus facultatifs » (OCG) : `ECURIES-COMPOSITION.ai` en a 14,
+dont « Calque 1 » (le plan) et « Découpes ». `hayro` sait masquer un calque
+mais ne lit l'état des calques que dans le fichier ; pour choisir, le moteur
+ajoute au fichier, en mémoire seulement, une mise à jour incrémentale
+(nouveau catalogue, réglage des calques, table de renvois), comme Acrobat
+(`facade/pdf_layers.rs`). Le fichier du projet n'est jamais modifié ; ce qui
+n'est sur aucun calque reste montré ; un PDF chiffré refuse le choix des
+calques. La clé du cache de tuiles contient les calques choisis (sans choix,
+elle ne change pas). Par voie de conséquence, un `.ai` est accepté partout
+où un plan PDF l'est (il était refusé avec le conseil de l'enregistrer en
+PDF, D-3.1-f) ; un `.ai` sans sa partie PDF reçoit ce conseil.
+
+**D-PL-d. Place de départ.** Même fichier que le plan de référence (contenu
+identique) : même place, même échelle, même sens, les calques tombent pile.
+Autre fichier : en haut à gauche, à la largeur du plan de référence. Il faut
+un plan de référence à l'échelle pour ajouter un plan.
+
+**D-PL-e. Déplacer, mettre à l'échelle : champs, souris, deux points ; pas
+de rotation libre.** Position et largeur en mètres dans l'inspecteur ;
+« Déplacer à la souris » (glisser sur la toile ; la vue cesse de se
+recadrer toute seule pendant le geste) ; « Caler par deux points… » : deux
+points du plan et leur place sur la façade donnent agrandissement et
+déplacement (`facade::alignment`) ; l'écart d'angle qui reste est annoncé
+(un plan ne tourne que par quarts de tour, comme le plan de référence,
+D15-k).
+
+**D-PL-f. Les plans se superposent comme du papier calque.** Chaque vue est
+affichée en « produit » (blend `multiply`, nouveau dans la visionneuse) sur
+une feuille blanche à sa taille, sous tout : le blanc laisse voir dessous,
+les traits s'ajoutent. En négatif (menu Affichage, « Plan en négatif »),
+« superposition claire » sans feuille. Ordre : feuilles, plan de référence,
+groupes du fond vers l'avant, puis fresque et projecteurs.
+
+**D-PL-g. Montrer ou cacher est enregistré dans le projet**, contrairement
+au menu Affichage (D15-l) : c'est l'état d'un moment du travail, partagé
+entre Benjamin et Marc par Dropbox, et annulable par ⌘Z. L'œil du plan de
+référence reste celui du menu Affichage. Pas encore : les plans ajoutés ne
+sont ni dans la fiche de calepinage, ni sous la Diapositive (le fil
+« options d'affichage » y rend le plan de référence seul), ni dans l'export ;
+pas de verrou par plan.
+
 ## 2026-11-13 — Diapositive comme dans LightBurn, menu Projet retiré (demande de Benjamin)
 
 Demandes de Benjamin (13 novembre) : « menu diapositive : ajouter option

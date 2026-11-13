@@ -37,7 +37,7 @@ pub struct PdfInfo {
 fn load(data: Arc<Vec<u8>>) -> Result<Pdf, FacadeError> {
     Pdf::new(data).map_err(|error| {
         FacadeError::Unreadable(format!(
-            "PDF illisible ({error:?}) ; un PDF protégé par mot de passe n'est pas pris en charge"
+            "PDF illisible ({error:?}) ; un PDF protégé par mot de passe n'est pas pris en charge, et un .ai doit être enregistré avec « Créer un fichier compatible PDF »"
         ))
     })
 }
