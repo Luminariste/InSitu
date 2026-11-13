@@ -35,6 +35,41 @@ de fenêtre, le pied d'une colonne, la pointe d'un arc… visibles sur les deux.
 Tout est enregistré au lâcher. Un point (coin compris) se corrige en le
 glissant à nouveau, se supprime par la corbeille de sa ligne ou ⌫.
 
+## Dans l'app : placement automatique
+
+1. Étape **Recalage** (⌘3), choisir le projecteur. Dans la vue de la
+   façade, **cadrer la zone où le projecteur éclaire** (la recherche se fait
+   sur ce qui est visible ; tout le plan marche aussi, moins sûrement).
+2. **Placer automatiquement** (panneau de droite). Après quelques secondes
+   (« Recherche des places possibles… »), la photo est posée sur la place
+   la plus probable.
+3. Comparer les fenêtres de la photo et du plan. Si ce n'est pas la bonne
+   place : **Suivante** (→) ou **Précédente** (←) ; il y a jusqu'à 5 places.
+4. **Garder cette place** (↩) enregistre les quatre coins ; **Annuler**
+   (Échap) remet la photo comme avant. Ensuite, ajuster les coins et
+   épingler des détails comme ci-dessous : la place proposée suppose la
+   façade plate.
+
+Quand la photo a déjà des points, **Replacer automatiquement** propose
+d'autres places ; « Annuler » garde les points actuels. Aucune place n'est
+garantie (étude : `docs/etudes/recalage-automatique.md`).
+
+### Essai sur le Mac (à faire par Benjamin)
+
+1. Ouvrir le projet Trévarez, étape Recalage, projecteur **A**, supprimer
+   ses points (ou utiliser « Replacer automatiquement »).
+2. Cadrer la vue de la façade sur la façade du haut (les toits et les
+   fenêtres des écuries), cliquer **Placer automatiquement**.
+   Attendu : en moins de 10 s environ, une place ; la première devrait
+   être la bonne pour A.
+3. Faire défiler les places avec ← →, revenir à la bonne, **Garder**.
+   Attendu : quatre points « Coin… » dans la liste, la photo reste posée.
+4. Même chose avec **B** (l'arc central) : la bonne place devrait être
+   parmi les trois premières, pas forcément la première.
+5. Essayer **Annuler** (Échap) : la photo revient comme avant.
+6. Dire combien de temps dure la recherche, et à quel rang la bonne place
+   sort pour chaque projecteur essayé.
+
 ## Dans l'app : point par point
 
 La pose en deux clics reste possible, et se combine avec ce qui précède :
@@ -85,6 +120,7 @@ Chaque modification est enregistrée aussitôt dans le projet.
 insitu registration show Essai.insitu A
 insitu registration set Essai.insitu A paires.json
 insitu registration preview paires.json      # pose provisoire, rien n'est enregistré
+insitu registration propose Essai.insitu A   # places possibles (D-3.2-i), rien n'est enregistré
 ```
 
 `paires.json` : `{ "pairs": [ { "slide": [21.4, 18.9], "facade": [612.0, 480.0] }, … ] }`.

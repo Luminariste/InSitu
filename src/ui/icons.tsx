@@ -50,6 +50,7 @@ const PATHS = {
   fit: <path d="M3 6V3h3M10 3h3v3M13 10v3h-3M6 13H3v-3" />,
   chevronDown: <path d="M4.5 6.5L8 10l3.5-3.5" />,
   chevronRight: <path d="M6.5 4.5L10 8l-3.5 3.5" />,
+  chevronLeft: <path d="M9.5 4.5L6 8l3.5 3.5" />,
   check: <path d="M3.5 8.5l3 3 6-7" />,
   close: <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />,
   search: (

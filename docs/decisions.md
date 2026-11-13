@@ -1551,6 +1551,34 @@ dans la liste (« Coin haut-gauche »…). Rien n'est automatique : un
 appariement automatique photo ↔ plan (analyse d'image, photo « lum ») reste
 à étudier ; il serait trop fragile pour l'essai du 13 novembre.
 
+**D-3.2-i. Placement automatique : plusieurs places proposées, puis
+retouche à la main.** Demande de Benjamin (13 novembre 2026) : replacer
+tout seul la photo sur le plan, en pensant aux façades qui ne sont pas
+plates. Étude : `docs/etudes/recalage-automatique.md`.
+
+- Méthode : comparaison des **orientations de contours** de la photo
+  redressée (grille de la mire effacée par une fermeture) et du plan ;
+  recherche globale par corrélation (transformée de Fourier, nouvelle
+  dépendance `rustfft`, pur Rust), puis ajustement des quatre coins du
+  trapèze. Les points d'intérêt (SIFT) ont été essayés et ne marchent pas
+  entre une photo et un plan au trait.
+- Résultat : jusqu'à **5 places**, la plus probable d'abord, chacune en
+  quatre paires aux coins (même format que « Poser la photo sur la
+  façade », D-3.2-h). Sur une façade répétitive la bonne place n'est pas
+  toujours la première : on les parcourt (← →), on garde (↩) ou on annule
+  (Échap). Rien n'est enregistré avant « Garder ».
+- La place est un trapèze (façade supposée plate) : le relief se corrige
+  ensuite en épinglant des détails, comme avant.
+- Zone de recherche = la partie de la façade **visible à l'écran** (cadrer
+  la zone du projecteur rend la recherche plus sûre et plus rapide).
+- Taille de l'emprise : inconnue pour le premier projecteur ; ensuite entre
+  la moitié et le double de la taille moyenne des projecteurs déjà recalés.
+- « Replacer automatiquement » reste offert quand la photo a déjà des
+  points : « Annuler » les remet tels quels.
+- Commande : `insitu registration propose <projet> <projecteur> [--region
+  x,y,largeur,hauteur] [--side mm] [--count n]`, Tauri
+  `registration_propose`.
+
 ## 2026-11-12 — Tâche 2.5
 
 Écran de redressement : `src/rectification/`, module

@@ -12,8 +12,12 @@ use std::path::{Path, PathBuf};
 use image::imageops::FilterType;
 use image::GrayImage;
 use insitu_core::export::{export_slides, ExportProgress};
+use insitu_core::geometry::{Homography, Point, Transform};
 use insitu_core::project::{ExportSettings, ProjectDir};
 use insitu_core::rectification::{self, DetectOptions};
+use insitu_core::registration::auto::{
+    projector_proposals, propose, render_plan, AutoOptions, RegionMm,
+};
 
 fn trevarez() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../jeu-essai/trevarez")
@@ -254,4 +258,194 @@ fn le_jeu_d_essai_correspond_a_son_manifeste() {
         }
     }
     assert_eq!(checked, 9, "fichiers vérifiés");
+}
+
+/// Photo redressée réduite (côté `side` px), tirée de la photo brute par le
+/// trapèze qui envoie la diapositive sur les quatre coins `corners` de la
+/// mire (pixels de la photo, haut-gauche, haut-droit, bas-droit, bas-gauche).
+fn rectified_by(photo: &image::RgbImage, slide_to_photo: &Homography, side: u32) -> GrayImage {
+    let s = 280.0;
+    // Réduite d'abord (la mire y garde au moins `side` pixels de côté),
+    // pour ne pas prendre un pixel sur trois au hasard.
+    let k = 3.0;
+    let gray = image::imageops::resize(
+        &image::DynamicImage::ImageRgb8(photo.clone()).into_luma8(),
+        (f64::from(photo.width()) / k) as u32,
+        (f64::from(photo.height()) / k) as u32,
+        FilterType::Triangle,
+    );
+    let h = slide_to_photo;
+    let mm = s / f64::from(side);
+    GrayImage::from_fn(side, side, |x, y| {
+        let p = h
+            .apply(Point::new(
+                (f64::from(x) + 0.5) * mm,
+                (f64::from(y) + 0.5) * mm,
+            ))
+            .unwrap();
+        let p = Point::new(p.x / k, p.y / k);
+        let (u, v) = (
+            p.x.clamp(0.0, f64::from(gray.width() - 1)),
+            p.y.clamp(0.0, f64::from(gray.height() - 1)),
+        );
+        *gray.get_pixel(u as u32, v as u32)
+    })
+}
+
+/// Placement automatique (D-3.2-i) sur les deux photos réelles de Trévarez
+/// qu'on sait redresser : A (par les quatre coins posés à la main par
+/// Benjamin, sa grille ne se lit pas) et B (sans aide). Zone de recherche :
+/// la façade du haut, comme si la vue de l'écran Recalage y était cadrée.
+///
+/// Les places attendues ont été vérifiées à l'œil en superposant la photo et
+/// le plan (étude `docs/etudes/recalage-automatique.md`) : pour A, le bord de
+/// l'avant-toit et le bandeau ; pour B, l'arc de la travée du milieu. Celle
+/// de A est aussi, à 1 m près, celle où Benjamin a posé la photo à la main.
+#[test]
+fn le_placement_automatique_retrouve_a_et_b_parmi_les_propositions() {
+    let root = TempDir::new("auto");
+    let dir = mount_project(&root.0);
+    let project = dir.load().unwrap().project;
+    let facade = project.facade.as_ref().unwrap();
+    let mm_per_unit = facade.scale.as_ref().unwrap().mm_per_source_unit().unwrap();
+    let pt = |x: f64, y: f64| (x * mm_per_unit, y * mm_per_unit);
+    let (x0, y0) = pt(280.0, 150.0);
+    let (x1, y1) = pt(1120.0, 500.0);
+    let region = RegionMm {
+        x: x0,
+        y: y0,
+        width: x1 - x0,
+        height: y1 - y0,
+    };
+    let plan = render_plan(
+        &dir.resolve(&facade.source),
+        facade.page,
+        facade.rotation,
+        mm_per_unit,
+        Some(region),
+        1024,
+    )
+    .unwrap();
+
+    // A : coins de la mire posés par Benjamin (projet du 13 novembre 2026),
+    // sur la photo pleine résolution.
+    let a =
+        rectification::read_photo(&trevarez().join("references/photos-brutes/a-brut.jpg")).unwrap();
+    let square = [
+        Point::new(0.0, 0.0),
+        Point::new(280.0, 0.0),
+        Point::new(280.0, 280.0),
+        Point::new(0.0, 280.0),
+    ];
+    let corners = [
+        Point::new(2923.2, 604.8),
+        Point::new(2815.128, 2929.575),
+        Point::new(1128.664, 2626.743),
+        Point::new(1191.319, 882.844),
+    ];
+    let a = rectified_by(
+        &a,
+        &Homography::from_four_pairs(square, corners).unwrap(),
+        560,
+    );
+    // B : croisements de la mire trouvés par l'app, enregistrés dans le
+    // projet de Benjamin.
+    let b_points = &project.projectors[1].rectification.as_ref().unwrap().points;
+    let slide: Vec<Point> = b_points
+        .iter()
+        .map(|p| Point::new(p.slide.x, p.slide.y))
+        .collect();
+    let photo: Vec<Point> = b_points
+        .iter()
+        .map(|p| Point::new(p.photo.x, p.photo.y))
+        .collect();
+    let b =
+        rectification::read_photo(&trevarez().join("references/photos-brutes/b-brut.jpg")).unwrap();
+    let b = rectified_by(&b, &Homography::fit(&slide, &photo).unwrap(), 560);
+
+    // Chemin complet de l'app pour B : photo redressée dans le projet,
+    // taille de l'emprise tirée des autres projecteurs recalés. Sur ce
+    // projet (état du 12 novembre), la bonne place de B n'est pas dans les
+    // cinq : on vérifie seulement que les propositions sont bien formées
+    // et restent dans la zone (limite notée dans docs/etudes/recalage-automatique.md).
+    fs::create_dir_all(root.0.join("photos-redressees")).unwrap();
+    b.save(root.0.join("photos-redressees/b.png")).unwrap();
+    let report = projector_proposals(
+        &dir,
+        "B",
+        &AutoOptions {
+            region: Some(region),
+            ..AutoOptions::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(report.proposals.len(), 5);
+    for p in &report.proposals {
+        assert_eq!(p.pairs.len(), 4);
+        let (cx, cy) = (
+            p.pairs.iter().map(|q| q.facade.x).sum::<f64>() / 4.0,
+            p.pairs.iter().map(|q| q.facade.y).sum::<f64>() / 4.0,
+        );
+        assert!(
+            cx > region.x
+                && cx < region.x + region.width
+                && cy > region.y
+                && cy < region.y + region.height
+        );
+    }
+
+    // Sans rien savoir de la taille de l'emprise (premier projecteur
+    // recalé), puis en la connaissant (9 m environ, celle des autres
+    // projecteurs de Benjamin) : la fourchette des échelles se resserre.
+    // « Bonne place » : centre à moins d'un mètre (l'emprise fait 9 à 10 m
+    // de côté), le reste se règle à la main.
+    let cases = [
+        (
+            "A sans taille",
+            propose(&a, &plan, &AutoOptions::default()),
+            pt(458.0, 325.0),
+            3,
+        ),
+        (
+            "B sans taille",
+            propose(&b, &plan, &AutoOptions::default()),
+            pt(635.0, 342.0),
+            3,
+        ),
+        (
+            "A avec 9 m",
+            propose(
+                &a,
+                &plan,
+                &AutoOptions {
+                    footprint_side_mm: Some(9_000.0),
+                    ..AutoOptions::default()
+                },
+            ),
+            pt(458.0, 325.0),
+            1,
+        ),
+    ];
+    for (label, proposals, expected, rank) in cases {
+        let centers: Vec<(f64, f64, f64)> = proposals
+            .iter()
+            .map(|p| {
+                let x = p.pairs.iter().map(|q| q.facade.x).sum::<f64>() / 4.0;
+                let y = p.pairs.iter().map(|q| q.facade.y).sum::<f64>() / 4.0;
+                (x, y, p.score)
+            })
+            .collect();
+        eprintln!("{label} : {centers:.2?}");
+        let found = centers
+            .iter()
+            .position(|&(x, y, _)| (x - expected.0).hypot(y - expected.1) < 1_000.0);
+        match found {
+            Some(f) => assert!(
+                f < rank,
+                "{label} : bonne place en {}e position, attendue dans les {rank} premières",
+                f + 1
+            ),
+            None => panic!("{label} : bonne place absente des propositions"),
+        }
+    }
 }

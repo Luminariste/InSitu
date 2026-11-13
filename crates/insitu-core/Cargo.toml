@@ -35,6 +35,9 @@ pdf-writer = "0.15"
 # zlib (avant). Rust pur ; miniz_oxide est déjà tiré par png.
 ruzstd = "0.9"
 miniz_oxide = "0.8"
+# Recalage automatique (D-3.2-i) : corrélation des contours de la photo et
+# du plan par transformée de Fourier rapide. Rust pur.
+rustfft = "6"
 
 [dev-dependencies]
 sha2 = "0.10"

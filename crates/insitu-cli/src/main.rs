@@ -32,7 +32,7 @@
 //! - `insitu simulate <dossier.insitu> --cache <dossier>` : simulation de
 //!   tous les projecteurs et ses alertes (dessin coupé, hors emprise,
 //!   projeté deux fois) ;
-//! - `insitu registration show|set …` : recalage d'un projecteur sur la
+//! - `insitu registration show|set|preview|propose …` : recalage d'un projecteur sur la
 //!   façade par points communs (détail : `insitu registration --help`) ;
 //! - `insitu projector add|photo|rectify|show|export …` : redressement de la
 //!   photo d'un projecteur dans un projet, comme l'écran de redressement

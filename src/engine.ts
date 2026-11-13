@@ -604,6 +604,41 @@ export async function previewRegistration(pairs: RegistrationPair[]): Promise<Re
   return invoke<RegistrationPreview>("registration_preview", { pairs });
 }
 
+/** Zone de la façade où chercher, en mm. */
+export interface RegionMm {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Une place possible de la photo sur la façade (D-3.2-i). */
+export interface PlacementProposal {
+  /** Ressemblance photo ↔ plan, de 0 à 1 (sert à classer, pas une garantie). */
+  score: number;
+  /** Les quatre coins de la diapositive et leur place sur la façade. */
+  pairs: RegistrationPair[];
+  footprint: SourcePoint[];
+}
+
+export interface AutoRegistrationReport {
+  projectorId: string;
+  /** La plus probable d'abord ; peut être vide. */
+  proposals: PlacementProposal[];
+  region: RegionMm;
+  seconds: number;
+}
+
+/** Cherche où la photo redressée se place sur la façade ; rien n'est enregistré. */
+export async function proposeRegistration(
+  folder: string,
+  projector: string,
+  region: RegionMm | null,
+): Promise<AutoRegistrationReport> {
+  requireEngine();
+  return invoke<AutoRegistrationReport>("registration_propose", { folder, projector, region });
+}
+
 // --- Dessins posés sur la façade (tâche 4.2) ------------------------------------
 
 /** Remplace tous les dessins posés ; le moteur les contrôle et les enregistre. */

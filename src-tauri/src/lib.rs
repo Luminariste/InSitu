@@ -25,6 +25,7 @@ use insitu_core::project::{
     RetouchStroke, SilhouettePolygon, SlideAdjustment, SourcePoint, VectorSettings,
 };
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
+use insitu_core::registration::auto::{AutoOptions, AutoReport, RegionMm};
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
 use insitu_core::sheet::{self, SheetReport};
 use insitu_core::simulation::{self, Simulation};
@@ -270,6 +271,22 @@ fn registration_set(
 #[tauri::command(async)]
 fn registration_preview(pairs: Vec<RegistrationPair>) -> RegistrationPreview {
     overview::registration_preview(&pairs)
+}
+
+/// Places possibles de la photo redressée sur la façade, la plus probable
+/// d'abord (D-3.2-i) : rien n'est enregistré.
+#[tauri::command(async)]
+fn registration_propose(
+    folder: String,
+    projector: String,
+    region: Option<RegionMm>,
+) -> Result<AutoReport, String> {
+    let options = AutoOptions {
+        region,
+        ..AutoOptions::default()
+    };
+    registration::auto::projector_proposals(&project_dir(&folder)?, &projector, &options)
+        .map_err(|e| e.to_string())
 }
 
 // --- Assemblage de photos de façade (tâche 6.4) -----------------------------
@@ -718,6 +735,7 @@ pub fn run() {
             registration_show,
             registration_set,
             registration_preview,
+            registration_propose,
             library_import,
             illustrator_import,
             library_list,
