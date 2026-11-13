@@ -8,7 +8,10 @@ l'échelle** : les dessins sont posés en vraies dimensions (mm de façade).
 
 1. Importer des dessins dans l'étape Bibliothèque (⌘5) si ce n'est pas fait.
 2. Dans l'étape Façade, l'onglet **Dessins** du panneau de droite montre la
-   bibliothèque (rubrique **Dessins**) ; un champ permet de chercher.
+   bibliothèque (rubrique **Dessins**), classée par dossier comme dans
+   l'étape Bibliothèque : un clic sur un dossier le replie ou le déplie, le
+   chiffre à droite compte ses dessins. Le champ du haut cherche par nom ou
+   par dossier (D-4.2-o).
 3. Glisser une vignette sur le plan. Le dessin arrive au point de chute, large
    du quart de ce qu'on voit, aux proportions du fichier. Un double-clic sur
    la vignette le pose au centre de la vue.
@@ -154,7 +157,7 @@ deux projecteurs. Sur la façade, son contour a la couleur de son projecteur
 choisie à la main le coupe. Un contour gris : il ne tombe dans aucune
 emprise.
 
-**Ce qui ne sera pas projeté est en rouge** (version 0.1.42) : la part
+**Ce qui ne sera pas projeté est en rouge** (version 0.1.45) : la part
 d'un dessin qui sort de l'emprise de sa diapositive est couverte d'un aplat
 rouge sur la façade. Personne ne la projette, même si une diapositive
 voisine couvre cet endroit (un dessin ne part que dans une diapositive).

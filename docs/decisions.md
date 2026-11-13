@@ -747,6 +747,18 @@ dessin le déplace toujours ; pour tourner ou agrandir à la souris, il faut
 d'abord « Redresser » (barre du haut), ou passer par les quarts de tour, la
 case Rotation et la case Largeur.
 
+**D-4.2-o. Onglet Dessins : la bibliothèque classée par dossier.** Demande
+de Benjamin (13 novembre 2026) : « mets l'arborescence de la bibliothèque
+pour voir tous les dessins classés ». Les vignettes à poser sont rangées
+sous les mêmes dossiers que dans l'étape Bibliothèque (les sous-dossiers du
+dossier importé), avec le nombre de dessins de chaque dossier, sous-dossiers
+compris. Tout est déplié à l'ouverture ; un clic sur un dossier le replie.
+Tri naturel (« Raie 2 » avant « Raie 10 »). La recherche porte sur le nom et
+le dossier, déplie tout et ne garde que les dossiers qui ont encore un
+dessin. Les dessins à la racine viennent en premier, sans titre. Les
+dossiers repliés ne sont pas retenus d'une session à l'autre. Calcul pur
+dans `src/compose/drawingTree.ts`, testé.
+
 **Limite.** Les fichiers des dessins utilisés par une diapositive restent
 en mémoire pendant l'export (en niveaux de gris, un dessin de 4 096 px pèse
 16 Mo) ; à surveiller avec une très grande bibliothèque.
