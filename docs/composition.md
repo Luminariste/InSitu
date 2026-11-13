@@ -256,16 +256,20 @@ dessin :
 2. Garder les dossiers des dessins **à côté du `.ai`**, comme Illustrator
    les attend (Algues/, Poissons/…). Le `.ai` peut venir d'un autre Mac :
    les liens sont retrouvés par leur dossier relatif, puis par leur nom.
-3. Écran Façade (plan à l'échelle), onglet **Calques**, rubrique
-   **Composition Illustrator** : **Importer un fichier .ai…**.
+3. Écran Façade (plan à l'échelle), onglet **Plan**, rubrique **Fresque** :
+   **Importer la fresque…**, et choisir le `.ai` (une image, un PDF ou un
+   SVG y sont posés en fond de référence, sans dessins).
 4. Une fenêtre montre le résultat avant d'importer : à gauche, chaque image
    à sa place sur la façade, de la couleur de son calque (pointillés rouges :
    lien introuvable) ; à droite, les calques d'Illustrator, l'avant en haut,
    et en les dépliant leurs fichiers, avec pour chacun **Bibliothèque**
    (déjà là : le dessin est repris, avec ses retouches), **Bibliothèque
    (même nom)** (fichier absent de ce Mac, mais un dessin du même nom est
-   dans la bibliothèque), **Nouveau** (il entrera dans la bibliothèque) ou
-   **Introuvable**. On coche ou décoche un calque entier ou un fichier ; le
+   dans la bibliothèque), **Nouveau** (il entrera dans la bibliothèque),
+   **Incorporée** (image copiée dans le `.ai` : extraite en PNG, trait blanc
+   sur noir, dans la bibliothèque sous `Incorporées/`) ou **Introuvable**.
+   « Poser en fond seulement » met le `.ai` en une image de fond, sans
+   dessins. On coche ou décoche un calque entier ou un fichier ; le
    survol d'une ligne éclaire ses images. La phrase du bas dit ce qui sera
    fait ; **Importer** le fait.
 5. Chaque image choisie devient un dessin posé, avec sa position, sa taille,

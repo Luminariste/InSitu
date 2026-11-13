@@ -16,6 +16,7 @@
 //! (`%AI3_Cropmarks`) est ramené à la page, origine en haut à gauche, y
 //! vers le bas, comme la façade.
 
+mod embedded;
 mod link;
 mod plan;
 #[cfg(test)]
@@ -31,6 +32,7 @@ use crate::library::{import_files, ImportOptions, ImportProgress, LibraryError};
 use crate::project::model::{new_id, RectMm};
 use crate::project::{Layer, Placement, PointMm, Project, ProjectDir, ProjectError};
 
+pub use embedded::{EmbeddedImage, PixelKind};
 pub use link::{fold_name, resolve_link};
 pub use plan::{
     plan_links, preview_composition, CompositionPreview, LinkPlan, LinkStatus, PreviewImage,
@@ -132,10 +134,17 @@ pub struct AiDocument {
     /// haut), en points.
     pub artboard: [f64; 4],
     pub placed: Vec<PlacedImage>,
-    /// Images incorporées (sans lien) : non importées.
+    /// Images incorporées (sans lien, ou liées à un fichier temporaire
+    /// d'Illustrator), qu'on sache les relire ou non.
     pub embedded: usize,
-    /// Calque de premier niveau de chaque image incorporée.
+    /// Calque de premier niveau de chaque image incorporée qu'on ne sait pas
+    /// relire.
     pub embedded_layers: Vec<String>,
+    /// Les images incorporées relues, dans l'ordre du fichier (décision
+    /// D-6.3-i). Celles hors de tout calque (réserve de symboles ou de
+    /// motifs) n'y sont pas.
+    #[serde(skip)]
+    pub embedded_images: Vec<EmbeddedImage>,
     /// Calques de premier niveau, dans l'ordre du fichier (le premier est au
     /// fond).
     pub layers: Vec<AiLayer>,
@@ -153,12 +162,51 @@ pub struct AiLayer {
 }
 
 impl AiDocument {
+    /// Toutes les images qu'on peut poser : les liées, puis les incorporées
+    /// relues (nommées comme leur fichier extrait). Le rang d'une image dans
+    /// cette liste est celui de l'aperçu et de l'import.
+    pub fn all_images(&self) -> Vec<PlacedImage> {
+        let mut all = self.placed.clone();
+        all.extend(
+            self.embedded_images
+                .iter()
+                .enumerate()
+                .map(|(j, e)| PlacedImage {
+                    layer: e.layer.clone(),
+                    visible: e.visible,
+                    matrix: e.matrix,
+                    bounds: e.bounds,
+                    absolute: embedded_name(j, &e.layer),
+                    relative_dir: None,
+                }),
+        );
+        all
+    }
+
+    /// Rang de l'image `i` de [`Self::all_images`] dans l'ordre du fichier
+    /// (le premier est au fond), pour empiler les incorporées à leur place.
+    pub fn file_order(&self, i: usize) -> f64 {
+        match i.checked_sub(self.placed.len()) {
+            None => i as f64,
+            Some(j) => self.embedded_images[j].after as f64 - 0.5 + j as f64 * 1e-6,
+        }
+    }
+
     pub fn artboard_size(&self) -> (f64, f64) {
         (
             self.artboard[2] - self.artboard[0],
             self.artboard[3] - self.artboard[1],
         )
     }
+}
+
+/// Dossier, sous celui du `.ai` dans la bibliothèque, des images
+/// incorporées extraites.
+pub const EMBEDDED_FOLDER: &str = "Incorporées";
+
+/// Nom du fichier extrait de la `j`-ième image incorporée.
+pub fn embedded_name(j: usize, layer: &str) -> String {
+    format!("Incorporée {:02} - {}.png", j + 1, clean(layer))
 }
 
 /// Lit un `.ai` : son plan de travail et ses images liées.
@@ -298,6 +346,15 @@ fn numbers(line: &[u8]) -> Vec<f64> {
 /// Lit le texte des données privées.
 pub fn parse(text: &[u8]) -> Option<AiDocument> {
     let lines: Vec<&[u8]> = text.split(|&c| c == b'\n' || c == b'\r').collect();
+    // Où commence chaque ligne dans `text` : les pixels d'une image
+    // incorporée se relisent à partir de là.
+    let mut offsets = Vec::with_capacity(lines.len());
+    let mut at = 0;
+    for l in &lines {
+        offsets.push(at);
+        at += l.len() + 1;
+    }
+    let mut embedded_images = Vec::new();
     let mut artboard = None;
     let mut placed = Vec::new();
     let mut embedded = 0;
@@ -360,6 +417,7 @@ pub fn parse(text: &[u8]) -> Option<AiDocument> {
                 .unwrap_or(lines.len());
             let found = if raster {
                 read_raster(&lines[i + 1..end.min(i + 8)])
+                    .filter(|p| !link::is_temporary(&p.absolute))
             } else {
                 read_place(&lines[i + 1..end])
             };
@@ -371,7 +429,18 @@ pub fn parse(text: &[u8]) -> Option<AiDocument> {
                 }
                 None if raster => {
                     embedded += 1;
-                    embedded_layers.push(stack.first().map(|l| l.name.clone()).unwrap_or_default());
+                    let layer = stack.first().map(|l| l.name.clone()).unwrap_or_default();
+                    let read =
+                        embedded::read_embedded(text, &lines[i + 1..end], |k| offsets[i + 1 + k]);
+                    match read {
+                        Some(mut image) if !layer.trim().is_empty() => {
+                            image.layer = layer;
+                            image.visible = stack.iter().all(|l| l.visible);
+                            image.after = placed.len();
+                            embedded_images.push(image);
+                        }
+                        _ => embedded_layers.push(layer),
+                    }
                 }
                 None => {}
             }
@@ -384,6 +453,7 @@ pub fn parse(text: &[u8]) -> Option<AiDocument> {
         placed,
         embedded,
         embedded_layers,
+        embedded_images,
         layers: top_layers,
     })
 }
@@ -540,8 +610,11 @@ pub struct CompositionReport {
     pub layers: Vec<String>,
     /// Liens introuvables ou illisibles.
     pub missing: Vec<MissingLink>,
-    /// Images incorporées dans le `.ai`, non importées.
+    /// Images incorporées dans le `.ai` qu'on ne sait pas relire (hors
+    /// calque, ou format inconnu) : non importées.
     pub embedded: usize,
+    /// Images incorporées extraites en PNG et posées.
+    pub extracted: usize,
     /// Images déformées en biais dans Illustrator : posées sans le biais.
     pub skewed: usize,
     /// Images laissées de côté dans la fenêtre d'import.
@@ -615,14 +688,11 @@ pub fn import_composition(
     let doc = read(ai)?;
     let project = dir.load()?.project;
     let frame = facade_frame(&project, &doc, frame)?;
+    let all = doc.all_images();
     let chosen: Vec<usize> = match only {
-        None => (0..doc.placed.len()).collect(),
+        None => (0..all.len()).collect(),
         Some(list) => {
-            let mut v: Vec<usize> = list
-                .iter()
-                .copied()
-                .filter(|&i| i < doc.placed.len())
-                .collect();
+            let mut v: Vec<usize> = list.iter().copied().filter(|&i| i < all.len()).collect();
             v.sort_unstable();
             v.dedup();
             v
@@ -643,8 +713,32 @@ pub fn import_composition(
     let ai_folder = ai.parent().unwrap_or(Path::new("."));
     let mut files: Vec<(PathBuf, String)> = Vec::new();
     let mut file_of_link: BTreeMap<usize, usize> = BTreeMap::new();
+    // Les images incorporées choisies, extraites en PNG dans un dossier
+    // provisoire, retiré après l'import.
+    let scratch = std::env::temp_dir().join(format!("insitu-incorporees-{}", new_id()));
+    let _cleanup = RemoveOnDrop(scratch.clone());
     for &k in &needed {
         let link = &plan.links[k];
+        if let (LinkStatus::Embedded, Some(j)) = (link.status, link.embedded) {
+            let path = scratch.join(&link.name);
+            let written = std::fs::create_dir_all(&scratch)
+                .map_err(|e| e.to_string())
+                .and_then(|()| {
+                    doc.embedded_images[j]
+                        .to_gray()
+                        .save(&path)
+                        .map_err(|e| e.to_string())
+                });
+            if let Err(e) = written {
+                return Err(IllustratorError::Unreadable(format!(
+                    "image incorporée {} : {e}",
+                    link.name
+                )));
+            }
+            file_of_link.insert(k, files.len());
+            files.push((path, format!("{EMBEDDED_FOLDER}/{}", link.name)));
+            continue;
+        }
         if link.status != LinkStatus::New {
             continue;
         }
@@ -686,17 +780,19 @@ pub fn import_composition(
                     reused += 1;
                 }
             }
-            LinkStatus::New => match file_of_link.get(&k).map(|&at| &ids[at]) {
-                Some(Ok(id)) => {
-                    drawing_of_link.insert(k, id.clone());
+            LinkStatus::New | LinkStatus::Embedded => {
+                match file_of_link.get(&k).map(|&at| &ids[at]) {
+                    Some(Ok(id)) => {
+                        drawing_of_link.insert(k, id.clone());
+                    }
+                    Some(Err(reason)) => missing.push(MissingLink {
+                        link: link.link.clone(),
+                        count: count_of(k),
+                        reason: reason.clone(),
+                    }),
+                    None => {}
                 }
-                Some(Err(reason)) => missing.push(MissingLink {
-                    link: link.link.clone(),
-                    count: count_of(k),
-                    reason: reason.clone(),
-                }),
-                None => {}
-            },
+            }
             LinkStatus::Missing => missing.push(MissingLink {
                 link: link.link.clone(),
                 count: count_of(k),
@@ -711,8 +807,11 @@ pub fn import_composition(
     let mut layer_names: Vec<String> = Vec::new();
     let mut placements = Vec::new();
     let mut skewed = 0;
-    for &i in &chosen {
-        let p = &doc.placed[i];
+    let mut extracted = 0;
+    let mut stacked = chosen.clone();
+    stacked.sort_by(|&a, &b| doc.file_order(a).total_cmp(&doc.file_order(b)));
+    for &i in &stacked {
+        let p = &all[i];
         let Some(drawing) = drawing_of_link.get(&plan.link_of_image[i]) else {
             continue;
         };
@@ -745,6 +844,9 @@ pub fn import_composition(
         }
         if is_skewed(p) {
             skewed += 1;
+        }
+        if i >= doc.placed.len() {
+            extracted += 1;
         }
         let pose = pose(p, doc.artboard, &frame);
         placements.push(Placement {
@@ -783,16 +885,17 @@ pub fn import_composition(
     drawings.sort();
     drawings.dedup();
     let report = CompositionReport {
-        found: doc.placed.len(),
+        found: all.len(),
         placed,
         drawings: drawings.len(),
         reused,
         folder: base,
         layers: layer_names,
         missing,
-        embedded: doc.embedded,
+        embedded: doc.embedded - doc.embedded_images.len(),
+        extracted,
         skewed,
-        skipped: doc.placed.len() - chosen.len(),
+        skipped: all.len() - chosen.len(),
     };
     Ok((project, report))
 }
@@ -839,5 +942,14 @@ fn clean(name: &str) -> String {
         "Illustrator".into()
     } else {
         trimmed
+    }
+}
+
+/// Retire un dossier provisoire en fin de portée.
+struct RemoveOnDrop(PathBuf);
+
+impl Drop for RemoveOnDrop {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
     }
 }

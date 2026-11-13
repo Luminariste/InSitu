@@ -230,6 +230,32 @@ imprimer rendu par le moteur, dans les quatre sens, détection seule et
 coins donnés dans le désordre ; pas encore sur une vraie photo de la mire
 imprimée.
 
+## 2026-11-13 — Import Illustrator : images incorporées, un seul bouton d'import (demandes de Benjamin)
+
+**D-6.3-i. Les images incorporées sont extraites en PNG.** Une image copiée
+dans le `.ai` (bloc `%AI5_BeginRaster` au chemin vide, ou au chemin d'un
+fichier temporaire d'Illustrator `/var/folders/…`) est relue dans les
+données privées, pixels bruts après `%%BeginData` : masque d'un bit (peint
+là où le bit vaut 0, comme `imagemask`), gris, RVB ou CMJN sur 8 bits.
+Elle devient un PNG en niveaux de gris, trait blanc sur noir, rangé dans
+`bibliotheque/<nom du .ai>/Incorporées/Incorporée NN - <calque>.png`, puis
+un dessin posé comme une image liée (même matrice, même calque, à sa place
+dans l'empilement). Deux images incorporées identiques donnent un seul
+fichier. Une image incorporée hors de tout calque (réserve de symboles ou
+de motifs d'Illustrator, posée loin du plan de travail) est laissée de côté.
+Un second import reprend le fichier déjà extrait. Sur ECURIES-COMPOSITION.ai :
+6 images relues (5 masques d'un bit jusqu'à 11 598 × 6 521 px, une image
+CMJN du calque « Intentions »), 5 fichiers, orientation et place vérifiées
+contre le rendu PDF du même fichier. Limite : le masque d'écrêtage qui
+recadre parfois ces images dans Illustrator n'est pas repris (D-6.3-b).
+
+**D-6.3-j. Un seul bouton : « Importer la fresque… ».** Accord de Benjamin
+le 13 novembre : un `.ai` passe par la fenêtre d'aperçu et ses images
+deviennent des dessins dans les calques ; une image, un PDF ou un SVG
+restent un fond de référence (D-3.5-h à k). La fenêtre garde « Poser en fond
+seulement » pour un `.ai` fait de tracés, sans images. La rubrique
+« Composition Illustrator » de l'onglet Calques est retirée.
+
 ## 2026-11-13 — Import Illustrator : aperçu, choix, lien avec la bibliothèque (demande de Benjamin)
 
 Benjamin veut que l'import d'un `.ai` crée un dessin par image, fasse le lien

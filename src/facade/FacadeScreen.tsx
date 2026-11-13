@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import { CompositionToolbar } from "../compose/CompositionToolbar";
 import { DrawingsSection } from "../compose/DrawingsSection";
-import { IllustratorImport } from "../compose/IllustratorImport";
+import { useIllustratorImport } from "../compose/IllustratorImport";
 import { LayersSection } from "../compose/LayersSection";
 import { PlacementBar } from "../compose/PlacementBar";
 import { SlidesSection } from "../compose/SlidesSection";
@@ -668,6 +668,7 @@ export function FacadeScreen() {
   // Inspecteur en onglets (D15-i) : un onglet par sujet, choisi par le
   // contexte (dessins choisis : Dessins ; pose de A et B : Plan) ou
   // à la main ; le dernier choisi est retenu d'un lancement à l'autre.
+  const illustrator = useIllustratorImport({ folder, onProject: setProject, onFresco: () => setShowFresco(true) });
   const exportPanel = useExportPanel({
     engine,
     folder,
@@ -675,6 +676,7 @@ export function FacadeScreen() {
     onProject: setProject,
     showFresco,
     onShowFresco: setShowFresco,
+    illustrator,
   });
   const [tab, setTab] = useState<FacadeTab>(readFacadeTab);
   const chooseTab = (next: FacadeTab) => {
@@ -848,7 +850,6 @@ export function FacadeScreen() {
               actions={composition.layerActions}
               blocked={composeBlocked}
             />
-            <IllustratorImport engine={engine} folder={folder} scaled={sizeMm !== null} onProject={setProject} />
           </>
         ),
         export: (

@@ -948,14 +948,17 @@ export interface CompositionReport {
   folder: string;
   layers: string[];
   missing: MissingLink[];
+  /** Images incorporées qu'on ne sait pas relire (hors calque, format inconnu). */
   embedded: number;
+  /** Images incorporées extraites en PNG et posées. */
+  extracted: number;
   skewed: number;
   /** Images laissées de côté dans la fenêtre d'import. */
   skipped: number;
 }
 
 /** Ce que l'import ferait d'un fichier lié du .ai. */
-export type LinkStatus = "library" | "libraryByName" | "new" | "missing";
+export type LinkStatus = "library" | "libraryByName" | "new" | "missing" | "embedded";
 
 export interface PreviewLink {
   link: string;
@@ -1007,19 +1010,6 @@ export interface CompositionPreview {
 export async function previewIllustrator(folder: string, path: string): Promise<CompositionPreview> {
   requireEngine();
   return invoke<CompositionPreview>("illustrator_preview", { folder, path });
-}
-
-/** Demande un fichier Illustrator ; `null` si l'utilisateur renonce. */
-export async function chooseIllustratorFile(): Promise<string | null> {
-  requireEngine();
-  const { open } = await import("@tauri-apps/plugin-dialog");
-  const chosen = await open({
-    multiple: false,
-    directory: false,
-    title: "Importer une composition Illustrator (dessins liés)",
-    filters: [{ name: "Illustrator", extensions: ["ai"] }],
-  });
-  return typeof chosen === "string" ? chosen : null;
 }
 
 /** Recrée la composition d'un .ai : ses images liées deviennent des dessins posés. */
@@ -1242,7 +1232,7 @@ export async function chooseFrescoFile(): Promise<string | null> {
   const chosen = await open({
     multiple: false,
     directory: false,
-    title: "Importer la fresque (toute la façade : image, PDF ou Illustrator)",
+    title: "Importer la fresque : un .ai devient des dessins dans les calques ; une image, un PDF ou un SVG, un fond",
     filters: [{ name: "Fresque", extensions: FRESCO_EXTENSIONS }],
   });
   return typeof chosen === "string" ? chosen : null;
