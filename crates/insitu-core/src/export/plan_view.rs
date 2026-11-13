@@ -16,9 +16,14 @@ use crate::project::{Facade, ProjectDir};
 use crate::registration::footprint;
 use crate::tiles::Raster;
 
-/// Plus grand côté, en pixels, de la partie du plan rendue pour une
-/// diapositive : un peu plus fin que l'aperçu de 2 048 px.
+/// Plus grand côté, en pixels, de la partie du plan rendue pour l'aperçu
+/// d'une diapositive : un peu plus fin que l'aperçu de 2 048 px.
 pub const PLAN_WINDOW_PX: u32 = 3_072;
+
+/// Plus grand côté de la partie du plan rendue pour un plan de contrôle à
+/// graver (D-3.5-m) : assez fin pour un trait net, sans dépasser quelques
+/// centaines de Mo de mémoire.
+pub const CONTROL_PLAN_WINDOW_PX: u32 = 8_192;
 
 /// La partie du plan sous l'emprise du recalage `warp`, en niveaux de gris
 /// négatifs (traits blancs sur noir), et le rectangle de façade (mm) qu'elle
@@ -28,6 +33,7 @@ pub fn plan_under_footprint(
     dir: &ProjectDir,
     facade: &Facade,
     warp: &PointWarp,
+    max_px: u32,
 ) -> Option<(Raster, RectMm)> {
     let mm_per_unit = facade.scale.as_ref()?.mm_per_source_unit()?;
     let (plan_w, plan_h) = facade.size_mm()?;
@@ -44,8 +50,8 @@ pub fn plan_under_footprint(
     if !(x1 > x0 && y1 > y0) {
         return None;
     }
-    // Pixels par mm de façade : le plus grand côté fait PLAN_WINDOW_PX.
-    let k = f64::from(PLAN_WINDOW_PX) / (x1 - x0).max(y1 - y0);
+    // Pixels par mm de façade : le plus grand côté fait `max_px`.
+    let k = f64::from(max_px) / (x1 - x0).max(y1 - y0);
     let path = dir.resolve(&facade.source);
     let (gray, frame) = match SourceKind::of(&path).ok()? {
         SourceKind::Image => image_window(&path, facade, mm_per_unit, (x0, y0, x1, y1), k)?,

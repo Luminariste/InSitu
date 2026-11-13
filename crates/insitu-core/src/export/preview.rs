@@ -235,7 +235,12 @@ fn plan_preview(
         tiles::fnv1a_64(identity.as_bytes())
     );
     if !cache_root.join(&request).is_file() {
-        let (plan, frame) = super::plan_view::plan_under_footprint(dir, facade, warp)?;
+        let (plan, frame) = super::plan_view::plan_under_footprint(
+            dir,
+            facade,
+            warp,
+            super::plan_view::PLAN_WINDOW_PX,
+        )?;
         let settings = ExportSettings {
             dpi: f64::from(side) / SLIDE_SIZE_MM * MM_PER_INCH,
             margin: false,

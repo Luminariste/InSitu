@@ -8,7 +8,10 @@ import {
   frescoPlacement,
   sheetFileName,
   sheetSummary,
-  validDpi, ALL_SLIDES, exportButtonLabel, exportTargets, keptTarget } from "./exportLogic";
+  validDpi, ALL_SLIDES, exportButtonLabel, exportTargets, keptTarget,
+  controlPlanButtonLabel,
+  controlPlanSummary,
+} from "./exportLogic";
 
 describe("export des diapositives", () => {
   it("donne la taille du PNG, avec ou sans marge", () => {
@@ -80,5 +83,28 @@ describe("une diapositive ou toutes", () => {
     const targets = exportTargets(projectors);
     expect(keptTarget("p1", targets)).toBe("p1");
     expect(keptTarget("p2", targets)).toBe(ALL_SLIDES);
+  });
+});
+
+describe("plan de contrôle", () => {
+  const targets = [
+    { id: "p1", label: "A" },
+    { id: "p2", label: "B" },
+  ];
+  it("le bouton dit ce qu'il écrit", () => {
+    expect(controlPlanButtonLabel("", targets)).toBe("Plans de contrôle…");
+    expect(controlPlanButtonLabel("p2", targets)).toBe("Plan de contrôle B…");
+  });
+  it("le compte rendu donne la raison des plans manquants", () => {
+    const slide = { projectorId: "p1", label: "A", path: "/x/A.png", sizePx: 10, sizeMm: 280, bytes: 1, svg: null, seconds: 1 };
+    const settings = { dpi: 1400, margin: false, mirror: true, negative: true, oneBit: true, threshold: 128, svg: false };
+    expect(controlPlanSummary({ slides: [slide], skipped: [], settings }, "/Users/b/Gravure")).toContain(
+      "1 plan de contrôle écrit dans « Gravure »",
+    );
+    const partial = controlPlanSummary(
+      { slides: [slide, slide], skipped: [{ projectorId: "p3", label: "C", reason: "recalage incomplet" }], settings },
+      "/Users/b/Gravure",
+    );
+    expect(partial).toBe("2 plans de contrôle écrits dans « Gravure ». Sans plan : C (recalage incomplet).");
   });
 });

@@ -60,6 +60,23 @@ réglages (ceux de l'onglet Export de la Façade).
 Compter une quinzaine de secondes par diapositive à 1 400 dpi, un peu plus
 avec beaucoup de dessins posés.
 
+## Plan de contrôle : vérifier le recalage avant de graver
+
+Le **plan de contrôle** est le plan de la façade vu par un projecteur,
+passé par la même déformation que les dessins. On le grave sur une plaque
+comme une diapositive, on le projette : s'il tombe juste sur
+l'architecture, les dessins tomberont juste aussi.
+
+- Façade, onglet **Export** : **Plans de contrôle…** (ou **Plan de contrôle
+  A…** si un seul projecteur est choisi dans **Diapositives**).
+- Diapositive : **Plan de contrôle…**, pour le projecteur affiché.
+
+Un fichier par projecteur : `<projet>-<diapositive> - PLAN DE
+CONTROLE.png`, avec les réglages de l'onglet Export (résolution, marge,
+miroir, négatif, noir et blanc pur) ; « PLAN DE CONTROLE » est écrit dans
+la marge. Il faut un plan mis à l'échelle. Les réglages d'export du projet
+ne changent pas, et le plan n'entre jamais dans l'export des diapositives.
+
 ## Les dessins posés dans l'app
 
 Les dessins posés sur la façade (étape Façade, `docs/composition.md`)
@@ -133,6 +150,7 @@ insitu fresco Mon-projet.insitu Composition.ai
 insitu fresco Mon-projet.insitu Composition.pdf --page 2
 insitu export Mon-projet.insitu Gravure/ --dpi 1000 --no-margin
 insitu export Mon-projet.insitu Gravure/ --svg
+insitu export Mon-projet.insitu Gravure/ --plan-de-controle --only A
 ```
 
 `insitu export --help` donne toutes les options.

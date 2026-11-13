@@ -595,7 +595,8 @@ fn fresco_import(folder: String, path: String) -> Result<Project, String> {
     export::import_fresco(&project_dir(&folder)?, Path::new(&path), None).map_err(|e| e.to_string())
 }
 
-/// Écrit un PNG par projecteur recalé dans `destination`.
+/// Écrit un PNG par projecteur recalé dans `destination` : sa diapositive,
+/// ou son plan de contrôle (D-3.5-m).
 #[tauri::command(async)]
 fn slides_export(
     app: AppHandle,
@@ -603,8 +604,14 @@ fn slides_export(
     destination: String,
     settings: ExportSettings,
     only: Option<Vec<String>>,
+    control_plan: Option<bool>,
 ) -> Result<ExportReport, String> {
-    export::export_slides(
+    let run = if control_plan.unwrap_or(false) {
+        export::export_control_plans
+    } else {
+        export::export_slides
+    };
+    run(
         &project_dir(&folder)?,
         Path::new(&destination),
         &settings,

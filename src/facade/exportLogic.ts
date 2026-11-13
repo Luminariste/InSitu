@@ -60,6 +60,24 @@ export function exportSummary(report: ExportReport, destination: string): string
   return `${written}${time}. Non exporté${report.skipped.length > 1 ? "s" : ""} (recalage incomplet) : ${skipped}.`;
 }
 
+/**
+ * Ce qu'on dit après l'export des plans de contrôle (D-3.5-m) : combien de
+ * plans, où, et ceux qui manquent avec leur raison.
+ */
+export function controlPlanSummary(report: ExportReport, destination: string): string {
+  const n = report.slides.length;
+  const written = `${n} plan${n > 1 ? "s" : ""} de contrôle écrit${n > 1 ? "s" : ""} dans « ${fileName(destination)} »`;
+  if (report.skipped.length === 0) return `${written}. À graver comme une diapositive : projeté, le plan doit tomber sur la façade.`;
+  const skipped = report.skipped.map((s) => `${s.label} (${s.reason})`).join(", ");
+  return `${written}. Sans plan : ${skipped}.`;
+}
+
+/** Libellé du bouton du plan de contrôle : un seul projecteur, ou tous. */
+export function controlPlanButtonLabel(choice: string, targets: ExportTarget[]): string {
+  const one = targets.find((t) => t.id === choice);
+  return one ? `Plan de contrôle ${one.label}…` : "Plans de contrôle…";
+}
+
 /** Nom proposé pour la fiche de calepinage. */
 export function sheetFileName(projectName: string | undefined): string {
   const name = (projectName ?? "").replace(/[/\\:*?"<>|]/g, "-").trim();
