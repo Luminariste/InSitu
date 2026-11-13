@@ -46,7 +46,7 @@ sur la façade à l'étape suivante (placement, tâche 4.2).
 - ⌘Z annule chaque rangement. Rien ne bouge sur le disque : dans le Finder,
   `bibliotheque/` garde le rangement de l'import (D-4.1-g).
 
-### Essai sur Mac (version 0.1.70)
+### Essai sur Mac (version 0.1.71)
 
 1. Ouvrir un projet avec une bibliothèque (Trévarez, par exemple), étape
    Bibliothèque.
