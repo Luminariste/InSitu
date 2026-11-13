@@ -26,6 +26,7 @@ import {
   saveRegistration,
   type FacadeOverview,
   type Project,
+  type RegistrationLine,
   type RegistrationPair,
   type RegistrationReport,
 } from "../engine";
@@ -57,9 +58,10 @@ import {
   pairStatus,
   movePoint,
   ADJUST_SHOWN,
-  followPins,
-  pinFitText,
+  constraintsText,
+  followConstraints,
   isGuide,
+  lineDrawn,
   removePair,
   summary,
   type Pending,
@@ -78,6 +80,7 @@ import {
   ListRow,
   Panel,
   Screen,
+  Segmented,
   StatusBar,
   StatusText,
   ToolGroup,
@@ -100,7 +103,20 @@ type Drag =
   /** Toute la photo, par la poignée du centre (façade). */
   | { kind: "move"; start: XYPoint; before: RegistrationPair[] }
   /** Un détail de la photo attrapé sur la façade : nouvelle paire au premier mouvement. */
-  | { kind: "pin"; slide: XYPoint; before: RegistrationPair[] };
+  | { kind: "pin"; slide: XYPoint; before: RegistrationPair[] }
+  /** Un trait en cours de tracé, sur la photo ou sur le plan (mode Lignes, D-3.2-k). */
+  | { kind: "draw"; side: Side; start: XYPoint; end: XYPoint; before: RegistrationPair[] }
+  /** Un bout d'une ligne déjà posée. */
+  | { kind: "lineEnd"; side: Side; line: number; end: 0 | 1; before: RegistrationPair[]; beforeLines: RegistrationLine[] };
+
+/** Façon de caler la photo : par points sûrs ou par lignes communes (D-3.2-k). */
+type Mode = "points" | "lines";
+
+/** Ramène un point dans le carré de la diapositive. */
+const clampSlide = (p: XYPoint): XYPoint => ({
+  x: Math.min(SLIDE_MM, Math.max(0, p.x)),
+  y: Math.min(SLIDE_MM, Math.max(0, p.y)),
+});
 
 /** Contour d'un maillage (pour l'emprise de l'exemple du navigateur). */
 function meshOutline(mesh: MeshLike): XYPoint[] {
@@ -167,6 +183,11 @@ export function RegistrationScreen() {
   const [photo, setPhoto] = useState<TileSource | null>(null);
   const [facade, setFacade] = useState<{ source: TileSource; placement: Placement } | null>(null);
   const [pairs, setPairs] = useState<RegistrationPair[]>([]);
+  /** Lignes communes (bord de fenêtre, corniche…) : un trait sur la photo, le même sur le plan. */
+  const [lines, setLines] = useState<RegistrationLine[]>([]);
+  /** Trait déjà tracé d'un côté, qui attend le même de l'autre. */
+  const [halfLine, setHalfLine] = useState<{ side: Side; seg: [XYPoint, XYPoint] } | null>(null);
+  const [mode, setMode] = useState<Mode>("points");
   const [report, setReport] = useState<RegistrationReport | null>(null);
   const [pending, setPending] = useState<Pending>(NO_PENDING);
   const [selected, setSelected] = useState<number | null>(null);
@@ -231,6 +252,8 @@ export function RegistrationScreen() {
     setNotice(null);
     const p = opened.projectors.find((q) => q.id === id) ?? null;
     setPairs(p?.registration ?? []);
+    setLines(p?.registrationLines ?? []);
+    setHalfLine(null);
     if (!p?.rectifiedPhoto) return;
     setBusy("Préparation de la photo redressée…");
     setPhoto(await openTiledImage(projectFile(dir, p.rectifiedPhoto)));
@@ -283,6 +306,8 @@ export function RegistrationScreen() {
         setLive(null);
         setAdjustUndo(null);
         setPairs(p.registration ?? []);
+        setLines(p.registrationLines ?? []);
+        setHalfLine(null);
         setReport(p.rectifiedPhoto ? await fetchRegistration(path, p.id) : null);
         await refreshOverview(path);
       }),
@@ -312,6 +337,14 @@ export function RegistrationScreen() {
   const currentMesh: MeshLike | null = demoMesh ?? live?.mesh ?? (pairs.length >= 4 ? savedMesh : null);
   const photoOnFacade = showPhoto && currentMesh !== null && (engine ? true : photo !== null);
 
+  /** Trait en attente ou en cours de tracé, de ce côté. */
+  const draftOn = (side: Side): [XYPoint, XYPoint] | null =>
+    dragging?.kind === "draw" && dragging.side === side
+      ? [dragging.start, dragging.end]
+      : halfLine?.side === side
+        ? halfLine.seg
+        : null;
+
   useEffect(() => {
     const statuses = pairs.map((_, i) => pairStatus(report?.pairs[i]));
     const footprint = demoMesh
@@ -327,6 +360,8 @@ export function RegistrationScreen() {
       pending: pending.slide,
       footprint: null,
       handle: null,
+      lines: lines.map((l) => l.slide),
+      draft: draftOn("slide"),
     });
     setFacadeMarkers({
       points: pairs.map((p, i) => ({ ...p.facade, status: statuses[i] })),
@@ -334,8 +369,10 @@ export function RegistrationScreen() {
       pending: pending.facade,
       footprint: footprint && footprint.length > 1 ? footprint : null,
       handle: photoOnFacade && currentMesh ? meshCenter(currentMesh) : null,
+      lines: lines.map((l) => l.facade),
+      draft: draftOn("facade"),
     });
-  }, [pairs, report, pending, selected, live, demoMesh, currentMesh, photoOnFacade, setSlideMarkers, setFacadeMarkers]);
+  }, [pairs, lines, halfLine, dragging, report, pending, selected, live, demoMesh, currentMesh, photoOnFacade, setSlideMarkers, setFacadeMarkers]);
 
   // Nouvelle image : on recadre.
   useEffect(() => {
@@ -383,14 +420,20 @@ export function RegistrationScreen() {
 
   // --- Actions -------------------------------------------------------------
 
-  /** Enregistre les paires et relit le compte rendu du moteur. */
-  const commit = (next: RegistrationPair[], previous: RegistrationPair[] = pairs) => {
+  /** Enregistre les paires et les lignes, et relit le compte rendu du moteur. */
+  const commit = (
+    next: RegistrationPair[],
+    previous: RegistrationPair[] = pairs,
+    nextLines: RegistrationLine[] = lines,
+    previousLines: RegistrationLine[] = lines,
+  ) => {
     // Toute autre retouche rend l'ajustement définitif.
     setAdjustUndo(null);
     setPairs(next);
+    setLines(nextLines);
     if (!engine || !folder || !projector) return;
     setSaving((n) => n + 1);
-    saveRegistration(folder, projector.id, next)
+    saveRegistration(folder, projector.id, next, nextLines)
       .then(
       (saved) => {
         setProject(saved.project);
@@ -401,6 +444,7 @@ export function RegistrationScreen() {
       (failure: unknown) => {
         // Refusé par le moteur : rien n'est enregistré, on revient en arrière.
         setPairs(previous);
+        setLines(previousLines);
         setLive(null);
         setError(String(failure).replace(/^Error: /, ""));
       },
@@ -501,10 +545,24 @@ export function RegistrationScreen() {
       await showProjector(folder, project, id);
     });
 
+  /** Les coins guides recalculés d'après les points sûrs et les lignes. */
+  const follow = (next: RegistrationPair[], withLines: RegistrationLine[] = lines) => followConstraints(next, withLines);
+
   const remove = (index: number) => {
     setSelected(null);
-    commit(isGuide(pairs[index]) ? removePair(pairs, index) : followPins(removePair(pairs, index)));
+    commit(isGuide(pairs[index]) ? removePair(pairs, index) : follow(removePair(pairs, index)));
   };
+
+  const removeLine = (index: number) => {
+    const nextLines = lines.filter((_, i) => i !== index);
+    const next = follow(pairs, nextLines);
+    requestPreview(next);
+    commit(next, pairs, nextLines, lines);
+  };
+
+  /** Quatre coins guides : la condition pour caler par lignes. */
+  const guideCount = pairs.filter(isGuide).length;
+  const lineMode = mode === "lines" && guideCount === 4;
 
   /** Le pointeur, en mm de la vue `side` et en pixels de son écran. */
   const pointerAt = (side: Side, event: PointerEvent) => {
@@ -528,9 +586,33 @@ export function RegistrationScreen() {
       GRAB_RADIUS_PX,
     );
 
+  /** Le bout de ligne de ce côté sous le pointeur, ou rien. */
+  const lineEndUnder = (side: Side, at: NonNullable<ReturnType<typeof pointerAt>>) => {
+    const hit = hitHandle(
+      lines.flatMap((l) => l[side].map((p) => at.toScreen(p))),
+      at.screen,
+      GRAB_RADIUS_PX,
+    );
+    return hit === null ? null : { line: Math.floor(hit / 2), end: (hit % 2) as 0 | 1 };
+  };
+
   /** Ce qu'un appui attrape à cet endroit (point posé, poignée, détail de la photo). */
   const grabAt = (side: Side, at: NonNullable<ReturnType<typeof pointerAt>>) => {
+    const end = lineEndUnder(side, at);
+    if (end) return { kind: "lineEnd", ...end } as const;
     const hit = pointUnder(side, at);
+    if (lineMode) {
+      // Mode Lignes : un appui ailleurs que sur un point ou la poignée trace un trait.
+      if (hit !== null) return { kind: "point", index: hit } as const;
+      if (spaceHeld.current) return { kind: "none" } as const;
+      if (side === "facade" && photoOnFacade && currentMesh) {
+        const center = meshCenter(currentMesh);
+        const c = center ? at.toScreen(center) : null;
+        if (c && Math.hypot(c.x - at.screen.x, c.y - at.screen.y) <= GRAB_RADIUS_PX) return { kind: "move" } as const;
+      }
+      if (side === "slide" && !onSlide(at.mm)) return { kind: "none" } as const;
+      return { kind: "draw" } as const;
+    }
     if (side === "slide") return hit === null ? ({ kind: "none" } as const) : ({ kind: "point", index: hit } as const);
     const center = currentMesh ? meshCenter(currentMesh) : null;
     const c = center ? at.toScreen(center) : null;
@@ -557,6 +639,9 @@ export function RegistrationScreen() {
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     if (grab.kind === "point") setDragging({ kind: "point", side, index: grab.index, before: pairs });
+    else if (grab.kind === "lineEnd")
+      setDragging({ kind: "lineEnd", side, line: grab.line, end: grab.end, before: pairs, beforeLines: lines });
+    else if (grab.kind === "draw") setDragging({ kind: "draw", side, start: at.mm, end: at.mm, before: pairs });
     else if (grab.kind === "move") setDragging({ kind: "move", start: at.mm, before: pairs });
     else setDragging({ kind: "pin", slide: grab.slide, before: pairs });
   };
@@ -571,11 +656,22 @@ export function RegistrationScreen() {
       if (dragging.kind === "point" && dragging.side === side) {
         next = movePoint(dragging.before, dragging.index, side, at.mm);
         // Un point sûr entraîne les coins guides ; un coin guide se glisse seul.
-        if (!isGuide(dragging.before[dragging.index])) next = followPins(next);
+        if (!isGuide(dragging.before[dragging.index])) next = follow(next);
       } else if (dragging.kind === "move" && side === "facade") {
         next = translateFacade(dragging.before, at.mm.x - dragging.start.x, at.mm.y - dragging.start.y);
       } else if (dragging.kind === "pin" && side === "facade" && moved) {
-        next = followPins([...dragging.before, { slide: dragging.slide, facade: at.mm }]);
+        next = follow([...dragging.before, { slide: dragging.slide, facade: at.mm }]);
+      } else if (dragging.kind === "draw" && dragging.side === side) {
+        setDragging({ ...dragging, end: side === "slide" ? clampSlide(at.mm) : at.mm });
+      } else if (dragging.kind === "lineEnd" && dragging.side === side) {
+        const nextLines = dragging.beforeLines.map((l, i) => {
+          if (i !== dragging.line) return l;
+          const seg: [XYPoint, XYPoint] = [l[side][0], l[side][1]];
+          seg[dragging.end] = side === "slide" ? clampSlide(at.mm) : at.mm;
+          return { ...l, [side]: seg };
+        });
+        setLines(nextLines);
+        next = follow(dragging.before, nextLines);
       }
       if (next) {
         setPairs(next);
@@ -583,7 +679,8 @@ export function RegistrationScreen() {
       }
       return;
     }
-    setGrabbable(ready && !spaceHeld.current && grabAt(side, at).kind !== "none");
+    const kind = grabAt(side, at).kind;
+    setGrabbable(ready && !spaceHeld.current && kind !== "none" && kind !== "draw");
   };
 
   const onPointerUp = (side: Side) => (event: PointerEvent<HTMLDivElement>) => {
@@ -595,6 +692,32 @@ export function RegistrationScreen() {
       event.currentTarget.releasePointerCapture(event.pointerId);
       const drag = dragging;
       setDragging(null);
+      if (drag.kind === "draw") {
+        const seg: [XYPoint, XYPoint] = [drag.start, drag.end];
+        if (clicked || !lineDrawn(drag.start, drag.end)) return;
+        if (halfLine && halfLine.side !== side) {
+          // Les deux traits sont là : la ligne commune est posée.
+          const line: RegistrationLine =
+            side === "slide" ? { slide: seg, facade: halfLine.seg } : { slide: halfLine.seg, facade: seg };
+          const nextLines = [...lines, line];
+          const next = follow(pairs, nextLines);
+          setHalfLine(null);
+          requestPreview(next);
+          commit(next, pairs, nextLines, lines);
+        } else {
+          setHalfLine({ side, seg });
+        }
+        return;
+      }
+      if (drag.kind === "lineEnd") {
+        if (clicked) {
+          setLines(drag.beforeLines);
+          setPairs(drag.before);
+          return;
+        }
+        commit(pairs, drag.before, lines, drag.beforeLines);
+        return;
+      }
       if (drag.kind === "point") {
         setSelectedSide(drag.side);
         if (clicked) {
@@ -627,7 +750,7 @@ export function RegistrationScreen() {
     }
     setError(null);
     const result = click(pairs, pending, selected, side, at);
-    if (result.changed && (selected === null || !isGuide(pairs[selected]))) result.pairs = followPins(result.pairs);
+    if (result.changed && (selected === null || !isGuide(pairs[selected]))) result.pairs = follow(result.pairs);
     setPending(result.pending);
     if (result.changed) commit(result.pairs);
   };
@@ -662,6 +785,7 @@ export function RegistrationScreen() {
       if (event.key !== "Escape") return;
       setPending(NO_PENDING);
       setSelected(null);
+      setHalfLine(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -683,8 +807,14 @@ export function RegistrationScreen() {
           : rectified.length === 0
             ? "Redresser d'abord la photo de mire d'un projecteur (écran Redressement)."
             : null;
-  const instruction = hint(pending, selected, selectedSide);
-  const stageClass = `registration-stage${dragging ? " registration-dragging" : grabbable ? " registration-grab" : ""}`;
+  const instruction = lineMode
+    ? halfLine
+      ? halfLine.side === "slide"
+        ? "Tracer maintenant la même ligne sur le plan : appuyer sur un bout, glisser jusqu'à l'autre."
+        : "Tracer maintenant la même ligne sur la photo : appuyer sur un bout, glisser jusqu'à l'autre."
+      : "Glisser sur la photo le long d'un bord sûr (bord de fenêtre, corniche), puis le même sur le plan."
+    : hint(pending, selected, selectedSide);
+  const stageClass = `registration-stage${dragging && dragging.kind !== "draw" ? " registration-dragging" : grabbable ? " registration-grab" : ""}`;
 
   const tones: Record<string, Tone> = { bon: "success", moyen: "warning", aberrant: "danger", inconnu: "info" };
   const moveProjector = (step: -1 | 1) => {
@@ -706,7 +836,7 @@ export function RegistrationScreen() {
     const zoom = (selectedSide === "slide" ? slideViewer : facadeViewer).current?.scene()?.getView().zoom;
     if (!zoom) return false;
     const moved = movePoint(pairs, selected, selectedSide, nudged(pairs[selected][selectedSide], step, zoom));
-    const next = isGuide(pairs[selected]) ? moved : followPins(moved);
+    const next = isGuide(pairs[selected]) ? moved : follow(moved);
     setPairs(next);
     requestPreview(next);
     settle.current.push(pairs, (before) => commit(next, before));
@@ -728,6 +858,7 @@ export function RegistrationScreen() {
       run: () => {
         if (!dragging) return;
         setPairs(dragging.before);
+        if (dragging.kind === "lineEnd") setLines(dragging.beforeLines);
         setDragging(null);
         setLive(null);
       },
@@ -831,6 +962,20 @@ export function RegistrationScreen() {
       )}
       {pairs.length >= 4 && (
         <div className="registration-advice">
+          <Segmented<Mode>
+            label="Caler par"
+            value={mode}
+            onChange={(value) => {
+              setMode(value);
+              setHalfLine(null);
+              setPending(NO_PENDING);
+              setSelected(null);
+            }}
+            options={[
+              { value: "points", label: "Points", title: "Caler par des points sûrs : un détail de la photo lâché sur le même détail du plan" },
+              { value: "lines", label: "Lignes", title: "Caler par des lignes : un bord tracé sur la photo, le même tracé sur le plan" },
+            ]}
+          />
           {ADJUST_SHOWN && (
           <Button
             variant="primary"
@@ -853,12 +998,26 @@ export function RegistrationScreen() {
               Annuler l'ajustement
             </Button>
           )}
-          <p className="ui-note">
-            Pour caler : sur la façade, attraper un détail sûr de la photo (coin de fenêtre, pointe d'un arc…), où qu'il soit, et
-            le lâcher sur le même détail du plan. Les coins ne sont qu'un guide : ils suivent vos points. Barre d'espace +
-            glisser : déplacer la vue.
-          </p>
-          {pinFitText(pairs) && <p className="ui-note">{pinFitText(pairs)}</p>}
+          {mode === "points" ? (
+            <p className="ui-note">
+              Pour caler : sur la façade, attraper un détail sûr de la photo (coin de fenêtre, pointe d'un arc…), où qu'il soit,
+              et le lâcher sur le même détail du plan. Les coins ne sont qu'un guide : ils suivent vos points. Barre d'espace +
+              glisser : déplacer la vue.
+            </p>
+          ) : guideCount === 4 ? (
+            <p className="ui-note">
+              Tracer un bord sûr sur la photo (à gauche), puis le même sur le plan (à droite) : une verticale (bord de fenêtre),
+              une horizontale (corniche)… Les deux traits n'ont pas besoin d'avoir la même longueur. Deux horizontales et deux
+              verticales suffisent à retrouver le trapèze ; les points sûrs comptent aussi. Barre d'espace + glisser : déplacer
+              la vue.
+            </p>
+          ) : (
+            <p className="ui-note">
+              Les lignes demandent une photo posée par ses quatre coins : supprimer les points et la poser avec « Poser la photo
+              sur la façade ».
+            </p>
+          )}
+          {constraintsText(pairs, lines) && <p className="ui-note">{constraintsText(pairs, lines)}</p>}
         </div>
       )}
       {pairs.length > 0 ? (
@@ -886,6 +1045,19 @@ export function RegistrationScreen() {
         </List>
       ) : (
         <p className="ui-list-empty">Aucun point pour l'instant.</p>
+      )}
+      {lines.length > 0 && (
+        <List label="Lignes communes">
+          {lines.map((l, i) => (
+            <ListRow
+              key={`ligne-${i}`}
+              title={`Ligne ${i + 1}`}
+              detail={`photo ${(Math.hypot(l.slide[1].x - l.slide[0].x, l.slide[1].y - l.slide[0].y)).toFixed(0)} mm · plan ${(Math.hypot(l.facade[1].x - l.facade[0].x, l.facade[1].y - l.facade[0].y) / 1000).toFixed(1)} m`}
+              tooltip="Glisser un bout de la ligne, sur la photo ou sur le plan, pour la corriger"
+              actions={<IconButton icon="trash" label={`Supprimer la ligne ${i + 1}`} size="sm" onClick={() => removeLine(i)} disabled={!ready} />}
+            />
+          ))}
+        </List>
       )}
     </Panel>
   );

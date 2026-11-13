@@ -22,8 +22,8 @@ use insitu_core::placement;
 use insitu_core::project::history::{self, HistoryState};
 use insitu_core::project::{
     AssemblyPair, ExportSettings, Layer, Mirror, Placement, PointMm, Project, ProjectDir,
-    RegistrationPair, RetouchStroke, SilhouettePolygon, SlideAdjustment, SourcePoint,
-    VectorSettings,
+    RegistrationLine, RegistrationPair, RetouchStroke, SilhouettePolygon, SlideAdjustment,
+    SourcePoint, VectorSettings,
 };
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::auto::AdjustReport;
@@ -359,11 +359,13 @@ fn registration_set(
     folder: String,
     projector: String,
     pairs: Vec<RegistrationPair>,
+    lines: Option<Vec<RegistrationLine>>,
 ) -> Result<(Project, RegistrationReport), String> {
-    registration::set_registration(
+    registration::set_registration_with_lines(
         &project_dir(&folder)?,
         &projector,
         pairs,
+        lines,
         &RegistrationOptions::default(),
     )
     .map_err(|e| e.to_string())

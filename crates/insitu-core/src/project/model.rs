@@ -493,6 +493,12 @@ pub struct Projector {
     /// Recalage : points communs entre la diapositive et la façade.
     #[serde(default)]
     pub registration: Vec<RegistrationPair>,
+    /// Recalage par lignes (D-3.2-k) : traits communs entre la diapositive
+    /// et la façade (bord de fenêtre, corniche). L'écran s'en sert pour
+    /// placer les coins guides ; le calcul de l'emprise reste fait sur les
+    /// paires de points.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub registration_lines: Vec<RegistrationLine>,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }
@@ -506,6 +512,7 @@ impl Projector {
             rectified_photo: None,
             rectification: None,
             registration: Vec::new(),
+            registration_lines: Vec::new(),
             extra: ExtraFields::new(),
         }
     }
@@ -611,6 +618,20 @@ impl RegistrationPair {
             extra: ExtraFields::new(),
         }
     }
+}
+
+/// Une ligne commune entre la diapositive d'un projecteur et la façade :
+/// deux points de chaque côté, qui ne se correspondent pas forcément (seule
+/// la droite compte).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegistrationLine {
+    /// Deux points de la ligne sur la diapositive, en mm (0 à 280).
+    pub slide: [PointMm; 2],
+    /// Deux points de la ligne sur la façade, en mm réels.
+    pub facade: [PointMm; 2],
+    #[serde(flatten)]
+    pub extra: ExtraFields,
 }
 
 /// La fresque importée en une seule image, et le rectangle de façade qu'elle

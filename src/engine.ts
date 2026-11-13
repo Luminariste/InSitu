@@ -135,6 +135,8 @@ export interface Projector {
   rectification: RectificationInfo | null;
   /** Recalage sur la façade : points communs (tâche 3.2). */
   registration?: RegistrationPair[];
+  /** Recalage par lignes (D-3.2-k). */
+  registrationLines?: RegistrationLine[];
 }
 
 /** Ce que l'interface lit d'un projet ; les autres champs sont ignorés ici. */
@@ -677,6 +679,12 @@ export async function chooseExportPath(defaultName: string): Promise<string | nu
 // --- Recalage sur la façade (tâche 3.2) ----------------------------------------
 
 /** Un point commun : sur la diapositive (mm, 0 à 280) et sur la façade (mm réels). */
+/** Une ligne commune : deux points de chaque côté (seule la droite compte). */
+export interface RegistrationLine {
+  slide: [{ x: number; y: number }, { x: number; y: number }];
+  facade: [{ x: number; y: number }, { x: number; y: number }];
+}
+
 export interface RegistrationPair {
   slide: { x: number; y: number };
   facade: { x: number; y: number };
@@ -714,12 +722,14 @@ export async function saveRegistration(
   folder: string,
   projector: string,
   pairs: RegistrationPair[],
+  lines?: RegistrationLine[],
 ): Promise<{ project: Project; report: RegistrationReport }> {
   requireEngine();
   const [project, report] = await invoke<[Project, RegistrationReport]>("registration_set", {
     folder,
     projector,
     pairs,
+    lines: lines ?? null,
   });
   return { project, report };
 }

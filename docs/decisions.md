@@ -1962,6 +1962,40 @@ dans un quadrilatère » (groupés, alignés…).
   produit des normes des colonnes (borne de Hadamard), indépendant de
   l'échelle et de l'origine.
 
+**D-3.2-k. Caler aussi par lignes : choix « Points » ou « Lignes ».**
+Demande de Benjamin (13 novembre 2026) : « là j'ai une verticale (un bord
+de fenêtre), là une horizontale (une corniche) sur plan et photo ; en 4
+opérations on retrouve notre trapèze » ; plusieurs façons de recaler, à
+choisir selon la situation (automatique, par point, par ligne).
+
+- En haut du panneau, une fois la photo posée, un choix **Points** /
+  **Lignes**. « Automatique » reste caché (D-3.2-i, D-3.2-j).
+- **Ligne commune** : un trait tracé sur la photo (appuyer sur un bout,
+  glisser jusqu'à l'autre), puis le même bord tracé sur le plan, dans un
+  ordre ou dans l'autre. Les deux traits n'ont pas à avoir la même
+  longueur ni les mêmes bouts : seule compte la droite du plan, sur
+  laquelle doivent tomber les deux bouts du trait de la photo.
+  Enregistrée dans `projectors[].registrationLines`
+  (`[{ slide: [p, q], facade: [p, q] }]`, absente si vide), lue et écrite
+  par `insitu registration set` (champ `"lines"`).
+- Lignes et points sûrs se combinent : chaque point compte pour deux
+  équations, chaque ligne pour deux. Les coins guides sont recalculés
+  comme en D-3.2-j, selon le nombre d'équations : moins de 4 = la photo
+  glisse ; 4 = elle tourne et change d'échelle ; 6 = affine ; 8 ou plus =
+  forme libre (homographie). Un léger rappel vers la pose actuelle des
+  guides décide de ce que les contraintes laissent libre (une seule
+  corniche fait glisser la photo sans changer sa largeur).
+  Logique : `followConstraints` dans `src/registration/logic.ts`.
+- Cas limite connu : deux lignes qui se croisent et deux points ne
+  suffisent pas à décider du trapèze, bien qu'ils donnent 8 équations
+  (une famille de déformations centrées sur le croisement les satisfait
+  toutes). Le calcul garde alors la pose des guides la plus proche. Trois
+  lignes et un point, ou quatre lignes (deux horizontales, deux
+  verticales), suffisent.
+- Le moteur ne lit pas les lignes pour poser la photo : il la pose
+  toujours par les paires, dont les coins guides, qui suivent les lignes.
+  L'écart affiché reste celui des points.
+
 ## 2026-11-12 — Tâche 2.5
 
 Écran de redressement : `src/rectification/`, module

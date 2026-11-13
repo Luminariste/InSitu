@@ -1,7 +1,7 @@
 // Logique pure de l'écran Recalage (tâche 3.2) : paires de points, pose en
 // deux clics, textes affichés. Testée sans écran (`logic.test.ts`).
 
-import type { FacadeOverview, PairReport, RegistrationPair, RegistrationReport } from "../engine";
+import type { FacadeOverview, PairReport, RegistrationLine, RegistrationPair, RegistrationReport } from "../engine";
 import type { LayerSpec } from "../viewer";
 
 export interface XYPoint {
@@ -605,4 +605,134 @@ export function pinFitText(pairs: RegistrationPair[]): string {
     case "libre":
       return `${pins.length} points sûrs bien répartis : la forme de la photo ne dépend plus que d'eux ; les coins guides suivent.`;
   }
+}
+
+// --- Lignes communes (D-3.2-k) ---------------------------------------------
+//
+// Idée de Benjamin : un bord de fenêtre (vertical), une corniche
+// (horizontale), tracés sur la photo et sur le plan. Une ligne donne deux
+// équations, comme un point : 4 lignes (dont 3 jamais concourantes)
+// suffisent au trapèze. Points sûrs et lignes se combinent. Ce que les
+// contraintes ne décident pas reste celui des coins guides : selon leur
+// nombre d'équations, la photo glisse (2), fait une similitude (4), une
+// affine (6) ou prend la forme libre (8 et plus) ; un faible rappel vers la
+// pose des guides lève les directions que les contraintes laissent libres
+// (deux corniches ne disent rien de la position gauche-droite).
+
+/** Poids du rappel vers la pose des guides, en coordonnées réduites. */
+const GUIDE_PRIOR = 1e-6;
+
+/** Vrai si une paire de points d'une ligne est tracée (deux points distincts). */
+export function lineDrawn(a: XYPoint, b: XYPoint): boolean {
+  return Math.hypot(b.x - a.x, b.y - a.y) > 1e-3;
+}
+
+/**
+ * Les coins guides recalculés pour suivre les points sûrs et les lignes.
+ * Sans ligne, c'est `followPins`. Rien ne change sans les quatre coins
+ * guides ni contrainte.
+ */
+export function followConstraints(pairs: RegistrationPair[], lines: RegistrationLine[]): RegistrationPair[] {
+  const usable = lines.filter((l) => lineDrawn(l.slide[0], l.slide[1]) && lineDrawn(l.facade[0], l.facade[1]));
+  if (usable.length === 0) return followPins(pairs);
+  const guides = pairs.map((p, i) => (isGuide(p) ? i : -1)).filter((i) => i >= 0);
+  const pins = pairs.filter((p) => !isGuide(p));
+  if (guides.length !== 4) return pairs;
+  const h0 = homography(
+    guides.map((i) => pairs[i].slide),
+    guides.map((i) => pairs[i].facade),
+  );
+  if (!h0) return pairs;
+  // Coordonnées de façade réduites autour des coins guides.
+  const gf = guides.map((i) => pairs[i].facade);
+  const cx = gf.reduce((s, p) => s + p.x, 0) / 4;
+  const cy = gf.reduce((s, p) => s + p.y, 0) / 4;
+  const k = 1 / (gf.reduce((s, p) => s + Math.hypot(p.x - cx, p.y - cy), 0) / 4 || 1);
+  const norm = (p: XYPoint) => ({ x: (p.x - cx) * k, y: (p.y - cy) * k });
+  const denorm = (p: XYPoint) => ({ x: p.x / k + cx, y: p.y / k + cy });
+
+  // Contraintes : un point P (pose actuelle) doit aller en Q ; ou un point P
+  // doit tomber sur la droite a·x + b·y + c = 0 (a² + b² = 1).
+  const pointsC = pins.map((p) => ({ from: norm(applyHomography(h0, p.slide)), to: norm(p.facade) }));
+  const linesC = usable.flatMap((l) => {
+    const f0 = norm(l.facade[0]);
+    const f1 = norm(l.facade[1]);
+    const a = f1.y - f0.y;
+    const b = f0.x - f1.x;
+    const n = Math.hypot(a, b);
+    const line = { a: a / n, b: b / n, c: -(a * f0.x + b * f0.y) / n };
+    return l.slide.map((s) => ({ from: norm(applyHomography(h0, s)), line }));
+  });
+  const equations = 2 * pointsC.length + linesC.length;
+  const model = equations >= 8 ? "libre" : equations >= 6 ? "affine" : equations >= 4 ? "similitude" : "glisse";
+
+  // T(p) = (x, y) en fonction des paramètres θ : x = ax·θ + dx, y = ay·θ + dy
+  // (linéaire), sauf pour la forme libre (homographie, équations de type DLT).
+  type Row = { coef: number[]; rhs: number };
+  const rows: Row[] = [];
+  let identity: number[];
+  let apply: (theta: number[], p: XYPoint) => XYPoint;
+  if (model === "libre") {
+    identity = [1, 0, 0, 0, 1, 0, 0, 0];
+    for (const { from: p, to: q } of pointsC) {
+      rows.push({ coef: [p.x, p.y, 1, 0, 0, 0, -q.x * p.x, -q.x * p.y], rhs: q.x });
+      rows.push({ coef: [0, 0, 0, p.x, p.y, 1, -q.y * p.x, -q.y * p.y], rhs: q.y });
+    }
+    for (const { from: p, line: l } of linesC) {
+      rows.push({ coef: [l.a * p.x, l.a * p.y, l.a, l.b * p.x, l.b * p.y, l.b, l.c * p.x, l.c * p.y], rhs: -l.c });
+    }
+    apply = (t, p) => {
+      const w = t[6] * p.x + t[7] * p.y + 1;
+      return { x: (t[0] * p.x + t[1] * p.y + t[2]) / w, y: (t[3] * p.x + t[4] * p.y + t[5]) / w };
+    };
+  } else {
+    const parts = (p: XYPoint): { ax: number[]; ay: number[] } =>
+      model === "glisse"
+        ? { ax: [1, 0], ay: [0, 1] }
+        : model === "similitude"
+          ? { ax: [p.x, -p.y, 1, 0], ay: [p.y, p.x, 0, 1] }
+          : { ax: [p.x, p.y, 1, 0, 0, 0], ay: [0, 0, 0, p.x, p.y, 1] };
+    // Pour la glisse, T(p) = p + θ : le point lui-même est la partie fixe.
+    const fixed = (p: XYPoint) => (model === "glisse" ? p : { x: 0, y: 0 });
+    identity = model === "glisse" ? [0, 0] : model === "similitude" ? [1, 0, 0, 0] : [1, 0, 0, 0, 1, 0];
+    for (const { from: p, to: q } of pointsC) {
+      const { ax, ay } = parts(p);
+      const d = fixed(p);
+      rows.push({ coef: ax, rhs: q.x - d.x });
+      rows.push({ coef: ay, rhs: q.y - d.y });
+    }
+    for (const { from: p, line: l } of linesC) {
+      const { ax, ay } = parts(p);
+      const d = fixed(p);
+      rows.push({ coef: ax.map((v, i) => l.a * v + l.b * ay[i]), rhs: -(l.a * d.x + l.b * d.y + l.c) });
+    }
+    apply = (t, p) => {
+      const { ax, ay } = parts(p);
+      const d = fixed(p);
+      return { x: d.x + ax.reduce((s, v, i) => s + v * t[i], 0), y: d.y + ay.reduce((s, v, i) => s + v * t[i], 0) };
+    };
+  }
+  // Rappel faible vers la pose des guides (θ = identité).
+  const w = Math.sqrt(GUIDE_PRIOR);
+  identity.forEach((v, i) => rows.push({ coef: identity.map((_, j) => (j === i ? w : 0)), rhs: w * v }));
+  const n = identity.length;
+  const ata = [...Array(n).keys()].map((i) => [...Array(n).keys()].map((j) => rows.reduce((s, r) => s + r.coef[i] * r.coef[j], 0)));
+  const atb = [...Array(n).keys()].map((i) => rows.reduce((s, r) => s + r.coef[i] * r.rhs, 0));
+  const theta = solve(ata, atb);
+  if (!theta || !theta.every(Number.isFinite)) return pairs;
+  const moved = pairs.map((p) => (isGuide(p) ? { ...p, facade: denorm(apply(theta, norm(p.facade))) } : p));
+  return moved.every((p) => Number.isFinite(p.facade.x) && Number.isFinite(p.facade.y)) ? moved : pairs;
+}
+
+/** Phrase qui dit ce que points sûrs et lignes commandent. */
+export function constraintsText(pairs: RegistrationPair[], lines: RegistrationLine[]): string {
+  if (lines.length === 0) return pinFitText(pairs);
+  const pins = pairs.filter((p) => !isGuide(p)).length;
+  if (pairs.length - pins !== 4) return "";
+  const equations = 2 * pins + 2 * lines.length;
+  const what = `${lines.length} ligne${lines.length > 1 ? "s" : ""}${pins > 0 ? ` et ${pins} point${pins > 1 ? "s" : ""} sûr${pins > 1 ? "s" : ""}` : ""}`;
+  if (equations >= 8) return `${what} : assez pour décider de la forme de la photo ; les coins guides suivent.`;
+  if (equations >= 6) return `${what} : la photo glisse, tourne, change de taille et se penche ; il manque une ligne ou un point pour la forme libre.`;
+  if (equations >= 4) return `${what} : la photo glisse, tourne et change de taille ; sa forme vient des coins guides.`;
+  return `${what} : la photo glisse pour la suivre ; le reste vient des coins guides.`;
 }

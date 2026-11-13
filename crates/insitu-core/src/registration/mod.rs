@@ -29,7 +29,9 @@ use crate::geometry::{
     fit_with_report, FitOptions, GeometryError, Point, PointWarp, Transform,
     MIN_POINTS_FOR_OUTLIERS,
 };
-use crate::project::{PointMm, Project, ProjectDir, ProjectError, RegistrationPair};
+use crate::project::{
+    PointMm, Project, ProjectDir, ProjectError, RegistrationLine, RegistrationPair,
+};
 use crate::rectification::projector::find_projector;
 use crate::units::SLIDE_SIZE_MM;
 
@@ -328,6 +330,35 @@ pub fn projector_report(
     report(&id, pairs, options)
 }
 
+/// Contrôle les lignes : nombres finis, points de diapositive dans le carré,
+/// deux points distincts de chaque côté.
+pub fn validate_lines(lines: &[RegistrationLine]) -> Result<(), RegistrationError> {
+    for (i, line) in lines.iter().enumerate() {
+        let n = i + 1;
+        let all = [line.slide[0], line.slide[1], line.facade[0], line.facade[1]];
+        if !all.iter().all(|p| p.x.is_finite() && p.y.is_finite()) {
+            return Err(RegistrationError::BadPair(format!(
+                "la ligne {n} a une coordonnée qui n'est pas un nombre"
+            )));
+        }
+        let inside = |v: f64| (0.0..=SLIDE_SIZE_MM).contains(&v);
+        if line.slide.iter().any(|p| !inside(p.x) || !inside(p.y)) {
+            return Err(RegistrationError::BadPair(format!(
+                "la ligne {n} sort de la diapositive (0 à {SLIDE_SIZE_MM} mm)"
+            )));
+        }
+        let length = |a: PointMm, b: PointMm| (b.x - a.x).hypot(b.y - a.y);
+        if length(line.slide[0], line.slide[1]) < 1e-3
+            || length(line.facade[0], line.facade[1]) < 1e-3
+        {
+            return Err(RegistrationError::BadPair(format!(
+                "la ligne {n} n'a pas de longueur : tracer un trait"
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Remplace les paires d'un projecteur, enregistre le projet et rend le
 /// compte rendu. Les paires sont refusées (et le projet laissé tel quel) si
 /// elles sont hors de la diapositive ou si le trapèze ne peut pas être
@@ -339,6 +370,21 @@ pub fn set_registration(
     pairs: Vec<RegistrationPair>,
     options: &RegistrationOptions,
 ) -> Result<(Project, RegistrationReport), RegistrationError> {
+    set_registration_with_lines(dir, projector, pairs, None, options)
+}
+
+/// Comme [`set_registration`], et remplace aussi les lignes du projecteur
+/// quand `lines` est donné (D-3.2-k) ; `None` les laisse telles quelles.
+pub fn set_registration_with_lines(
+    dir: &ProjectDir,
+    projector: &str,
+    pairs: Vec<RegistrationPair>,
+    lines: Option<Vec<RegistrationLine>>,
+    options: &RegistrationOptions,
+) -> Result<(Project, RegistrationReport), RegistrationError> {
+    if let Some(lines) = &lines {
+        validate_lines(lines)?;
+    }
     let mut project = dir.load()?.project;
     let id = projector_id(&project, projector)?;
     let scaled = project
@@ -350,10 +396,11 @@ pub fn set_registration(
         return Err(RegistrationError::NoScaledFacade);
     }
     let result = report(&id, &pairs, options)?;
-    project
-        .projector_mut(&id)
-        .expect("projecteur trouvé")
-        .registration = pairs;
+    let target = project.projector_mut(&id).expect("projecteur trouvé");
+    target.registration = pairs;
+    if let Some(lines) = lines {
+        target.registration_lines = lines;
+    }
     dir.save(&project)?;
     Ok((project, result))
 }
