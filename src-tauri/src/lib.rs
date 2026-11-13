@@ -602,12 +602,13 @@ fn slides_export(
     folder: String,
     destination: String,
     settings: ExportSettings,
+    only: Option<Vec<String>>,
 ) -> Result<ExportReport, String> {
     export::export_slides(
         &project_dir(&folder)?,
         Path::new(&destination),
         &settings,
-        None,
+        only.as_deref(),
         0,
         &|progress| {
             let _ = app.emit(EXPORT_PROGRESS_EVENT, progress);

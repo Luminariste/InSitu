@@ -1089,12 +1089,14 @@ export async function exportSlides(
   destination: string,
   settings: ExportSettings,
   onProgress: (progress: ExportProgress) => void,
+  /** Projecteurs à exporter (identifiants) ; tous les projecteurs recalés si absent. */
+  only?: string[],
 ): Promise<ExportReport> {
   requireEngine();
   const { listen } = await import("@tauri-apps/api/event");
   const stop = await listen<ExportProgress>("export-progression", (event) => onProgress(event.payload));
   try {
-    return await invoke<ExportReport>("slides_export", { folder, destination, settings });
+    return await invoke<ExportReport>("slides_export", { folder, destination, settings, only: only ?? null });
   } finally {
     stop();
   }
