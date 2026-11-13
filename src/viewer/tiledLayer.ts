@@ -49,7 +49,7 @@ export class TiledLayerNode implements SceneNode {
     this.container.scale.set(mmPerPixel);
     this.container.alpha = spec.opacity ?? 1;
     this.container.visible = spec.visible ?? true;
-    this.container.blendMode = spec.blend === "screen" ? "screen" : "normal";
+    this.container.blendMode = spec.blend ?? "normal";
     this.container.filters = spec.invert ? [this.negativeFilter()] : [];
   }
 

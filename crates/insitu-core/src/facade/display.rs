@@ -28,7 +28,8 @@ use image::{ExtendedColorType, ImageEncoder};
 use serde::{Deserialize, Serialize};
 
 use super::{
-    open_vector, FacadeError, SourceKind, VectorPlan, VECTOR_EAGER_PIXELS, VECTOR_LEVEL0_SIDE,
+    open_vector_layers, FacadeError, SourceKind, VectorPlan, VECTOR_EAGER_PIXELS,
+    VECTOR_LEVEL0_SIDE,
 };
 use crate::tiles::{
     self, level_layout, read_descriptor, tile_file_name, tile_rect, LevelInfo, Pyramid, TileError,
@@ -57,6 +58,10 @@ pub struct VectorRecord {
     /// Quarts de tour appliqués au plan (D15-k) ; 0 si absent.
     #[serde(default)]
     pub rotation: u8,
+    /// PDF : les seuls calques montrés ; absent : tous (voir
+    /// [`super::pdf_layers`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layers: Option<Vec<String>>,
 }
 
 /// Ce que l'interface reçoit pour afficher un plan.
@@ -84,6 +89,18 @@ pub fn open_for_display(
     rotation: u8,
     cache_root: &Path,
 ) -> Result<FacadeDisplay, FacadeError> {
+    open_for_display_layers(path, page, None, rotation, cache_root)
+}
+
+/// Comme [`open_for_display`] ; pour un PDF, `layers` dit les seuls calques
+/// à montrer (tous si `None`).
+pub fn open_for_display_layers(
+    path: &Path,
+    page: Option<u32>,
+    layers: Option<&[String]>,
+    rotation: u8,
+    cache_root: &Path,
+) -> Result<FacadeDisplay, FacadeError> {
     let kind = SourceKind::of(path)?;
     let rotation = rotation % 4;
     if kind == SourceKind::Image {
@@ -104,7 +121,8 @@ pub fn open_for_display(
     }
 
     let page = (kind == SourceKind::Pdf).then(|| page.unwrap_or(1));
-    let key = vector_key(path, page, rotation)?;
+    let layers = layers.filter(|_| kind == SourceKind::Pdf);
+    let key = vector_key(path, page, layers, rotation)?;
     let dir = cache_root.join(&key);
     if let (Ok(pyramid), Ok(record)) = (read_descriptor(&dir), read_record(&dir)) {
         if pyramid.version == PYRAMID_VERSION && record.render_version == VECTOR_RENDER_VERSION {
@@ -112,7 +130,8 @@ pub fn open_for_display(
         }
     }
 
-    let plan: Arc<dyn VectorPlan> = rotate_plan(open_vector(path, kind, page)?, rotation);
+    let plan: Arc<dyn VectorPlan> =
+        rotate_plan(open_vector_layers(path, kind, page, layers)?, rotation);
     let (width, height) = plan.size();
     let scale = f64::from(VECTOR_LEVEL0_SIDE) / width.max(height);
     let width0 = ((width * scale).ceil() as u32).max(1);
@@ -126,6 +145,7 @@ pub fn open_for_display(
         page,
         scale,
         rotation,
+        layers: layers.map(<[String]>::to_vec),
     };
 
     // Le plus petit niveau dit si le plan est en couleur ; sinon les tuiles
@@ -353,7 +373,12 @@ fn read_record(dir: &Path) -> Result<VectorRecord, String> {
     serde_json::from_str(&text).map_err(|e| e.to_string())
 }
 
-fn vector_key(path: &Path, page: Option<u32>, rotation: u8) -> Result<String, FacadeError> {
+fn vector_key(
+    path: &Path,
+    page: Option<u32>,
+    layers: Option<&[String]>,
+    rotation: u8,
+) -> Result<String, FacadeError> {
     let canonical = fs::canonicalize(path).map_err(|e| FacadeError::Io(path.to_path_buf(), e))?;
     let metadata = fs::metadata(&canonical).map_err(|e| FacadeError::Io(path.to_path_buf(), e))?;
     let modified = metadata
@@ -367,8 +392,10 @@ fn vector_key(path: &Path, page: Option<u32>, rotation: u8) -> Result<String, Fa
         0 => String::new(),
         n => format!("|q{n}"),
     };
+    // Les calques choisis aussi (D-PL-c) : sans choix, la clé ne change pas.
+    let layers = layers.map_or(String::new(), |names| format!("|c{names:?}"));
     let identity = format!(
-        "plan|{}|{}|{modified}|{page:?}{turns}|{VECTOR_LEVEL0_SIDE}|r{VECTOR_RENDER_VERSION}|v{PYRAMID_VERSION}",
+        "plan|{}|{}|{modified}|{page:?}{turns}{layers}|{VECTOR_LEVEL0_SIDE}|r{VECTOR_RENDER_VERSION}|v{PYRAMID_VERSION}",
         canonical.display(),
         metadata.len(),
     );
@@ -407,7 +434,13 @@ fn plan_for(key: &str, record: &VectorRecord) -> Option<Arc<dyn VectorPlan>> {
     }
     // Ouvert hors du verrou : la lecture d'un gros DXF prend du temps.
     let plan = rotate_plan(
-        open_vector(&record.source, record.kind, record.page).ok()?,
+        open_vector_layers(
+            &record.source,
+            record.kind,
+            record.page,
+            record.layers.as_deref(),
+        )
+        .ok()?,
         record.rotation,
     );
     remember(key, plan.clone());
@@ -456,8 +489,19 @@ pub fn render_whole(
     rotation: u8,
     max_side: u32,
 ) -> Result<(u32, u32, Vec<u8>), FacadeError> {
+    render_whole_layers(path, page, None, rotation, max_side)
+}
+
+/// Comme [`render_whole`], avec les seuls calques `layers` d'un PDF.
+pub fn render_whole_layers(
+    path: &Path,
+    page: Option<u32>,
+    layers: Option<&[String]>,
+    rotation: u8,
+    max_side: u32,
+) -> Result<(u32, u32, Vec<u8>), FacadeError> {
     let kind = SourceKind::of(path)?;
-    let plan = rotate_plan(open_vector(path, kind, page)?, rotation);
+    let plan = rotate_plan(open_vector_layers(path, kind, page, layers)?, rotation);
     let (width, height) = plan.size();
     let side = max_side.clamp(16, 16_384);
     let scale = f64::from(side) / width.max(height);

@@ -34,6 +34,30 @@
    retrouvent leur place sur le plan suivant une fois mis à l'échelle. Pour
    changer de plan sans le retirer : **Remplacer le plan…** (⌘I).
 
+7. **Plusieurs plans** (onglet **Plan**, rubrique **Plans**, D-PL-a à g).
+   Le plan importé en premier est le **plan de référence** : il donne
+   l'échelle, et les dessins posés et les recalages y restent attachés ; il
+   ne se déplace pas. Le « + » de la rubrique ajoute d'autres plans
+   par-dessus : PDF, `.ai` enregistré « compatible PDF », image, SVG, DXF.
+   - Un fichier à calques (un `.ai` d'Illustrator, par exemple) ou à
+     plusieurs pages ouvre une fenêtre : chaque calque (ou page) coché
+     devient une **vue** du même groupe. Les vues d'un groupe bougent
+     ensemble ; l'œil de chaque ligne montre ou cache une vue, ou tout le
+     groupe ; c'est enregistré dans le projet.
+   - Un plan tiré du même fichier que le plan de référence tombe pile
+     dessus. Un autre fichier arrive en haut à gauche, à la largeur du plan
+     de référence.
+   - Le plan choisi se règle sous la liste : **Position** et **Largeur sur
+     la façade** (en mètres), **Orientation** (quarts de tour), **Déplacer à
+     la souris** (glisser sur la toile, Échap pour finir), **Caler par deux
+     points…** (un point du plan, l'endroit où il doit venir, deux fois :
+     le plan est déplacé et mis à l'échelle, sans rotation libre).
+   - Les flèches ↑ ↓ de la ligne rangent les plans (le haut de la liste est
+     devant). Double-clic sur un nom : le renommer. ⌘Z annule tout cela.
+   - Le plan de référence a aussi son œil (le même que « Le plan » du menu
+     Affichage). Tourner le plan de référence fait tourner les autres avec
+     lui.
+
 Avant la mise à l'échelle, la barre d'état compte dans l'unité du fichier
 (points pour un PDF) : le bas de l'écran le rappelle en orange.
 
