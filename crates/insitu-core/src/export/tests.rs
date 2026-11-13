@@ -472,6 +472,7 @@ fn project_with_placed_drawing(label: &str, frame: &RectMm) -> (TempDir, Project
         deformation: None,
         projector: None,
         adjustment: None,
+        slide: None,
         hidden: false,
         locked: false,
         extra: Default::default(),
@@ -1368,4 +1369,75 @@ fn no_control_plan_without_a_scaled_facade() {
     )
     .unwrap_err();
     assert!(matches!(error, ExportError::NoFacadeScale), "{error}");
+}
+
+/// Un projecteur non recalé (D-3.6-g) : un dessin posé dans sa diapositive
+/// s'y exporte, à sa place en mm de diapositive, sans fresque ni façade ;
+/// il n'entre pas dans les autres diapositives.
+#[test]
+fn a_drawing_placed_in_an_unregistered_slide_is_exported_there() {
+    use super::preview::slide_views;
+    let frame = RectMm {
+        x: 1_800.0,
+        y: 1_200.0,
+        width: 2_400.0,
+        height: 2_400.0,
+    };
+    let (temp, dir, _) = project_with_placed_drawing("diapositive-seule", &frame);
+    let mut project = dir.load().unwrap().project;
+    let b = project.add_projector("B").id.clone();
+    let mut native = project.placements[0].clone();
+    native.id = "p2".into();
+    native.center = PointMm::new(140.0, 140.0);
+    native.width = 100.0;
+    native.height = 100.0;
+    native.slide = Some(b.clone());
+    project.placements.push(native);
+    dir.save(&project).unwrap();
+
+    let out = temp.path().join("export");
+    let s = ExportSettings {
+        margin: false,
+        ..settings(100.0)
+    };
+    let report = export_slides(&dir, &out, &s, None, 0, &|_| {}).unwrap();
+    assert_eq!(report.slides.len(), 2, "A et B");
+    assert!(report.skipped.is_empty());
+    let slide_b = report.slides.iter().find(|x| x.label == "B").unwrap();
+    let image = to_gray(tiles::read_raster(&slide_b.path).unwrap());
+    let px_mm = units::px_size_mm(100.0);
+    let (mut inside, mut outside) = (0usize, 0usize);
+    for (k, &v) in image.data.iter().enumerate() {
+        if v < 128 {
+            continue;
+        }
+        let x = (k % image.width as usize) as f64 * px_mm;
+        let y = (k / image.width as usize) as f64 * px_mm;
+        if (89.0..=191.0).contains(&x) && (89.0..=191.0).contains(&y) {
+            inside += 1;
+        } else {
+            outside += 1;
+        }
+    }
+    assert!(inside > 200, "le dessin est dans B : {inside}");
+    assert_eq!(outside, 0, "rien hors de sa place");
+
+    // A ne reçoit pas le dessin de B : même image qu'avant l'ajout.
+    let mut alone = dir.load().unwrap().project;
+    alone.placements.retain(|p| p.id != "p2");
+    let only_a = ["A".to_string()];
+    let with_b = export_slides(&dir, &out, &s, Some(&only_a), 0, &|_| {}).unwrap();
+    let a_with = std::fs::read(&with_b.slides[0].path).unwrap();
+    dir.save(&alone).unwrap();
+    let without = export_slides(&dir, &out, &s, Some(&only_a), 0, &|_| {}).unwrap();
+    assert_eq!(a_with, std::fs::read(&without.slides[0].path).unwrap());
+    dir.save(&project).unwrap();
+
+    // La vue Diapositive le montre aussi, sans recalage.
+    let cache = temp.path().join("cache");
+    let views = slide_views(&dir, &cache, 600).unwrap();
+    let view_b = views.iter().find(|v| v.label == "B").unwrap();
+    assert!(view_b.problem.is_none(), "{:?}", view_b.problem);
+    assert!(view_b.preview.is_some());
+    assert_eq!(view_b.drawings.len(), 1);
 }

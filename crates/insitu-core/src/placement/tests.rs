@@ -40,6 +40,7 @@ fn corners_follow_size_rotation_and_mirror() {
         deformation: None,
         projector: None,
         adjustment: None,
+        slide: None,
         hidden: false,
         locked: false,
         extra: Default::default(),
@@ -186,6 +187,7 @@ fn drawing_point_undoes_facade_point() {
         deformation: None,
         projector: None,
         adjustment: None,
+        slide: None,
         hidden: false,
         locked: false,
         extra: Default::default(),
@@ -217,6 +219,7 @@ fn hidden_layers_are_not_exported() {
         deformation: None,
         projector: None,
         adjustment: None,
+        slide: None,
         hidden: false,
         locked: false,
         extra: Default::default(),
@@ -281,6 +284,7 @@ fn straight(rotation: f64, mirrored: bool) -> Placement {
         deformation: None,
         projector: None,
         adjustment: None,
+        slide: None,
         hidden: false,
         locked: false,
         extra: Default::default(),
@@ -589,6 +593,7 @@ fn assignment_test_project(label: &str) -> (TempDir, ProjectDir) {
             deformation: None,
             projector: None,
             adjustment: None,
+            slide: None,
             hidden: false,
             locked: false,
             extra: Default::default(),
@@ -762,6 +767,7 @@ fn lost_test_project(label: &str) -> (TempDir, ProjectDir) {
         deformation: None,
         projector: projector.cloned(),
         adjustment: None,
+        slide: None,
         hidden: false,
         locked: false,
         extra: Default::default(),
@@ -868,16 +874,31 @@ fn a_drawing_dropped_in_a_slide_lands_on_the_facade() {
     assert_eq!(p.layer.as_deref(), Some("calque"));
     assert_eq!(dir.load().unwrap().project, project);
 
-    // Un projecteur sans recalage : refusé, rien d'enregistré.
+    // Un projecteur sans recalage (D-3.6-g) : le dessin est posé dans sa
+    // diapositive, en mm de diapositive, sans passer par la façade.
     let mut bare = dir.load().unwrap().project;
-    bare.add_projector("C".to_string());
+    let c = bare.add_projector("C".to_string()).id.clone();
     dir.save(&bare).unwrap();
-    assert!(matches!(
-        place_in_slide(&dir, "C", "merle", PointMm::new(1.0, 1.0), 10.0, None),
-        Err(PlacementError::NotRegistered(_))
-    ));
-    assert_eq!(
-        dir.load().unwrap().project.placements.len(),
-        project.placements.len()
+    let (project, native) =
+        place_in_slide(&dir, "C", "merle", PointMm::new(100.0, 60.0), 40.0, None).expect("pose");
+    let q = project.placements.iter().find(|p| p.id == native).unwrap();
+    assert_eq!(q.slide.as_deref(), Some(c.as_str()));
+    assert!(close(q.center, 100.0, 60.0), "{:?}", q.center);
+    assert!((q.width - 40.0).abs() < 1e-9 && (q.height - 20.0).abs() < 1e-9);
+    // Il reste dans cette diapositive, en entier, choisi « à la main »...
+    let all = assign::assignments(&project);
+    let a = all.iter().find(|a| a.placement == native).unwrap();
+    assert_eq!(a.projector.as_deref(), Some(c.as_str()));
+    assert!(a.manual && a.whole);
+    // ... s'y voit à sa place, sans recalage...
+    let seen = adjust::slide_drawings(&project, &c);
+    assert_eq!(seen.len(), 1);
+    let first = seen[0].points[0];
+    assert!(
+        (first.x - 80.0).abs() < 1e-9 && (first.y - 50.0).abs() < 1e-9,
+        "{first:?}"
     );
+    // ... et n'est pas sur la façade.
+    assert!(project.facade_placements().iter().all(|p| p.id != native));
+    assert!(project.visible_placements().iter().any(|p| p.id == native));
 }

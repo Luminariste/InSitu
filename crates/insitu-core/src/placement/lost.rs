@@ -111,7 +111,7 @@ pub fn lost_parts(
     silhouettes: &[DrawingSilhouette],
 ) -> Vec<LostPart> {
     let mut out = Vec::new();
-    for p in project.visible_placements() {
+    for p in project.facade_placements() {
         let Some(a) = all.iter().find(|a| a.placement == p.id) else {
             continue;
         };
@@ -183,7 +183,7 @@ pub fn project_lost_parts(
     cache_root: &Path,
 ) -> Result<Vec<LostPart>, LibraryError> {
     let mut ids: Vec<String> = project
-        .visible_placements()
+        .facade_placements()
         .into_iter()
         .filter(|p| {
             all.iter()

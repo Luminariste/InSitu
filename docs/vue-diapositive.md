@@ -82,8 +82,16 @@ Dans un projecteur **recalé**, onglet **Dessins** à droite : glisser un dessin
 sur la diapositive (ou double-cliquer : il est posé au centre de la vue). Il
 est posé sur la façade, là où ce projecteur l'éclaire, droit, sur le calque
 actif, affecté à cette diapositive ; on le retrouve dans l'étape Façade.
-Pour un projecteur pas encore recalé, l'onglet le dit : on ne sait pas où
-ses dessins tombent sur la façade.
+
+Dans un projecteur **pas encore recalé** (D-3.6-g), on peut aussi poser des
+dessins : ils sont posés **dans cette diapositive seulement**, sur la photo
+redressée, sans passer par la Façade (pratique avec un seul projecteur).
+L'onglet Dessins le rappelle. Tous les outils de la barre marchent sur eux,
+et l'onglet Export grave la diapositive avec ces seuls dessins (ni fresque,
+ni plan de contrôle sans recalage). Ils ne se voient pas dans la Façade ; si
+le projecteur est recalé plus tard, ils restent où ils sont dans la
+diapositive, et les dessins de la façade s'y ajoutent. Retirer le
+projecteur retire aussi ses dessins.
 
 ### Essai sur Mac
 
@@ -103,6 +111,10 @@ ses dessins tombent sur la façade.
    l'endroit lâché ; dans l'étape Façade, il est posé au bon endroit.
 8. Onglet **Calques** : seuls les dessins de cette diapositive sont listés ;
    cliquer une ligne choisit le dessin sur la diapositive.
+9. Un projecteur **non recalé** (avec sa photo redressée) : glisser un
+   dessin sur la photo, le tourner, l'agrandir ; onglet Export, **Exporter
+   cette diapositive…** : le PNG contient le dessin, à la place voulue.
+   L'étape Façade ne le montre pas.
 
 ## Sans écran
 

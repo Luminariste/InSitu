@@ -197,12 +197,20 @@ export function nearestDrawingOpacity(value: number): number {
 }
 
 /** Pourquoi on ne peut pas poser de dessin dans ce projecteur ; `null` si on peut (D-3.6-f). */
-export function slideBlocked(engine: boolean, label: string | null, registered: boolean): string | null {
+export function slideBlocked(engine: boolean, label: string | null): string | null {
   if (!engine) return "Poser des dessins demande l'application.";
   if (label === null) return "Choisir d'abord un projecteur, à gauche.";
-  if (!registered)
-    return `${label} n'est pas encore recalé : on ne sait pas où ses dessins tombent sur la façade. Le recaler d'abord (onglet Recalage).`;
   return null;
+}
+
+/**
+ * Où va un dessin posé dans cette diapositive : sur la façade si le
+ * projecteur est recalé (D-3.6-f), sinon dans la diapositive seule (D-3.6-g).
+ */
+export function placeNote(label: string, registered: boolean): string {
+  return registered
+    ? `Glisser un dessin sur la diapositive, ou double-cliquer : il est posé sur la façade, là où ${label} l'éclaire.`
+    : `${label} n'est pas recalé : un dessin glissé ici est posé dans cette diapositive seulement, sur la photo redressée. Il ne se voit pas dans la Façade.`;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));

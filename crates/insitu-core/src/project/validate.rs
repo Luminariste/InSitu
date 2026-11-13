@@ -290,6 +290,14 @@ pub(crate) fn placement_errors(project: &Project) -> Vec<(String, String)> {
                 out.push((format!("{here}.layer"), format!("aucun calque « {layer} »")));
             }
         }
+        if let Some(slide) = &placement.slide {
+            if !project.projectors.iter().any(|q| &q.id == slide) {
+                out.push((
+                    format!("{here}.slide"),
+                    format!("aucun projecteur « {slide} »"),
+                ));
+            }
+        }
         if project.drawing(&placement.drawing).is_none() {
             out.push((
                 format!("{here}.drawing"),

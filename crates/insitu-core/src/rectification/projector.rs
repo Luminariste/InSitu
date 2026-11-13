@@ -271,13 +271,18 @@ pub fn rename_projector(
     Ok(project)
 }
 
-/// Retire un projecteur du projet, avec son redressement et son recalage.
+/// Retire un projecteur du projet, avec son redressement, son recalage et
+/// les dessins posés dans sa diapositive.
 /// Ses photos (brute et redressée) restent dans le dossier du projet : rien
 /// n'est effacé du disque, on peut les réimporter.
 pub fn remove_projector(dir: &ProjectDir, projector: &str) -> Result<Project, RectifyError> {
     let mut project = dir.load()?.project;
     let id = projector_id(&project, projector)?;
     project.projectors.retain(|p| p.id != id);
+    // Les dessins posés dans sa diapositive (D-3.6-g) partent avec lui.
+    project
+        .placements
+        .retain(|p| p.slide.as_deref() != Some(id.as_str()));
     dir.save(&project)?;
     Ok(project)
 }

@@ -13,7 +13,7 @@ pub mod mesh;
 use std::collections::BTreeSet;
 use std::fmt;
 
-use crate::geometry::{Point, Transform};
+use crate::geometry::{Point, PointWarp, Transform};
 use crate::project::model::new_id;
 use crate::project::validate::placement_errors;
 use crate::project::{
@@ -77,6 +77,27 @@ impl fmt::Display for PlacementError {
 }
 
 impl std::error::Error for PlacementError {}
+
+/// Du repère d'un dessin posé (la façade, ou la diapositive pour un dessin
+/// posé dans une diapositive, D-3.6-g) vers la diapositive, en mm, par le
+/// recalage `warp` du projecteur ; `None` sans antécédent, ou pour un
+/// dessin de la façade sans recalage.
+pub fn to_slide(p: &Placement, warp: Option<&PointWarp>, f: Point) -> Option<Point> {
+    if p.slide.is_some() {
+        Some(f)
+    } else {
+        warp?.apply_inverse(f)
+    }
+}
+
+/// L'inverse de [`to_slide`] : de la diapositive vers le repère du dessin.
+pub fn from_slide(p: &Placement, warp: Option<&PointWarp>, s: Point) -> Option<Point> {
+    if p.slide.is_some() {
+        Some(s)
+    } else {
+        warp?.apply(s)
+    }
+}
 
 impl From<ProjectError> for PlacementError {
     fn from(e: ProjectError) -> Self {
@@ -176,6 +197,7 @@ pub fn new_placement(
         deformation: None,
         projector: None,
         adjustment: None,
+        slide: None,
         hidden: false,
         locked: false,
         extra: Default::default(),
@@ -205,8 +227,10 @@ pub fn add(
 /// que ce projecteur éclaire (recalage), droit sur la façade, à la taille et
 /// dans le sens qu'a le trait horizontal du dessin dans la diapositive ; il
 /// est affecté à la main à cette diapositive. Il se voit donc aussi dans la
-/// Façade. `layer` : le calque où le poser. Rend le projet enregistré et
-/// l'identifiant du dessin posé.
+/// Façade. Un projecteur pas encore recalé (D-3.6-g) : le dessin est posé
+/// dans sa diapositive (`Placement::slide`), en mm de diapositive, sans
+/// passer par la façade. `layer` : le calque où le poser. Rend le projet
+/// enregistré et l'identifiant du dessin posé.
 pub fn place_in_slide(
     dir: &ProjectDir,
     projector: &str,
@@ -224,8 +248,12 @@ pub fn place_in_slide(
     if !(width > 0.0 && width.is_finite()) {
         return Err(PlacementError::InvalidWidth(width));
     }
-    let warp = crate::registration::slide_to_facade(&p.registration)
-        .ok_or_else(|| PlacementError::NotRegistered(p.label.clone()))?;
+    let Some(warp) = crate::registration::slide_to_facade(&p.registration) else {
+        let mut placement = new_placement(&project, drawing, center, width)?;
+        placement.slide = Some(p.id.clone());
+        placement.layer = layer;
+        return add(dir, placement);
+    };
     let on_facade = |x: f64, y: f64| {
         warp.apply(Point::new(x, y))
             .map(|q| PointMm { x: q.x, y: q.y })

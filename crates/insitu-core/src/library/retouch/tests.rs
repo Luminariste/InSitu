@@ -292,6 +292,7 @@ fn the_export_uses_the_retouched_drawing() {
         deformation: None,
         projector: None,
         adjustment: None,
+        slide: None,
         hidden: false,
         locked: false,
         extra: Default::default(),

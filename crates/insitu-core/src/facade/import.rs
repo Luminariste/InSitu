@@ -145,7 +145,8 @@ fn quarter_turn(project: &mut Project, carry_mm: bool) {
             turned
         }
     };
-    for placement in &mut project.placements {
+    // Un dessin posé dans une diapositive (D-3.6-g) ne tourne pas avec le plan.
+    for placement in project.placements.iter_mut().filter(|p| p.slide.is_none()) {
         placement.center = turn_mm(placement.center);
         placement.rotation = turn_angle(placement.rotation);
         if let Some(deformation) = placement.deformation.as_mut() {

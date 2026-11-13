@@ -488,7 +488,7 @@ fn facade_extent(
         points.push(PointMm::new(0.0, 0.0));
         points.push(PointMm::new(plan.size_mm.0, plan.size_mm.1));
     }
-    for p in project.visible_placements() {
+    for p in project.facade_placements() {
         points.extend(p.corners());
     }
     let (mut x0, mut y0, mut x1, mut y1) = (
@@ -594,7 +594,7 @@ fn plan_page(
                 .iter()
                 .any(|a| a.kind == kind && a.placement.as_deref() == Some(id))
         };
-        for p in project.visible_placements() {
+        for p in project.facade_placements() {
             let index = all
                 .iter()
                 .find(|a| a.placement == p.id)

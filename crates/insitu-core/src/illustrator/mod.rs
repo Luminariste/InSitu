@@ -862,6 +862,7 @@ pub fn import_composition(
             deformation: None,
             projector: None,
             adjustment: None,
+            slide: None,
             hidden,
             locked: false,
             extra: Default::default(),

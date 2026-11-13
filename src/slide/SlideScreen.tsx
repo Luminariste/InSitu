@@ -50,6 +50,7 @@ import {
   cutNotice,
   nearestDrawingOpacity,
   placeHere,
+  placeNote,
   slideBlocked,
   SLIDE_BACKDROPS,
   SLIDE_MM,
@@ -328,7 +329,7 @@ export function SlideScreen() {
 
   const projectorOf = project?.projectors?.find((q) => q.id === view?.projectorId) ?? null;
   const registered = (projectorOf?.registration?.length ?? 0) >= 4;
-  const placeBlocked = slideBlocked(engine, view?.label ?? null, registered);
+  const placeBlocked = slideBlocked(engine, view?.label ?? null);
   const place = async (drawing: string, at?: { x: number; y: number }) => {
     if (placeBlocked || !folder || !view) return;
     const scene = viewer.current?.scene();
@@ -387,7 +388,9 @@ export function SlideScreen() {
     : !view
       ? "Choisir d'abord un projecteur, à gauche."
       : view.preview === null
-        ? `${view.label} : ${view.problem ?? "diapositive non calculée"}.`
+        ? registered
+          ? `${view.label} : ${view.problem ?? "diapositive non calculée"}.`
+          : `${view.label} n'est pas recalé : seuls les dessins posés dans cette diapositive s'exportent. En poser d'abord (onglet Dessins).`
         : null;
   const canControlPlan =
     engine && folder !== null && ready && view !== null && !(view.problem ?? "").startsWith("recalage incomplet");
@@ -578,7 +581,12 @@ export function SlideScreen() {
         { value: "export", label: "Export", icon: "export", title: "Exporter cette diapositive, plan de contrôle" },
       ]}
       panes={{
-        dessins: <DrawingsSection drawings={composition.drawings} blocked={placeBlocked} onPlace={(id) => void place(id)} />,
+        dessins: (
+          <>
+            {!placeBlocked && view && <p className="ui-note slide-place-note">{placeNote(view.label, registered)}</p>}
+            <DrawingsSection drawings={composition.drawings} blocked={placeBlocked} onPlace={(id) => void place(id)} />
+          </>
+        ),
         calques: (
           <>
             <SlidesSection

@@ -386,7 +386,10 @@ export function useComposition(options: Options): Composition {
 
   const composeLayers = useMemo(() => effectiveLayers(layerList), [layerList]);
   const activeLayer = composeLayers.find((l) => l.id === activeId) ?? composeLayers[composeLayers.length - 1];
-  const picks = useMemo(() => pickable(placements, layerList), [placements, layerList]);
+  // Sur la façade, les dessins posés dans une diapositive (D-3.6-g) ne se
+  // voient ni ne se choisissent : leur position est en mm de diapositive.
+  const onFacade = useCallback((list: Placement[]) => (headless ? list : list.filter((p) => !p.slide)), [headless]);
+  const picks = useMemo(() => onFacade(pickable(placements, layerList)), [onFacade, placements, layerList]);
   const layerCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const p of placements) {
@@ -470,7 +473,10 @@ export function useComposition(options: Options): Composition {
 
   // --- Affichage --------------------------------------------------------------------------
 
-  const selected = useMemo(() => placements.filter((p) => selection.has(p.id)), [placements, selection]);
+  const selected = useMemo(
+    () => onFacade(placements.filter((p) => selection.has(p.id))),
+    [onFacade, placements, selection],
+  );
   const frame = useMemo(() => bounds(selected), [selected]);
   // Les nœuds ne se tirent que sur une sélection qui partage une même déformation.
   // Deux modes pour la sélection (demande de Benjamin, D-4.2-s) : « Normal »
@@ -490,7 +496,7 @@ export function useComposition(options: Options): Composition {
 
   const layers = useMemo<LayerSpec[]>(
     () =>
-      (visible ? shown(placements, layerList) : []).flatMap((p) => {
+      (visible ? onFacade(shown(placements, layerList)) : []).flatMap((p) => {
         const url = previews.get(p.drawing);
         if (!url) return [];
         const pose = { id: `pose:${p.id}`, kind: "mesh-image", url, ...previewMesh(p) } satisfies LayerSpec;
@@ -543,7 +549,7 @@ export function useComposition(options: Options): Composition {
     }
     // Vue épurée par défaut : couleurs des diapositives et rouge seulement
     // quand on vérifie le chevauchement (D-4.5-i).
-    const slides = (checkOverlap ? shown(placements, layerList) : []).flatMap((p) => {
+    const slides = (checkOverlap ? onFacade(shown(placements, layerList)) : []).flatMap((p) => {
       const a = assignments.get(p.id);
       if (!a) return [];
       return [{ outline: outline(p), color: a.projector ? (colors.get(a.projector) ?? null) : null, whole: a.whole }];
@@ -866,10 +872,10 @@ export function useComposition(options: Options): Composition {
       if (!shared) apply(deform(placements, selection, 1, 1));
     },
     assignTo: (projector) => apply(assignTo(placements, selection, projector)),
-    select: (ids) => setSelection(new Set(ids.filter((id) => placements.some((p) => p.id === id)))),
+    select: (ids) => setSelection(new Set(ids.filter((id) => onFacade(placements).some((p) => p.id === id)))),
     dropInTree: (dragged, drop) => apply(dropInTree(placements, assignments, dragged, drop), new Set([dragged])),
     selectInTree: (ids) => {
-      const free = new Set(placements.filter((p) => !p.hidden && !p.locked).map((p) => p.id));
+      const free = new Set(onFacade(placements).filter((p) => !p.hidden && !p.locked).map((p) => p.id));
       setSelection(new Set([...expandToGroups(placements, ids)].filter((id) => free.has(id))));
     },
     setHidden: (ids, value) => {
