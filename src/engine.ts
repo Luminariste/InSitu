@@ -271,6 +271,8 @@ export interface ExportSettings {
   threshold: number;
   /** Un SVG en mm à côté de chaque PNG : les courbes des dessins posés (tâche 5.3). */
   svg: boolean;
+  /** La fresque importée en une image est gravée avec les dessins ; sinon les dessins seuls (D-3.5-n). */
+  fresco: boolean;
 }
 
 export type PlanKind = "image" | "pdf" | "svg" | "dxf";

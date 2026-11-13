@@ -21,11 +21,13 @@ import {
   openTiledImage,
   projectFile,
   type Placement,
+  type ExportSettings,
   type Project,
   type SlideContent,
   type SlideView,
 } from "../engine";
 import { useSlideAdjust } from "./useSlideAdjust";
+import { SlideExportDialog } from "./SlideExportDialog";
 import { controlPlanSummary, exportSettingsOf, exportSummary } from "../facade/exportLogic";
 import { GRIDS } from "../compose/CompositionToolbar";
 import { recalledProject } from "../project/current";
@@ -205,9 +207,11 @@ export function SlideScreen() {
   // un dessin est choisi (les flèches le décalent alors, D15-p).
   const drawingChosen = useRef(false);
   drawingChosen.current = adjust.selected !== null;
+  // Pas pendant la fenêtre d'export : elle exporte la diapositive affichée.
+  const dialogOpen = useRef(false);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || drawingChosen.current) return;
+      if (event.defaultPrevented || drawingChosen.current || dialogOpen.current) return;
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
       const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
       if (step === 0) return;
@@ -255,22 +259,38 @@ export function SlideScreen() {
   const cut = cutNotice(view);
 
   const ready = busy === null;
-  // Exporter la seule diapositive affichée, avec les réglages d'export du
-  // projet (ceux de l'onglet Export de la Façade, relus au moment d'exporter).
+  // Exporter la seule diapositive affichée : une fenêtre propose les
+  // réglages de l'onglet Export de la Façade (D-3.5-n), la fresque cochée
+  // si elle se voit à l'écran.
   const canExport = engine && folder !== null && ready && view !== null && view.preview !== null;
   // Le plan de contrôle (D-3.5-m) : il suffit que le projecteur soit recalé.
   const canControlPlan =
     engine && folder !== null && ready && view !== null && !(view.problem ?? "").startsWith("recalage incomplet");
-  const exportThis = async (controlPlan = false) => {
+  const [exportDialog, setExportDialog] = useState<{ initial: ExportSettings; hasFresco: boolean } | null>(null);
+  dialogOpen.current = exportDialog !== null;
+  const askExport = async () => {
     if (!folder || !view) return;
+    setError(null);
+    setNotice(null);
+    try {
+      const project = await openProject(folder);
+      const hasFresco = Boolean(project.fresco);
+      const initial = { ...exportSettingsOf(project.export), fresco: hasFresco ? content.fresco : true };
+      setExportDialog({ initial, hasFresco });
+    } catch (failure) {
+      setError(String(failure).replace(/^Error: /, ""));
+    }
+  };
+  const exportThis = async (controlPlan = false, chosen?: ExportSettings) => {
+    if (!folder || !view) return;
+    setExportDialog(null);
     setError(null);
     setNotice(null);
     try {
       const destination = await chooseExportFolder();
       if (!destination) return;
       setBusy(controlPlan ? `Export du plan de contrôle ${view.label}…` : `Export de la diapositive ${view.label}…`);
-      const project = await openProject(folder);
-      const settings = exportSettingsOf(project.export);
+      const settings = chosen ?? exportSettingsOf((await openProject(folder)).export);
       const report = await exportSlides(folder, destination, settings, () => {}, [view.projectorId], controlPlan);
       setNotice(controlPlan ? controlPlanSummary(report, destination) : exportSummary(report, destination));
     } catch (failure) {
@@ -282,7 +302,7 @@ export function SlideScreen() {
 
   useShortcuts([
     { keys: "mod+0", run: () => viewer.current?.fitAll(), enabled: view !== null },
-    { keys: "mod+e", run: () => void exportThis(), enabled: canExport },
+    { keys: "mod+e", run: () => void askExport(), enabled: canExport && exportDialog === null },
   ]);
 
   const toolbar = (
@@ -327,7 +347,7 @@ export function SlideScreen() {
       <ToolGroup label="Façade">
         <label
           className="ui-check"
-          title="La fresque dans l'aperçu (comme le menu Affichage de la Façade). L'export la grave toujours."
+          title="La fresque dans l'aperçu (comme le menu Affichage de la Façade). L'export la grave si elle est cochée ici, réglable dans la fenêtre d'export."
         >
           <input type="checkbox" checked={content.fresco} disabled={!ready} onChange={(e) => setContent({ ...content, fresco: e.target.checked })} />
           Fresque
@@ -439,10 +459,10 @@ export function SlideScreen() {
         shortcut="mod+e"
         title={
           engine
-            ? "Le PNG de cette diapositive seulement, avec les réglages d'export du projet (onglet Export de la Façade)"
+            ? "Le PNG de cette diapositive seulement : résolution, fresque ou dessins seuls, miroir, négatif… comme l'onglet Export de la Façade"
             : "Dans l'app seulement"
         }
-        onClick={() => void exportThis()}
+        onClick={() => void askExport()}
         disabled={!canExport}
       >
         Exporter cette diapositive…
@@ -528,6 +548,15 @@ export function SlideScreen() {
         )}
         {busy && <Busy>{busy}</Busy>}
       </div>
+      {exportDialog && view && (
+        <SlideExportDialog
+          label={view.label}
+          initial={exportDialog.initial}
+          hasFresco={exportDialog.hasFresco}
+          onCancel={() => setExportDialog(null)}
+          onExport={(settings) => void exportThis(false, settings)}
+        />
+      )}
     </Screen>
   );
 }

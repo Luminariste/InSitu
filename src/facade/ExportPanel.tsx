@@ -19,6 +19,7 @@ import {
   type Project,
 } from "../engine";
 import { Button, ConfirmDialog, Progress, Property, Section, useShortcuts } from "../ui";
+import { ExportOptions } from "./ExportOptions";
 import { isIllustratorFile } from "../compose/IllustratorImport";
 import {
   ALL_SLIDES,
@@ -28,10 +29,10 @@ import {
   exportSettingsOf,
   exportTargets,
   keptTarget,
-  exportSizeLabel,
   exportSummary,
   fileName,
   sheetFileName,
+  parseDpi,
   sheetSummary,
   validDpi,
 } from "./exportLogic";
@@ -76,13 +77,12 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
   const fresco = project?.fresco ?? null;
   const scaled = Boolean(project?.facade?.scale);
   // De quoi graver : la fresque, ou des dessins posés (le moteur écarte les calques masqués).
-  const artwork = fresco !== null || (project?.placements?.length ?? 0) > 0;
+  const artwork = (fresco !== null && settings.fresco) || (project?.placements?.length ?? 0) > 0;
   const ready = engine && folder !== null && busy === null;
   // Toutes les diapositives, ou celle d'un seul projecteur recalé.
   const targets = exportTargets(project?.projectors ?? []);
   const [targetChoice, setTargetChoice] = useState<string>(ALL_SLIDES);
   const target = keptTarget(targetChoice, targets);
-  const set = (patch: Partial<ExportSettings>) => setSettings({ ...settings, ...patch });
 
   const run = async (label: string, task: () => Promise<void>, from: "fresco" | "export" = "export") => {
     setOrigin(from);
@@ -125,7 +125,7 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
   const exportAll = () =>
     run("Export des diapositives…", async () => {
       if (!folder) return;
-      const dpi = Number(dpiText.replace(",", "."));
+      const dpi = parseDpi(dpiText);
       if (!validDpi(dpi)) throw new Error("la résolution doit être comprise entre 50 et 3 000 dpi");
       const chosen = { ...settings, dpi };
       const destination = await chooseExportFolder();
@@ -140,7 +140,7 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
   const exportControlPlans = () =>
     run("Export des plans de contrôle…", async () => {
       if (!folder) return;
-      const dpi = Number(dpiText.replace(",", "."));
+      const dpi = parseDpi(dpiText);
       if (!validDpi(dpi)) throw new Error("la résolution doit être comprise entre 50 et 3 000 dpi");
       const destination = await chooseExportFolder();
       if (!destination) return;
@@ -153,7 +153,7 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
   const writeSheet = () =>
     run("Fiche de calepinage…", async () => {
       if (!folder) return;
-      const dpi = Number(dpiText.replace(",", "."));
+      const dpi = parseDpi(dpiText);
       if (!validDpi(dpi)) throw new Error("la résolution doit être comprise entre 50 et 3 000 dpi");
       const path = await chooseSheetPath(sheetFileName(project?.name));
       if (!path) return;
@@ -161,7 +161,6 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
       setMessage(sheetSummary(report, path));
     });
 
-  const dpiValue = Number(dpiText.replace(",", "."));
   useShortcuts([{ keys: "mod+e", run: () => void exportAll(), enabled: ready && artwork }]);
 
   const notes = (from: "fresco" | "export") =>
@@ -219,45 +218,14 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
     ),
     export: (
       <Section title="Export des diapositives">
-        <fieldset className="facade-export-options" disabled={busy !== null}>
-          <Property label="Résolution" hint={validDpi(dpiValue) ? exportSizeLabel({ ...settings, dpi: dpiValue }) : "De 50 à 3 000 dpi"}>
-            <input
-              className="ui-input facade-export-dpi"
-              type="text"
-              inputMode="decimal"
-              value={dpiText}
-              onChange={(e) => setDpiText(e.target.value)}
-              aria-label="Résolution en dpi"
-            />
-            dpi
-          </Property>
-          <label className="ui-check">
-            <input type="checkbox" checked={settings.margin} onChange={(e) => set({ margin: e.target.checked })} />
-            Plaque de 300 mm avec nom et repères (sinon 280 mm)
-          </label>
-          <label className="ui-check">
-            <input type="checkbox" checked={settings.mirror} onChange={(e) => set({ mirror: e.target.checked })} />
-            Miroir
-          </label>
-          <label className="ui-check">
-            <input type="checkbox" checked={settings.negative} onChange={(e) => set({ negative: e.target.checked })} />
-            Négatif
-          </label>
-          <label className="ui-check">
-            <input type="checkbox" checked={settings.oneBit} onChange={(e) => set({ oneBit: e.target.checked })} />
-            Noir et blanc pur (1 bit)
-          </label>
-          <label className="ui-check" title="Les courbes des dessins posés, en millimètres, pour une gravure vectorielle (la fresque importée en une image n'y est pas)">
-            <input type="checkbox" checked={settings.svg} onChange={(e) => set({ svg: e.target.checked })} />
-            SVG en plus (courbes des dessins posés)
-          </label>
-          {settings.oneBit && (
-            <label className="facade-overview-opacity">
-              Seuil : {settings.threshold}
-              <input type="range" min={1} max={255} value={settings.threshold} onChange={(e) => set({ threshold: Number(e.target.value) })} />
-            </label>
-          )}
-        </fieldset>
+        <ExportOptions
+          settings={settings}
+          onChange={setSettings}
+          dpiText={dpiText}
+          onDpiText={setDpiText}
+          disabled={busy !== null}
+          hasFresco={fresco !== null}
+        />
         <Property label="Diapositives" hint={target === ALL_SLIDES ? `${targets.length} projecteur${targets.length > 1 ? "s" : ""} recalé${targets.length > 1 ? "s" : ""}` : "Un seul PNG"}>
           <select
             className="ui-select"

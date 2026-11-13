@@ -8,7 +8,7 @@ import {
   frescoPlacement,
   sheetFileName,
   sheetSummary,
-  validDpi, ALL_SLIDES, exportButtonLabel, exportTargets, keptTarget,
+  validDpi, parseDpi, ALL_SLIDES, exportButtonLabel, exportTargets, keptTarget,
   controlPlanButtonLabel,
   controlPlanSummary,
 } from "./exportLogic";
@@ -23,6 +23,9 @@ describe("export des diapositives", () => {
     expect(exportSettingsOf({ dpi: 1000, mirror: true })).toEqual({ ...DEFAULT_EXPORT, dpi: 1000, mirror: true });
     expect(exportSettingsOf(undefined)).toEqual(DEFAULT_EXPORT);
     expect(validDpi(1400) && !validDpi(10) && !validDpi(Number.NaN)).toBe(true);
+    // Tapée avec une espace ou une virgule, comme en français.
+    expect([parseDpi("1400"), parseDpi("1 400"), parseDpi("1\u202f400"), parseDpi("1400,5")]).toEqual([1400, 1400, 1400, 1400.5]);
+    expect(Number.isNaN(parseDpi("")) && Number.isNaN(parseDpi("abc"))).toBe(true);
   });
 
   it("pose la fresque sur son rectangle de façade", () => {
@@ -97,7 +100,7 @@ describe("plan de contrôle", () => {
   });
   it("le compte rendu donne la raison des plans manquants", () => {
     const slide = { projectorId: "p1", label: "A", path: "/x/A.png", sizePx: 10, sizeMm: 280, bytes: 1, svg: null, seconds: 1 };
-    const settings = { dpi: 1400, margin: false, mirror: true, negative: true, oneBit: true, threshold: 128, svg: false };
+    const settings = { dpi: 1400, margin: false, mirror: true, negative: true, oneBit: true, threshold: 128, svg: false, fresco: true };
     expect(controlPlanSummary({ slides: [slide], skipped: [], settings }, "/Users/b/Gravure")).toContain(
       "1 plan de contrôle écrit dans « Gravure »",
     );

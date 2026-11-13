@@ -534,8 +534,15 @@ pub fn export_slides(
 ) -> Result<ExportReport, ExportError> {
     check_settings(settings)?;
     let mut project = dir.load()?.project;
-    let fresco = project.fresco.clone();
+    // La fresque n'est gravée que si les réglages le demandent (D-3.5-n).
+    let fresco = project.fresco.clone().filter(|_| settings.fresco);
     if fresco.is_none() && project.visible_placements().is_empty() {
+        if project.fresco.is_some() {
+            return Err(ExportError::Nothing(
+                "la fresque n'est pas gravée (case « Fresque » décochée) et aucun dessin n'est posé"
+                    .into(),
+            ));
+        }
         return Err(ExportError::NoFresco);
     }
     let (todo, skipped) = recaled_projectors(&project, only)?;
