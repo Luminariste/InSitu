@@ -4,6 +4,33 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-13 — Fresque et plan dans la Diapositive (demande de Benjamin)
+
+Demande de Benjamin : « fresque : si elle est masquée, elle reste affichée
+dans diapositive. Idem, dans diapositive, il faut pouvoir masquer les
+plans. » Benjamin a précisé (carte de choix) qu'il s'agit des plans de la
+Façade, à montrer dans la Diapositive avec une case pour les cacher.
+
+**D-3.6-d. La fresque cachée l'est aussi dans la Diapositive.** Les cases
+**Fresque** et **Plan** de la Diapositive et celles du menu Affichage de la
+Façade sont les mêmes réglages (gardés sur ce Mac, pas dans le projet).
+Fresque cachée, l'aperçu est recalculé sans elle (`slide_views_with`,
+`insitu slides --sans-fresque`) : les dessins posés gardent leur silhouette.
+L'export, lui, grave toujours la fresque : cacher est une façon de
+regarder, pas un réglage d'export (comme D15-l).
+
+**D-3.6-e. Le plan de la Façade vu par chaque projecteur.** Le moteur rend la
+partie du plan sous l'emprise (3 072 px au plus grand côté), en négatif,
+puis la ramène dans le carré de 280 mm par le recalage, exactement comme la
+fresque, en un PNG de 2 048 px rangé dans le cache
+(`diapositives/plan-<clé>.png` ; la clé tient compte du fichier du plan, de
+son échelle, de sa rotation, de sa page et du recalage). Il n'est calculé
+que si la case **Plan** est cochée (`insitu slides --plan`). L'interface le
+montre en gris bleuté sous les dessins, plus foncé sur fond blanc. Il n'est
+jamais exporté ; « Comme dans LightBurn » le cache. Seul le plan de
+référence de la Façade est montré : les plans supplémentaires (fil
+« plusieurs plans ») devront s'y ajouter.
+
 ## 2026-11-13 — Exporter une diapositive ou toutes (demande de Benjamin)
 
 Demande de Benjamin : « export : propose l'export d'une diapo ou de toutes
