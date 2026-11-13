@@ -6,7 +6,7 @@ import { RegistrationScreen } from "./registration/RegistrationScreen";
 import { SlideScreen } from "./slide/SlideScreen";
 import { ViewerDemo } from "./ViewerDemo";
 import { CHECK_UPDATES_MENU, UpdateCheck } from "./update/UpdateDialog";
-import { listenMenu } from "./engine";
+import { hasEngine, listenMenu } from "./engine";
 import { listenProject, type OpenProject } from "./project/current";
 import {
   APPEARANCES,
@@ -34,10 +34,15 @@ const STEPS: { value: Exclude<Screen, "demo">; label: string; keys: string; titl
   { value: "bibliotheque", label: "Bibliothèque", keys: "mod+5", title: "Les dessins du projet" },
 ];
 
-// Barre de l'app (tout en haut) : les étapes, puis le menu Présentation.
-// Chaque écran a ensuite sa barre d'outils, son espace de travail et sa barre
-// d'état, selon le gabarit de docs/design.md. La démonstration de la
-// visionneuse (provisoire, D13) est rangée dans le menu Présentation.
+/** Entrées du menu Présentation du Mac propres à l'app (`src-tauri/src/menu.rs`, D15-s). */
+export const APP_MENU = { appearance: "apparence:", demo: "demonstration" } as const;
+
+// Barre de l'app (tout en haut) : le nom du projet et les étapes. Chaque
+// écran a ensuite sa barre d'outils, son espace de travail et sa barre
+// d'état, selon le gabarit de docs/design.md. Apparence, raccourcis et
+// démonstration de la visionneuse (provisoire, D13) sont dans le menu
+// Présentation du Mac ; dans le navigateur seul, sans barre de menus, un
+// menu Présentation les garde à droite de la barre (D15-s).
 export function App() {
   const [screen, setScreen] = useState<Screen>("facade");
   const [appearance, setAppearance] = useState<Appearance>(readAppearance);
@@ -53,7 +58,11 @@ export function App() {
     () =>
       listenMenu((keys) => {
         if (keys === CHECK_UPDATES_MENU) setUpdateRequest((n) => n + 1);
-        else void runShortcut(keys);
+        else if (keys === APP_MENU.demo) setScreen("demo");
+        else if (keys.startsWith(APP_MENU.appearance)) {
+          const chosen = APPEARANCES.find((a) => `${APP_MENU.appearance}${a.value}` === keys);
+          if (chosen) setAppearance(chosen.value);
+        } else void runShortcut(keys);
       }),
     [],
   );
@@ -92,28 +101,30 @@ export function App() {
             ),
           }))}
         />
-        <span className="app-bar-end">
-          <MenuButton
-            label="Présentation"
-            variant="quiet"
-            align="end"
-            items={[
-              { heading: "Apparence" },
-              ...APPEARANCES.map((a) => ({
-                label: a.label,
-                checked: appearance === a.value,
-                onSelect: () => setAppearance(a.value),
-              })),
-              { separator: true },
-              { label: "Raccourcis clavier", shortcut: "mod+/", icon: "keyboard", onSelect: () => setHelp(true) },
-              {
-                label: "Démonstration de la visionneuse",
-                checked: screen === "demo" ? true : undefined,
-                onSelect: () => setScreen("demo"),
-              },
-            ]}
-          />
-        </span>
+        {!hasEngine() && (
+          <span className="app-bar-end">
+            <MenuButton
+              label="Présentation"
+              variant="quiet"
+              align="end"
+              items={[
+                { heading: "Apparence" },
+                ...APPEARANCES.map((a) => ({
+                  label: a.label,
+                  checked: appearance === a.value,
+                  onSelect: () => setAppearance(a.value),
+                })),
+                { separator: true },
+                { label: "Raccourcis clavier", shortcut: "mod+/", icon: "keyboard", onSelect: () => setHelp(true) },
+                {
+                  label: "Démonstration de la visionneuse",
+                  checked: screen === "demo" ? true : undefined,
+                  onSelect: () => setScreen("demo"),
+                },
+              ]}
+            />
+          </span>
+        )}
       </nav>
       <div className="app-screen">
         {screen === "facade" ? (

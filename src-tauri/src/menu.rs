@@ -76,6 +76,18 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .select_all()
         .build()?;
 
+    // Apparence et démonstration de la visionneuse : l'ancien menu
+    // Présentation de la fenêtre, passé ici (D15-s). L'interface reconnaît
+    // ces identifiants (`src/App.tsx`, `APP_MENU`).
+    let plain = |id: &str, label: &str| {
+        MenuItemBuilder::with_id(format!("{PREFIX}{id}"), label).build(app)
+    };
+    let appearance = SubmenuBuilder::new(app, "Apparence")
+        .item(&plain("apparence:auto", "Automatique (comme macOS)")?)
+        .item(&plain("apparence:dark", "Sombre")?)
+        .item(&plain("apparence:light", "Clair")?)
+        .build()?;
+
     let view = SubmenuBuilder::new(app, "Présentation")
         .item(&entry(app, "Façade", "mod+1", "CmdOrCtrl+1")?)
         .item(&entry(app, "Redressement", "mod+2", "CmdOrCtrl+2")?)
@@ -84,6 +96,9 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .item(&entry(app, "Bibliothèque", "mod+5", "CmdOrCtrl+5")?)
         .separator()
         .item(&entry(app, "Tout voir", "mod+0", "CmdOrCtrl+0")?)
+        .separator()
+        .item(&appearance)
+        .item(&plain("demonstration", "Démonstration de la visionneuse")?)
         .separator()
         .fullscreen()
         .build()?;
