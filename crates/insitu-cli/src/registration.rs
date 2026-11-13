@@ -2,6 +2,7 @@
 //! façade, comme le fait l'écran Recalage de l'app (tâche 3.2).
 
 use insitu_core::project::{PointMm, ProjectDir, RegistrationPair};
+use insitu_core::registration::auto::projector_adjustment;
 use insitu_core::registration::{
     projector_report, set_registration, RegistrationOptions, RegistrationReport,
 };
@@ -17,6 +18,7 @@ pub const USAGE: &str = r#"Usage :
   insitu registration show <projet.insitu> <projecteur> [--factor F] [--floor MM]
   insitu registration set <projet.insitu> <projecteur> <paires.json> [--factor F] [--floor MM]
   insitu registration preview <paires.json>
+  insitu registration adjust <projet.insitu> <projecteur> [<paires.json>]
 
 Recalage d'un projecteur sur la façade : des points communs entre sa photo
 redressée (mm de diapositive, 0 à 280) et la façade (mm réels, façade mise
@@ -31,6 +33,14 @@ redressée (mm de diapositive, 0 à 280) et la façade (mm réels, façade mise
   preview  Pose provisoire, sans projet ni enregistrement : emprise et
            maillage de la diapositive sur la façade pour ces paires (ce que
            l'écran Recalage redessine pendant qu'on glisse un point).
+
+  adjust   Ajustement automatique : part de la pose de la photo sur la
+           façade (les paires enregistrées, ou celles du fichier) et la cale
+           sur les lignes du plan. Affiche en JSON les quatre paires aux
+           coins de la diapositive, l'emprise, l'accord des contours avant
+           et après (« startScore », « score », de 0 à 1) et le plus grand
+           déplacement d'un coin (« movedMm »). Rien n'est enregistré : pour
+           garder le résultat, passer ses paires à « set ».
 
   --factor F   Un point est aberrant si son score dépasse F fois le score
                médian des autres (6 par défaut).
@@ -88,6 +98,16 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
     if let ["preview", file] = words[..] {
         let preview = insitu_core::overview::registration_preview(&read_pairs(file)?);
         return Ok(serde_json::to_string_pretty(&preview).expect("sérialisable"));
+    }
+    if let ["adjust", folder, projector, ref file @ ..] = words[..] {
+        let pairs = match file {
+            [] => None,
+            [file] => Some(read_pairs(file)?),
+            _ => return Err(usage("adjust prend au plus un fichier de paires.")),
+        };
+        let dir = ProjectDir::open(folder).map_err(failed)?;
+        let report = projector_adjustment(&dir, projector, pairs.as_deref()).map_err(failed)?;
+        return Ok(serde_json::to_string_pretty(&report).expect("sérialisable"));
     }
     let report = match words[..] {
         ["show", folder, projector] => {

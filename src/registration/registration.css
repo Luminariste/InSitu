@@ -55,6 +55,10 @@
 /* Consigne des premiers points, en tête du panneau des points communs. */
 .registration-advice {
   padding: var(--ui-space-2) var(--ui-space-1) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ui-space-2);
 }
 
 .registration-opacity {

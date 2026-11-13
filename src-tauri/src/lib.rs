@@ -25,6 +25,7 @@ use insitu_core::project::{
     RetouchStroke, SilhouettePolygon, SlideAdjustment, SourcePoint, VectorSettings,
 };
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
+use insitu_core::registration::auto::AdjustReport;
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
 use insitu_core::sheet::{self, SheetReport};
 use insitu_core::simulation::{self, Simulation};
@@ -270,6 +271,18 @@ fn registration_set(
 #[tauri::command(async)]
 fn registration_preview(pairs: Vec<RegistrationPair>) -> RegistrationPreview {
     overview::registration_preview(&pairs)
+}
+
+/// Cale la pose affichée de la photo sur les lignes du plan (D-3.2-i) :
+/// rien n'est enregistré.
+#[tauri::command(async)]
+fn registration_adjust(
+    folder: String,
+    projector: String,
+    pairs: Vec<RegistrationPair>,
+) -> Result<AdjustReport, String> {
+    registration::auto::projector_adjustment(&project_dir(&folder)?, &projector, Some(&pairs))
+        .map_err(|e| e.to_string())
 }
 
 // --- Assemblage de photos de façade (tâche 6.4) -----------------------------
@@ -589,12 +602,13 @@ fn slides_export(
     folder: String,
     destination: String,
     settings: ExportSettings,
+    only: Option<Vec<String>>,
 ) -> Result<ExportReport, String> {
     export::export_slides(
         &project_dir(&folder)?,
         Path::new(&destination),
         &settings,
-        None,
+        only.as_deref(),
         0,
         &|progress| {
             let _ = app.emit(EXPORT_PROGRESS_EVENT, progress);
@@ -728,6 +742,7 @@ pub fn run() {
             registration_show,
             registration_set,
             registration_preview,
+            registration_adjust,
             library_import,
             illustrator_import,
             illustrator_preview,

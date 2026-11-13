@@ -71,3 +71,28 @@ export function sheetSummary(report: SheetReport, path: string): string {
   const alerts = report.alerts === 0 ? "aucune alerte" : `${report.alerts} alerte${report.alerts > 1 ? "s" : ""}`;
   return `Fiche de calepinage écrite dans « ${fileName(path)} » : ${report.pages} pages A3, ${report.slides} diapositive${report.slides > 1 ? "s" : ""}, ${alerts}.`;
 }
+
+/** Un projecteur qu'on peut exporter seul : recalé (4 paires de points au moins). */
+export interface ExportTarget {
+  id: string;
+  label: string;
+}
+
+/** Les projecteurs recalés, dans l'ordre du projet : ceux qu'on peut exporter. */
+export function exportTargets(projectors: { id: string; label: string; registration?: unknown[] }[]): ExportTarget[] {
+  return projectors.filter((p) => (p.registration?.length ?? 0) >= 4).map((p) => ({ id: p.id, label: p.label }));
+}
+
+/** « Toutes les diapositives » (valeur vide) ou l'identifiant d'un projecteur. */
+export const ALL_SLIDES = "";
+
+/** Le choix gardé s'il existe encore, sinon toutes les diapositives. */
+export function keptTarget(choice: string, targets: ExportTarget[]): string {
+  return targets.some((t) => t.id === choice) ? choice : ALL_SLIDES;
+}
+
+/** Libellé du bouton d'export selon le choix. */
+export function exportButtonLabel(choice: string, targets: ExportTarget[]): string {
+  const one = targets.find((t) => t.id === choice);
+  return one ? `Exporter la diapositive ${one.label}…` : "Exporter les diapositives…";
+}

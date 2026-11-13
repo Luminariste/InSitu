@@ -211,7 +211,7 @@ Un raccourci ajouté à la barre de menus doit donc exister dans un
 | ⌘N / ⌘O / ⌘R | Nouveau projet / Ouvrir / Relire depuis le disque |
 | ⌘Z / ⇧⌘Z | Annuler / rétablir la dernière modification du projet, quel que soit l'écran (tâche 4.3) ; dans un champ de texte, la frappe |
 | ⌘I | Importer : le plan (Façade), la photo (Redressement), un dossier (Bibliothèque) |
-| ⌘E | Exporter : la photo redressée (Redressement), les diapositives (Façade, tâche 3.5) |
+| ⌘E | Exporter : la photo redressée (Redressement), les diapositives (Façade, tâche 3.5), la diapositive affichée (Diapositive) |
 | ⌘1 à ⌘5 | Étapes Façade, Redressement, Recalage, Diapositive, Bibliothèque |
 | ⌘0 | Tout voir |
 | ⌘/ | Liste des raccourcis |
