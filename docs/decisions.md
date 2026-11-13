@@ -876,6 +876,12 @@ dessin seul sur un multiple de 5° (son angle final, pas l'écart), et fait
 tourner plusieurs dessins par pas de 5°. ⇧ en déplaçant garde les
 directions à 45°.
 
+**D-4.2-r. L'onglet Dessins descend jusqu'en bas de la fenêtre.** Retour de
+Benjamin (13 novembre 2026) : « menu Dessins : il ne va pas jusqu'en bas de
+la fenêtre ». La bibliothèque était limitée à 60 % de la hauteur de
+l'écran, avec sa propre barre de défilement. Elle occupe désormais tout le
+panneau, qui défile d'un bloc ; le champ de recherche reste collé en haut.
+
 **D15-l. ⌘Z garde le zoom et l'endroit vus sur la façade.** Retour de
 Benjamin (13 novembre 2026) : « quand je fais pomme Z, le zoom change ».
 L'annulation relit le projet, et la relecture recadrait tout le plan. La
