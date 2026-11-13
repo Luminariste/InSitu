@@ -1,6 +1,6 @@
 // Fenêtre « Exporter cette diapositive… » de l'écran Diapositive : les
 // mêmes réglages que l'onglet Export de la Façade, dont la fresque gravée
-// ou non (demande de Benjamin, 13 novembre 2026, D-3.5-n).
+// ou non (demande de Benjamin, 13 novembre 2026, D-3.5-o).
 
 import { useState } from "react";
 import type { ExportSettings } from "../engine";

@@ -1126,7 +1126,7 @@ pub struct ExportSettings {
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub svg: bool,
     /// La fresque importée en une image (ou en PDF, SVG) est gravée avec
-    /// les dessins posés ; sinon, les dessins seuls (D-3.5-n). Oui par
+    /// les dessins posés ; sinon, les dessins seuls (D-3.5-o). Oui par
     /// défaut, comme avant.
     #[serde(default = "yes", skip_serializing_if = "is_true")]
     pub fresco: bool,

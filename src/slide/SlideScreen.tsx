@@ -260,7 +260,7 @@ export function SlideScreen() {
 
   const ready = busy === null;
   // Exporter la seule diapositive affichée : une fenêtre propose les
-  // réglages de l'onglet Export de la Façade (D-3.5-n), la fresque cochée
+  // réglages de l'onglet Export de la Façade (D-3.5-o), la fresque cochée
   // si elle se voit à l'écran.
   const canExport = engine && folder !== null && ready && view !== null && view.preview !== null;
   // Le plan de contrôle (D-3.5-m) : il suffit que le projecteur soit recalé.

@@ -534,7 +534,7 @@ pub fn export_slides(
 ) -> Result<ExportReport, ExportError> {
     check_settings(settings)?;
     let mut project = dir.load()?.project;
-    // La fresque n'est gravée que si les réglages le demandent (D-3.5-n).
+    // La fresque n'est gravée que si les réglages le demandent (D-3.5-o).
     let fresco = project.fresco.clone().filter(|_| settings.fresco);
     if fresco.is_none() && project.visible_placements().is_empty() {
         if project.fresco.is_some() {

@@ -9,7 +9,7 @@ Une session ne revient pas sur une décision sans l'accord de Benjamin.
 Demande de Benjamin : « dans diapositive > export : il y a la composition
 qui s'affiche (il faudrait des filtres, comme dans façade export) ».
 
-**D-3.5-n. La fresque importée peut ne pas être gravée, et la Diapositive
+**D-3.5-o. La fresque importée peut ne pas être gravée, et la Diapositive
 règle son export.** Nouveau réglage `export.fresco` (oui par défaut, comme
 avant ; absent du fichier quand il vaut oui) : décoché, l'export grave les
 dessins posés seuls, sans la fresque importée en une image (ou PDF, SVG).
@@ -135,7 +135,7 @@ n'exporter que certains projecteurs (`only`, ligne de commande
 Onglet Export de la Façade : choix « Toutes » ou « A seulement » (seuls
 les projecteurs recalés sont proposés ; le bouton dit ce qu'il exporte).
 Étape Diapositive : bouton « Exporter cette diapositive… » (⌘E), avec les
-réglages d'export enregistrés dans le projet (revu par D-3.5-n : une
+réglages d'export enregistrés dans le projet (revu par D-3.5-o : une
 fenêtre les propose maintenant), relus au moment d'exporter
 (on ne règle pas l'export depuis la Diapositive, pour n'avoir qu'un seul
 endroit où le faire). Le choix « une ou toutes » n'est pas gardé dans le
