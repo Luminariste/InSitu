@@ -10,6 +10,9 @@ import {
   drawingsLayer,
   isLightBurnLook,
   nextProjector,
+  PLAN_ON_DARK,
+  PLAN_ON_WHITE,
+  planLayer,
   parseLook,
   viewProblem,
   withBackdrop,
@@ -20,6 +23,7 @@ const view = (id: string, photo: boolean, preview: boolean, problem: string | nu
   label: id.toUpperCase(),
   rectifiedPhoto: photo ? `photos-redressees/${id}.png` : null,
   preview: preview ? `diapositives/${id}.png` : null,
+  plan: null,
   problem,
   drawings: [],
   cut: [],
@@ -94,5 +98,17 @@ describe("aspect de la diapositive", () => {
     expect(parseLook(null)).toEqual(DEFAULT_LOOK);
     expect(parseLook("pas du json")).toEqual(DEFAULT_LOOK);
     expect(parseLook(JSON.stringify({ backdrop: "vert", opacity: 4, photo: false }))).toEqual({ ...DEFAULT_LOOK, photo: false });
+  });
+});
+
+describe("plan de la façade dans la diapositive", () => {
+  it("rien sans plan calculé", () => {
+    expect(planLayer(null, true, "noir")).toEqual([]);
+  });
+  it("tendu sur le carré de 280 mm, plus foncé sur fond blanc", () => {
+    const [onDark] = planLayer("cache/plan.png", true, "noir");
+    const [onWhite] = planLayer("cache/plan.png", false, "blanc");
+    expect(onDark).toMatchObject({ kind: "mesh-image", visible: true, tint: PLAN_ON_DARK });
+    expect(onWhite).toMatchObject({ visible: false, tint: PLAN_ON_WHITE });
   });
 });

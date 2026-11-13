@@ -48,6 +48,10 @@ pub struct SlideView {
     pub preview: Option<String>,
     /// Ce qui manque pour calculer l'aperçu.
     pub problem: Option<String>,
+    /// Le plan de la façade vu par ce projecteur (`diapositives/plan-<clé>.png`,
+    /// blanc à opacité variable), s'il est demandé, à l'échelle et sous
+    /// l'emprise (D-3.6-e).
+    pub plan: Option<String>,
     /// Les dessins posés que porte cette diapositive, situés dedans avant
     /// leur retouche (tâche 4.6).
     pub drawings: Vec<SlideDrawing>,
@@ -73,7 +77,42 @@ pub fn slide_views(
     cache_root: &Path,
     side: u32,
 ) -> Result<Vec<SlideView>, ExportError> {
-    let project = dir.load()?.project;
+    slide_views_with(dir, cache_root, side, SlideContent::default())
+}
+
+/// Ce que montre la vue diapositive en plus des dessins posés.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SlideContent {
+    /// La fresque (D-3.6-d) : cachée dans le menu Affichage, elle l'est aussi
+    /// dans la vue diapositive ; les dessins gardent leur silhouette.
+    /// L'export n'est pas concerné : il grave toujours la fresque.
+    pub fresco: bool,
+    /// Le plan de la façade, en repère (D-3.6-e) ; calculé seulement s'il
+    /// est demandé.
+    pub plan: bool,
+}
+
+impl Default for SlideContent {
+    fn default() -> Self {
+        Self {
+            fresco: true,
+            plan: false,
+        }
+    }
+}
+
+/// Comme [`slide_views`], avec ou sans fresque, avec ou sans plan.
+pub fn slide_views_with(
+    dir: &ProjectDir,
+    cache_root: &Path,
+    side: u32,
+    content: SlideContent,
+) -> Result<Vec<SlideView>, ExportError> {
+    let mut project = dir.load()?.project;
+    let has_fresco = project.fresco.is_some();
+    if !content.fresco {
+        project.fresco = None;
+    }
     let mut fresco_image: Option<Raster> = None;
     let placements = project.visible_placements();
     let assigned = assignments(&project);
@@ -97,6 +136,7 @@ pub fn slide_views(
             rectified_photo: p.rectified_photo.as_ref().map(|r| r.as_str().to_string()),
             preview: None,
             problem: None,
+            plan: None,
             drawings: Vec::new(),
             cut: lost
                 .iter()
@@ -114,7 +154,10 @@ pub fn slide_views(
                 .collect(),
         };
         let warp = slide_to_facade(&p.registration);
-        let nothing = project.fresco.is_none() && placements.is_empty();
+        if let (true, Some(warp), Some(facade)) = (content.plan, &warp, &project.facade) {
+            view.plan = plan_preview(dir, cache_root, facade, warp, &p.registration, side);
+        }
+        let nothing = !has_fresco && placements.is_empty();
         match warp {
             _ if nothing => {
                 view.problem = Some("ni fresque importée, ni dessin posé sur la façade".into())
@@ -167,6 +210,50 @@ pub fn slide_views(
         views.push(view);
     }
     Ok(views)
+}
+
+/// Le plan vu par un projecteur, dans le cache (calculé s'il n'y est pas) ;
+/// `None` si le plan manque ou est illisible : la vue se fait sans.
+fn plan_preview(
+    dir: &ProjectDir,
+    cache_root: &Path,
+    facade: &crate::project::Facade,
+    warp: &crate::geometry::PointWarp,
+    registration: &[crate::project::RegistrationPair],
+    side: u32,
+) -> Option<String> {
+    let identity = format!(
+        "plan|{}|{}|{}|{:?}|{}|{side}|p1",
+        file_identity(&dir.resolve(&facade.source)).ok()?,
+        serde_json::to_string(&facade.scale).ok()?,
+        facade.rotation,
+        facade.page,
+        serde_json::to_string(registration).ok()?,
+    );
+    let request = format!(
+        "{SLIDE_PREVIEW_DIR}/plan-{:016x}.png",
+        tiles::fnv1a_64(identity.as_bytes())
+    );
+    if !cache_root.join(&request).is_file() {
+        let (plan, frame) = super::plan_view::plan_under_footprint(dir, facade, warp)?;
+        let settings = ExportSettings {
+            dpi: f64::from(side) / SLIDE_SIZE_MM * MM_PER_INCH,
+            margin: false,
+            mirror: false,
+            negative: false,
+            one_bit: false,
+            ..ExportSettings::default()
+        };
+        let art = Artwork {
+            fresco: Some((&plan, &frame)),
+            drawings: Vec::new(),
+            projector: None,
+        };
+        let gray = render_artwork(&art, warp, "", &settings, 0).ok()?;
+        let rgba = Raster::new(gray.width, gray.height, 4, black_to_alpha(&gray));
+        store(cache_root, &request, &rgba).ok()?;
+    }
+    Some(request)
 }
 
 /// Adresse de l'aperçu d'un projecteur dans le cache.

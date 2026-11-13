@@ -10,6 +10,7 @@ export function demoSlideViews(): SlideView[] {
     label,
     rectifiedPhoto: "demo",
     preview: i < 2 ? "demo" : null,
+    plan: null,
     problem: i < 2 ? null : "recalage incomplet : 2 paire(s) de points sur 4 au moins",
     drawings: i < 2 ? [demoDrawing(`demo-pose-${label}`, 95 + 6 * i, 45)] : [],
     cut: i === 0 ? [{ placement: "demo-pose-A", name: "Algue (exemple)", lostM2: 0.32 }] : [],

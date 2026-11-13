@@ -30,10 +30,15 @@ colonnes, fenêtres.
    diapositive telle qu'elle part dans LightBurn : traits blancs pleins sur
    fond noir, sans photo ; un second clic revient à l'affichage d'avant.
    Ces réglages sont retenus d'un lancement à l'autre.
-5. **Exporter cette diapositive…** (⌘E), en haut à droite : le PNG de la
+5. Groupe **Façade** : **Fresque** cache ou remontre la fresque dans
+   l'aperçu, **Plan** montre le plan de la Façade vu par ce projecteur, en
+   gris bleuté sous les dessins, pour se repérer. Ce sont les mêmes cases
+   que le menu **Affichage** de la Façade : cachée là-bas, la fresque l'est
+   ici. L'export grave toujours la fresque et jamais le plan.
+6. **Exporter cette diapositive…** (⌘E), en haut à droite : le PNG de la
    diapositive affichée seulement, avec les réglages de l'onglet Export de
    la Façade.
-6. Zoomer pour juger d'un détail. L'aperçu fait 2 048 px (0,14 mm par
+7. Zoomer pour juger d'un détail. L'aperçu fait 2 048 px (0,14 mm par
    pixel), comme le détail utile d'une photo redressée.
 
 Si un dessin tombe à côté de l'élément visé, corriger le recalage (étape

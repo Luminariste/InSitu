@@ -22,6 +22,7 @@ import {
   projectFile,
   type Placement,
   type Project,
+  type SlideContent,
   type SlideView,
 } from "../engine";
 import { useSlideAdjust } from "./useSlideAdjust";
@@ -41,6 +42,7 @@ import {
   drawingsLayer,
   isLightBurnLook,
   nextProjector,
+  planLayer,
   readLook,
   saveLook,
   viewProblem,
@@ -48,6 +50,7 @@ import {
   type SlideLook,
 } from "./logic";
 import { ProjectMenu } from "../project/ProjectMenu";
+import { readViewOptions, saveViewOptions } from "../facade/viewOptions";
 import {
   Banner,
   Busy,
@@ -100,6 +103,13 @@ export function SlideScreen() {
       setLook(LIGHTBURN_LOOK);
     }
   };
+  // Fresque et plan : les mêmes cases que le menu Affichage de la Façade
+  // (D-3.6-d, D-3.6-e) ; cachés là-bas, cachés ici, et inversement.
+  const [content, setContentState] = useState<SlideContent>(() => {
+    const options = readViewOptions();
+    return { fresco: options.fresco, plan: options.plan };
+  });
+  const contentRef = useRef(content);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -114,7 +124,7 @@ export function SlideScreen() {
       setFolder(path);
       setProjectName(project.name);
       setPlacements(project.placements ?? []);
-      const list = await fetchSlideViews(path);
+      const list = await fetchSlideViews(path, contentRef.current);
       setViews(list);
       setCurrent((before) =>
         list.some((v) => v.projectorId === before)
@@ -147,10 +157,25 @@ export function SlideScreen() {
     (project: Project) => {
       setPlacements(project.placements ?? []);
       if (!folder) return;
-      fetchSlideViews(folder).then(setViews, (failure: unknown) => setError(String(failure)));
+      fetchSlideViews(folder, contentRef.current).then(setViews, (failure: unknown) => setError(String(failure)));
     },
     [folder],
   );
+
+  // Montrer ou cacher la fresque ou le plan : retenu pour la Façade aussi ;
+  // l'aperçu est recalculé sans la fresque, ou avec le plan s'il manque.
+  const setContent = (next: SlideContent) => {
+    const before = contentRef.current;
+    contentRef.current = next;
+    setContentState(next);
+    saveViewOptions({ ...readViewOptions(), fresco: next.fresco, plan: next.plan });
+    const missingPlan = next.plan && views.some((v) => v.preview !== null && v.plan === null);
+    if (!engine || !folder || (next.fresco === before.fresco && !missingPlan)) return;
+    setBusy(next.plan && !before.plan ? "Calcul du plan dans les diapositives…" : "Calcul des diapositives…");
+    fetchSlideViews(folder, next)
+      .then(setViews, (failure: unknown) => setError(String(failure).replace(/^Error: /, "")))
+      .finally(() => setBusy(null));
+  };
   const adjust = useSlideAdjust({
     engine,
     folder,
@@ -209,10 +234,12 @@ export function SlideScreen() {
         visible: look.photo,
       });
     }
+    // Le plan, repère qui n'est pas gravé : jamais « comme dans LightBurn ».
+    out.push(...planLayer(view.plan ? cacheFileUrl(view.plan) : null, content.plan && !lightBurn, look.photo ? "noir" : look.backdrop));
     out.push(...drawingsLayer(view.preview ? cacheFileUrl(view.preview) : null, showDrawings, opacity, tint));
     out.push(...adjust.layers);
     return out;
-  }, [view, photos, demo, showDrawings, opacity, tint, look.photo, look.backdrop, adjust.layers]);
+  }, [view, photos, demo, showDrawings, opacity, tint, look.photo, look.backdrop, adjust.layers, content.plan, lightBurn]);
 
   // Cadrer la diapositive à l'ouverture.
   useEffect(() => {
@@ -289,6 +316,31 @@ export function SlideScreen() {
         />
       </ToolGroup>
       <ToolSeparator />
+      <ToolGroup label="Façade">
+        <label
+          className="ui-check"
+          title="La fresque dans l'aperçu (comme le menu Affichage de la Façade). L'export la grave toujours."
+        >
+          <input type="checkbox" checked={content.fresco} disabled={!ready} onChange={(e) => setContent({ ...content, fresco: e.target.checked })} />
+          Fresque
+        </label>
+        <label
+          className="ui-check"
+          title={
+            lightBurn
+              ? "Le plan n'est pas gravé : il ne se voit pas « comme dans LightBurn »"
+              : "Le plan de la façade vu par ce projecteur, pour se repérer (comme le menu Affichage de la Façade)"
+          }
+        >
+          <input
+            type="checkbox"
+            checked={content.plan}
+            disabled={!ready || lightBurn}
+            onChange={(e) => setContent({ ...content, plan: e.target.checked })}
+          />
+          Plan
+        </label>
+      </ToolGroup>
       <ToolGroup label="Dessins">
         <label className="ui-check">
           <input type="checkbox" checked={showDrawings} onChange={(e) => setLook({ ...look, showDrawings: e.target.checked })} />

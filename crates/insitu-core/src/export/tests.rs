@@ -400,6 +400,24 @@ fn slide_previews_are_computed_once_and_follow_the_registration() {
         .clone()
         .unwrap();
     assert_ne!(moved, request);
+
+    // Fresque cachée (D-3.6-d) : un autre aperçu, vide puisqu'aucun dessin
+    // n'est posé, et pas de « rien à montrer ».
+    let hidden = &super::preview::slide_views_with(
+        &dir,
+        &cache,
+        600,
+        super::preview::SlideContent {
+            fresco: false,
+            plan: false,
+        },
+    )
+    .unwrap()[0];
+    assert!(hidden.problem.is_none(), "{:?}", hidden.problem);
+    let empty = hidden.preview.clone().unwrap();
+    assert_ne!(empty, moved);
+    let png = image::open(cache.join(&empty)).unwrap().into_rgba8();
+    assert!(png.pixels().all(|p| p.0[3] == 0));
 }
 
 /// Projet avec un projecteur recalé, sans fresque, et le verre A réduit en
@@ -1168,4 +1186,82 @@ fn an_old_illustrator_file_gets_a_clear_message() {
         fresco::format_of(&png).unwrap(),
         fresco::FrescoFormat::Raster
     );
+}
+
+/// Le plan dans la vue diapositive (D-3.6-e) : demandé, il est ramené dans
+/// le carré de la diapositive par le recalage ; un trait du plan tombe là où
+/// le recalage l'attend. Non demandé, il n'est pas calculé.
+#[test]
+fn the_facade_plan_is_seen_through_the_registration() {
+    plan_seen_through_registration(false);
+}
+
+/// Même chose avec un plan vectoriel (SVG), rendu à la demande.
+#[test]
+fn a_vector_plan_is_seen_through_the_registration() {
+    plan_seen_through_registration(true);
+}
+
+fn plan_seen_through_registration(vector: bool) {
+    use super::preview::{slide_views_with, SlideContent};
+    use crate::facade::import::{import_facade, set_scale};
+    use crate::project::SourcePoint;
+    let temp = TempDir::new("vue-diapositive-plan");
+    let (dir, mut project) =
+        ProjectDir::create(temp.path().join("Essai.insitu"), Some("Essai")).unwrap();
+    project.add_projector("A").registration = pairs();
+    dir.save(&project).unwrap();
+    // Plan de 7 000 × 6 000 mm (1 px = 10 mm) : un trait noir vertical à
+    // x = 3 080 mm, là où tombe le centre de la diapositive.
+    let plan_path = if vector {
+        let path = temp.path().join("plan.svg");
+        std::fs::write(
+            &path,
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="700" height="600" viewBox="0 0 700 600"><rect x="307" y="0" width="3" height="600" fill="black"/></svg>"#,
+        )
+        .unwrap();
+        path
+    } else {
+        let plan = image::GrayImage::from_fn(700, 600, |x, _| {
+            image::Luma([if (307..=309).contains(&x) { 0 } else { 255 }])
+        });
+        let path = temp.path().join("plan.png");
+        plan.save(&path).unwrap();
+        path
+    };
+    import_facade(&dir, &plan_path, None).unwrap();
+    set_scale(
+        &dir,
+        SourcePoint { x: 0.0, y: 0.0 },
+        SourcePoint { x: 700.0, y: 0.0 },
+        7_000.0,
+    )
+    .unwrap();
+    let cache = temp.path().join("cache");
+
+    let without = slide_views_with(&dir, &cache, 600, SlideContent::default()).unwrap();
+    assert!(without[0].plan.is_none());
+
+    let content = SlideContent {
+        fresco: true,
+        plan: true,
+    };
+    let views = slide_views_with(&dir, &cache, 600, content).unwrap();
+    let request = views[0].plan.clone().expect("plan vu par A");
+    assert!(request.starts_with("diapositives/plan-"));
+    let png = image::open(cache.join(&request)).unwrap().into_rgba8();
+    assert_eq!(png.dimensions(), (600, 600));
+    // Le centre de la diapositive (140 mm → 300 px) est sur le trait.
+    let row = 300;
+    let lit: Vec<u32> = (0..600)
+        .filter(|&x| png.get_pixel(x, row).0[3] >= 128)
+        .collect();
+    assert!(!lit.is_empty(), "le trait manque");
+    assert!(lit.iter().all(|&x| (280..=320).contains(&x)), "{lit:?}");
+    // Le reste est transparent : seul le trait se voit.
+    let opaque = png.pixels().filter(|p| p.0[3] >= 128).count();
+    assert!(opaque < 600 * 600 / 10, "{opaque}");
+    // Resservi depuis le cache.
+    let again = slide_views_with(&dir, &cache, 600, content).unwrap();
+    assert_eq!(again[0].plan.as_deref(), Some(request.as_str()));
 }
