@@ -692,7 +692,22 @@ export function ContextMenu({ x, y, items, onClose }: { x: number; y: number; it
 // --- Dialogues ----------------------------------------------------------------------------
 
 /** Fenêtre de dialogue posée sur l'écran. Échap ferme ; ↩ valide l'action principale. */
-export function Dialog({ title, children, actions, onClose, wide }: { title: string; children: ReactNode; actions?: ReactNode; onClose: () => void; wide?: boolean }) {
+export function Dialog({
+  title,
+  children,
+  actions,
+  onClose,
+  wide,
+  size,
+}: {
+  title: string;
+  children: ReactNode;
+  actions?: ReactNode;
+  onClose: () => void;
+  wide?: boolean;
+  /** « large » : fenêtre qui montre une image et une liste côte à côte (aperçu d'import). */
+  size?: "large";
+}) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -703,7 +718,7 @@ export function Dialog({ title, children, actions, onClose, wide }: { title: str
   return (
     <div className="ui-scrim" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <div
-        className={cx("ui-dialog", wide && "is-wide")}
+        className={cx("ui-dialog", wide && "is-wide", size === "large" && "is-large")}
         role="dialog"
         aria-modal="true"
         aria-label={title}

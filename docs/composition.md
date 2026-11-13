@@ -30,7 +30,7 @@ Tout s'enregistre dans le projet à la fin de chaque geste.
 | ⌥-glisser | Déplacer une copie |
 | Poignée de coin (carré blanc) | Étirer en largeur et en hauteur à la fois ; ⇧ : proportions gardées ; ⌥ : depuis le centre |
 | Poignée au milieu d'un côté | Étirer seulement en largeur (côtés gauche et droit) ou en hauteur (haut et bas) ; ⌥ : depuis le centre |
-| Rond au-dessus du cadre | Tourner autour du centre ; ⇧ : par pas de 45° ; l'angle s'affiche près du pointeur (D-4.2-m) |
+| Rond au-dessus du cadre | Tourner autour du centre ; ⇧ : sur un angle rond, multiple de 5° (D-4.2-q) ; l'angle s'affiche près du pointeur (D-4.2-m) |
 | Juste au-delà d'un coin | Tourner aussi, comme dans Illustrator (le curseur devient une flèche courbe) |
 | Espace + glisser, ou défiler à deux doigts | Déplacer la vue |
 
@@ -63,11 +63,14 @@ Façade ; ils agissent sur les dessins choisis (bulle d'aide au survol) :
   compte pour un seul bloc ;
 - premier plan, avancer, reculer, arrière-plan ; grouper, dégrouper.
 
-La rubrique **Dessins posés** (onglet **Dessins**, qui s'ouvre seul) apparaît
-quand un dessin est choisi : centre X et Y, largeur (la hauteur suit ; taper
-par exemple `2,5 m`, `250 cm` ou `2500`, puis ↩), rotation en degrés (un seul
-dessin), miroir (boutons « Gauche ↔ droite » et « Haut ↕ bas »), calque,
-diapositive, retirer.
+Les réglages du dessin choisi sont dans une seconde barre, sous la barre
+d'outils, comme le panneau Contrôle d'Illustrator (D-4.2-p) : nom, calque
+(à partir de deux calques), diapositive, centre **X** et **Y**, largeur
+**L** (la hauteur **H** suit ; taper par exemple `2,5 m`, `250 cm` ou
+`2500`, puis ↩), **Angle** en degrés (un seul dessin), état de la
+déformation, **Retirer**. Le miroir est dans les icônes de la barre d'outils.
+L'onglet **Dessins** du panneau de droite ne montre plus que la
+bibliothèque, et choisir un dessin ne change plus d'onglet.
 
 Le curseur change sur chaque poignée : flèche double sur les carrés blancs
 (dans l'axe de la poignée), flèche courbe sur le rond et au-delà des coins,
@@ -82,13 +85,22 @@ croix sur un point de déformation, flèche à quatre pointes sur un dessin
    dessin : flèche à quatre pointes. Dans le vide : flèche normale.
 3. Passer sur le rond au-dessus du cadre : flèche courbe. Le glisser : le
    dessin tourne autour de son centre, l'angle s'affiche près du pointeur,
-   la flèche suit. Avec ⇧ : par pas de 45°. Lâcher : l'angle est celui de la
-   case « Rotation » de l'onglet Dessins. ⌘Z annule.
+   la flèche suit. Avec ⇧ : angle rond, multiple de 5°. Lâcher : l'angle est celui de la
+   case « Angle » de la barre des réglages, en haut. ⌘Z annule.
 4. Même chose juste au-delà d'un coin, hors du cadre.
-5. Onglet Dessins, ligne « Miroir » : « Gauche ↔ droite » retourne le
-   dessin ; la phrase sous les boutons dit qu'il est retourné. « Haut ↕ bas »
-   pareil. Exporter la diapositive : le dessin y est retourné de la même
-   façon.
+5. Icônes « Miroir » de la barre d'outils : la première retourne le dessin
+   de gauche à droite, et la barre des réglages ajoute « retourné » après
+   son nom. La seconde le retourne de haut en bas. Exporter la diapositive :
+   le dessin y est retourné de la même façon.
+9. Tourner un dessin de 30° (case Angle), puis tirer la poignée du milieu
+   du côté droit : le dessin s'étire, le cadre et ses carrés blancs restent
+   (D-4.2-q).
+10. Tourner avec ⇧ : l'angle s'arrête sur 5°, 10°, 15°…
+11. Zoomer sur un coin de la façade, déplacer un dessin, puis ⌘Z : le dessin
+    revient, la vue ne bouge pas (D15-l).
+8. Barre des réglages (sous la barre d'outils) : sans dessin choisi, elle
+   dit de cliquer un dessin ; avec un dessin, taper une largeur, un angle,
+   choisir une diapositive : le dessin suit aussitôt (D-4.2-p).
 6. Écran Diapositive : sur un dessin, le curseur devient la flèche à quatre
    pointes, sur un point bleu une croix.
 7. Choisir un dessin, cliquer « Quatre coins » dans la barre du haut : le
@@ -156,6 +168,17 @@ deux projecteurs. Sur la façade, son contour a la couleur de son projecteur
 à cheval, aucune diapositive ne le contient en entier, ou bien celle
 choisie à la main le coupe. Un contour gris : il ne tombe dans aucune
 emprise.
+
+**Ce qui ne sera pas projeté est en rouge** (version 0.1.45) : la part
+d'un dessin qui sort de l'emprise de sa diapositive est couverte d'un aplat
+rouge sur la façade. Personne ne la projette, même si une diapositive
+voisine couvre cet endroit (un dessin ne part que dans une diapositive).
+Seuls les traits comptent (la silhouette du dessin, pas son rectangle) : un
+dessin dont seule la marge vide dépasse n'a pas de rouge. Un dessin envoyé
+à la main dans une diapositive qui ne l'atteint pas est rouge en entier.
+Pour corriger : déplacer le dessin, le réduire, ou le rendre à
+« Automatique ». La vue Diapositive le rappelle dans un bandeau orange
+(« … dépasse de cette diapositive ; 0,32 m² ne seront pas projetés »).
 
 La proposition est automatique : parmi les diapositives qui contiennent le
 dessin en entier, celle où il est le plus loin du bord. Elle suit le dessin
@@ -226,16 +249,34 @@ dessin :
    les liens sont retrouvés par leur dossier relatif, puis par leur nom.
 3. Écran Façade (plan à l'échelle), onglet **Calques**, rubrique
    **Composition Illustrator** : **Importer un fichier .ai…**.
-4. Chaque fichier lié entre dans la bibliothèque (dossier du nom du `.ai`),
-   chaque image placée devient un dessin posé, avec sa position, sa taille,
+4. Une fenêtre montre le résultat avant d'importer : à gauche, chaque image
+   à sa place sur la façade, de la couleur de son calque (pointillés rouges :
+   lien introuvable) ; à droite, les calques d'Illustrator, l'avant en haut,
+   et en les dépliant leurs fichiers, avec pour chacun **Bibliothèque**
+   (déjà là : le dessin est repris, avec ses retouches), **Bibliothèque
+   (même nom)** (fichier absent de ce Mac, mais un dessin du même nom est
+   dans la bibliothèque), **Nouveau** (il entrera dans la bibliothèque) ou
+   **Introuvable**. On coche ou décoche un calque entier ou un fichier ; le
+   survol d'une ligne éclaire ses images. La phrase du bas dit ce qui sera
+   fait ; **Importer** le fait.
+5. Chaque image choisie devient un dessin posé, avec sa position, sa taille,
    sa rotation et son retournement, dans un calque du nom de celui
-   d'Illustrator (masqué ou verrouillé comme dans Illustrator).
-5. Le compte rendu dit combien de dessins sont posés, et nomme les liens
+   d'Illustrator (masqué ou verrouillé comme dans Illustrator). Les fichiers
+   nouveaux entrent dans la bibliothèque (dossier du nom du `.ai`).
+6. Le compte rendu dit combien de dessins sont posés, combien sont repris
+   de la bibliothèque, et nomme les liens
    introuvables, les images incorporées (à lier dans Illustrator pour les
    retrouver) et les images déformées en biais (posées sans le biais).
 
 ⌘Z annule l'import en deux fois (dessins posés, puis bibliothèque). Les masques d'écrêtage, l'opacité et les tracés
 dessinés dans Illustrator ne sont pas repris : seules les images liées.
+
+À essayer sur le Mac (version 0.1.47) : dans le projet Trevarez.insitu, qui a
+déjà des dessins en bibliothèque, ouvrir ECURIES-COMPOSITION.ai : la fenêtre
+doit montrer les 8 calques et marquer « Bibliothèque » les dessins déjà
+importés ; décocher « SixiemePlan », importer, et vérifier que la
+bibliothèque n'a pas de doublons et que les dessins repris gardent leurs
+retouches.
 
 À essayer sur le Mac : importer ECURIES-COMPOSITION.ai depuis son dossier
 « Ecuries - Fresque » ; comparer à l'écran avec Illustrator (positions,

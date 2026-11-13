@@ -20,13 +20,13 @@ export interface TabContext {
  * L'onglet à montrer après un changement de contexte. Seuls les
  * changements comptent : un onglet choisi à la main reste tant que rien de
  * neuf ne se passe.
- *  - des dessins viennent d'être choisis : Dessins ;
+ *  (Choisir un dessin ne change plus d'onglet : ses réglages sont dans la
+ *  barre du haut, D-4.2-p.)
  *  - la pose des points A et B commence : Plan (rubrique Mise en plan) ;
  *  - le plan vient de disparaître (projet sans plan, plan retiré) : Plan.
  */
 export function contextTab(previous: TabContext | null, current: TabContext, tab: FacadeTab): FacadeTab {
   if (previous === null) return current.hasPlan ? tab : "plan";
-  if (current.selection > 0 && previous.selection === 0) return "dessins";
   if (current.picking && !previous.picking) return "plan";
   if (!current.hasPlan && previous.hasPlan) return "plan";
   return tab;

@@ -17,6 +17,7 @@
 //! vers le bas, comme la façade.
 
 mod link;
+mod plan;
 #[cfg(test)]
 mod tests;
 
@@ -31,6 +32,10 @@ use crate::project::model::{new_id, RectMm};
 use crate::project::{Layer, Placement, PointMm, Project, ProjectDir, ProjectError};
 
 pub use link::{fold_name, resolve_link};
+pub use plan::{
+    plan_links, preview_composition, CompositionPreview, LinkPlan, LinkStatus, PreviewImage,
+    PreviewLayer, PreviewLink,
+};
 
 #[derive(Debug)]
 pub enum IllustratorError {
@@ -129,6 +134,8 @@ pub struct AiDocument {
     pub placed: Vec<PlacedImage>,
     /// Images incorporées (sans lien) : non importées.
     pub embedded: usize,
+    /// Calque de premier niveau de chaque image incorporée.
+    pub embedded_layers: Vec<String>,
     /// Calques de premier niveau, dans l'ordre du fichier (le premier est au
     /// fond).
     pub layers: Vec<AiLayer>,
@@ -141,6 +148,8 @@ pub struct AiLayer {
     pub name: String,
     pub visible: bool,
     pub locked: bool,
+    /// Couleur du calque dans Illustrator (rouge, vert, bleu), si notée.
+    pub color: Option<[u8; 3]>,
 }
 
 impl AiDocument {
@@ -292,6 +301,7 @@ pub fn parse(text: &[u8]) -> Option<AiDocument> {
     let mut artboard = None;
     let mut placed = Vec::new();
     let mut embedded = 0;
+    let mut embedded_layers = Vec::new();
     // Pile des calques ouverts : (nom, visible, verrouillé).
     let mut stack: Vec<AiLayer> = Vec::new();
     let mut top_layers: Vec<AiLayer> = Vec::new();
@@ -312,6 +322,7 @@ pub fn parse(text: &[u8]) -> Option<AiDocument> {
                 name: String::new(),
                 visible: true,
                 locked: false,
+                color: None,
             });
             pending_layer = true;
         } else if line.starts_with(b"%AI5_EndLayer") {
@@ -326,6 +337,11 @@ pub fn parse(text: &[u8]) -> Option<AiDocument> {
             if let (Some(last), true) = (stack.last_mut(), n.len() >= 3) {
                 last.visible = n[0] != 0.0;
                 last.locked = n[2] == 0.0;
+                // … numéro de couleur, rouge, vert, bleu, …
+                if n.len() >= 11 {
+                    let c = |v: f64| v.clamp(0.0, 255.0) as u8;
+                    last.color = Some([c(n[8]), c(n[9]), c(n[10])]);
+                }
             }
         } else if pending_layer && line.ends_with(b") Ln") {
             if let (Some(name), Some(last)) = (ps_string(line), stack.last_mut()) {
@@ -353,7 +369,10 @@ pub fn parse(text: &[u8]) -> Option<AiDocument> {
                     p.visible = stack.iter().all(|l| l.visible);
                     placed.push(p);
                 }
-                None if raster => embedded += 1,
+                None if raster => {
+                    embedded += 1;
+                    embedded_layers.push(stack.first().map(|l| l.name.clone()).unwrap_or_default());
+                }
                 None => {}
             }
             i = end;
@@ -364,6 +383,7 @@ pub fn parse(text: &[u8]) -> Option<AiDocument> {
         artboard: artboard?,
         placed,
         embedded,
+        embedded_layers,
         layers: top_layers,
     })
 }
@@ -511,7 +531,10 @@ pub struct CompositionReport {
     pub placed: usize,
     /// Fichiers distincts ajoutés à la bibliothèque (ou déjà présents).
     pub drawings: usize,
-    /// Dossier de la bibliothèque qui les reçoit.
+    /// Parmi eux, ceux repris d'un dessin déjà dans la bibliothèque (même
+    /// fichier, ou même nom quand le fichier lié n'est pas sur ce Mac).
+    pub reused: usize,
+    /// Dossier de la bibliothèque qui reçoit les nouveaux.
     pub folder: String,
     /// Calques créés ou repris, dans l'ordre d'Illustrator.
     pub layers: Vec<String>,
@@ -521,100 +544,176 @@ pub struct CompositionReport {
     pub embedded: usize,
     /// Images déformées en biais dans Illustrator : posées sans le biais.
     pub skewed: usize,
+    /// Images laissées de côté dans la fenêtre d'import.
+    pub skipped: usize,
 }
 
-/// Recrée la composition d'un `.ai` : chaque fichier lié entre dans la
-/// bibliothèque (sous `bibliotheque/<nom du .ai>/`), chaque image placée
-/// devient un dessin posé, dans un calque du même nom que celui
-/// d'Illustrator. Le plan de travail couvre `frame` (mm de façade) ; sans
-/// `frame`, toute la largeur de la façade à partir du coin haut-gauche,
-/// comme la fresque (D-3.5-b). Les dessins s'ajoutent à ceux déjà posés.
+/// Rectangle de façade couvert par le plan de travail : `frame` s'il est
+/// donné, sinon toute la largeur de la façade à partir du coin haut-gauche,
+/// comme la fresque (D-3.5-b).
+fn facade_frame(
+    project: &Project,
+    doc: &AiDocument,
+    frame: Option<RectMm>,
+) -> Result<RectMm, IllustratorError> {
+    if let Some(f) = frame {
+        return Ok(f);
+    }
+    let (aw, ah) = doc.artboard_size();
+    let (facade_width, _) = project
+        .facade
+        .as_ref()
+        .and_then(|f| f.size_mm())
+        .ok_or(IllustratorError::NoFacadeScale)?;
+    Ok(RectMm {
+        x: 0.0,
+        y: 0.0,
+        width: facade_width,
+        height: facade_width * ah / aw,
+    })
+}
+
+/// Nom du `.ai` sans extension.
+fn ai_stem(ai: &Path) -> String {
+    ai.file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "Illustrator".into())
+}
+
+/// Dossier de la bibliothèque qui reçoit les fichiers liés du `.ai`.
+fn library_folder(ai: &Path) -> String {
+    format!(
+        "{}/{}",
+        crate::project::AssetKind::Drawing.directory(),
+        clean(&ai_stem(ai))
+    )
+}
+
+/// Vrai si la matrice déforme l'image en biais.
+fn is_skewed(p: &PlacedImage) -> bool {
+    let [a, b, c, d, ..] = p.matrix;
+    let dot = a * c + b * d;
+    dot.abs() > 1e-6 * (a.hypot(b) * c.hypot(d)).max(1e-12)
+}
+
+/// Recrée la composition d'un `.ai` : chaque image placée devient un dessin
+/// posé, dans un calque du même nom que celui d'Illustrator. Un lien déjà
+/// présent dans la bibliothèque (même fichier, ou même nom si le fichier
+/// n'est pas sur ce Mac) reprend ce dessin ; les autres fichiers liés entrent
+/// dans la bibliothèque, sous `bibliotheque/<nom du .ai>/`. `only` : les
+/// images à importer (rang dans [`AiDocument::placed`], comme dans
+/// l'aperçu) ; `None` : toutes. Le plan de travail couvre `frame` (mm de
+/// façade), voir [`facade_frame`]. Les dessins s'ajoutent à ceux déjà posés.
 pub fn import_composition(
     dir: &ProjectDir,
     ai: &Path,
     frame: Option<RectMm>,
+    only: Option<&[usize]>,
     options: &ImportOptions,
     progress: &(dyn Fn(ImportProgress) + Sync),
 ) -> Result<(Project, CompositionReport), IllustratorError> {
     let doc = read(ai)?;
     let project = dir.load()?.project;
-    let (aw, ah) = doc.artboard_size();
-    let frame = match frame {
-        Some(f) => f,
-        None => {
-            let (facade_width, _) = project
-                .facade
-                .as_ref()
-                .and_then(|f| f.size_mm())
-                .ok_or(IllustratorError::NoFacadeScale)?;
-            RectMm {
-                x: 0.0,
-                y: 0.0,
-                width: facade_width,
-                height: facade_width * ah / aw,
-            }
+    let frame = facade_frame(&project, &doc, frame)?;
+    let chosen: Vec<usize> = match only {
+        None => (0..doc.placed.len()).collect(),
+        Some(list) => {
+            let mut v: Vec<usize> = list
+                .iter()
+                .copied()
+                .filter(|&i| i < doc.placed.len())
+                .collect();
+            v.sort_unstable();
+            v.dedup();
+            v
         }
     };
+    if chosen.is_empty() {
+        return Err(IllustratorError::NothingPlaced(
+            "aucune image choisie : rien à importer".into(),
+        ));
+    }
+    let plan = plan_links(dir, &project, ai, &doc);
+    let mut needed: Vec<usize> = chosen.iter().map(|&i| plan.link_of_image[i]).collect();
+    needed.sort_unstable();
+    needed.dedup();
 
-    // Les liens distincts, retrouvés sur ce Mac.
+    // Fichiers à copier dans la bibliothèque : les liens retrouvés sur ce
+    // Mac et absents de la bibliothèque.
     let ai_folder = ai.parent().unwrap_or(Path::new("."));
-    let mut links: BTreeMap<String, (usize, Option<PathBuf>)> = BTreeMap::new();
-    for p in &doc.placed {
-        let key = link_key(p);
-        let entry = links.entry(key).or_insert_with(|| (0, resolve_link(ai, p)));
-        entry.0 += 1;
-    }
-    let mut missing = Vec::new();
     let mut files: Vec<(PathBuf, String)> = Vec::new();
-    let mut file_of_link: BTreeMap<String, usize> = BTreeMap::new();
-    for (key, (count, found)) in &links {
-        match found {
-            Some(path) => {
-                if let Some(k) = files.iter().position(|(f, _)| f == path) {
-                    file_of_link.insert(key.clone(), k);
-                    continue;
-                }
-                file_of_link.insert(key.clone(), files.len());
-                files.push((path.clone(), inner_path(ai_folder, path)));
-            }
-            None => missing.push(MissingLink {
-                link: key.split('|').next().unwrap_or(key).to_string(),
-                count: *count,
-                reason: "fichier introuvable".into(),
-            }),
+    let mut file_of_link: BTreeMap<usize, usize> = BTreeMap::new();
+    for &k in &needed {
+        let link = &plan.links[k];
+        if link.status != LinkStatus::New {
+            continue;
         }
+        let Some(path) = link.file.as_ref().map(PathBuf::from) else {
+            continue;
+        };
+        let at = match files.iter().position(|(f, _)| *f == path) {
+            Some(at) => at,
+            None => {
+                files.push((path.clone(), inner_path(ai_folder, &path)));
+                files.len() - 1
+            }
+        };
+        file_of_link.insert(k, at);
     }
-    let stem = ai
-        .file_stem()
-        .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "Illustrator".into());
-    let base = format!(
-        "{}/{}",
-        crate::project::AssetKind::Drawing.directory(),
-        clean(&stem)
-    );
+    let base = library_folder(ai);
     let ids = if files.is_empty() {
         Vec::new()
     } else {
         import_files(dir, &base, &files, options, progress)?.1
     };
-    for (key, k) in &file_of_link {
-        if let Err(reason) = &ids[*k] {
-            missing.push(MissingLink {
-                link: key.split('|').next().unwrap_or(key).to_string(),
-                count: links[key].0,
-                reason: reason.clone(),
-            });
+
+    // Le dessin de chaque lien, ou pourquoi il manque.
+    let count_of = |k: usize| {
+        chosen
+            .iter()
+            .filter(|&&i| plan.link_of_image[i] == k)
+            .count()
+    };
+    let mut drawing_of_link: BTreeMap<usize, String> = BTreeMap::new();
+    let mut missing = Vec::new();
+    let mut reused = 0;
+    for &k in &needed {
+        let link = &plan.links[k];
+        match link.status {
+            LinkStatus::Library | LinkStatus::LibraryByName => {
+                if let Some(d) = &link.drawing {
+                    drawing_of_link.insert(k, d.clone());
+                    reused += 1;
+                }
+            }
+            LinkStatus::New => match file_of_link.get(&k).map(|&at| &ids[at]) {
+                Some(Ok(id)) => {
+                    drawing_of_link.insert(k, id.clone());
+                }
+                Some(Err(reason)) => missing.push(MissingLink {
+                    link: link.link.clone(),
+                    count: count_of(k),
+                    reason: reason.clone(),
+                }),
+                None => {}
+            },
+            LinkStatus::Missing => missing.push(MissingLink {
+                link: link.link.clone(),
+                count: count_of(k),
+                reason: "fichier introuvable".into(),
+            }),
         }
     }
 
     // Relu après l'import de la bibliothèque.
+    let stem = ai_stem(ai);
     let mut project = dir.load()?.project;
     let mut layer_names: Vec<String> = Vec::new();
     let mut placements = Vec::new();
     let mut skewed = 0;
-    for p in &doc.placed {
-        let Some(Ok(drawing)) = file_of_link.get(&link_key(p)).map(|&k| &ids[k]) else {
+    for &i in &chosen {
+        let p = &doc.placed[i];
+        let Some(drawing) = drawing_of_link.get(&plan.link_of_image[i]) else {
             continue;
         };
         let flags = doc.layers.iter().find(|l| l.name == p.layer);
@@ -644,9 +743,7 @@ pub fn import_composition(
         if !layer_names.contains(&name) {
             layer_names.push(name);
         }
-        let [a, b, c, d, ..] = p.matrix;
-        let dot = a * c + b * d;
-        if dot.abs() > 1e-6 * (a.hypot(b) * c.hypot(d)).max(1e-12) {
+        if is_skewed(p) {
             skewed += 1;
         }
         let pose = pose(p, doc.artboard, &frame);
@@ -671,8 +768,8 @@ pub fn import_composition(
     if placements.is_empty() {
         return Err(IllustratorError::NothingPlaced(format!(
             "aucune image liée du fichier n'a été retrouvée ({} lien(s), {} image(s) incorporée(s)). \
-             Les fichiers liés doivent être à côté du .ai, comme dans Illustrator",
-            links.len(),
+             Les fichiers liés doivent être à côté du .ai, comme dans Illustrator, ou déjà dans la bibliothèque",
+            needed.len(),
             doc.embedded
         )));
     }
@@ -682,18 +779,20 @@ pub fn import_composition(
     crate::placement::check(&mut project)
         .map_err(|e| IllustratorError::NotIllustrator(format!("dessins posés refusés : {e}")))?;
     dir.save(&project)?;
-    let mut drawings: Vec<&String> = ids.iter().filter_map(|r| r.as_ref().ok()).collect();
+    let mut drawings: Vec<&String> = drawing_of_link.values().collect();
     drawings.sort();
     drawings.dedup();
     let report = CompositionReport {
         found: doc.placed.len(),
         placed,
         drawings: drawings.len(),
+        reused,
         folder: base,
         layers: layer_names,
         missing,
         embedded: doc.embedded,
         skewed,
+        skipped: doc.placed.len() - chosen.len(),
     };
     Ok((project, report))
 }

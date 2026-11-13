@@ -135,11 +135,15 @@ describe("gestes sur les dessins posés", () => {
     expect(q).toMatchObject({ width: 200, height: 300 });
   });
 
-  it("tourne autour du centre, par pas de 45° avec ⇧", () => {
+  it("tourne autour du centre ; ⇧ : angle rond, multiple de 5° (D-4.2-q)", () => {
     const before = [placed("a", 0, 0)];
     const g: Gesture = { kind: "rotate", start: { x: 100, y: 0 }, before, ids: new Set(["a"]), pivot: { x: 0, y: 0 } };
     expect(applyGesture(g, { x: 0, y: 100 }, none).placements[0].rotation).toBeCloseTo(90);
-    expect(applyGesture(g, { x: 100, y: 30 }, { shift: true, alt: false }).placements[0].rotation).toBe(0);
+    // 16,7° à la souris : 15° avec ⇧.
+    expect(applyGesture(g, { x: 100, y: 30 }, { shift: true, alt: false }).placements[0].rotation).toBeCloseTo(15);
+    // Un dessin déjà tourné de 12° s'arrête sur un angle rond, pas sur 12° + un multiple de 5.
+    const tilted: Gesture = { ...g, before: [{ ...placed("a", 0, 0), rotation: 12 }] };
+    expect(applyGesture(tilted, { x: 100, y: 30 }, { shift: true, alt: false }).placements[0].rotation).toBeCloseTo(30);
   });
 
   it("le cadre de sélection prend ce qu'il touche, ⇧ ajoute", () => {
@@ -190,8 +194,8 @@ describe("gestes sur les dessins posés", () => {
     // Un tour presque complet se lit comme un petit angle de l'autre côté.
     const back = applyGesture(g, { x: 190, y: 0 }, none);
     expect(Math.abs(back.turned!)).toBeLessThan(10);
-    // ⇧ : par pas de 45°.
-    expect(applyGesture(g, { x: 300, y: 120 }, { shift: true, alt: false }).placements[0].rotation).toBeCloseTo(90);
+    // ⇧ : angle rond (73,3° à la souris : 75°).
+    expect(applyGesture(g, { x: 300, y: 120 }, { shift: true, alt: false }).placements[0].rotation).toBeCloseTo(75);
   });
 
   it("curseurs : flèche double sur les poignées, flèche courbe pour tourner (D-4.2-m)", () => {

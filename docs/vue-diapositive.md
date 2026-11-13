@@ -42,23 +42,33 @@ Quand le recalage ne suffit pas (façade très en relief), on retouche un
 dessin posé **dans cette diapositive seulement**, sur la photo : la façade et
 les autres diapositives ne changent pas.
 
-1. Cliquer un dessin : son contour apparaît en bleu, et le groupe
-   **Retouche** dans la barre d'outils.
-2. Le glisser le décale dans la diapositive. **Quatre coins** ou **Grille**
-   donne des points bleus à tirer pour l'épouser sur la photo.
-3. À chaque geste lâché, la retouche est enregistrée et l'aperçu recalculé ;
-   l'export la reprend.
-4. **Réinitialiser** retire la retouche : le dessin revient où la façade le
-   place. ⌘Z annule chaque geste.
+1. Cliquer un dessin : son contour apparaît en bleu, et les outils du
+   dessin dans la barre du haut, en icônes comme sur la façade (version
+   0.1.45) : tourner d'un quart de tour à gauche ou à droite, **quatre
+   coins**, **grille** (menu des tailles).
+2. Le glisser le décale dans la diapositive. Les quatre coins ou la grille
+   donnent des points bleus à tirer pour l'épouser sur la photo.
+3. Pendant le geste, le dessin retouché est montré en bleu ; une fois lâché,
+   la retouche est enregistrée, « Recalcul de la diapositive… » s'affiche
+   en bas, puis l'aperçu à jour remplace le bleu, même si le dessin reste
+   choisi. L'export la reprend.
+4. **Comme sur la façade** retire la retouche : le dessin revient tel qu'il
+   est calé sur la façade. ⌘Z annule chaque geste.
+
+Le miroir, l'alignement, l'ordre et les groupes ne sont pas dans cette
+barre : ils changent le dessin sur la façade, donc dans toutes les
+diapositives ; ils restent dans l'écran Façade.
 
 ### Essai sur Mac
 
 1. Ouvrir un projet recalé avec des dessins posés, étape Diapositive.
-2. Cliquer un dessin, le glisser de quelques mm : après le geste, l'aperçu
-   montre le dessin décalé ; l'étape Façade, elle, n'a pas bougé.
+2. Cliquer un dessin, le glisser de quelques mm : sans le désélectionner,
+   après « Recalcul de la diapositive… », l'aperçu montre le dessin décalé ;
+   l'étape Façade, elle, n'a pas bougé. Tourner d'un quart de tour : même
+   chose.
 3. « Quatre coins », tirer un coin ; exporter cette diapositive : la retouche
    est dans le PNG (LightBurn). Les autres diapositives sont identiques.
-4. « Réinitialiser » : l'aperçu et l'export reviennent comme avant.
+4. « Comme sur la façade » : l'aperçu et l'export reviennent comme avant.
 
 ## Sans écran
 

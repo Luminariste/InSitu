@@ -8,7 +8,15 @@
 // par la tâche 4.4), l'aperçu montre donc ce que l'export fera.
 
 import type { SlideDrawing } from "../engine";
-import { deformPoint, identity, moveNode, type Deformation, type DeformationFrame } from "../compose/deformation";
+import {
+  deformPoint,
+  frameFractions,
+  framePoint,
+  identity,
+  moveNode,
+  type Deformation,
+  type DeformationFrame,
+} from "../compose/deformation";
 import type { Point } from "../compose/placement";
 
 /** Le cadre d'une nouvelle retouche, comme le moteur (`placement::adjust::adjustment_frame`). */
@@ -94,4 +102,32 @@ export function applyAdjustGesture(g: AdjustGesture, at: Point): Deformation {
   const dy = at.y - g.start.y;
   if (g.kind === "move") return shiftNodes(g.before, dx, dy);
   return moveNode(g.before, g.index, { x: g.origin.x + dx, y: g.origin.y + dy });
+}
+
+/** Centre du rectangle qui contient le dessin retouché (mm de diapositive). */
+export function adjustedCenter(d: SlideDrawing, adjustment: Deformation | null): Point {
+  const pts = adjustedPoints(d, adjustment);
+  const xs = pts.map((p) => p.x);
+  const ys = pts.map((p) => p.y);
+  return { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
+}
+
+/**
+ * Le dessin tourné de `deg` degrés (sens des aiguilles d'une montre, y vers
+ * le bas) autour de `pivot`, dans cette diapositive seulement : ce sont les
+ * nœuds qui tournent (tourner le cadre seul ne changerait rien, comme pour
+ * le décalage). La grille reste une rotation exacte : la perspective des
+ * quatre coins et la surface lisse de la grille suivent leurs nœuds.
+ */
+export function rotateAdjustment(d: Deformation, deg: number, pivot: Point): Deformation {
+  const r = (deg * Math.PI) / 180;
+  const cos = Math.cos(r);
+  const sin = Math.sin(r);
+  const nodes = d.nodes.map(([s, t]) => {
+    const p = framePoint(d.frame, s, t);
+    const dx = p.x - pivot.x;
+    const dy = p.y - pivot.y;
+    return frameFractions(d.frame, { x: pivot.x + dx * cos - dy * sin, y: pivot.y + dx * sin + dy * cos });
+  });
+  return { ...d, nodes };
 }

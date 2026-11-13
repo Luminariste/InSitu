@@ -637,6 +637,23 @@ export async function fetchAssignments(folder: string): Promise<Assignment[]> {
   return invoke<Assignment[]>("placements_assignment", { folder });
 }
 
+/** La part d'un dessin posé que sa diapositive ne projette pas (D-4.5-h). */
+export interface LostPart {
+  placement: string;
+  /** La diapositive du dessin ; aucune s'il ne tombe dans aucune emprise. */
+  projector: string | null;
+  /** Morceaux perdus sur la façade (mm) : contour extérieur puis trous. */
+  shapes: { x: number; y: number }[][][];
+  /** Surface perdue, en m². */
+  areaM2: number;
+}
+
+/** Ce que les diapositives ne projetteront pas des dessins posés. */
+export async function fetchLostParts(folder: string): Promise<LostPart[]> {
+  requireEngine();
+  return invoke<LostPart[]>("placements_lost", { folder });
+}
+
 // --- Annulation (tâche 4.3) -----------------------------------------------------
 
 /** Annule la dernière action (ou la rétablit) ; rend le projet et ce qui a changé. */
@@ -771,11 +788,70 @@ export interface CompositionReport {
   found: number;
   placed: number;
   drawings: number;
+  /** Fichiers repris d'un dessin déjà dans la bibliothèque. */
+  reused: number;
   folder: string;
   layers: string[];
   missing: MissingLink[];
   embedded: number;
   skewed: number;
+  /** Images laissées de côté dans la fenêtre d'import. */
+  skipped: number;
+}
+
+/** Ce que l'import ferait d'un fichier lié du .ai. */
+export type LinkStatus = "library" | "libraryByName" | "new" | "missing";
+
+export interface PreviewLink {
+  link: string;
+  name: string;
+  status: LinkStatus;
+  file: string | null;
+  drawing: string | null;
+  drawingName: string | null;
+  count: number;
+}
+
+export interface PreviewLayer {
+  name: string;
+  visible: boolean;
+  locked: boolean;
+  /** Couleur du calque dans Illustrator (rouge, vert, bleu). */
+  color: [number, number, number] | null;
+  images: number;
+  embedded: number;
+  /** Un calque du même nom existe déjà dans le projet. */
+  existing: boolean;
+}
+
+export interface PreviewImage {
+  layer: number;
+  link: number;
+  visible: boolean;
+  center: { x: number; y: number };
+  width: number;
+  height: number;
+  rotation: number;
+  mirrored: boolean;
+  skewed: boolean;
+}
+
+/** Ce que l'import d'un .ai ferait dans le projet, avant de rien écrire. */
+export interface CompositionPreview {
+  name: string;
+  folder: string;
+  frame: { x: number; y: number; width: number; height: number };
+  /** Du fond vers l'avant, comme dans Illustrator. */
+  layers: PreviewLayer[];
+  links: PreviewLink[];
+  images: PreviewImage[];
+  embedded: number;
+}
+
+/** Lit un .ai et dit ce que l'import ferait, sans rien changer au projet. */
+export async function previewIllustrator(folder: string, path: string): Promise<CompositionPreview> {
+  requireEngine();
+  return invoke<CompositionPreview>("illustrator_preview", { folder, path });
 }
 
 /** Demande un fichier Illustrator ; `null` si l'utilisateur renonce. */
@@ -795,13 +871,14 @@ export async function chooseIllustratorFile(): Promise<string | null> {
 export async function importIllustrator(
   folder: string,
   path: string,
+  images: number[] | null,
   onProgress: (progress: ImportProgress) => void,
 ): Promise<{ project: Project; report: CompositionReport }> {
   requireEngine();
   const { listen } = await import("@tauri-apps/api/event");
   const stop = await listen<ImportProgress>("bibliotheque-progression", (event) => onProgress(event.payload));
   try {
-    const [project, report] = await invoke<[Project, CompositionReport]>("illustrator_import", { folder, path });
+    const [project, report] = await invoke<[Project, CompositionReport]>("illustrator_import", { folder, path, images });
     return { project, report };
   } finally {
     stop();
@@ -1033,6 +1110,8 @@ export interface SlideView {
   problem: string | null;
   /** Dessins posés que porte cette diapositive, avant leur retouche (tâche 4.6). */
   drawings: SlideDrawing[];
+  /** Dessins de cette diapositive qui en dépassent : la part perdue est en rouge sur la façade (D-4.5-h). */
+  cut: { placement: string; name: string; lostM2: number }[];
 }
 
 /** Un dessin posé situé dans une diapositive, avant sa retouche (tâche 4.6). */

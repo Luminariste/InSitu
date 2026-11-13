@@ -4,8 +4,8 @@ import { contextTab, type TabContext } from "./inspectorTabs";
 const idle: TabContext = { hasPlan: true, picking: false, selection: 0 };
 
 describe("onglet de l'inspecteur selon le contexte", () => {
-  it("choisir un dessin ouvre Dessins", () => {
-    expect(contextTab(idle, { ...idle, selection: 1 }, "export")).toBe("dessins");
+  it("choisir un dessin ne change plus d'onglet : ses réglages sont en haut (D-4.2-p)", () => {
+    expect(contextTab(idle, { ...idle, selection: 1 }, "export")).toBe("export");
   });
 
   it("un onglet choisi à la main reste tant que rien ne change", () => {

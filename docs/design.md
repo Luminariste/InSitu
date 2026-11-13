@@ -136,6 +136,7 @@ de la bibliothèque… » dans l'inspecteur, ou ⌫) et le plan de la façade
 | Erreur | `Banner tone="danger"` | Ce qui s'est passé **et quoi faire** : « Cote illisible : écrire par exemple 12,5 m » ; jamais un message technique seul |
 | Consigne du geste en cours | Barre d'état, en bleu | « Cliquer le point B sur le plan (Échap : annuler) » |
 | Choix à faire avant de continuer | `Dialog` | Titre en question, bouton principal à droite |
+| Aperçu avant un import | `Dialog size="large"` | Image du résultat à gauche, liste à cocher à droite, phrase de ce qui sera fait à côté du bouton |
 
 ## 5. Typographie
 

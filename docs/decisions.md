@@ -96,6 +96,45 @@ imprimer rendu par le moteur, dans les quatre sens, détection seule et
 coins donnés dans le désordre ; pas encore sur une vraie photo de la mire
 imprimée.
 
+## 2026-11-13 — Import Illustrator : aperçu, choix, lien avec la bibliothèque (demande de Benjamin)
+
+Benjamin veut que l'import d'un `.ai` crée un dessin par image, fasse le lien
+avec les dessins déjà dans la bibliothèque, garde les calques d'Illustrator,
+et passe par une fenêtre qui montre le résultat et laisse choisir quoi
+importer. Module `crates/insitu-core/src/illustrator/plan.rs`, commande
+`insitu illustrator preview` et options `--images`, `--layer` de `import`,
+fenêtre `src/compose/IllustratorPreviewDialog.tsx`.
+
+**D-6.3-f. Un lien reprend le dessin déjà dans la bibliothèque.** Avant
+toute copie, chaque fichier lié est comparé à la bibliothèque du projet :
+même contenu, octet pour octet (taille d'abord, quel que soit le dossier) →
+ce dessin est repris, avec ses retouches, sa silhouette et ses réglages ; si
+le fichier lié n'est pas sur ce Mac, un dessin du même nom de fichier (sans
+accents ni casse, de préférence dans un dossier du même nom) est repris.
+Sinon le fichier entre dans `bibliotheque/<nom du .ai>/` comme avant
+(D-6.3-e). Raison : Benjamin importe souvent les dossiers de dessins avant
+la composition ; les copier une seconde fois doublait la bibliothèque et
+perdait les retouches. Limite : un dessin du même nom mais d'un autre
+contenu, quand le fichier lié est présent, n'est pas repris (le fichier du
+`.ai` fait foi).
+
+**D-6.3-g. L'import passe par un aperçu, sans rien écrire.** La lecture du
+`.ai` rend calques (nom, masqué, verrouillé, couleur d'Illustrator, images
+liées et incorporées), fichiers liés (bibliothèque, bibliothèque par le nom,
+nouveau, introuvable) et chaque image à sa place sur la façade. La fenêtre
+dessine les images en rectangles de la couleur de leur calque, liste les
+calques (l'avant en haut, comme dans Illustrator) et leurs fichiers, avec
+des cases à cocher. Tout ce qui peut être importé est coché au départ ; un
+lien introuvable ne se coche pas. Le moteur reçoit le rang des images
+choisies. Les calques sans image liée (tracés seulement) sont nommés, pas
+repris. Une image incorporée hors de tout calque (réserve de symboles) n'est
+comptée que dans le total.
+
+**D-6.3-h. Calques : ceux de premier niveau, toujours.** Le fichier de
+Trévarez n'a pas de sous-calques ; l'app non plus (D-4.3). Les images d'un
+sous-calque restent dans le calque de premier niveau, comme en D-6.3-b. Si
+un fichier réel en a besoin, ce sera une demande à part.
+
 ## 2026-11-12 — Tâche 6.3 : import Illustrator
 
 Module `crates/insitu-core/src/illustrator/`, commande `insitu illustrator
@@ -518,6 +557,30 @@ façade, mieux vaut la refaire (« Réinitialiser »). Une copie du dessin part
 sans retouche. Si le dessin change de diapositive, la retouche de l'ancienne
 est ignorée.
 
+**D-4.6-e. Le bleu ne reste que le temps du recalcul.** Retour d'essai de
+Benjamin (13 novembre 2026) : après une retouche, il devait désélectionner
+le dessin pour voir le résultat. Le dessin retouché, montré en bleu par-dessus
+l'aperçu tant qu'il était choisi, cachait l'aperçu recalculé. Désormais le
+bleu s'affiche pendant le geste et jusqu'à l'arrivée de l'aperçu recalculé
+(« Recalcul de la diapositive… » dans la barre d'état) ; ensuite seuls le
+contour et les points restent. Sans moteur (navigateur seul), l'aperçu ne se
+recalcule pas : le bleu reste.
+
+**D-4.6-f. Les outils du dessin dans la barre, comme sur la façade.**
+Demande de Benjamin (13 novembre 2026) : déplacer un dessin dans la
+diapositive sans toucher à la façade lui convient ; il veut la même barre
+d'outils que sur la façade et un retour au dessin calé sur la façade. La
+barre montre, quand un dessin est choisi : tourner d'un quart de tour (à
+gauche, à droite), quatre coins, grille (mêmes tailles que sur la façade),
+et « Comme sur la façade », qui retire la retouche (ancien
+« Réinitialiser »). Tourner fait tourner les **nœuds** de la retouche autour
+du centre du dessin retouché (le cadre seul ne changerait rien) : c'est une
+rotation exacte, en quatre coins comme en grille, prouvée par test ; sans
+retouche, on part de quatre coins au repos. Pas de miroir ni d'alignement,
+d'ordre ou de groupe : un miroir dans la retouche replierait la grille (le
+moteur la refuse, D-4.4), et les autres changent la façade, donc toutes les
+diapositives.
+
 ## 2026-11-12 — Tâche 4.5 : affectation des dessins aux diapositives
 
 Module `crates/insitu-core/src/placement/assign.rs`.
@@ -593,6 +656,31 @@ envoi vers une diapositive ou « Automatique », Supprimer. Il porte sur la
 sélection si la ligne en fait partie, sinon sur la ligne seule. Écart
 assumé avec Illustrator : on ne peut pas choisir un dessin masqué depuis
 l'arborescence (seuls l'œil et le cadenas s'y appliquent).
+
+**D-4.5-h. Ce qui ne sera pas projeté est montré en rouge.** Essai de
+Benjamin sur la 0.1.39 (13 novembre 2026) : « dans diapositive, je ne
+retrouve pas le travail fait dans l'onglet façade ». Sur son projet
+Trévarez (relu dans le Dropbox), le calage était juste : chaque trait
+projeté tombait à sa place. Ce qui manquait venait de D-4.5-a : un dessin
+envoyé à la main dans B mais posé dans A n'était projeté par personne, et
+le bout d'un dessin qui sortait de A n'était pas repris par B, qui couvre
+pourtant cet endroit. Deux voies lui ont été proposées : faire compléter
+par la diapositive voisine, ou garder la règle et montrer ce qui se perd.
+**Benjamin a choisi de garder la règle et de montrer.** Le moteur calcule,
+pour chaque dessin posé visible qui n'est pas projeté en entier, la part
+perdue (`placement::lost`, `insitu place lost`, commande
+`placements_lost`) : sa silhouette (tâche 4.7 ; sans silhouette, son
+rectangle) posée sur la façade, moins l'emprise de sa diapositive
+(différence de polygones, `i_overlay`, remplissage pair-impair) ; hors de
+toute emprise, tout est perdu. Les morceaux de moins de 25 mm² (bruit le
+long du bord) sont oubliés. La façade les couvre d'un aplat rouge (45 %)
+cerné de rouge, par-dessus les dessins ; la vue Diapositive affiche un
+bandeau qui nomme les dessins de cette diapositive qui en dépassent et la
+surface perdue (`SlideView.cut`). La silhouette sert parce que le rectangle
+d'un fichier a souvent de grandes marges vides : sur Trévarez, deux dessins
+« à cheval » au sens de D-4.5-c ne perdent en fait aucun trait. Si une
+silhouette ne peut être lue (fichier absent), le dessin compte pour son
+rectangle, sans bloquer l'écran.
 
 ## 2026-11-12 — Tâche 4.4 : déformation libre
 
@@ -744,6 +832,43 @@ le dossier, déplie tout et ne garde que les dossiers qui ont encore un
 dessin. Les dessins à la racine viennent en premier, sans titre. Les
 dossiers repliés ne sont pas retenus d'une session à l'autre. Calcul pur
 dans `src/compose/drawingTree.ts`, testé.
+
+**D-4.2-p. Réglages du dessin posé dans une barre en haut ; l'onglet
+Dessins ne garde que la bibliothèque.** Demande de Benjamin (13 novembre
+2026) : « dessin posé : mets tout dans le menu en haut, et ne laisse que les
+dessins dans le menu dessins ». Une seconde barre, sous la barre d'outils de
+l'écran Façade, comme le panneau Contrôle d'Illustrator : nom (et
+« retourné »), calque, diapositive (l'explication passe en bulle d'aide,
+« à cheval » en orange), X, Y, L, H, Angle, état de la déformation,
+Retirer. Elle est là dès que l'on peut composer (plan à l'échelle, dessins
+montrés), et invite à cliquer un dessin quand rien n'est choisi : la zone
+de travail ne saute pas à chaque clic. Le miroir reste en icônes dans la
+barre d'outils : les boutons texte de D-4.2-m quittent l'onglet Dessins.
+Choisir un dessin n'ouvre plus l'onglet Dessins (règle de D15-i retirée),
+puisque ses réglages n'y sont plus. `PlacementInspector` devient
+`PlacementBar`.
+
+**D-4.2-q. Un dessin étiré garde son cadre ; ⇧ en tournant : angle rond à
+5°.** Retours de Benjamin (13 novembre 2026). (1) « Quand j'utilise les
+poignées du centre, cela passe en 4 coins et je perds le rectangle de
+sélection » : un dessin tourné, étiré par une poignée du milieu, reçoit une
+déformation (D-4.2-l), que D-4.2-n traitait comme « quatre coins ».
+Désormais, les points d'une déformation ne se montrent (et le cadre ne se
+cache) que si l'on vient de cliquer « Quatre coins » ou une grille sur cette
+sélection, ou si la déformation a déjà été tirée (elle n'est plus affine,
+`isAffine`). Une déformation née d'un étirement reste affine : le dessin
+garde son cadre, ses poignées et sa poignée ronde. (2) « Shift + rotation :
+angle remarquable à 5° » : ⇧ pendant la rotation à la souris arrête un
+dessin seul sur un multiple de 5° (son angle final, pas l'écart), et fait
+tourner plusieurs dessins par pas de 5°. ⇧ en déplaçant garde les
+directions à 45°.
+
+**D15-l. ⌘Z garde le zoom et l'endroit vus sur la façade.** Retour de
+Benjamin (13 novembre 2026) : « quand je fais pomme Z, le zoom change ».
+L'annulation relit le projet, et la relecture recadrait tout le plan. La
+vue (centre et zoom) est gardée avant la relecture (⌘Z, ⇧⌘Z, ⌘R) et remise
+ensuite, sauf si l'échelle du plan a changé (une mise à l'échelle annulée
+change la taille du plan dans la visionneuse) : on recadre alors.
 
 **Limite.** Les fichiers des dessins utilisés par une diapositive restent
 en mémoire pendant l'export (en niveaux de gris, un dessin de 4 096 px pèse
