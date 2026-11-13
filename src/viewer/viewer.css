@@ -11,7 +11,8 @@
   position: relative;
   min-height: 0;
   overflow: hidden;
-  cursor: grab;
+  /* Un écran peut poser son curseur par setViewerCursor (src/viewer/cursor.ts). */
+  cursor: var(--viewer-cursor, grab);
 }
 
 .viewer-canvas canvas {

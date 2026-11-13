@@ -1,8 +1,8 @@
 // Rubrique « Dessins posés » de l'inspecteur de l'écran Façade (tâche
 // 4.2), dans l'onglet Dessins : calque, diapositive, position, taille et
-// rotation de la sélection. Tout s'enregistre aussitôt. Les outils
-// (symétries, alignement, déformation, ordre, groupe) sont dans la barre
-// d'outils (CompositionToolbar, D15-j).
+// rotation de la sélection, miroir (D-4.2-m). Tout s'enregistre aussitôt.
+// Les autres outils (alignement, déformation, ordre, groupe) sont dans la
+// barre d'outils (CompositionToolbar, D15-j).
 
 import { useEffect, useState } from "react";
 import type { Assignment } from "../engine";
@@ -225,8 +225,27 @@ export function PlacementInspector({ selected, frame, drawings, actions, layers,
           />
         </Property>
       )}
+      <Property
+        label="Miroir"
+        hint={
+          single?.mirrored
+            ? "Le dessin est retourné (à l'envers du fichier)."
+            : "Retourne la sélection autour de son centre."
+        }
+      >
+        <div className="compose-mirror">
+          <Button size="sm" icon="flipHorizontal" onClick={() => actions.flip("horizontal")}>
+            Gauche ↔ droite
+          </Button>
+          <Button size="sm" icon="flipVertical" onClick={() => actions.flip("vertical")}>
+            Haut ↕ bas
+          </Button>
+        </div>
+      </Property>
       <DeformationState selected={selected} />
-      <p className="compose-hint">Tourner, symétries, aligner, déformer, ordre et groupe : barre d'outils en haut.</p>
+      <p className="compose-hint">
+        Tourner à la souris : le rond au-dessus du cadre. Aligner, déformer, ordre et groupe : barre d'outils en haut.
+      </p>
       <div className="compose-buttons">
         <Button size="sm" variant="danger" icon="trash" shortcut="backspace" onClick={actions.remove}>
           Retirer de la façade

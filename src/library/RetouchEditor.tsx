@@ -41,6 +41,7 @@ import {
   type RetouchTool,
 } from "./retouchLogic";
 import { fitView, scaleLabel, zoomAt, type View } from "./vectorLogic";
+import { BACKDROPS, type Backdrop } from "./backdrop";
 
 const TOOLS: { value: RetouchTool; label: string; title: string; shortcut: string }[] = [
   { value: "erase", label: "Gomme", title: "Effacer des traits du dessin", shortcut: "e" },
@@ -64,7 +65,9 @@ interface Props {
   height: number;
   /** Retouches enregistrées à l'ouverture. */
   strokes: RetouchStroke[];
-  backdrop: string;
+  backdrop: Backdrop;
+  /** Change le fond (le même que celui de la bibliothèque). */
+  onBackdrop: (backdrop: Backdrop) => void;
   /** Faux dans le navigateur seul : rien ne s'enregistre. */
   editable: boolean;
   saving: boolean;
@@ -75,7 +78,7 @@ interface Props {
 }
 
 export function RetouchEditor(props: Props) {
-  const { name, originalUrl, width, height, backdrop, editable, saving, error, onChange, onClose } = props;
+  const { name, originalUrl, width, height, backdrop, onBackdrop, editable, saving, error, onChange, onClose } = props;
   const size = { width, height };
   const [tool, setTool] = useState<RetouchTool>("erase");
   const [shape, setShape] = useState<RetouchShape>("trait");
@@ -318,6 +321,10 @@ export function RetouchEditor(props: Props) {
           <IconButton icon="redo" label="Rétablir" shortcut="mod+shift+z" onClick={redo} disabled={!editable || history.undone.length === 0} />
         </ToolGroup>
         <ToolSpacer />
+        <ToolGroup label="Fond">
+          <Segmented label="Fond derrière le dessin" value={backdrop} onChange={onBackdrop} options={BACKDROPS} />
+        </ToolGroup>
+        <ToolSeparator />
         <ToolGroup label="Zoom">
           <IconButton icon="minus" label="Zoom arrière" onClick={() => zoomBy(1 / 1.5)} />
           <span className="vc-scale">{view ? scaleLabel(view.scale) : "—"}</span>

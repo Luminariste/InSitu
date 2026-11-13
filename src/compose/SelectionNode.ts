@@ -1,6 +1,7 @@
 // Sélection des dessins posés, dessinée sur la visionneuse : le contour de
 // chaque dessin dans la couleur de sa diapositive (tâche 4.5), celui de
-// chaque dessin choisi, le cadre de la sélection avec ses quatre poignées,
+// chaque dessin choisi, le cadre de la sélection avec ses huit poignées et
+// sa poignée ronde de rotation (D-4.2-m),
 // la grille de déformation et ses nœuds (tâche 4.4), et le cadre de
 // sélection tracé à la souris. En rouge par-dessus, ce que les
 // diapositives ne projetteront pas (D-4.5-h). Mêmes épaisseurs à l'écran
@@ -8,7 +9,7 @@
 
 import { Container, Graphics } from "pixi.js";
 import type { FrameContext, Rect, SceneNode } from "../viewer";
-import { HANDLE_PX, frameHandles } from "./gesture";
+import { HANDLE_PX, KNOB_PX, frameHandles } from "./gesture";
 import type { Point } from "./placement";
 
 /** Bleu de sélection du Mac (`--ui-accent`, thème sombre). */
@@ -105,6 +106,13 @@ export class SelectionNode implements SceneNode {
     }
     if (box) {
       g.rect(box.x, box.y, box.width, box.height).stroke({ width: 1 * px, color: ACCENT, alpha: 0.8 });
+      // Poignée ronde de rotation, reliée au milieu du côté haut.
+      const top = { x: box.x + box.width / 2, y: box.y };
+      const knob = { x: top.x, y: top.y - KNOB_PX * px };
+      g.moveTo(top.x, top.y).lineTo(knob.x, knob.y).stroke({ width: 1 * px, color: ACCENT, alpha: 0.8 });
+      g.circle(knob.x, knob.y, HANDLE_PX * 0.75 * px)
+        .fill({ color: 0xffffff })
+        .stroke({ width: 1.5 * px, color: ACCENT });
       const h = HANDLE_PX * 0.8 * px;
       for (const c of frameHandles(box)) {
         g.rect(c.x - h, c.y - h, 2 * h, 2 * h)

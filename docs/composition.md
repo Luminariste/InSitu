@@ -27,7 +27,8 @@ Tout s'enregistre dans le projet à la fin de chaque geste.
 | ⌥-glisser | Déplacer une copie |
 | Poignée de coin (carré blanc) | Étirer en largeur et en hauteur à la fois ; ⇧ : proportions gardées ; ⌥ : depuis le centre |
 | Poignée au milieu d'un côté | Étirer seulement en largeur (côtés gauche et droit) ou en hauteur (haut et bas) ; ⌥ : depuis le centre |
-| Juste au-delà d'un coin | Tourner autour du centre ; ⇧ : par pas de 45° |
+| Rond au-dessus du cadre | Tourner autour du centre ; ⇧ : par pas de 45° ; l'angle s'affiche près du pointeur (D-4.2-m) |
+| Juste au-delà d'un coin | Tourner aussi, comme dans Illustrator (le curseur devient une flèche courbe) |
 | Espace + glisser, ou défiler à deux doigts | Déplacer la vue |
 
 ## Raccourcis (ceux d'Illustrator)
@@ -51,7 +52,7 @@ Sur un clavier français, les « crochets » sont les deux touches à droite du 
 Les outils sont des icônes dans la barre d'outils, en haut de l'écran
 Façade ; ils agissent sur les dessins choisis (bulle d'aide au survol) :
 
-- tourner d'un quart de tour à gauche ou à droite ; symétries gauche-droite
+- tourner d'un quart de tour à gauche ou à droite ; miroir gauche-droite
   et haut-bas ;
 - déformer : quatre coins, grille (menu), redresser ;
 - avec plusieurs dessins : aligner à gauche, au centre, à droite, en haut, au
@@ -62,7 +63,34 @@ Façade ; ils agissent sur les dessins choisis (bulle d'aide au survol) :
 La rubrique **Dessins posés** (onglet **Dessins**, qui s'ouvre seul) apparaît
 quand un dessin est choisi : centre X et Y, largeur (la hauteur suit ; taper
 par exemple `2,5 m`, `250 cm` ou `2500`, puis ↩), rotation en degrés (un seul
-dessin), calque, diapositive, retirer.
+dessin), miroir (boutons « Gauche ↔ droite » et « Haut ↕ bas »), calque,
+diapositive, retirer.
+
+Le curseur change sur chaque poignée : flèche double sur les carrés blancs
+(dans l'axe de la poignée), flèche courbe sur le rond et au-delà des coins,
+croix sur un point de déformation, flèche à quatre pointes sur un dessin
+(D-4.2-m).
+
+### Essai sur Mac : tourner, curseurs, miroir (D-4.2-m)
+
+1. Poser un dessin sur la façade et le choisir.
+2. Passer la souris sur chaque carré blanc du cadre : le curseur devient une
+   flèche double (en biais aux coins, droite au milieu des côtés). Sur le
+   dessin : flèche à quatre pointes. Dans le vide : flèche normale.
+3. Passer sur le rond au-dessus du cadre : flèche courbe. Le glisser : le
+   dessin tourne autour de son centre, l'angle s'affiche près du pointeur,
+   la flèche suit. Avec ⇧ : par pas de 45°. Lâcher : l'angle est celui de la
+   case « Rotation » de l'onglet Dessins. ⌘Z annule.
+4. Même chose juste au-delà d'un coin, hors du cadre.
+5. Onglet Dessins, ligne « Miroir » : « Gauche ↔ droite » retourne le
+   dessin ; la phrase sous les boutons dit qu'il est retourné. « Haut ↕ bas »
+   pareil. Exporter la diapositive : le dessin y est retourné de la même
+   façon.
+6. Écran Diapositive : sur un dessin, le curseur devient la flèche à quatre
+   pointes, sur un point bleu une croix.
+7. Choisir un dessin, cliquer « Quatre coins » dans la barre du haut : le
+   rectangle de sélection et ses carrés blancs disparaissent, seuls les
+   quatre points bleus restent (D-4.2-n). « Redresser » ramène le cadre.
 
 ## Calques (tâche 4.3)
 

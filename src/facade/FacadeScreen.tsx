@@ -56,6 +56,7 @@ import { DEFAULT_DISPLAY, overviewLayers, type OverviewDisplay } from "./overvie
 import { demoOverview, demoSimulation } from "./overviewDemo";
 import { OverviewPanel } from "./OverviewPanel";
 import { SimulationSection } from "./SimulationSection";
+import { DEFAULT_VIEW_OPTIONS, changedViewOptions, readViewOptions, saveViewOptions, toggleViewOption, type ViewOptions } from "./viewOptions";
 import { alertTarget, simulationLayers } from "./simulation";
 import { Viewer, type LayerSpec, type ViewerHandle } from "../viewer";
 import { fitView, screenToMm } from "../viewer/geometry";
@@ -84,6 +85,7 @@ import {
   Dot,
   EmptyState,
   IconButton,
+  MenuButton,
   Property,
   Screen,
   Section,
@@ -139,7 +141,17 @@ export function FacadeScreen() {
   const [chosenAlert, setChosenAlert] = useState<number | null>(null);
   /** Fresque en une image (tâche 3.5), affichée par tuiles sur la façade. */
   const [frescoSource, setFrescoSource] = useState<TileSource | null>(null);
-  const [showFresco, setShowFresco] = useState(true);
+  /** Menu Affichage : plan, fresque, dessins posés, négatifs ; retenu d'un lancement à l'autre. */
+  const [viewOptions, setViewOptionsState] = useState<ViewOptions>(readViewOptions);
+  const setViewOptions = useCallback((update: (current: ViewOptions) => ViewOptions) => {
+    setViewOptionsState((current) => {
+      const next = update(current);
+      saveViewOptions(next);
+      return next;
+    });
+  }, []);
+  const showFresco = viewOptions.fresco;
+  const setShowFresco = useCallback((fresco: boolean) => setViewOptions((current) => ({ ...current, fresco })), [setViewOptions]);
   /** Assemblage de photos (tâche 6.4), en plein écran par-dessus. */
   const [assembling, setAssembling] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -279,6 +291,8 @@ export function FacadeScreen() {
             kind: "tiles",
             source: view.source,
             placement: facadePlacement(view.sourceUnitsPerPixel, k),
+            visible: viewOptions.plan,
+            invert: viewOptions.planNegative,
           },
         ]
       : [];
@@ -302,7 +316,7 @@ export function FacadeScreen() {
       ...overviewLayers(overview, display, url),
       ...simulationLayers(overview, simulation, display, showSlides, url),
     ];
-  }, [view, k, overview, display, engine, project?.fresco, frescoSource, showFresco, simulation, showSlides]);
+  }, [view, k, overview, display, engine, project?.fresco, frescoSource, showFresco, simulation, showSlides, viewOptions.plan, viewOptions.planNegative]);
 
   // Dessins posés sur la façade (tâche 4.2) : il faut une façade à l'échelle
   // (dans le navigateur sans moteur, le plan d'essai suffit).
@@ -318,7 +332,8 @@ export function FacadeScreen() {
     onProject: setProject,
     viewer,
     stage,
-    enabled: composeBlocked === null && picking === "off" && busy === null,
+    enabled: composeBlocked === null && picking === "off" && busy === null && viewOptions.drawings,
+    visible: viewOptions.drawings,
     onError: setError,
   });
   const viewerLayers = useMemo(() => [...layers, ...composition.layers], [layers, composition.layers]);
@@ -516,6 +531,10 @@ export function FacadeScreen() {
   ]);
   useShortcuts(composition.shortcuts);
 
+  const changed = changedViewOptions(viewOptions);
+  const toggleView = (key: keyof ViewOptions) => setViewOptions((current) => toggleViewOption(current, key));
+  const showEverything = () => setViewOptions(() => DEFAULT_VIEW_OPTIONS);
+
   const toolbar = (
     <Toolbar>
       <ProjectMenu
@@ -528,20 +547,45 @@ export function FacadeScreen() {
         onError={setError}
       />
       <ToolSeparator />
-      <Button icon="import" shortcut="mod+i" title="Importer le plan de la façade" onClick={() => void choosePlan()} disabled={!canImport}>
-        {facade ? "Remplacer le plan…" : "Importer un plan…"}
-      </Button>
-      <IconButton
-        icon="photos"
-        label="Assembler des photos… (sans plan : plusieurs photos de face de la façade en une seule image)"
-        variant="default"
-        onClick={() => setAssembling(true)}
-        disabled={(engine && folder === null) || !ready}
+      {/* Outils des dessins posés (D15-j) : agissent sur la sélection. Le
+          plan et l'assemblage de photos sont dans l'onglet Plan, à droite. */}
+      <CompositionToolbar
+        selected={composition.selected}
+        actions={composition.actions}
+        enabled={composeBlocked === null && picking === "off" && ready && viewOptions.drawings}
       />
-      <ToolSeparator />
-      {/* Outils des dessins posés (D15-j) : agissent sur la sélection. */}
-      <CompositionToolbar selected={composition.selected} actions={composition.actions} enabled={composeBlocked === null && picking === "off" && ready} />
       <ToolSpacer />
+      <MenuButton
+        label={changed > 0 ? `Affichage (${changed})` : "Affichage"}
+        icon={viewOptions.plan && viewOptions.fresco && viewOptions.drawings ? "eye" : "eyeOff"}
+        align="end"
+        title="Montrer ou cacher le plan, la fresque, les dessins ; passer en négatif"
+        items={[
+          { heading: "Montrer" },
+          { label: "Le plan", checked: viewOptions.plan, onSelect: () => toggleView("plan"), disabled: !view },
+          {
+            label: "La fresque",
+            checked: viewOptions.fresco,
+            onSelect: () => toggleView("fresco"),
+            disabled: !project?.fresco,
+          },
+          { label: "Les dessins posés", checked: viewOptions.drawings, onSelect: () => toggleView("drawings") },
+          { label: "Les photos des projecteurs", checked: display.photos, onSelect: () => setDisplay({ ...display, photos: !display.photos }) },
+          { label: "Les emprises", checked: display.footprints, onSelect: () => setDisplay({ ...display, footprints: !display.footprints }) },
+          { label: "Les recouvrements", checked: display.overlaps, onSelect: () => setDisplay({ ...display, overlaps: !display.overlaps }) },
+          { separator: true },
+          { heading: "Couleurs" },
+          {
+            label: "Plan en négatif (traits blancs sur noir)",
+            checked: viewOptions.planNegative,
+            onSelect: () => toggleView("planNegative"),
+            disabled: !view,
+          },
+          { label: "Tout en négatif (traits noirs sur blanc)", checked: viewOptions.negative, onSelect: () => toggleView("negative") },
+          { separator: true },
+          { label: "Tout montrer, sans négatif", onSelect: showEverything, disabled: changed === 0 },
+        ]}
+      />
       <IconButton icon="fit" label="Tout voir" shortcut="mod+0" variant="default" onClick={() => viewer.current?.fitAll()} disabled={!view} />
     </Toolbar>
   );
@@ -587,6 +631,19 @@ export function FacadeScreen() {
         plan: (
           <>
             <Section>
+              <div className="facade-plan-actions">
+                <Button icon="import" shortcut="mod+i" title="Importer le plan de la façade : PDF, image, SVG ou DXF" onClick={() => void choosePlan()} disabled={!canImport}>
+                  {facade ? "Remplacer le plan…" : "Importer un plan…"}
+                </Button>
+                <Button
+                  icon="photos"
+                  title="Sans plan : assembler plusieurs photos de face de la façade en une seule image"
+                  onClick={() => setAssembling(true)}
+                  disabled={(engine && folder === null) || !ready}
+                >
+                  Assembler des photos…
+                </Button>
+              </div>
               {view ? (
                 <dl className="ui-facts">
                   <dt>Fichier</dt>
@@ -686,7 +743,11 @@ export function FacadeScreen() {
               projectors={project?.projectors ?? []}
               assignments={composition.assignments}
             />
-            <DrawingsSection drawings={composition.drawings} blocked={composeBlocked} onPlace={composition.actions.place} />
+            <DrawingsSection
+              drawings={composition.drawings}
+              blocked={composeBlocked ?? (viewOptions.drawings ? null : "Les dessins posés sont cachés : les montrer (menu Affichage, en haut à droite).")}
+              onPlace={composition.actions.place}
+            />
           </>
         ),
         calques: (
@@ -794,7 +855,7 @@ export function FacadeScreen() {
       status={status}
     >
       <div
-        className={`facade-stage${picking !== "off" ? " facade-picking" : ""}`}
+        className={`facade-stage${picking !== "off" ? " facade-picking" : ""}${viewOptions.negative ? " facade-negative" : ""}`}
         ref={stage}
         onPointerDownCapture={onPointerDown}
         onPointerMoveCapture={composition.onPointerMove}
@@ -803,6 +864,11 @@ export function FacadeScreen() {
         onDrop={composition.onDrop}
       >
         <Viewer ref={viewer} layers={viewerLayers} />
+        {composition.turn && (
+          <div className="compose-turn" style={{ left: composition.turn.x + 18, top: composition.turn.y + 18 }}>
+            {composition.turn.text}
+          </div>
+        )}
         {!view && !busy && (
           !engine ? (
             <EmptyState icon="document" title="Pas de moteur dans ce navigateur">

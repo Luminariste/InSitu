@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { applyGesture, frameCorners, frameHandles, handleAt, repeatGesture, type Gesture } from "./gesture";
+import {
+  KNOB,
+  KNOB_PX,
+  applyGesture,
+  frameCorners,
+  frameHandles,
+  handleAt,
+  knobOf,
+  repeatGesture,
+  rotateCursor,
+  scaleCursor,
+  type Gesture,
+} from "./gesture";
 import { bounds, facadePoint, type Placement } from "./placement";
 
 const placed = (id: string, x: number, y: number): Placement => ({
@@ -152,5 +164,46 @@ describe("gestes sur les dessins posés", () => {
     const turned = repeatGesture(list, selection, { kind: "rotate", deg: 15, copy: false });
     expect(turned.placements[3].rotation).toBe(15);
     expect(turned.placements[3].center.x).toBeCloseTo(750);
+  });
+
+  it("poignée ronde au-dessus du cadre : elle tourne la sélection (D-4.2-m)", () => {
+    const handles = frameHandles({ x: 100, y: 100, width: 200, height: 100 });
+    const knob = knobOf(handles);
+    expect(knob).toEqual({ x: 200, y: 100 - KNOB_PX });
+    expect(handleAt(handles, { x: 203, y: 100 - KNOB_PX + 2 })).toEqual({ kind: "rotate", corner: KNOB });
+    // Le milieu du côté haut reste une poignée d'étirement.
+    expect(handleAt(handles, { x: 200, y: 101 })).toEqual({ kind: "scale", corner: 4 });
+    // Tirer la poignée ronde d'un quart de tour vers la droite tourne le dessin de 90°.
+    const before = [placed("a", 200, 150)];
+    const g: Gesture = {
+      kind: "rotate",
+      start: { x: 200, y: 100 - KNOB_PX },
+      before,
+      ids: new Set(["a"]),
+      pivot: { x: 200, y: 150 },
+      corner: KNOB,
+    };
+    const step = applyGesture(g, { x: 300, y: 150 }, none);
+    expect(step.turned).toBeCloseTo(90);
+    expect(step.placements[0].rotation).toBeCloseTo(90);
+    expect(step.placements[0].center).toEqual({ x: 200, y: 150 });
+    // Un tour presque complet se lit comme un petit angle de l'autre côté.
+    const back = applyGesture(g, { x: 190, y: 0 }, none);
+    expect(Math.abs(back.turned!)).toBeLessThan(10);
+    // ⇧ : par pas de 45°.
+    expect(applyGesture(g, { x: 300, y: 120 }, { shift: true, alt: false }).placements[0].rotation).toBeCloseTo(90);
+  });
+
+  it("curseurs : flèche double sur les poignées, flèche courbe pour tourner (D-4.2-m)", () => {
+    expect(scaleCursor(0)).toBe("nwse-resize");
+    expect(scaleCursor(1)).toBe("nesw-resize");
+    expect(scaleCursor(4)).toBe("ns-resize");
+    expect(scaleCursor(5)).toBe("ew-resize");
+    const knob = rotateCursor(KNOB);
+    expect(knob).toMatch(/^url\("data:image\/svg\+xml,.*"\) 12 12, alias$/);
+    expect(decodeURIComponent(knob)).toContain("rotate(0 12 12)");
+    expect(decodeURIComponent(rotateCursor(1))).toContain("rotate(45 12 12)");
+    // Pendant le geste, la flèche suit l'angle tourné (arrondi à 15°).
+    expect(decodeURIComponent(rotateCursor(KNOB, 92))).toContain("rotate(90 12 12)");
   });
 });

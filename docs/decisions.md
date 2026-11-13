@@ -4,6 +4,47 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-13 — Options d'affichage et rangement des menus (demande de Benjamin)
+
+Demande de Benjamin (13 novembre) : « retouche dessin et silhouette : garde
+option noir / damier pierre » ; « ajouter montrer/cacher le plan, la
+fresque, inverser les couleurs etc. » ; « barre menu : remplacer plan et
+assembler photo dans onglet plan ».
+
+**D15-l. Un menu Affichage dans la barre d'outils de la Façade.** Il range,
+à droite avec « Tout voir », ce qui change la façon de regarder sans changer
+le projet : montrer le plan, la fresque, les dessins posés, les photos, les
+emprises, les recouvrements (ces trois derniers sont les mêmes cases que le
+panneau Projecteurs) ; plan en négatif ; tout en négatif. Choix :
+- *« Inverser les couleurs » est lu de deux façons*, les deux sont offertes :
+  le plan seul en négatif (filtre de couleur PixiJS sur son calque, à la
+  finesse de l'écran : traits blancs sur noir, comme les dessins), et toute
+  la vue en négatif (filtre CSS sur la toile, avec rotation de teinte pour
+  garder la teinte des repères : fond blanc, traits noirs, comme dans
+  Illustrator). À confirmer par Benjamin.
+- *Des dessins cachés ne se touchent pas* : ni sélection, ni outils, ni
+  pose (message dans l'onglet Dessins), pour ne jamais modifier ce qu'on ne
+  voit pas. Leurs contours et le cadre de sélection sont cachés aussi.
+- *Rien n'est écrit dans le projet ni dans l'export* : les choix sont retenus
+  dans l'app (`localStorage`, comme l'onglet choisi, D15-i). La case
+  « Montrer sur la façade » de la fresque (onglet Plan) est le même réglage.
+- Pas de raccourci clavier pour l'instant : à ajouter si Benjamin s'en sert
+  souvent.
+
+**D15-m. Le plan et l'assemblage de photos s'ouvrent depuis l'onglet Plan.**
+« Importer un plan… » (ou « Remplacer le plan… », ⌘I inchangé) et
+« Assembler des photos… » quittent la barre d'outils pour le haut de
+l'onglet Plan du panneau de droite : la barre ne garde que les outils des
+dessins (D15-j) et l'affichage.
+
+**D15-n. Un seul fond pour la bibliothèque et ses éditeurs.** Le choix
+noir, damier ou pierre est dans la barre de la bibliothèque et dans celle
+de chaque éditeur ouvert par-dessus (gomme et crayon, silhouette,
+comparaison des vecteurs), qui la cachent ; c'est le même réglage, retenu
+d'un lancement à l'autre (`src/library/backdrop.ts`). Le « Résultat » de la
+silhouette suit le fond choisi, sauf le noir, où la silhouette noire ne se
+verrait pas : fond rayé.
+
 ## 2026-11-12 — Essai du 13 novembre : sens de la nouvelle mire
 
 **D-essai-a. Le sens de la mire version 2 se lit sur ses repères codés.**
@@ -643,6 +684,44 @@ rester un rectangle tourné (il serait cisaillé) : il reçoit une déformation
 (D-4.4) qui porte l'étirement exactement, sans approximation, puisque
 l'interpolation de la grille suit une transformation affine. Prouvé par
 test sur un dessin tourné de 30°.
+
+**D-4.2-m. Tourner à la souris par une poignée ronde, curseurs visibles,
+miroir dans l'inspecteur.** Retours d'essai de Benjamin sur la 0.1.39
+(13 novembre 2026) : « il faut un outil pour faire la rotation de manière
+graphique », « la souris doit changer de curseur au niveau des poignées »,
+« ajouter miroir sur un dessin ». La rotation juste au-delà d'un coin
+(tâche 4.2, comme Illustrator) et les curseurs existaient, mais le curseur ne
+changeait jamais : la zone de la visionneuse imposait la main (`cursor: grab`
+dans `viewer.css`), qui l'emportait sur le curseur posé par l'écran. Sans
+curseur, la zone de rotation était introuvable. Choix :
+- le curseur passe par la variable CSS `--viewer-cursor` que la zone de la
+  visionneuse lit (`setViewerCursor`, `src/viewer/cursor.ts`) ; la main
+  reste le curseur par défaut ; l'écran Diapositive en profite aussi ;
+- une poignée ronde, au-dessus du milieu du côté haut du cadre (28 px
+  d'écran, reliée par un trait), tourne la sélection autour du centre du
+  cadre, ⇧ par pas de 45° ; la zone au-delà des coins est gardée pour les
+  habitués d'Illustrator ;
+- curseur de rotation dessiné en SVG (flèche courbe à deux pointes), tourné
+  vers la poignée saisie et qui suit l'angle pendant le geste ; le système
+  n'en a pas. Pendant le geste, l'angle s'affiche près du pointeur
+  (l'angle du dessin s'il est seul, l'angle tourné sinon) ;
+- le miroir existait en icônes dans la barre du haut (« Symétrie ») ; il est
+  ajouté en boutons avec texte dans l'onglet Dessins (« Gauche ↔ droite »,
+  « Haut ↕ bas »), et les bulles d'aide disent « Miroir ». Même calcul
+  qu'avant (`flip`), donc même export. Pas de raccourci clavier :
+  Illustrator n'en a pas par défaut.
+
+**D-4.2-n. Dessin déformé choisi : ses points seuls, sans le cadre.**
+Demande de Benjamin (13 novembre 2026) : « quand la fonction 4 coins est
+activée, ne pas afficher le rectangle de sélection, mais juste les 4
+coins ». Quand la sélection partage une déformation (quatre coins ou
+grille), le cadre, ses huit poignées et la poignée ronde ne s'affichent plus
+et ne se saisissent plus : on ne voit que les points bleus et le contour
+déformé. Le choix vaut aussi pour les grilles, par cohérence et parce que
+les poignées d'angle du cadre tombaient sur les points des coins. Glisser le
+dessin le déplace toujours ; pour tourner ou agrandir à la souris, il faut
+d'abord « Redresser » (barre du haut), ou passer par les quarts de tour, la
+case Rotation et la case Largeur.
 
 **Limite.** Les fichiers des dessins utilisés par une diapositive restent
 en mémoire pendant l'export (en niveaux de gris, un dessin de 4 096 px pèse

@@ -31,7 +31,7 @@ import {
 } from "../engine";
 import { projectorColor } from "../facade/overview";
 import { demoLibrary, demoSilhouette } from "../library/demo";
-import type { LayerSpec, ViewerHandle } from "../viewer";
+import { setViewerCursor, type LayerSpec, type ViewerHandle } from "../viewer";
 import { mmToScreen, screenToMm, visibleRect } from "../viewer/geometry";
 import {
   applyGesture,
@@ -39,6 +39,8 @@ import {
   handleAt,
   nodeAt,
   repeatGesture,
+  rotateCursor,
+  scaleCursor,
   type Gesture,
   type GestureStep,
   type Repeatable,
@@ -109,6 +111,11 @@ interface Options {
   stage: RefObject<HTMLDivElement | null>;
   /** Faux pendant un autre geste de l'écran (pose des points d'échelle) ou sans façade à l'échelle. */
   enabled: boolean;
+  /**
+   * Faux quand les dessins posés sont cachés (menu Affichage) : rien n'est
+   * dessiné, ni les dessins, ni leurs contours, ni la sélection. Vrai par défaut.
+   */
+  visible?: boolean;
   onError: (message: string | null) => void;
 }
 
@@ -181,6 +188,8 @@ export interface Composition {
   assignments: Map<string, Assignment>;
   /** Consigne du geste possible, pour la barre d'état. */
   hint: string | null;
+  /** Angle affiché près du pointeur pendant une rotation à la souris (pixels de la zone). */
+  turn: { x: number; y: number; text: string } | null;
   actions: CompositionActions;
   /** À brancher sur la scène de la visionneuse ; vrai si le geste est pris. */
   onPointerDown(event: PointerEvent<HTMLDivElement>): boolean;
@@ -190,6 +199,8 @@ export interface Composition {
   onDrop(event: DragEvent<HTMLDivElement>): void;
   shortcuts: { keys: string; run: () => void; enabled?: boolean }[];
 }
+
+const angleFormat = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
 
 interface Active {
   gesture: Gesture;
@@ -213,12 +224,14 @@ function previewMesh(p: Placement): { divisions: number; points: Point[] } {
 
 export function useComposition(options: Options): Composition {
   const { engine, folder, project, onProject, viewer, stage, enabled, onError } = options;
+  const visible = options.visible ?? true;
   const [drawings, setDrawings] = useState<ComposeDrawing[]>([]);
   const [placements, setPlacements] = useState<Placement[]>([]);
   const [layerList, setLayerList] = useState<Layer[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [marquee, setMarquee] = useState<Rect | null>(null);
+  const [turn, setTurn] = useState<Composition["turn"]>(null);
   const [previews, setPreviews] = useState<Map<string, string>>(new Map());
   const [assignments, setAssignments] = useState<Map<string, Assignment>>(new Map());
   const [lostParts, setLostParts] = useState<Map<string, Point[][][]>>(new Map());
@@ -441,7 +454,7 @@ export function useComposition(options: Options): Composition {
 
   const layers = useMemo<LayerSpec[]>(
     () =>
-      shown(placements, layerList).flatMap((p) => {
+      (visible ? shown(placements, layerList) : []).flatMap((p) => {
         const url = previews.get(p.drawing);
         if (!url) return [];
         const pose = { id: `pose:${p.id}`, kind: "mesh-image", url, ...previewMesh(p) } satisfies LayerSpec;
@@ -460,7 +473,7 @@ export function useComposition(options: Options): Composition {
         } satisfies LayerSpec;
         return [mask, pose];
       }),
-    [placements, layerList, previews, manualSilhouettes, detected],
+    [visible, placements, layerList, previews, manualSilhouettes, detected],
   );
 
   // Le cadre de sélection, dessiné par-dessus tout.
@@ -486,18 +499,24 @@ export function useComposition(options: Options): Composition {
   }, [viewer]);
   useEffect(() => {
     const colors = new Map((project?.projectors ?? []).map((q, index) => [q.id, projectorColor(index)]));
+    if (!visible) {
+      selectionNode.current?.set({ slides: [], lost: [], outlines: [], frame: null, marquee: null, mesh: null });
+      viewer.current?.scene()?.invalidate();
+      return;
+    }
     const slides = shown(placements, layerList).flatMap((p) => {
       const a = assignments.get(p.id);
       if (!a) return [];
       return [{ outline: outline(p), color: a.projector ? (colors.get(a.projector) ?? null) : null, whole: a.whole }];
     });
-    const visible = new Set(shown(placements, layerList).map((p) => p.id));
-    const lost = [...lostParts].flatMap(([id, shapes]) => (visible.has(id) ? shapes : []));
+    const onScreen = new Set(shown(placements, layerList).map((p) => p.id));
+    const lost = [...lostParts].flatMap(([id, shapes]) => (onScreen.has(id) ? shapes : []));
     selectionNode.current?.set({
       slides,
       lost,
       outlines: selected.map((p) => outline(p)),
-      frame,
+      // Dessin déformé : seuls ses points se tirent, sans le cadre ni ses poignées (D-4.2-n).
+      frame: editable ? null : frame,
       marquee,
       mesh: editable ? { lines: meshLines(editable), nodes: editableNodes } : null,
     });
@@ -515,6 +534,7 @@ export function useComposition(options: Options): Composition {
     placements,
     layerList,
     project?.projectors,
+    visible,
   ]);
 
   // --- Pointeur ------------------------------------------------------------------------------
@@ -531,14 +551,12 @@ export function useComposition(options: Options): Composition {
   };
 
   const handleUnder = (at: NonNullable<ReturnType<typeof pointerAt>>) =>
-    frame ? handleAt(frameHandles(frame).map(at.toScreen), at.screen) : null;
+    frame && !editable ? handleAt(frameHandles(frame).map(at.toScreen), at.screen) : null;
 
   const nodeUnder = (at: NonNullable<ReturnType<typeof pointerAt>>) =>
     editable ? nodeAt(editableNodes.map(at.toScreen), at.screen) : null;
 
-  const setCursor = (cursor: string) => {
-    if (stage.current) stage.current.style.cursor = cursor;
-  };
+  const setCursor = (cursor: string) => setViewerCursor(stage.current, cursor);
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>): boolean => {
     if (!enabled || event.button !== 0 || spaceDown.current) return false;
@@ -561,7 +579,14 @@ export function useComposition(options: Options): Composition {
       gesture =
         handle.kind === "scale"
           ? { kind: "scale", start: at.mm, before: placements, ids: selection, frame, corner: handle.corner }
-          : { kind: "rotate", start: at.mm, before: placements, ids: selection, pivot: rectCenter(frame) };
+          : {
+              kind: "rotate",
+              start: at.mm,
+              before: placements,
+              ids: selection,
+              pivot: rectCenter(frame),
+              corner: handle.corner,
+            };
     } else {
       const hit = hitTest(picks, at.mm);
       if (hit) {
@@ -605,21 +630,14 @@ export function useComposition(options: Options): Composition {
         nodeUnder(at) !== null
           ? "crosshair"
           : handle?.kind === "scale"
-            ? ([
-                "nwse-resize",
-                "nesw-resize",
-                "nwse-resize",
-                "nesw-resize",
-                "ns-resize",
-                "ew-resize",
-                "ns-resize",
-                "ew-resize",
-              ][handle.corner] ?? "nwse-resize")
+            ? scaleCursor(handle.corner)
             : handle?.kind === "rotate"
-              ? "alias"
+              ? rotateCursor(handle.corner)
               : hitTest(picks, at.mm)
                 ? "move"
-                : "",
+                : picks.length > 0
+                  ? "default"
+                  : "",
       );
       return;
     }
@@ -635,12 +653,22 @@ export function useComposition(options: Options): Composition {
       setSelection(new Set([...step.selection].filter((id) => allowed.has(id))));
     } else setSelection(step.selection);
     setMarquee(step.marquee ?? null);
+    if (current.gesture.kind === "rotate" && step.turned !== undefined) {
+      // Le curseur suit la rotation ; l'angle s'affiche près du pointeur.
+      setCursor(rotateCursor(current.gesture.corner ?? 0, step.turned));
+      const only = current.gesture.ids.size === 1 ? step.placements.find((p) => current.gesture.ids.has(p.id)) : null;
+      const text = only
+        ? `${angleFormat.format(only.rotation)}°`
+        : `${step.turned > 0 ? "+" : ""}${angleFormat.format(step.turned)}°`;
+      setTurn({ x: at.screen.x, y: at.screen.y, text });
+    }
   };
 
   const onPointerUp = (event: PointerEvent<HTMLDivElement>): boolean => {
     const current = active.current;
     if (!current) return false;
     active.current = null;
+    setTurn(null);
     if (event.currentTarget.hasPointerCapture(event.pointerId))
       event.currentTarget.releasePointerCapture(event.pointerId);
     setMarquee(null);
@@ -664,12 +692,12 @@ export function useComposition(options: Options): Composition {
       const target = event.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
       spaceDown.current = true;
-      if (stage.current) stage.current.style.cursor = "grab";
+      setViewerCursor(stage.current, "grab");
     };
     const up = (event: KeyboardEvent) => {
       if (event.code !== "Space") return;
       spaceDown.current = false;
-      if (stage.current) stage.current.style.cursor = "";
+      setViewerCursor(stage.current, "");
     };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
@@ -841,8 +869,8 @@ export function useComposition(options: Options): Composition {
     ? null
     : has
       ? editable
-        ? "Glisser un point bleu : déformer · glisser le dessin : déplacer · coin du cadre : agrandir · Espace : déplacer la vue"
-        : "Glisser : déplacer (⌥ copie, ⇧ droit) · coin : agrandir · près d'un coin, dehors : tourner · Espace : déplacer la vue"
+        ? "Glisser un point bleu : déformer · glisser le dessin : déplacer · Redresser (barre du haut) : retrouver le cadre · Espace : déplacer la vue"
+        : "Glisser : déplacer (⌥ copie, ⇧ droit) · coin : agrandir · rond au-dessus du cadre : tourner (⇧ par 45°) · Espace : déplacer la vue"
       : picks.length > 0
         ? "Cliquer un dessin pour le choisir, ou glisser autour de plusieurs"
         : drawings.length > 0
@@ -861,6 +889,7 @@ export function useComposition(options: Options): Composition {
     layers,
     assignments,
     hint,
+    turn,
     actions,
     onPointerDown,
     onPointerMove,

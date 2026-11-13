@@ -7,7 +7,7 @@
    `Nom.insitu`, à mettre dans le Dropbox) ; **Ouvrir un projet…** (⌘O)
    rouvre un projet existant. L'app rouvre seule le dernier projet au
    lancement suivant.
-2. **Importer un plan…** (⌘I, barre d'outils) : PDF d'architecte, image (PNG, JPEG, TIFF, HEIC), SVG
+2. **Importer un plan…** (⌘I, panneau de droite, onglet **Plan**, en haut) : PDF d'architecte, image (PNG, JPEG, TIFF, HEIC), SVG
    ou DXF. Pour un PDF de plusieurs pages, l'app demande laquelle est la
    façade. Le fichier est copié dans le dossier `facade/` du projet. Un DWG
    est à exporter d'abord en PDF ou en DXF.
