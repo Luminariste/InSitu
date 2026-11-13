@@ -19,6 +19,8 @@
 //! ensuite (emprise, export) va de la diapositive vers la façade ; elle
 //! passe par les mêmes points.
 
+pub mod auto;
+
 use std::fmt;
 
 use serde::{Deserialize, Serialize};

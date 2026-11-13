@@ -17,7 +17,8 @@ de fenêtre, le pied d'une colonne, la pointe d'un arc… visibles sur les deux.
    la photo redressée apparaît au milieu de la vue de la façade, en
    transparence, avec un rond à chaque coin et une poignée au centre.
    Astuce : cadrer d'abord la vue de la façade sur la zone du projecteur,
-   la photo s'y pose.
+   la photo s'y pose. Ensuite, « Ajuster sur le plan » la cale (voir
+   plus bas).
 3. **Glisser la poignée du centre** pour amener la photo à peu près à sa
    place, puis **glisser chaque coin** jusqu'à ce que les fenêtres, les
    arcs, les bandeaux de la photo tombent sur ceux du plan. La photo suit
@@ -34,6 +35,36 @@ de fenêtre, le pied d'une colonne, la pointe d'un arc… visibles sur les deux.
 
 Tout est enregistré au lâcher. Un point (coin compris) se corrige en le
 glissant à nouveau, se supprime par la corbeille de sa ligne ou ⌫.
+
+## Dans l'app : ajuster sur le plan
+
+Une fois la photo posée à peu près à sa place (ci-dessus, étapes 2 et 3),
+**Ajuster sur le plan** (panneau de droite) la cale sur les lignes du plan :
+fenêtres, arcs, bord du toit. Au bout d'une ou deux secondes, la photo
+bouge et les quatre coins sont enregistrés ; un message dit de combien un
+coin a bougé au plus. Si ce n'est pas mieux : **Annuler l'ajustement**.
+
+- Ça marche quand la pose à la main est à moins d'un mètre environ de la
+  bonne place ; plus loin, une travée voisine qui se ressemble peut
+  l'emporter.
+- La photo reste un trapèze (façade supposée plate) : épingler ensuite des
+  détails là où la façade se plie.
+- Les détails déjà épinglés sont remplacés par les quatre coins ajustés.
+
+### Essai sur le Mac (à faire par Benjamin)
+
+1. Projet Trévarez, étape Recalage, projecteur **A**. Si la photo a des
+   points, la poser à peu près (sinon « Poser la photo sur la façade » puis
+   la glisser sur la façade du haut).
+2. **Ajuster sur le plan**. Attendu : en quelques secondes, la photo se
+   cale ; le bord de l'avant-toit et le bandeau de la photo tombent sur ceux
+   du plan. Un message vert dit de combien elle a bougé.
+3. **Annuler l'ajustement** : la photo revient où elle était. Puis ajuster
+   de nouveau.
+4. Même chose avec **B** (l'arc central), en partant d'une pose décalée
+   d'un demi-mètre environ.
+5. Dire combien de temps dure l'ajustement, et s'il rate (pose à la main
+   de départ, ce qui s'est passé).
 
 ## Dans l'app : point par point
 
@@ -85,6 +116,7 @@ Chaque modification est enregistrée aussitôt dans le projet.
 insitu registration show Essai.insitu A
 insitu registration set Essai.insitu A paires.json
 insitu registration preview paires.json      # pose provisoire, rien n'est enregistré
+insitu registration adjust Essai.insitu A    # cale la pose sur le plan (D-3.2-i), rien n'est enregistré
 ```
 
 `paires.json` : `{ "pairs": [ { "slide": [21.4, 18.9], "facade": [612.0, 480.0] }, … ] }`.

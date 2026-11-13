@@ -12,8 +12,10 @@ use std::path::{Path, PathBuf};
 use image::imageops::FilterType;
 use image::GrayImage;
 use insitu_core::export::{export_slides, ExportProgress};
+use insitu_core::geometry::{Homography, Point, Transform};
 use insitu_core::project::{ExportSettings, ProjectDir};
 use insitu_core::rectification::{self, DetectOptions};
+use insitu_core::registration::auto::{adjust, adjust_region, render_plan};
 
 fn trevarez() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../jeu-essai/trevarez")
@@ -254,4 +256,146 @@ fn le_jeu_d_essai_correspond_a_son_manifeste() {
         }
     }
     assert_eq!(checked, 9, "fichiers vérifiés");
+}
+
+/// Photo redressée réduite (côté `side` px), tirée de la photo brute par le
+/// trapèze qui envoie la diapositive sur les quatre coins `corners` de la
+/// mire (pixels de la photo, haut-gauche, haut-droit, bas-droit, bas-gauche).
+fn rectified_by(photo: &image::RgbImage, slide_to_photo: &Homography, side: u32) -> GrayImage {
+    let s = 280.0;
+    // Réduite d'abord (la mire y garde au moins `side` pixels de côté),
+    // pour ne pas prendre un pixel sur trois au hasard.
+    let k = 3.0;
+    let gray = image::imageops::resize(
+        &image::DynamicImage::ImageRgb8(photo.clone()).into_luma8(),
+        (f64::from(photo.width()) / k) as u32,
+        (f64::from(photo.height()) / k) as u32,
+        FilterType::Triangle,
+    );
+    let h = slide_to_photo;
+    let mm = s / f64::from(side);
+    GrayImage::from_fn(side, side, |x, y| {
+        let p = h
+            .apply(Point::new(
+                (f64::from(x) + 0.5) * mm,
+                (f64::from(y) + 0.5) * mm,
+            ))
+            .unwrap();
+        let p = Point::new(p.x / k, p.y / k);
+        let (u, v) = (
+            p.x.clamp(0.0, f64::from(gray.width() - 1)),
+            p.y.clamp(0.0, f64::from(gray.height() - 1)),
+        );
+        *gray.get_pixel(u as u32, v as u32)
+    })
+}
+
+/// Ajustement automatique (D-3.2-i) sur les deux photos réelles de
+/// Trévarez qu'on sait redresser : A (par les quatre coins posés à la main
+/// par Benjamin, sa grille ne se lit pas) et B (par les croisements trouvés
+/// par l'app). Chaque photo est posée « à la main » en plusieurs endroits
+/// faux d'un demi-mètre à un mètre, un peu trop grande ou trop petite.
+///
+/// Les places attendues ont été vérifiées à l'œil en superposant la photo et
+/// le plan (étude `docs/etudes/recalage-automatique.md`) : pour A, le bord de
+/// l'avant-toit et le bandeau ; pour B, l'arc de la travée du milieu.
+#[test]
+fn l_ajustement_cale_a_et_b_depuis_une_pose_approchee() {
+    let root = TempDir::new("ajuster");
+    let dir = mount_project(&root.0);
+    let project = dir.load().unwrap().project;
+    let facade = project.facade.as_ref().unwrap();
+    let mm_per_unit = facade.scale.as_ref().unwrap().mm_per_source_unit().unwrap();
+    let pt = |x: f64, y: f64| Point::new(x * mm_per_unit, y * mm_per_unit);
+
+    // A : coins de la mire posés par Benjamin (projet du 13 novembre 2026),
+    // sur la photo pleine résolution.
+    let a =
+        rectification::read_photo(&trevarez().join("references/photos-brutes/a-brut.jpg")).unwrap();
+    let square = [
+        Point::new(0.0, 0.0),
+        Point::new(280.0, 0.0),
+        Point::new(280.0, 280.0),
+        Point::new(0.0, 280.0),
+    ];
+    let corners = [
+        Point::new(2923.2, 604.8),
+        Point::new(2815.128, 2929.575),
+        Point::new(1128.664, 2626.743),
+        Point::new(1191.319, 882.844),
+    ];
+    let a = rectified_by(
+        &a,
+        &Homography::from_four_pairs(square, corners).unwrap(),
+        560,
+    );
+    // B : croisements de la mire trouvés par l'app, enregistrés dans le
+    // projet de Benjamin.
+    let b_points = &project.projectors[1].rectification.as_ref().unwrap().points;
+    let slide: Vec<Point> = b_points
+        .iter()
+        .map(|p| Point::new(p.slide.x, p.slide.y))
+        .collect();
+    let photo: Vec<Point> = b_points
+        .iter()
+        .map(|p| Point::new(p.photo.x, p.photo.y))
+        .collect();
+    let b =
+        rectification::read_photo(&trevarez().join("references/photos-brutes/b-brut.jpg")).unwrap();
+    let b = rectified_by(&b, &Homography::fit(&slide, &photo).unwrap(), 560);
+
+    for (label, photo, expected) in [("A", &a, pt(458.0, 325.0)), ("B", &b, pt(635.0, 342.0))] {
+        let mut centers = Vec::new();
+        for (dx, dy, side) in [
+            (0.0, 0.0, 9_500.0),
+            (800.0, 0.0, 9_000.0),
+            (-800.0, 300.0, 10_000.0),
+            (0.0, -600.0, 9_500.0),
+            (500.0, 500.0, 10_500.0),
+        ] {
+            let h = side / 2.0;
+            let (cx, cy) = (expected.x + dx, expected.y + dy);
+            let start = [
+                Point::new(cx - h, cy - h),
+                Point::new(cx + h, cy - h),
+                Point::new(cx + h, cy + h),
+                Point::new(cx - h, cy + h),
+            ];
+            let plan = render_plan(
+                &dir.resolve(&facade.source),
+                facade.page,
+                facade.rotation,
+                mm_per_unit,
+                Some(adjust_region(&start)),
+                1024,
+            )
+            .unwrap();
+            let adjusted = adjust(photo, &plan, start);
+            let c = Point::new(
+                adjusted.pairs.iter().map(|q| q.facade.x).sum::<f64>() / 4.0,
+                adjusted.pairs.iter().map(|q| q.facade.y).sum::<f64>() / 4.0,
+            );
+            eprintln!(
+                "{label} départ ({dx}, {dy}, {side}) : centre ({:.0}, {:.0}), écart {:.0} mm, accord {} → {}",
+                c.x,
+                c.y,
+                c.distance(expected),
+                adjusted.start_score,
+                adjusted.score
+            );
+            assert!(adjusted.score >= adjusted.start_score);
+            centers.push(c);
+        }
+        let near = centers
+            .iter()
+            .filter(|c| c.distance(expected) < 1_000.0)
+            .count();
+        // Mesuré le 13 novembre 2026 : 4 sur 5 pour A comme pour B ; la pose
+        // décalée de 80 cm et trop petite reste à 1,0-1,2 m (accord égal à
+        // celui de la bonne place : le plan n'en dit pas plus).
+        assert!(
+            near >= 4,
+            "{label} : seulement {near} poses sur 5 calées à moins d'un mètre"
+        );
+    }
 }

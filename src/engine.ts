@@ -604,6 +604,30 @@ export async function previewRegistration(pairs: RegistrationPair[]): Promise<Re
   return invoke<RegistrationPreview>("registration_preview", { pairs });
 }
 
+/** Résultat de « Ajuster » (D-3.2-i) : la photo calée sur les lignes du plan. */
+export interface RegistrationAdjustment {
+  projectorId: string;
+  /** Les quatre coins de la diapositive et leur place sur la façade (ceux de départ si rien de mieux). */
+  pairs: RegistrationPair[];
+  footprint: SourcePoint[];
+  /** Accord des contours photo ↔ plan, de 0 à 1, après et avant. */
+  score: number;
+  startScore: number;
+  /** Plus grand déplacement d'un coin, en mm (0 : rien n'a bougé). */
+  movedMm: number;
+  seconds: number;
+}
+
+/** Cale la pose `pairs` de la photo sur les lignes du plan ; rien n'est enregistré. */
+export async function adjustRegistration(
+  folder: string,
+  projector: string,
+  pairs: RegistrationPair[],
+): Promise<RegistrationAdjustment> {
+  requireEngine();
+  return invoke<RegistrationAdjustment>("registration_adjust", { folder, projector, pairs });
+}
+
 // --- Dessins posés sur la façade (tâche 4.2) ------------------------------------
 
 /** Remplace tous les dessins posés ; le moteur les contrôle et les enregistre. */

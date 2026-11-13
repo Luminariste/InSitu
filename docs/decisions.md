@@ -1638,6 +1638,32 @@ dans la liste (« Coin haut-gauche »…). Rien n'est automatique : un
 appariement automatique photo ↔ plan (analyse d'image, photo « lum ») reste
 à étudier ; il serait trop fragile pour l'essai du 13 novembre.
 
+**D-3.2-i. Ajustement automatique de la pose sur le plan.** Demande de
+Benjamin (13 novembre 2026) : replacer tout seul la photo sur le plan, en
+pensant aux façades qui ne sont pas plates. Deux formes lui ont été
+proposées (plusieurs places cherchées sur tout le plan, ou ajustement d'une
+pose à la main) ; il a choisi **l'ajustement seul**. Étude :
+`docs/etudes/recalage-automatique.md`.
+
+- On pose la photo à peu près à la main (D-3.2-h), puis « **Ajuster sur le
+  plan** » la cale sur les lignes du plan autour de cette pose.
+- Méthode : comparaison des **orientations de contours** de la photo
+  redressée (grille de la mire effacée par une fermeture) et du plan, sur
+  le cadre de la pose élargi d'une demi-emprise ; recherche locale par
+  corrélation (transformée de Fourier, nouvelle dépendance `rustfft`, pur
+  Rust), puis ajustement des quatre coins du trapèze. Le résultat ne
+  s'éloigne pas de plus d'un quart d'emprise de la pose, et n'est gardé
+  que s'il s'accorde mieux au plan qu'elle. Les points d'intérêt (SIFT)
+  ont été essayés et ne marchent pas entre une photo et un plan au trait.
+- Résultat : quatre paires aux coins (même format que « Poser la photo »),
+  **enregistrées aussitôt** ; elles remplacent tous les points, y compris
+  les détails épinglés (ils corrigeaient l'ancienne pose). « Annuler
+  l'ajustement » remet les points d'avant, tant qu'on n'a rien retouché.
+- La place est un trapèze (façade supposée plate) : le relief se corrige
+  ensuite en épinglant des détails, comme avant.
+- Commande : `insitu registration adjust <projet> <projecteur>
+  [paires.json]`, Tauri `registration_adjust` (part des paires affichées).
+
 ## 2026-11-12 — Tâche 2.5
 
 Écran de redressement : `src/rectification/`, module
