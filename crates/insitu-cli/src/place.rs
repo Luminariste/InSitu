@@ -20,6 +20,7 @@ pub const USAGE: &str = r#"Usage :
   insitu place lost <projet.insitu> --cache DOSSIER
   insitu place assign <projet.insitu> <id>… (--to PROJECTEUR | --auto)
   insitu place adjust <projet.insitu> <id> (--corners | --grid CxR | --none)
+  insitu place in-slide <projet.insitu> <projecteur> <dessin> --at X,Y --width MM [--layer ID]
 
 Dessins posés sur la façade. Longueurs en mm réels de façade, origine en haut
 à gauche, y vers le bas ; rotation en degrés, sens des aiguilles d'une montre.
@@ -52,6 +53,11 @@ Dessins posés sur la façade. Longueurs en mm réels de façade, origine en hau
           à la façade (tâche 4.6) : --corners ou --grid CxR tend une grille
           au repos en mm de diapositive ; --none retire la retouche. Les
           nœuds se déplacent ensuite par set (champ adjustment).
+  in-slide
+          Pose un dessin comme lâché dans la vue Diapositive : --at et
+          --width en mm de diapositive du projecteur. Le dessin est posé sur
+          la façade, là où ce projecteur l'éclaire (recalage), et affecté à
+          sa diapositive. Affiche l'identifiant du placement.
 
   --history DOSSIER  Note l'enregistrement dans l'historique d'annulation
                      rangé là (voir insitu project undo)."#;
@@ -72,6 +78,7 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
     let mut rotation = 0.0;
     let mut mirrored = false;
     let mut group: Option<String> = None;
+    let mut layer: Option<String> = None;
     let mut history: Option<String> = None;
     let mut cache: Option<String> = None;
     let mut grid: Option<(u32, u32)> = None;
@@ -100,6 +107,14 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                 group = Some(
                     args.get(i + 1)
                         .ok_or_else(|| usage("--group attend un nom."))?
+                        .to_string(),
+                );
+                i += 1;
+            }
+            "--layer" => {
+                layer = Some(
+                    args.get(i + 1)
+                        .ok_or_else(|| usage("--layer attend un calque."))?
                         .to_string(),
                 );
                 i += 1;
@@ -163,6 +178,14 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             placement.mirrored = mirrored;
             placement.group = group;
             let (_, id) = placement::add(&dir, placement).map_err(failed)?;
+            Ok(id)
+        }
+        ["in-slide", folder, projector, drawing] => {
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let center = at.ok_or_else(|| usage("--at X,Y est nécessaire."))?;
+            let width = width.ok_or_else(|| usage("--width est nécessaire."))?;
+            let (_, id) = placement::place_in_slide(&dir, projector, drawing, center, width, layer)
+                .map_err(failed)?;
             Ok(id)
         }
         ["remove", folder, ref ids @ ..] if !ids.is_empty() => {

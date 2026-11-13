@@ -832,3 +832,52 @@ fn only_the_silhouette_counts() {
     // « ailleurs » : la silhouette entière, 500 × 500 mm.
     assert!((lost_area(&parts, "ailleurs") - 0.25).abs() < 1e-3);
 }
+
+/// Un dessin lâché dans la vue Diapositive est posé sur la façade, là où le
+/// projecteur l'éclaire, et affecté à cette diapositive (D-3.6-f).
+#[test]
+fn a_drawing_dropped_in_a_slide_lands_on_the_facade() {
+    let (_temp, dir) = lost_test_project("pose-diapo");
+    let mut with_layer = dir.load().unwrap().project;
+    with_layer.layers.push(Layer {
+        id: "calque".into(),
+        name: "Calque".into(),
+        visible: true,
+        locked: false,
+        extra: Default::default(),
+    });
+    dir.save(&with_layer).unwrap();
+    let (project, id) = place_in_slide(
+        &dir,
+        "A",
+        "merle",
+        PointMm::new(140.0, 100.0),
+        50.0,
+        Some("calque".into()),
+    )
+    .expect("pose");
+    let p = project.placements.iter().find(|p| p.id == id).unwrap();
+    assert!(close(p.center, 1_400.0, 1_000.0), "{:?}", p.center);
+    assert!((p.width - 500.0).abs() < 1e-6);
+    assert!((p.height - 250.0).abs() < 1e-6);
+    assert_eq!(p.rotation, 0.0);
+    assert_eq!(
+        p.projector.as_deref(),
+        Some(project.projectors[0].id.as_str())
+    );
+    assert_eq!(p.layer.as_deref(), Some("calque"));
+    assert_eq!(dir.load().unwrap().project, project);
+
+    // Un projecteur sans recalage : refusé, rien d'enregistré.
+    let mut bare = dir.load().unwrap().project;
+    bare.add_projector("C".to_string());
+    dir.save(&bare).unwrap();
+    assert!(matches!(
+        place_in_slide(&dir, "C", "merle", PointMm::new(1.0, 1.0), 10.0, None),
+        Err(PlacementError::NotRegistered(_))
+    ));
+    assert_eq!(
+        dir.load().unwrap().project.placements.len(),
+        project.placements.len()
+    );
+}

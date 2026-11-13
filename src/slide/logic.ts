@@ -187,3 +187,37 @@ export function cutNotice(view: SlideView | null): string | null {
   const area = total.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return `${view.label} : ${names} ${verb} de cette diapositive ; ${area} m² ne seront pas projetés (en rouge sur la façade).`;
 }
+
+/** Opacités proposées pour les dessins sur la photo (menu Affichage). */
+export const DRAWING_OPACITIES = [1, 0.9, 0.7, 0.5];
+
+/** L'opacité proposée la plus proche de `value`. */
+export function nearestDrawingOpacity(value: number): number {
+  return DRAWING_OPACITIES.reduce((best, o) => (Math.abs(o - value) < Math.abs(best - value) ? o : best));
+}
+
+/** Pourquoi on ne peut pas poser de dessin dans ce projecteur ; `null` si on peut (D-3.6-f). */
+export function slideBlocked(engine: boolean, label: string | null, registered: boolean): string | null {
+  if (!engine) return "Poser des dessins demande l'application.";
+  if (label === null) return "Choisir d'abord un projecteur, à gauche.";
+  if (!registered)
+    return `${label} n'est pas encore recalé : on ne sait pas où ses dessins tombent sur la façade. Le recaler d'abord (onglet Recalage).`;
+  return null;
+}
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/**
+ * Où poser un dessin dans la diapositive (mm) : au point lâché, sinon au
+ * centre de la vue, toujours dans le carré ; large d'un tiers de la vue,
+ * entre 20 et 140 mm.
+ */
+export function placeHere(
+  visible: { x: number; y: number; width: number; height: number } | null,
+  at?: { x: number; y: number },
+): { center: { x: number; y: number }; width: number } {
+  const width = visible ? clamp(visible.width / 3, 20, 140) : 70;
+  const target = at ?? (visible ? { x: visible.x + visible.width / 2, y: visible.y + visible.height / 2 } : null);
+  const center = target ? { x: clamp(target.x, 0, SLIDE_MM), y: clamp(target.y, 0, SLIDE_MM) } : { x: SLIDE_MM / 2, y: SLIDE_MM / 2 };
+  return { center, width };
+}
