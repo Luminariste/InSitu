@@ -7,18 +7,23 @@
 // moteur (`../engine.ts`). Dans un simple navigateur (`npm run dev`), l'écran
 // montre 200 dessins inventés, pour juger du parcours ; rien n'est importé.
 
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent } from "react";
 import {
   cacheFileUrl,
   chooseDrawingFolder,
+  createLibraryFolder,
   fetchDrawingPreview,
   fetchDrawingVectors,
   fetchLibrary,
   fetchSilhouettes,
   hasEngine,
   importDrawingFolder,
+  moveDrawings,
   openProject,
   removeDrawing,
+  removeLibraryFolder,
+  renameDrawing,
+  renameLibraryFolder,
   saveRetouch,
   saveSilhouette,
   saveVectorSettings,
@@ -33,7 +38,20 @@ import {
   type VectorSummary,
 } from "../engine";
 import { recalledProject } from "../project/current";
-import { countLabel, filterEntries, folderTree, formatSize, importSummary, progressLabel } from "./logic";
+import {
+  childFolder,
+  countLabel,
+  draggedDrawings,
+  filterEntries,
+  folderTree,
+  formatSize,
+  importSummary,
+  moveSummary,
+  newFolderName,
+  parentFolder,
+  progressLabel,
+} from "./logic";
+import { treeClick } from "../compose/slideTree";
 import { demoLibrary, demoSilhouette, demoVectors } from "./demo";
 import { BACKDROPS, readBackdrop, saveBackdrop, type Backdrop } from "./backdrop";
 import { RetouchEditor } from "./RetouchEditor";
@@ -48,8 +66,10 @@ import {
   Busy,
   Button,
   ConfirmDialog,
+  ContextMenu,
   EmptyState,
   Icon,
+  IconButton,
   List,
   ListRow,
   Panel,
@@ -64,8 +84,44 @@ import {
   ToolSpacer,
   Toolbar,
   useShortcuts,
+  type MenuEntry,
 } from "../ui";
 import "./library.css";
+
+/** Type des données d'un glisser de vignettes vers un dossier (D-4.1-g). */
+const DRAG_TYPE = "application/x-insitu-dessins";
+
+/** Dessins en cours de glisser (la vue web ne rend pas toujours les données pendant le survol). */
+let dragging: string[] | null = null;
+
+/** Champ de nom en place : ↩ valide, Échap annule, quitter le champ valide (docs/design.md § 3). */
+function NameField({ value, label, onDone }: { value: string; label: string; onDone: (name: string | null) => void }) {
+  const [text, setText] = useState(value);
+  const done = useRef(false);
+  const finish = (name: string | null) => {
+    if (done.current) return;
+    done.current = true;
+    onDone(name === null || name.trim() === "" || name.trim() === value ? null : name.trim());
+  };
+  return (
+    <input
+      className="ui-input library-name-field"
+      autoFocus
+      onFocus={(e) => e.currentTarget.select()}
+      value={text}
+      aria-label={label}
+      onChange={(e) => setText(e.target.value)}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onBlur={() => finish(text)}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") finish(text);
+        if (e.key === "Escape") finish(null);
+      }}
+    />
+  );
+}
 
 /** Un dessin affiché : l'entrée du moteur et l'adresse de sa vignette. */
 interface Shown extends LibraryEntry {
@@ -80,6 +136,16 @@ export function LibraryScreen() {
   const [query, setQuery] = useState("");
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  // Ranger la bibliothèque (D-4.1-g) : dessins choisis ensemble (⌘-clic,
+  // ⇧-clic), dossier ou nom en cours de saisie, dossier survolé par un
+  // glisser, menu du clic droit, dossiers vides du mode démonstration.
+  const [marked, setMarked] = useState<Set<string>>(new Set());
+  const anchor = useRef<string | null>(null);
+  const [editingFolder, setEditingFolder] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; items: MenuEntry[] } | null>(null);
+  const [demoFolders, setDemoFolders] = useState<string[]>([]);
   const [preview, setPreview] = useState<string | null>(null);
   // Fond derrière les dessins : le même ici et dans les éditeurs, retenu.
   const [backdrop, setBackdropState] = useState<Backdrop>(readBackdrop);
@@ -191,9 +257,18 @@ export function LibraryScreen() {
 
   // --- Filtres et sélection -------------------------------------------------
 
-  const folders = useMemo(() => folderTree(entries), [entries]);
+  const extraFolders = engine ? (project?.libraryFolders ?? []) : demoFolders;
+  const folders = useMemo(() => folderTree(entries, extraFolders), [entries, extraFolders]);
   const visible = useMemo(() => filterEntries(entries, query, currentFolder), [entries, query, currentFolder]);
   const chosen = entries.find((e) => e.id === selected) ?? null;
+
+  /** Choisit un seul dessin (ou aucun). */
+  const choose = useCallback((id: string | null) => {
+    setSelected(id);
+    setMarked(new Set(id ? [id] : []));
+    setEditingName(false);
+    if (id) anchor.current = id;
+  }, []);
 
   // Aperçu du dessin choisi (fabriqué par le moteur à la première demande).
   useEffect(() => {
@@ -370,13 +445,178 @@ export function LibraryScreen() {
       setProject(updated);
       setEntries((list) => list.filter((e) => e.id !== entry.id));
       const rest = visible.filter((e) => e.id !== entry.id);
-      setSelected(rest.length ? rest[Math.min(index, rest.length - 1)].id : null);
+      choose(rest.length ? rest[Math.min(index, rest.length - 1)].id : null);
       setMessage(
         placed > 0
           ? `« ${entry.name} » retiré de la bibliothèque, avec ${placed === 1 ? "son placement" : `ses ${placed} placements`} sur la façade.`
           : `« ${entry.name} » retiré de la bibliothèque.`,
       );
     });
+
+  // --- Ranger : renommer, glisser dans un dossier (D-4.1-g) -------------------
+  // Rien ne bouge sur le disque : seuls le nom et le dossier affichés
+  // changent dans projet.json, et ⌘Z les remet.
+
+  /** Applique un rangement : par le moteur, ou en mémoire dans le navigateur seul. */
+  const organize = (engineTask: (path: string) => Promise<Project>, demoTask: () => void, done?: () => void) =>
+    run(null, async () => {
+      if (!engine || !folder) {
+        demoTask();
+        done?.();
+        return;
+      }
+      const updated = await engineTask(folder);
+      setProject(updated);
+      showEntries(await fetchLibrary(folder));
+      done?.();
+    });
+
+  const renameChosen = (name: string) => {
+    if (!chosen) return;
+    const id = chosen.id;
+    void organize(
+      (path) => renameDrawing(path, id, name),
+      () => setEntries((list) => list.map((e) => (e.id === id ? { ...e, name } : e))),
+    );
+  };
+
+  const moveTo = (ids: string[], target: string) => {
+    const names = entries.filter((e) => ids.includes(e.id) && e.folder !== target).map((e) => e.name);
+    if (names.length === 0) return;
+    void organize(
+      (path) => moveDrawings(path, ids, target),
+      () => setEntries((list) => list.map((e) => (ids.includes(e.id) ? { ...e, folder: target } : e))),
+      () => setMessage(moveSummary(names, target)),
+    );
+  };
+
+  const addFolder = (parent: string | null) => {
+    const name = newFolderName(
+      folders.map((f) => f.path),
+      parent,
+    );
+    const path = childFolder(parent, name);
+    void organize(
+      (project) => createLibraryFolder(project, path),
+      () => setDemoFolders((list) => [...list, path]),
+      () => setEditingFolder(path),
+    );
+  };
+
+  const renameFolder = (path: string, name: string) => {
+    const parent = parentFolder(path);
+    const target = childFolder(parent || null, name);
+    const moved = (f: string) => (f === path || f.startsWith(`${path}/`) ? target + f.slice(path.length) : f);
+    void organize(
+      (project) => renameLibraryFolder(project, path, name),
+      () => {
+        setEntries((list) => list.map((e) => ({ ...e, folder: moved(e.folder) })));
+        setDemoFolders((list) => list.map(moved));
+      },
+      () => setCurrentFolder((current) => (current === null ? null : moved(current))),
+    );
+  };
+
+  const removeFolder = (path: string) =>
+    void organize(
+      (project) => removeLibraryFolder(project, path),
+      () => setDemoFolders((list) => list.filter((f) => f !== path && !f.startsWith(`${path}/`))),
+      () => setCurrentFolder((current) => (current !== null && (current === path || current.startsWith(`${path}/`)) ? parentFolder(path) || null : current)),
+    );
+
+  const clickCard = (id: string) => (event: MouseEvent) => {
+    const order = visible.map((e) => e.id);
+    const before = new Set(marked);
+    if (selected) before.add(selected);
+    const next = treeClick(order, before, anchor.current, id, {
+      toggle: event.metaKey || event.ctrlKey,
+      range: event.shiftKey,
+    });
+    if (!event.shiftKey) anchor.current = id;
+    setMarked(next);
+    setEditingName(false);
+    setSelected(next.has(id) ? id : (next.values().next().value ?? null));
+  };
+
+  const startDrag = (id: string) => (event: DragEvent) => {
+    const ids = draggedDrawings(id, marked);
+    dragging = ids;
+    event.dataTransfer.setData(DRAG_TYPE, JSON.stringify(ids));
+    event.dataTransfer.effectAllowed = "move";
+  };
+
+  const acceptDrop = (key: string) => (event: DragEvent) => {
+    if (dragging === null && !event.dataTransfer.types.includes(DRAG_TYPE)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (dropTarget !== key) setDropTarget(key);
+  };
+
+  const dropOn = (target: string) => (event: DragEvent) => {
+    let ids = dragging;
+    try {
+      const data = event.dataTransfer.getData(DRAG_TYPE);
+      if (data) ids = JSON.parse(data) as string[];
+    } catch {
+      // Données illisibles : on garde celles notées au départ du glisser.
+    }
+    dragging = null;
+    setDropTarget(null);
+    if (!ids || ids.length === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    moveTo(ids, target);
+  };
+
+  const folderMenu = (row: { path: string; count: number }) => (event: MouseEvent) => {
+    event.preventDefault();
+    setMenu({
+      x: event.clientX,
+      y: event.clientY,
+      items: [
+        { label: "Renommer", icon: "pencil", onSelect: () => setEditingFolder(row.path) },
+        { label: "Nouveau sous-dossier", icon: "plus", onSelect: () => addFolder(row.path) },
+        { separator: true },
+        {
+          label: row.count > 0 ? "Retirer le dossier (le vider d'abord)" : "Retirer le dossier",
+          icon: "trash",
+          danger: true,
+          disabled: row.count > 0,
+          onSelect: () => removeFolder(row.path),
+        },
+      ],
+    });
+  };
+
+  const cardMenu = (entry: Shown) => (event: MouseEvent) => {
+    event.preventDefault();
+    if (!marked.has(entry.id)) choose(entry.id);
+    const ids = draggedDrawings(entry.id, marked.has(entry.id) ? marked : new Set([entry.id]));
+    setMenu({
+      x: event.clientX,
+      y: event.clientY,
+      items: [
+        {
+          label: "Renommer",
+          icon: "pencil",
+          disabled: ids.length > 1,
+          onSelect: () => {
+            choose(entry.id);
+            setEditingName(true);
+          },
+        },
+        { label: ids.length > 1 ? `Sortir ces ${ids.length} dessins de leur dossier` : "Sortir de son dossier", icon: "folder", onSelect: () => moveTo(ids, "") },
+        { separator: true },
+        {
+          label: "Retirer de la bibliothèque…",
+          icon: "trash",
+          danger: true,
+          disabled: !engine || !folder || ids.length > 1,
+          onSelect: () => setRemoving(entry.id),
+        },
+      ],
+    });
+  };
 
   const onKey = (event: KeyboardEvent<HTMLDivElement>) => {
     if (visible.length === 0) return;
@@ -389,7 +629,7 @@ export function LibraryScreen() {
     if (step === undefined) return;
     event.preventDefault();
     const next = index < 0 ? 0 : Math.min(visible.length - 1, Math.max(0, index + step));
-    setSelected(visible[next].id);
+    choose(visible[next].id);
     grid.current?.children[next]?.scrollIntoView({ block: "nearest" });
   };
 
@@ -461,24 +701,65 @@ export function LibraryScreen() {
   ) : null;
 
   const sidebar = (
-    <Panel side="left" title="Dossiers">
-      <List label="Dossiers">
-        <ListRow
-          selected={currentFolder === null}
-          onSelect={() => setCurrentFolder(null)}
-          leading={<Icon name="image" />}
-          title="Tous les dessins"
-          trailing={entries.length}
+    <Panel
+      side="left"
+      title="Dossiers"
+      actions={
+        <IconButton
+          icon="plus"
+          label={currentFolder ? `Nouveau dossier dans « ${currentFolder} »` : "Nouveau dossier"}
+          onClick={() => addFolder(currentFolder)}
+          disabled={!ready || (engine && !folder)}
         />
+      }
+    >
+      <List label="Dossiers">
+        <div
+          className={dropTarget === "" ? "library-folder is-over" : "library-folder"}
+          onDragOver={acceptDrop("")}
+          onDragLeave={() => setDropTarget(null)}
+          onDrop={dropOn("")}
+        >
+          <ListRow
+            selected={currentFolder === null}
+            onSelect={() => setCurrentFolder(null)}
+            leading={<Icon name="image" />}
+            title="Tous les dessins"
+            trailing={entries.length}
+            tooltip="Lâcher des dessins ici : ils sortent de leur dossier."
+          />
+        </div>
         {folders.map((row) => (
-          <div key={row.path} style={{ paddingLeft: 14 * row.depth }}>
+          <div
+            key={row.path}
+            className={dropTarget === row.path ? "library-folder is-over" : "library-folder"}
+            style={{ paddingLeft: 14 * row.depth }}
+            onDragOver={acceptDrop(row.path)}
+            onDragLeave={() => setDropTarget(null)}
+            onDrop={dropOn(row.path)}
+            onContextMenu={folderMenu(row)}
+          >
             <ListRow
               selected={currentFolder === row.path}
               onSelect={() => setCurrentFolder(row.path)}
+              onDoubleClick={() => setEditingFolder(row.path)}
               leading={<Icon name="folder" />}
-              title={row.label}
+              title={
+                editingFolder === row.path ? (
+                  <NameField
+                    value={row.label}
+                    label="Nom du dossier"
+                    onDone={(name) => {
+                      setEditingFolder(null);
+                      if (name !== null) renameFolder(row.path, name);
+                    }}
+                  />
+                ) : (
+                  row.label
+                )
+              }
               trailing={row.count}
-              tooltip={row.path}
+              tooltip={`${row.path} — double-clic : renommer ; clic droit : menu ; lâcher des dessins ici pour les y ranger.`}
             />
           </div>
         ))}
@@ -493,7 +774,27 @@ export function LibraryScreen() {
           <div className={`library-preview fond-${backdrop}`}>
             {preview ? <img src={preview} alt={chosen.name} /> : <span>{chosen.problem ?? "Préparation de l'aperçu…"}</span>}
           </div>
-          <h3 className="library-detail-name">{chosen.name}</h3>
+          {marked.size > 1 && (
+            <p className="library-vectors">
+              {countLabel(marked.size)} choisis : les glisser sur un dossier pour les y ranger.
+            </p>
+          )}
+          {editingName ? (
+            <NameField
+              key={chosen.id}
+              value={chosen.name}
+              label="Nom du dessin"
+              onDone={(name) => {
+                setEditingName(false);
+                if (name !== null) renameChosen(name);
+              }}
+            />
+          ) : (
+            <h3 className="library-detail-name" onDoubleClick={() => setEditingName(true)} title="Double-clic : renommer">
+              {chosen.name}
+              <IconButton icon="pencil" size="sm" label="Renommer le dessin" onClick={() => setEditingName(true)} />
+            </h3>
+          )}
           <dl className="ui-facts">
             <dt>Dossier</dt>
             <dd>{chosen.folder || "—"}</dd>
@@ -574,9 +875,20 @@ export function LibraryScreen() {
           <button
             type="button"
             key={entry.id}
-            className={entry.id === selected ? "library-card choisi" : "library-card"}
-            onClick={() => setSelected(entry.id)}
-            title={entry.folder ? `${entry.folder}/${entry.name}` : entry.name}
+            className={entry.id === selected || marked.has(entry.id) ? "library-card choisi" : "library-card"}
+            onClick={clickCard(entry.id)}
+            onDoubleClick={() => {
+              choose(entry.id);
+              setEditingName(true);
+            }}
+            onContextMenu={cardMenu(entry)}
+            draggable
+            onDragStart={startDrag(entry.id)}
+            onDragEnd={() => {
+              dragging = null;
+              setDropTarget(null);
+            }}
+            title={`${entry.folder ? `${entry.folder}/${entry.name}` : entry.name} — ⌘-clic : ajouter au choix ; double-clic : renommer ; glisser sur un dossier pour l'y ranger`}
           >
             <span className="library-thumb">
               {entry.url ? (
@@ -613,6 +925,7 @@ export function LibraryScreen() {
         </EmptyState>
       )}
       {busy && <Busy>{busy}</Busy>}
+      {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
       {removingEntry && (
         <ConfirmDialog
           title={`Retirer « ${removingEntry.name} » de la bibliothèque ?`}
