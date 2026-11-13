@@ -24,16 +24,22 @@ export function vectorLine(summary: VectorSummary): string {
 /** Verdict sur l'écart, pour la couleur et la phrase d'aide. */
 export function deviationVerdict(summary: VectorSummary): { good: boolean; text: string } {
   const good = summary.comparison.maxDeviationPx < GOOD_DEVIATION_PX;
+  const smoothing = (summary.settings.smoothingPx ?? 0) > 0;
   return {
     good,
     text: good
       ? "Les courbes suivent l'image à moins d'un demi-pixel."
-      : "Les courbes s'écartent de l'image de plus d'un demi-pixel : baisser la tolérance.",
+      : smoothing
+        ? "Les courbes s'écartent de l'image de plus d'un demi-pixel : c'est l'effet du lissage et de la réduction des points. Les baisser pour suivre l'image au plus près."
+        : "Les courbes s'écartent de l'image de plus d'un demi-pixel : baisser la réduction des points.",
   };
 }
 
 /** Réglages tels que saisis : du texte, pour accepter « 0,3 ». */
 export type SettingsDraft = Record<keyof VectorSettings, string>;
+
+/** Lissage le plus fort, comme le moteur (`vectorize::MAX_SMOOTHING_PX`). */
+export const MAX_SMOOTHING_PX = 20;
 
 export function draftOf(settings: VectorSettings): SettingsDraft {
   return {
@@ -41,7 +47,13 @@ export function draftOf(settings: VectorSettings): SettingsDraft {
     tolerancePx: frNumber(settings.tolerancePx, decimalsOf(settings.tolerancePx)),
     cornerAngleDeg: frNumber(settings.cornerAngleDeg, decimalsOf(settings.cornerAngleDeg)),
     minAreaPx: frNumber(settings.minAreaPx, decimalsOf(settings.minAreaPx)),
+    smoothingPx: frNumber(settings.smoothingPx ?? 0, decimalsOf(settings.smoothingPx ?? 0)),
   };
+}
+
+/** Texte d'un réglage choisi au curseur : « 0,35 », « 2 », « 128 ». */
+export function sliderText(value: number): string {
+  return frNumber(value, 2).replace(/(,\d*?)0+$/, "$1").replace(/,$/, "");
 }
 
 function decimalsOf(value: number): number {
@@ -66,7 +78,7 @@ export function parseDraft(draft: SettingsDraft): { settings: VectorSettings } |
   }
   const tolerancePx = parseNumber(draft.tolerancePx);
   if (!(tolerancePx >= 0.01 && tolerancePx <= 10)) {
-    return { error: "La tolérance va de 0,01 à 10 pixels." };
+    return { error: "La réduction des points va de 0,01 à 10 pixels." };
   }
   const cornerAngleDeg = parseNumber(draft.cornerAngleDeg);
   if (!(cornerAngleDeg >= 1 && cornerAngleDeg <= 179)) {
@@ -76,7 +88,11 @@ export function parseDraft(draft: SettingsDraft): { settings: VectorSettings } |
   if (!(minAreaPx >= 0 && Number.isFinite(minAreaPx))) {
     return { error: "L'aire minimale est un nombre positif ou nul." };
   }
-  return { settings: { threshold, tolerancePx, cornerAngleDeg, minAreaPx } };
+  const smoothingPx = draft.smoothingPx.trim() === "" ? 0 : parseNumber(draft.smoothingPx);
+  if (!(smoothingPx >= 0 && smoothingPx <= MAX_SMOOTHING_PX)) {
+    return { error: `Le lissage va de 0 à ${MAX_SMOOTHING_PX} pixels.` };
+  }
+  return { settings: { threshold, tolerancePx, cornerAngleDeg, minAreaPx, smoothingPx } };
 }
 
 export function sameSettings(a: VectorSettings, b: VectorSettings): boolean {
@@ -84,7 +100,8 @@ export function sameSettings(a: VectorSettings, b: VectorSettings): boolean {
     a.threshold === b.threshold &&
     a.tolerancePx === b.tolerancePx &&
     a.cornerAngleDeg === b.cornerAngleDeg &&
-    a.minAreaPx === b.minAreaPx
+    a.minAreaPx === b.minAreaPx &&
+    (a.smoothingPx ?? 0) === (b.smoothingPx ?? 0)
   );
 }
 
