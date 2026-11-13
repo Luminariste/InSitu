@@ -41,7 +41,7 @@ On importe tout depuis `src/ui` (`import { Button, Panel } from "../ui"`).
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ InSitu   [1 Façade][2 Redressement][3 Recalage][4 Diapositive][5 Bibliothèque]  Présentation ▾ │  barre de l'app
+│ InSitu · projet   [1 Façade][2 Redressement][3 Recalage][4 Diapositive][5 Bibliothèque]        │  barre de l'app
 ├──────────────────────────────────────────────────────────────────────┤
 │ actions de l'étape …                                │ affichage    │  barre d'outils
 ├──────────────────────────────────────────────────────────────────────┤
@@ -60,9 +60,10 @@ Composant `Screen` (`toolbar`, `banner`, `sidebar`, `inspector`, `status`).
 Les deux panneaux sont facultatifs : un écran sans objets à lister n'a pas
 de panneau de gauche.
 
-- **Barre de l'app** : les étapes du travail, numérotées dans l'ordre
-  (⌘1 à ⌘5), puis le menu Présentation (apparence, raccourcis,
-  démonstration de la visionneuse). Un nouvel écran du plan y ajoute son
+- **Barre de l'app** : le nom du projet, puis les étapes du travail,
+  numérotées dans l'ordre (⌘1 à ⌘5). Apparence, raccourcis et
+  démonstration de la visionneuse sont dans le menu Présentation du Mac ;
+  dans le navigateur seul, un menu Présentation les garde à droite (D15-s). Un nouvel écran du plan y ajoute son
   étape, à sa place dans l'ordre du travail.
 - **Barre d'outils** (`Toolbar`), de gauche à droite : le menu Projet
   (`ProjectMenu`, le même partout ; dans l'app il ne s'affiche pas, ses
@@ -159,7 +160,7 @@ Nombres et unités en français : virgule décimale, espace des milliers
 
 Deux thèmes, **sombre par défaut** (on travaille sur des images au trait
 blanc), **clair** au choix, et **automatique** qui suit macOS : menu
-Présentation → Apparence. La toile reste sombre dans les trois cas.
+Présentation du Mac → Apparence. La toile reste sombre dans les trois cas.
 
 | Rôle | Jeton | Sombre | Clair |
 | --- | --- | --- | --- |
@@ -192,14 +193,15 @@ Présentation → Apparence. La toile reste sombre dans les trois cas.
 ## 7. Menus et raccourcis
 
 Les menus suivent l'ordre des menus du Mac et montrent leurs raccourcis à
-droite (`MenuButton`). Dans la fenêtre : le menu Présentation (le menu
-Projet n'apparaît que dans le navigateur seul, D15-o). En haut de l'écran, la **barre de menus du Mac**
+droite (`MenuButton`). Dans la fenêtre, plus de menu de l'app : les menus
+Projet et Présentation n'apparaissent que dans le navigateur seul (D15-o,
+D15-s). En haut de l'écran, la **barre de menus du Mac**
 (`src-tauri/src/menu.rs`) : InSitu (À propos, Masquer, Quitter), Fichier
 (Nouveau, Ouvrir, Relire, Importer, Exporter, Fermer), Édition (Annuler et
 Rétablir, propres à InSitu depuis la tâche 4.3 : le projet hors d'un champ,
 la frappe dans un champ ; Couper, Copier, Coller, Tout sélectionner, pour
 les champs de texte),
-Présentation (les étapes, Tout voir, Plein écran), Fenêtre, Aide
+Présentation (les étapes, Tout voir, Apparence, Démonstration de la visionneuse, Plein écran), Fenêtre, Aide
 (Raccourcis clavier). Une entrée propre à InSitu porte le raccourci de
 l'interface comme identifiant (`raccourci:mod+n`) : la coque l'envoie à
 l'interface, qui déclenche la même action que la touche (`runShortcut`).
