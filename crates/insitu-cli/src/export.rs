@@ -41,6 +41,8 @@ projet, et ceux utilisés y sont enregistrés.
   --threshold N     Seuil du noir et blanc, de 1 à 255 (128 par défaut)
   --svg             Un SVG en mm à côté de chaque PNG : les courbes des
                     dessins posés (--no-svg)
+  --sans-fresque    Les dessins posés seuls, sans la fresque importée en
+                    une image (--avec-fresque, par défaut)
   --only NOM        Ce projecteur seulement (répétable)
   --plan-de-controle
                     À la place des diapositives : le plan de la façade vu
@@ -127,6 +129,8 @@ pub fn export(args: &[&str]) -> Result<String, (bool, String)> {
                     "--gray" => settings.one_bit = false,
                     "--svg" => settings.svg = true,
                     "--no-svg" => settings.svg = false,
+                    "--sans-fresque" => settings.fresco = false,
+                    "--avec-fresque" => settings.fresco = true,
                     "--plan-de-controle" => control_plan = true,
                     "--dpi" | "--threshold" | "--only" => {
                         let value = rest.next().ok_or_else(|| usage("Valeur manquante."))?;

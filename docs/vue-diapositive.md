@@ -34,12 +34,14 @@ colonnes, fenêtres.
    l'aperçu, **Plan** montre le plan de la Façade vu par ce projecteur, en
    gris bleuté sous les dessins, pour se repérer. Ce sont les mêmes cases
    que le menu **Affichage** de la Façade : cachée là-bas, la fresque l'est
-   ici. L'export grave toujours la fresque et jamais le plan.
+   ici. L'export ne grave jamais le plan ; la fresque, au choix dans la
+   fenêtre d'export (cochée si elle se voit dans l'aperçu).
 6. **Plan de contrôle…** : le plan vu par ce projecteur, à graver pour
    vérifier le recalage (voir `docs/export.md`).
-   **Exporter cette diapositive…** (⌘E), en haut à droite : le PNG de la
-   diapositive affichée seulement, avec les réglages de l'onglet Export de
-   la Façade.
+   **Exporter cette diapositive…** (⌘E), en haut à droite : une fenêtre
+   propose les réglages de l'onglet Export de la Façade (résolution,
+   fresque gravée ou dessins seuls, plaque, miroir, négatif, 1 bit, SVG),
+   puis écrit le PNG de la diapositive affichée seulement.
 7. Zoomer pour juger d'un détail. L'aperçu fait 2 048 px (0,14 mm par
    pixel), comme le détail utile d'une photo redressée.
 

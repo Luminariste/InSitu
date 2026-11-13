@@ -13,6 +13,7 @@ export const DEFAULT_EXPORT: ExportSettings = {
   oneBit: false,
   threshold: 128,
   svg: false,
+  fresco: true,
 };
 
 const SLIDE_MM = 280;
@@ -39,6 +40,12 @@ export function exportSizeLabel(settings: ExportSettings): string {
 }
 
 /** Une résolution utilisable (le moteur accepte de 50 à 3 000 dpi). */
+/** La résolution tapée : « 1400 », « 1 400 » ou « 1400,5 ». */
+export function parseDpi(text: string): number {
+  const cleaned = text.replace(/[\s\u00a0\u202f]/g, "").replace(",", ".");
+  return cleaned === "" ? Number.NaN : Number(cleaned);
+}
+
 export function validDpi(dpi: number): boolean {
   return Number.isFinite(dpi) && dpi >= 50 && dpi <= 3000;
 }
