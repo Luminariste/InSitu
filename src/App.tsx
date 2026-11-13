@@ -7,6 +7,7 @@ import { SlideScreen } from "./slide/SlideScreen";
 import { ViewerDemo } from "./ViewerDemo";
 import { UpdateCheck } from "./update/UpdateDialog";
 import { listenMenu } from "./engine";
+import { listenProject, type OpenProject } from "./project/current";
 import {
   APPEARANCES,
   APP_SHORTCUTS,
@@ -47,6 +48,11 @@ export function App() {
   // Barre de menus du Mac : chaque entrée envoie son raccourci (src-tauri/src/menu.rs).
   useEffect(() => listenMenu((keys) => void runShortcut(keys)), []);
 
+  // Le projet ouvert, à côté du nom de l'app (le menu Projet est dans la
+  // barre de menus du Mac, D15-o).
+  const [openProject, setOpenProject] = useState<OpenProject>({ name: null, folder: null });
+  useEffect(() => listenProject(setOpenProject), []);
+
   useShortcuts([
     ...STEPS.map((s) => ({ keys: s.keys, run: () => setScreen(s.value) })),
     { keys: "mod+/", run: () => setHelp(true) },
@@ -55,7 +61,10 @@ export function App() {
   return (
     <div className="app">
       <nav className="app-bar" aria-label="Étapes">
-        <span className="app-name">InSitu</span>
+        <span className="app-name" title={openProject.folder ?? undefined}>
+          InSitu
+          {openProject.name && <span className="app-project"> · {openProject.name}</span>}
+        </span>
         <Segmented
           label="Étapes"
           size="lg"

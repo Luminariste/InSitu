@@ -111,7 +111,7 @@ Un projet sans calque en montre un seul, « Calque 1 ».
 ## Annuler (tâche 4.3)
 
 ⌘Z annule la dernière modification du projet, ⇧⌘Z la rétablit, sans limite
-de nombre et quel que soit l'écran (aussi dans le menu Projet). L'historique
+de nombre et quel que soit l'écran (aussi dans le menu Édition du Mac). L'historique
 reste après la fermeture de l'app. Si le projet a été modifié ailleurs entre
 temps (l'autre Mac, par Dropbox), l'app refuse d'annuler plutôt que
 d'écraser ce changement.

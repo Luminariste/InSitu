@@ -3,7 +3,7 @@
 ## Dans l'app
 
 1. Étape **Redressement** (⌘2). L'écran reprend le projet ouvert ailleurs
-   (le menu **Projet**, en haut à gauche, en ouvre ou en crée un autre).
+   (le menu **Fichier** du Mac en ouvre ou en crée un autre).
 2. Le bouton **+** du panneau **Projecteurs**, à gauche, crée un
    projecteur, nommé par la première lettre libre (A, B, C…). La liste
    passe d'un projecteur à l'autre (clic, ou ↑ ↓) et dit où en est

@@ -160,9 +160,18 @@
 .app-name {
   position: absolute;
   left: var(--ui-space-4);
+  max-width: calc(50% - 360px);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-weight: var(--ui-weight-bold);
   letter-spacing: -0.01em;
   color: var(--ui-text-secondary);
+}
+
+.app-project {
+  font-weight: var(--ui-weight-regular);
+  color: var(--ui-text);
 }
 
 .app-bar-end {
