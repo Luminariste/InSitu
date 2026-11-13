@@ -274,3 +274,37 @@ fn registration_is_saved_in_the_project() {
         Err(RegistrationError::UnknownProjector(_))
     ));
 }
+
+/// Retour de Benjamin (0.1.61) : une photo posée loin de l'origine de la
+/// façade (vers 30 m, comme D à Trévarez) avec quatre coins guides et un
+/// point sûr était refusée (« la transformation écrase le plan sur une
+/// ligne »), alors que la pose est un simple carré.
+#[test]
+fn une_pose_loin_de_l_origine_reste_utilisable() {
+    let corner = |sx: f64, sy: f64| {
+        RegistrationPair::new(
+            PointMm { x: sx, y: sy },
+            PointMm {
+                x: 36_000.0 + sx * 30.0,
+                y: 15_000.0 + sy * 30.0,
+            },
+        )
+    };
+    let mut pairs = vec![
+        corner(0.0, 0.0),
+        corner(280.0, 0.0),
+        corner(280.0, 280.0),
+        corner(0.0, 280.0),
+    ];
+    for (sx, sy) in [(128.0, 180.0), (30.0, 175.0)] {
+        pairs.push(corner(sx, sy));
+        let report = report("D", &pairs, &RegistrationOptions::default());
+        assert!(
+            report.is_ok(),
+            "{} paires : {:?}",
+            pairs.len(),
+            report.err()
+        );
+        assert!(slide_to_facade(&pairs).is_some());
+    }
+}
