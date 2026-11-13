@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CompositionPreview, CompositionReport, PreviewImage } from "../engine";
+import type { CompositionPreview, CompositionReport, LinkStatus, PreviewImage } from "../engine";
 import {
   checkState,
   choiceSummary,
@@ -25,6 +25,7 @@ const report: CompositionReport = {
     { link: "/Users/marc/Dropbox/Poissons/Betta.png", count: 1, reason: "fichier introuvable" },
   ],
   embedded: 10,
+  extracted: 0,
   skewed: 0,
   skipped: 0,
 };
@@ -32,14 +33,14 @@ const report: CompositionReport = {
 describe("compte rendu d'import Illustrator", () => {
   it("dit ce qui a été posé", () => {
     expect(compositionSummary(report)).toBe(
-      "38 dessins posés sur 245 images liées, dans 2 calques ; 6 fichiers ajoutés à la bibliothèque (ECURIES-COMPOSITION).",
+      "38 dessins posés sur 245 images, dans 2 calques ; 6 fichiers ajoutés à la bibliothèque (ECURIES-COMPOSITION).",
     );
   });
   it("dit ce qui manque, par nom de fichier", () => {
     const lines = compositionWarnings(report);
     expect(lines).toHaveLength(2);
     expect(lines[0]).toContain("2 liens introuvables (4 images non posées) : Algue-H01.png, Betta.png.");
-    expect(lines[1]).toContain("10 images incorporées");
+    expect(lines[1]).toContain("10 images incorporées dans le .ai non reprises");
     expect(compositionWarnings({ ...report, missing: [], embedded: 0 })).toEqual([]);
   });
   it("garde le seul nom du fichier d'un lien", () => {
@@ -69,7 +70,7 @@ const layer = (name: string, images: number, embedded = 0) => ({
   existing: false,
 });
 
-const link = (name: string, status: "library" | "libraryByName" | "new" | "missing", count: number) => ({
+const link = (name: string, status: LinkStatus, count: number) => ({
   link: `/Users/marc/${name}`,
   name,
   status,
@@ -120,6 +121,17 @@ describe("fenêtre d'aperçu de l'import Illustrator", () => {
       "4 dessins seront posés dans 2 calques ; 1 dessin repris de la bibliothèque ; 1 fichier ajouté à la bibliothèque.",
     );
     expect(choiceText(choiceSummary(preview, new Set()))).toBe("Aucune image choisie.");
+  });
+  it("compte les images incorporées extraites", () => {
+    expect(compositionSummary({ ...report, placed: 6, drawings: 5, extracted: 6, embedded: 0, found: 251 })).toBe(
+      "6 dessins posés, dont 6 images incorporées extraites, sur 251 images, dans 2 calques ; 5 fichiers ajoutés à la bibliothèque (ECURIES-COMPOSITION).",
+    );
+    const withEmbedded: CompositionPreview = {
+      ...preview,
+      links: [...preview.links, link("Incorporée 01 - Fond.png", "embedded", 1)],
+      images: [...preview.images, image(0, 3)],
+    };
+    expect(choiceSummary(withEmbedded, defaultChoice(withEmbedded))).toEqual({ images: 5, added: 2, reused: 1, layers: 2, missing: 1 });
   });
   it("compte les dessins repris et les images laissées de côté", () => {
     expect(compositionSummary({ ...report, reused: 2, skipped: 45 })).toBe(

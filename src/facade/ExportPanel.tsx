@@ -18,6 +18,7 @@ import {
   type Project,
 } from "../engine";
 import { Button, Progress, Property, Section, useShortcuts } from "../ui";
+import { isIllustratorFile } from "../compose/IllustratorImport";
 import {
   ALL_SLIDES,
   exportButtonLabel,
@@ -39,9 +40,15 @@ interface Props {
   onProject: (project: Project) => void;
   showFresco: boolean;
   onShowFresco: (show: boolean) => void;
+  /**
+   * Un .ai : ses images deviennent des dessins dans les calques, après une
+   * fenêtre d'aperçu (demande de Benjamin, 13 novembre 2026). Rend ce
+   * qu'il faut montrer sous le bouton.
+   */
+  illustrator: { start: (path: string) => Promise<void>; busy: boolean; node: ReactNode };
 }
 
-export function useExportPanel({ engine, folder, project, onProject, showFresco, onShowFresco }: Props): {
+export function useExportPanel({ engine, folder, project, onProject, showFresco, onShowFresco, illustrator }: Props): {
   fresco: ReactNode;
   export: ReactNode;
 } {
@@ -94,6 +101,10 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
       if (!folder) return;
       const path = await chooseFrescoFile();
       if (!path) return;
+      if (isIllustratorFile(path)) {
+        await illustrator.start(path);
+        return;
+      }
       onProject(await importFresco(folder, path));
       onShowFresco(true);
     }, "fresco");
@@ -142,11 +153,11 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
           {fresco
             ? fileName(fresco.vector?.source ?? fresco.source)
             : engine
-              ? "Aucune fresque importée. Image, PDF, Illustrator (.ai) ou SVG."
+              ? "Aucune fresque importée. Un .ai : ses images deviennent des dessins dans les calques. Une image, un PDF ou un SVG : un fond de référence."
               : "Dans l'app seulement."}
         </p>
         <div className="facade-export-row">
-          <Button icon="import" onClick={() => void importOne()} disabled={!ready || !scaled}>
+          <Button icon="import" onClick={() => void importOne()} disabled={!ready || !scaled || illustrator.busy}>
             {fresco ? "Remplacer…" : "Importer la fresque…"}
           </Button>
           {fresco && (
@@ -160,6 +171,7 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
           <p className="ui-note tone-warning">Mettre d'abord le plan à l'échelle : la fresque couvre toute sa largeur.</p>
         )}
         {notes("fresco")}
+        {illustrator.node}
       </Section>
     ),
     export: (

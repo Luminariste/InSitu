@@ -18,8 +18,9 @@ export function compositionSummary(report: CompositionReport): string {
   const added = report.drawings - report.reused;
   const files = plural(added, "fichier ajouté", "fichiers ajoutés");
   const reused = report.reused > 0 ? `, ${plural(report.reused, "dessin repris", "dessins repris")} de la bibliothèque` : "";
-  const of = report.skipped > 0 ? `${report.found - report.skipped} choisies` : `${report.found} image${report.found > 1 ? "s" : ""} liée${report.found > 1 ? "s" : ""}`;
-  return `${posed} sur ${of}, dans ${layers} ; ${files} à la bibliothèque (${report.folder.replace(/^bibliotheque\//, "")})${reused}.`;
+  const extracted = report.extracted > 0 ? `, dont ${plural(report.extracted, "image incorporée extraite", "images incorporées extraites")},` : "";
+  const of = report.skipped > 0 ? `${report.found - report.skipped} choisies` : `${report.found} image${report.found > 1 ? "s" : ""}`;
+  return `${posed}${extracted} sur ${of}, dans ${layers} ; ${files} à la bibliothèque (${report.folder.replace(/^bibliotheque\//, "")})${reused}.`;
 }
 
 /** Ce qui manque, une ligne par cas ; vide si tout a été posé. */
@@ -34,7 +35,9 @@ export function compositionWarnings(report: CompositionReport): string[] {
     );
   }
   if (report.embedded > 0) {
-    lines.push(`${plural(report.embedded, "image incorporée", "images incorporées")} dans le .ai, non importée${report.embedded > 1 ? "s" : ""} : les lier dans Illustrator pour les retrouver.`);
+    lines.push(
+      `${plural(report.embedded, "image incorporée", "images incorporées")} dans le .ai non reprise${report.embedded > 1 ? "s" : ""} (hors de tout calque, ou format inconnu).`,
+    );
   }
   if (report.skewed > 0) {
     lines.push(`${plural(report.skewed, "image déformée", "images déformées")} en biais dans Illustrator, posée${report.skewed > 1 ? "s" : ""} sans le biais.`);
@@ -50,6 +53,7 @@ export const STATUS_LABEL: Record<LinkStatus, string> = {
   libraryByName: "Bibliothèque (même nom)",
   new: "Nouveau",
   missing: "Introuvable",
+  embedded: "Incorporée",
 };
 
 export const STATUS_HINT: Record<LinkStatus, string> = {
@@ -58,6 +62,7 @@ export const STATUS_HINT: Record<LinkStatus, string> = {
     "Le fichier lié n'est pas sur ce Mac, mais un dessin du même nom est dans la bibliothèque : il est repris.",
   new: "Retrouvé à côté du .ai : il entrera dans la bibliothèque.",
   missing: "Introuvable sur ce Mac et absent de la bibliothèque : ses images ne seront pas posées.",
+  embedded: "Image copiée dans le .ai lui-même : elle sera extraite en PNG (trait blanc sur noir) et entrera dans la bibliothèque.",
 };
 
 /** L'image `i` peut être importée : son fichier est sur ce Mac ou dans la bibliothèque. */
@@ -157,7 +162,7 @@ export function choiceSummary(preview: CompositionPreview, chosen: Set<number>):
   let reused = 0;
   for (const k of links) {
     const status = preview.links[k].status;
-    if (status === "new") added += 1;
+    if (status === "new" || status === "embedded") added += 1;
     else if (status !== "missing") reused += 1;
   }
   const missing = preview.images.filter((_, i) => !importable(preview, i)).length;

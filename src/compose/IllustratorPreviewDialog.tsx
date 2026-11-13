@@ -24,6 +24,8 @@ import {
 interface Props {
   preview: CompositionPreview;
   onImport: (images: number[]) => void;
+  /** Poser le .ai en un bloc, comme fond de référence, sans dessins. */
+  onBackground: () => void;
   onClose: () => void;
 }
 
@@ -45,7 +47,7 @@ function Check({ state, onChange, label, disabled }: { state: CheckState; onChan
 
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString("fr-FR")} ${n > 1 ? many : one}`;
 
-export function IllustratorPreviewDialog({ preview, onImport, onClose }: Props) {
+export function IllustratorPreviewDialog({ preview, onImport, onBackground, onClose }: Props) {
   const [chosen, setChosen] = useState<Set<number>>(() => defaultChoice(preview));
   const [open, setOpen] = useState<Set<number>>(() => new Set());
   const [hover, setHover] = useState<Set<number> | null>(null);
@@ -84,6 +86,9 @@ export function IllustratorPreviewDialog({ preview, onImport, onClose }: Props) 
       actions={
         <>
           <span className="compose-ai-summary">{choiceText(summary)}</span>
+          <Button onClick={onBackground} title="Le .ai en une seule image de fond, sous les dessins, sans créer de dessins">
+            Poser en fond seulement
+          </Button>
           <Button onClick={onClose}>Annuler</Button>
           <Button variant="primary" icon="import" disabled={summary.images === 0} onClick={() => onImport([...chosen].sort((a, b) => a - b))}>
             Importer
@@ -209,8 +214,8 @@ export function IllustratorPreviewDialog({ preview, onImport, onClose }: Props) 
           )}
           {preview.embedded > 0 && (
             <p className="ui-note">
-              {plural(preview.embedded, "image incorporée", "images incorporées")} dans le .ai : non importable
-              {preview.embedded > 1 ? "s" : ""}, à lier dans Illustrator.
+              {plural(preview.embedded, "image incorporée", "images incorporées")} non reprise
+              {preview.embedded > 1 ? "s" : ""} : hors de tout calque (réserve de motifs d'Illustrator) ou format inconnu.
             </p>
           )}
         </div>

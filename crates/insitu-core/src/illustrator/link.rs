@@ -61,7 +61,7 @@ pub fn resolve_link(ai: &Path, image: &PlacedImage) -> Option<PathBuf> {
 }
 
 /// Fichier temporaire d'Illustrator (`/var/folders/…`) : jamais retrouvé.
-fn is_temporary(path: &str) -> bool {
+pub(super) fn is_temporary(path: &str) -> bool {
     path.starts_with("/var/folders/") || path.starts_with("/private/var/folders/")
 }
 

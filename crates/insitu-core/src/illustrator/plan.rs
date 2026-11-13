@@ -16,8 +16,8 @@ use serde::Serialize;
 
 use super::link::{fold_name, resolve_link};
 use super::{
-    ai_stem, facade_frame, is_skewed, library_folder, link_key, pose, read, AiDocument,
-    IllustratorError, PlacedImage,
+    ai_stem, embedded_name, facade_frame, is_skewed, library_folder, link_key, pose, read,
+    AiDocument, IllustratorError, PlacedImage, EMBEDDED_FOLDER,
 };
 use crate::project::model::RectMm;
 use crate::project::{Drawing, PointMm, Project, ProjectDir};
@@ -35,6 +35,9 @@ pub enum LinkStatus {
     New,
     /// Introuvable : ses images ne sont pas posées.
     Missing,
+    /// Image incorporée dans le `.ai` : elle sera extraite en PNG et entrera
+    /// dans la bibliothèque (D-6.3-i).
+    Embedded,
 }
 
 /// Un fichier lié du `.ai` (plusieurs images peuvent le placer).
@@ -53,6 +56,10 @@ pub struct PreviewLink {
     pub drawing_name: Option<String>,
     /// Nombre d'images du `.ai` qui le placent.
     pub count: usize,
+    /// Pour une image incorporée : son rang dans
+    /// [`AiDocument::embedded_images`].
+    #[serde(skip)]
+    pub embedded: Option<usize>,
 }
 
 /// Un calque de premier niveau d'Illustrator, vu par l'aperçu.
@@ -237,6 +244,7 @@ pub fn plan_links(dir: &ProjectDir, project: &Project, ai: &Path, doc: &AiDocume
                     drawing: drawing.map(|d| d.id.clone()),
                     drawing_name: drawing.map(|d| d.name.clone()),
                     count: 0,
+                    embedded: None,
                 });
                 index.insert(key, links.len() - 1);
                 links.len() - 1
@@ -244,6 +252,42 @@ pub fn plan_links(dir: &ProjectDir, project: &Project, ai: &Path, doc: &AiDocume
         };
         links[k].count += 1;
         link_of_image.push(k);
+    }
+    // Les images incorporées : chacune son fichier extrait, repris s'il est
+    // déjà dans la bibliothèque à sa place.
+    let folder = library_folder(ai);
+    let mut extracted: Vec<(usize, usize)> = Vec::new();
+    for (j, e) in doc.embedded_images.iter().enumerate() {
+        // La même image incorporée deux fois : un seul fichier.
+        let twin = extracted.iter().find(|&&(o, _)| {
+            let other = &doc.embedded_images[o];
+            (other.width, other.height, other.kind) == (e.width, e.height, e.kind)
+                && other.pixels == e.pixels
+        });
+        if let Some(&(_, k)) = twin {
+            links[k].count += 1;
+            link_of_image.push(k);
+            continue;
+        }
+        extracted.push((j, links.len()));
+        let name = embedded_name(j, &e.layer);
+        let source = format!("{folder}/{EMBEDDED_FOLDER}/{name}");
+        let drawing = project.library.iter().find(|d| d.source.as_str() == source);
+        links.push(PreviewLink {
+            link: format!("{} × {} px, incorporée dans le .ai", e.width, e.height),
+            name,
+            status: if drawing.is_some() {
+                LinkStatus::Library
+            } else {
+                LinkStatus::Embedded
+            },
+            file: None,
+            drawing: drawing.map(|d| d.id.clone()),
+            drawing_name: drawing.map(|d| d.name.clone()),
+            count: 1,
+            embedded: Some(j),
+        });
+        link_of_image.push(links.len() - 1);
     }
     LinkPlan {
         links,
@@ -306,7 +350,7 @@ pub fn preview_composition(
         );
     }
     let images = doc
-        .placed
+        .all_images()
         .iter()
         .zip(&plan.link_of_image)
         .map(|(p, &link)| {
@@ -337,6 +381,6 @@ pub fn preview_composition(
         layers,
         links: plan.links,
         images,
-        embedded: doc.embedded,
+        embedded: doc.embedded - doc.embedded_images.len(),
     })
 }
