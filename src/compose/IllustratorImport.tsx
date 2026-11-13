@@ -1,15 +1,16 @@
-// Rubrique « Composition Illustrator » de l'onglet Calques de l'écran Façade
-// (tâche 6.3) : recrée sur la façade une composition faite dans Illustrator.
-// Le .ai est d'abord lu sans rien changer : une fenêtre montre le résultat,
-// calque par calque, et dit quels dessins sont déjà dans la bibliothèque ;
-// on y choisit ce qu'on importe (demande de Benjamin, 13 novembre 2026).
+// Import d'une composition Illustrator (tâche 6.3), lancé par le bouton
+// « Importer la fresque… » de l'onglet Plan quand le fichier choisi est un
+// .ai (demande de Benjamin, 13 novembre 2026 : un seul bouton d'import). Le
+// .ai est d'abord lu sans rien changer : une fenêtre montre le résultat,
+// calque par calque, dit quels dessins sont déjà dans la bibliothèque et
+// lesquels sont incorporés dans le .ai ; on y choisit ce qu'on importe.
 // Chaque image choisie devient un dessin posé, dans un calque du nom de
-// celui d'Illustrator.
+// celui d'Illustrator. « Poser en fond seulement » garde l'ancien import de
+// la fresque en un bloc (utile pour un .ai fait de tracés, sans images).
 
-import { useState } from "react";
-import { Button, Section } from "../ui";
+import { useState, type ReactNode } from "react";
 import {
-  chooseIllustratorFile,
+  importFresco,
   importIllustrator,
   previewIllustrator,
   type CompositionPreview,
@@ -19,17 +20,25 @@ import {
 import { compositionSummary, compositionWarnings } from "./illustratorLogic";
 import { IllustratorPreviewDialog } from "./IllustratorPreviewDialog";
 
-interface Props {
-  engine: boolean;
+interface Options {
   folder: string | null;
-  /** La façade est à l'échelle : le plan de travail en couvre toute la largeur. */
-  scaled: boolean;
   onProject: (project: Project) => void;
+  /** La fresque vient d'être posée en fond : la montrer. */
+  onFresco: () => void;
 }
 
 const message = (failure: unknown) => String(failure).replace(/^Error: /, "");
 
-export function IllustratorImport({ engine, folder, scaled, onProject }: Props) {
+/** Le fichier est un .ai : il passe par la fenêtre d'aperçu. */
+export const isIllustratorFile = (path: string) => /\.ai$/i.test(path);
+
+export function useIllustratorImport({ folder, onProject, onFresco }: Options): {
+  /** Lit le .ai et ouvre la fenêtre d'aperçu. */
+  start: (path: string) => Promise<void>;
+  busy: boolean;
+  /** Avancement, compte rendu et fenêtre, à poser sous le bouton. */
+  node: ReactNode;
+} {
   const [busy, setBusy] = useState<string | null>(null);
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [pending, setPending] = useState<{ path: string; preview: CompositionPreview } | null>(null);
@@ -37,32 +46,11 @@ export function IllustratorImport({ engine, folder, scaled, onProject }: Props) 
   const [warnings, setWarnings] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const choose = async () => {
-    if (!folder) return;
+  const run = async (label: string, task: () => Promise<void>) => {
+    setBusy(label);
     setError(null);
     try {
-      const path = await chooseIllustratorFile();
-      if (!path) return;
-      setBusy("Lecture du .ai…");
-      setSummary(null);
-      setWarnings([]);
-      setPending({ path, preview: await previewIllustrator(folder, path) });
-    } catch (failure) {
-      setError(message(failure));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const run = async (path: string, images: number[]) => {
-    if (!folder) return;
-    setPending(null);
-    setBusy("Import en cours");
-    try {
-      const { project, report } = await importIllustrator(folder, path, images, setProgress);
-      onProject(project);
-      setSummary(compositionSummary(report));
-      setWarnings(compositionWarnings(report));
+      await task();
     } catch (failure) {
       setError(message(failure));
     } finally {
@@ -71,18 +59,37 @@ export function IllustratorImport({ engine, folder, scaled, onProject }: Props) 
     }
   };
 
-  return (
-    <Section title="Composition Illustrator">
-      <p className="ui-note">
-        Recrée une composition faite dans Illustrator sur le plan : chaque image liée devient un dessin posé, dans un
-        calque du même nom. Une fenêtre montre le résultat avant l'import et laisse choisir les calques et les dessins.
-      </p>
-      <Button icon="import" onClick={() => void choose()} disabled={!engine || !folder || !scaled || busy !== null}>
-        Importer un fichier .ai…
-      </Button>
-      {engine && folder && !scaled && (
-        <p className="ui-note tone-warning">Mettre d'abord le plan à l'échelle (onglet Plan).</p>
-      )}
+  const start = (path: string) =>
+    run("Lecture du .ai…", async () => {
+      if (!folder) return;
+      setSummary(null);
+      setWarnings([]);
+      setPending({ path, preview: await previewIllustrator(folder, path) });
+    });
+
+  const importChosen = (path: string, images: number[]) => {
+    setPending(null);
+    return run("Import en cours", async () => {
+      if (!folder) return;
+      const { project, report } = await importIllustrator(folder, path, images, setProgress);
+      onProject(project);
+      setSummary(compositionSummary(report));
+      setWarnings(compositionWarnings(report));
+    });
+  };
+
+  const importAsBackground = (path: string) => {
+    setPending(null);
+    return run("Import de la fresque en fond…", async () => {
+      if (!folder) return;
+      onProject(await importFresco(folder, path));
+      onFresco();
+      setSummary("Le .ai est posé en fond de référence, sur toute la largeur de la façade.");
+    });
+  };
+
+  const node = (
+    <>
       {busy && (
         <p className="ui-note">
           {busy}
@@ -100,9 +107,11 @@ export function IllustratorImport({ engine, folder, scaled, onProject }: Props) 
         <IllustratorPreviewDialog
           preview={pending.preview}
           onClose={() => setPending(null)}
-          onImport={(images) => void run(pending.path, images)}
+          onImport={(images) => void importChosen(pending.path, images)}
+          onBackground={() => void importAsBackground(pending.path)}
         />
       )}
-    </Section>
+    </>
   );
+  return { start, busy: busy !== null, node };
 }

@@ -439,7 +439,8 @@
   background: var(--ui-success-soft);
 }
 
-.compose-ai-status.is-new {
+.compose-ai-status.is-new,
+.compose-ai-status.is-embedded {
   color: var(--ui-info);
   background: var(--ui-info-soft);
 }

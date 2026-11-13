@@ -57,21 +57,19 @@ fn sample_text(oiseau_link: &str) -> String {
 
 /// Un `.ai` d'essai : une page PDF dont les données Illustrator sont
 /// compressées (zlib ou zstd), coupées en deux morceaux.
-fn sample_ai(text: &str, zstd: bool) -> Vec<u8> {
+fn sample_ai(text: impl AsRef<[u8]>, zstd: bool) -> Vec<u8> {
+    let text = text.as_ref();
     use pdf_writer::{Name, Pdf, Rect, Ref};
     let compressed = if zstd {
         let mut v = b"%AI24_ZStandard_Data".to_vec();
         v.extend(ruzstd::encoding::compress_to_vec(
-            text.as_bytes(),
+            text,
             ruzstd::encoding::CompressionLevel::Fastest,
         ));
         v
     } else {
         let mut v = b"%AI12_CompressedData".to_vec();
-        v.extend(miniz_oxide::deflate::compress_to_vec_zlib(
-            text.as_bytes(),
-            6,
-        ));
+        v.extend(miniz_oxide::deflate::compress_to_vec_zlib(text, 6));
         v
     };
     let (first, second) = compressed.split_at(compressed.len() / 2);
@@ -256,7 +254,7 @@ fn a_composition_is_recreated_from_its_links() {
     let ai = work.join("Composition.ai");
     std::fs::write(
         &ai,
-        sample_ai(&sample_text("/Users/autre/Dessins/Oiseaux/merle.png"), true),
+        sample_ai(sample_text("/Users/autre/Dessins/Oiseaux/merle.png"), true),
     )
     .unwrap();
 
@@ -403,7 +401,7 @@ fn the_preview_links_to_the_library_and_the_import_follows_the_choice() {
     std::fs::write(
         &ai,
         sample_ai(
-            &sample_text("/Users/autre/Dessins/Oiseaux/merle.png"),
+            sample_text("/Users/autre/Dessins/Oiseaux/merle.png"),
             false,
         ),
     )
@@ -518,4 +516,137 @@ fn the_preview_links_to_the_library_and_the_import_follows_the_choice() {
         ),
         Err(IllustratorError::NothingPlaced(_))
     ));
+}
+
+/// Un bloc d'image incorporée : masque d'un bit (`mask`) ou CMJN sur 8 bits.
+fn embedded_block(matrix: &str, width: u32, height: u32, cmyk: bool, pixels: &[u8]) -> Vec<u8> {
+    let mut b = Vec::new();
+    b.extend_from_slice(b"%AI5_BeginRaster\r() 1 XG\r");
+    let (space, spec) = if cmyk {
+        ("/DeviceCMYK", "8 4 1 18 1 0")
+    } else {
+        ("/DeviceGray", "1 1 0 0 1 1")
+    };
+    b.extend_from_slice(format!("{space} XN\r[ {matrix} ] {width} {height} 0 Xh\r").as_bytes());
+    b.extend_from_slice(
+        format!("[ {matrix} ] 0 0 {width} {height} {width} {height} {spec} 4 4 0 0 XI\r")
+            .as_bytes(),
+    );
+    b.extend_from_slice(format!("%%BeginData: {}\rXI\n", pixels.len() + 3).as_bytes());
+    b.extend_from_slice(pixels);
+    b.extend_from_slice(b"\r%%EndData\rXH\r%AI5_EndRaster\rF\r");
+    b
+}
+
+/// Les images incorporées sont relues (masque d'un bit, CMJN), extraites en
+/// PNG trait blanc sur noir, posées à leur place et dans leur calque ; la
+/// même image incorporée deux fois ne donne qu'un fichier ; une image hors
+/// de tout calque est laissée de côté.
+#[test]
+fn embedded_images_are_extracted_and_placed() {
+    // Masque 10 × 3 : deux octets par ligne ; le trait (bits à 0) dessine
+    // une diagonale ; les pixels contiennent volontairement des \r et \n.
+    let mask: Vec<u8> = vec![
+        0b0111_1111,
+        0xff, //
+        0b1011_1111,
+        0x0d, //
+        0b1101_1111,
+        0x0a,
+    ];
+    let cmyk: Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 255]; // blanc, noir
+    let mut text = b"%!PS-Adobe-3.0 \r%AI3_Cropmarks: 0 -500 1000 0\r".to_vec();
+    // Hors calque (réserve de motifs) : ignorée.
+    text.extend(embedded_block("1 0 0 -1 -7000 7000", 2, 1, true, &cmyk));
+    text.extend_from_slice(b"%AI5_BeginLayer\r1 1 1 1 0 0 1 0 79 128 255 0 50 0 Lb\r(Fond) Ln\r");
+    text.extend(embedded_block("10 0 0 10 100 -100", 10, 3, false, &mask));
+    text.extend(embedded_block("10 0 0 10 500 -100", 10, 3, false, &mask));
+    text.extend(embedded_block("50 0 0 50 200 -300", 2, 1, true, &cmyk));
+    text.extend_from_slice(b"%AI5_EndLayer--\r");
+
+    let doc = parse(&text).unwrap();
+    assert_eq!(doc.embedded, 4);
+    assert_eq!(doc.embedded_images.len(), 3);
+    assert_eq!(doc.embedded_layers, [""]);
+    let gray = doc.embedded_images[0].to_gray();
+    assert_eq!(gray.dimensions(), (10, 3));
+    let row = |y: u32| (0..10).map(|x| gray.get_pixel(x, y)[0]).collect::<Vec<_>>();
+    assert_eq!(row(0), [255, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    assert_eq!(row(1)[..3], [0, 255, 0]);
+    // 0x0d = 0000 1101 : bits 8 et 9 de la ligne valent 0 et 0 → trait.
+    assert_eq!(row(1)[8..], [255, 255]);
+    let ink = doc.embedded_images[2].to_gray();
+    assert_eq!((ink.get_pixel(0, 0)[0], ink.get_pixel(1, 0)[0]), (255, 0));
+
+    let temp = TempDir::new("incorporees-illustrator");
+    let (dir, project) =
+        ProjectDir::create(temp.path().join("Essai.insitu"), Some("Essai")).unwrap();
+    dir.save(&project).unwrap();
+    let ai = temp.path().join("Composition.ai");
+    std::fs::write(&ai, sample_ai(&text, true)).unwrap();
+    let frame = RectMm {
+        x: 0.0,
+        y: 0.0,
+        width: 20_000.0,
+        height: 10_000.0,
+    };
+    let preview = preview_composition(&dir, &ai, Some(frame)).unwrap();
+    assert_eq!(preview.images.len(), 3);
+    assert_eq!(preview.embedded, 1);
+    // Les deux masques identiques partagent un fichier.
+    assert_eq!(preview.links.len(), 2);
+    assert_eq!(preview.links[0].status, LinkStatus::Embedded);
+    assert_eq!(preview.links[0].count, 2);
+    assert_eq!(preview.links[0].name, "Incorporée 01 - Fond.png");
+    // 10 px à 10 pt, 20 mm par point → 2 000 mm ; coin haut-gauche (100, 100) pt.
+    let first = &preview.images[0];
+    assert!((first.width - 2_000.0).abs() < 1e-6 && (first.height - 600.0).abs() < 1e-6);
+    assert!((first.center.x - 3_000.0).abs() < 1e-6);
+    assert!((first.center.y - 2_300.0).abs() < 1e-6);
+    assert_eq!(first.rotation, 0.0);
+    assert!(!first.mirrored);
+
+    let (project, report) = import_composition(
+        &dir,
+        &ai,
+        Some(frame),
+        None,
+        &ImportOptions::default(),
+        &|_| {},
+    )
+    .unwrap();
+    assert_eq!(report.placed, 3);
+    assert_eq!(report.extracted, 3);
+    assert_eq!(report.embedded, 1);
+    assert!(report.missing.is_empty());
+    let mut sources: Vec<_> = project.library.iter().map(|d| d.source.as_str()).collect();
+    sources.sort();
+    assert_eq!(
+        sources,
+        [
+            "bibliotheque/Composition/Incorporées/Incorporée 01 - Fond.png",
+            "bibliotheque/Composition/Incorporées/Incorporée 03 - Fond.png"
+        ]
+    );
+    let png = image::open(dir.resolve(&project.library[0].source))
+        .unwrap()
+        .to_luma8();
+    assert_eq!(png, gray);
+    assert_eq!(project.placements[0].drawing, project.placements[1].drawing);
+
+    // Un second aperçu les dit déjà dans la bibliothèque, et un second
+    // import ne les copie pas deux fois.
+    let again = preview_composition(&dir, &ai, Some(frame)).unwrap();
+    assert!(again.links.iter().all(|l| l.status == LinkStatus::Library));
+    let (project, report) = import_composition(
+        &dir,
+        &ai,
+        Some(frame),
+        None,
+        &ImportOptions::default(),
+        &|_| {},
+    )
+    .unwrap();
+    assert_eq!(report.reused, 2);
+    assert_eq!(project.library.len(), 2);
 }
