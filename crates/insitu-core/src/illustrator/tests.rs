@@ -400,10 +400,7 @@ fn the_preview_links_to_the_library_and_the_import_follows_the_choice() {
     let ai = work.join("Composition.ai");
     std::fs::write(
         &ai,
-        sample_ai(
-            sample_text("/Users/autre/Dessins/Oiseaux/merle.png"),
-            false,
-        ),
+        sample_ai(sample_text("/Users/autre/Dessins/Oiseaux/merle.png"), false),
     )
     .unwrap();
     let frame = RectMm {
