@@ -6,7 +6,7 @@ members = ["crates/insitu-core", "crates/insitu-cli", "src-tauri"]
 default-members = ["crates/insitu-core", "crates/insitu-cli"]
 
 [workspace.package]
-version = "0.1.46"
+version = "0.1.47"
 edition = "2021"
 license = "UNLICENSED"
 publish = false

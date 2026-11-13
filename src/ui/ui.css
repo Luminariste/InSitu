@@ -1081,6 +1081,10 @@ input[type="range"] {
   width: min(640px, calc(100vw - 32px));
 }
 
+.ui-dialog.is-large {
+  width: min(1040px, calc(100vw - 32px));
+}
+
 .ui-dialog h2 {
   margin-bottom: var(--ui-space-2);
   font-size: var(--ui-text-lg);

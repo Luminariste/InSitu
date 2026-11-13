@@ -13,7 +13,7 @@ use insitu_core::export::preview::{self as slide_preview, SlideView};
 use insitu_core::export::{self, ExportReport};
 use insitu_core::facade::{self, FacadeDisplay, SourceInfo};
 use insitu_core::geometry::Point;
-use insitu_core::illustrator::{self, CompositionReport};
+use insitu_core::illustrator::{self, CompositionPreview, CompositionReport};
 use insitu_core::library::silhouette::{self, DrawingSilhouette};
 use insitu_core::library::vectors::{self, VectorSummary, VectorizeReport};
 use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
@@ -350,11 +350,20 @@ fn library_import(
 
 /// Recrée la composition d'un fichier Illustrator (tâche 6.3) : liens dans la
 /// bibliothèque, images placées en dessins posés.
+/// Ce que l'import d'un fichier Illustrator ferait, sans rien écrire.
+#[tauri::command(async)]
+fn illustrator_preview(folder: String, path: String) -> Result<CompositionPreview, String> {
+    illustrator::preview_composition(&project_dir(&folder)?, Path::new(&path), None)
+        .map_err(|e| e.to_string())
+}
+
+/// `images` : les rangs des images choisies dans l'aperçu ; absent : toutes.
 #[tauri::command(async)]
 fn illustrator_import(
     app: AppHandle,
     folder: String,
     path: String,
+    images: Option<Vec<usize>>,
 ) -> Result<(Project, CompositionReport), String> {
     let options = ImportOptions {
         cache_root: Some(tile_cache_dir(&app)?),
@@ -364,6 +373,7 @@ fn illustrator_import(
         &project_dir(&folder)?,
         Path::new(&path),
         None,
+        images.as_deref(),
         &options,
         &|progress| {
             let _ = app.emit(LIBRARY_PROGRESS_EVENT, progress);
@@ -720,6 +730,7 @@ pub fn run() {
             registration_preview,
             library_import,
             illustrator_import,
+            illustrator_preview,
             library_list,
             library_remove,
             library_preview,

@@ -249,16 +249,34 @@ dessin :
    les liens sont retrouvés par leur dossier relatif, puis par leur nom.
 3. Écran Façade (plan à l'échelle), onglet **Calques**, rubrique
    **Composition Illustrator** : **Importer un fichier .ai…**.
-4. Chaque fichier lié entre dans la bibliothèque (dossier du nom du `.ai`),
-   chaque image placée devient un dessin posé, avec sa position, sa taille,
+4. Une fenêtre montre le résultat avant d'importer : à gauche, chaque image
+   à sa place sur la façade, de la couleur de son calque (pointillés rouges :
+   lien introuvable) ; à droite, les calques d'Illustrator, l'avant en haut,
+   et en les dépliant leurs fichiers, avec pour chacun **Bibliothèque**
+   (déjà là : le dessin est repris, avec ses retouches), **Bibliothèque
+   (même nom)** (fichier absent de ce Mac, mais un dessin du même nom est
+   dans la bibliothèque), **Nouveau** (il entrera dans la bibliothèque) ou
+   **Introuvable**. On coche ou décoche un calque entier ou un fichier ; le
+   survol d'une ligne éclaire ses images. La phrase du bas dit ce qui sera
+   fait ; **Importer** le fait.
+5. Chaque image choisie devient un dessin posé, avec sa position, sa taille,
    sa rotation et son retournement, dans un calque du nom de celui
-   d'Illustrator (masqué ou verrouillé comme dans Illustrator).
-5. Le compte rendu dit combien de dessins sont posés, et nomme les liens
+   d'Illustrator (masqué ou verrouillé comme dans Illustrator). Les fichiers
+   nouveaux entrent dans la bibliothèque (dossier du nom du `.ai`).
+6. Le compte rendu dit combien de dessins sont posés, combien sont repris
+   de la bibliothèque, et nomme les liens
    introuvables, les images incorporées (à lier dans Illustrator pour les
    retrouver) et les images déformées en biais (posées sans le biais).
 
 ⌘Z annule l'import en deux fois (dessins posés, puis bibliothèque). Les masques d'écrêtage, l'opacité et les tracés
 dessinés dans Illustrator ne sont pas repris : seules les images liées.
+
+À essayer sur le Mac (version 0.1.47) : dans le projet Trevarez.insitu, qui a
+déjà des dessins en bibliothèque, ouvrir ECURIES-COMPOSITION.ai : la fenêtre
+doit montrer les 8 calques et marquer « Bibliothèque » les dessins déjà
+importés ; décocher « SixiemePlan », importer, et vérifier que la
+bibliothèque n'a pas de doublons et que les dessins repris gardent leurs
+retouches.
 
 À essayer sur le Mac : importer ECURIES-COMPOSITION.ai depuis son dossier
 « Ecuries - Fresque » ; comparer à l'écran avec Illustrator (positions,
