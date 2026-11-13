@@ -10,7 +10,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { Assignment } from "../engine";
 import { cssColor, projectorColor } from "../facade/overview";
 import { formatLength, parseDistanceMm } from "../facade/scale";
-import { Button, ToolSeparator } from "../ui";
+import { Button, Segmented, ToolSeparator } from "../ui";
 import { layerOf } from "./layers";
 import { rectCenter, sharedDeformation, type Layer, type Placement, type Rect } from "./placement";
 import type { CompositionActions, ComposeDrawing } from "./useComposition";
@@ -28,7 +28,7 @@ interface Props {
   assignments: Map<string, Assignment>;
   /** Faux quand la composition est indisponible (pas de plan, pas d'échelle, dessins cachés). */
   enabled: boolean;
-  /** Les points de la déformation se tirent (sinon, déformation née d'un étirement : rien à dire). */
+  /** Mode 4 coins : les points de la déformation se tirent (D-4.2-s). */
   deforming: boolean;
 }
 
@@ -203,6 +203,16 @@ export function PlacementBar({ selected, frame, drawings, actions, layers, proje
         </Item>
       )}
       <SlideChoice selected={selected} actions={actions} projectors={projectors} assignments={assignments} />
+      <ToolSeparator />
+      <Segmented
+        label="Mode de la sélection"
+        value={deforming ? "corners" : "normal"}
+        onChange={actions.setMode}
+        options={[
+          { value: "normal", label: "Normal", title: "Cadre, poignées et rotation ; la déformation suit d'un bloc (Échap)" },
+          { value: "corners", label: "4 coins", title: "Tirer les coins du dessin, en perspective" },
+        ]}
+      />
       <ToolSeparator />
       <Item label="X" title="Centre, horizontalement">
         <Field

@@ -946,6 +946,29 @@ dessin seul sur un multiple de 5° (son angle final, pas l'écart), et fait
 tourner plusieurs dessins par pas de 5°. ⇧ en déplaçant garde les
 directions à 45°.
 
+**D-4.2-r. L'onglet Dessins descend jusqu'en bas de la fenêtre.** Retour de
+Benjamin (13 novembre 2026) : « menu Dessins : il ne va pas jusqu'en bas de
+la fenêtre ». La bibliothèque était limitée à 60 % de la hauteur de
+l'écran, avec sa propre barre de défilement. Elle occupe désormais tout le
+panneau, qui défile d'un bloc ; le champ de recherche reste collé en haut.
+
+**D-4.2-s. Deux modes pour un dessin choisi : « Normal » et « 4 coins ».**
+Demande de Benjamin (13 novembre 2026) : « sur un dessin, je dois avoir un
+mode normal et un mode 4 coins (qui active les 4 coins), mais quand je
+reviens en mode normal, je retrouve le rectangle de sélection ». Remplace la
+règle automatique de D-4.2-n et D-4.2-q (points montrés si la déformation
+n'était plus affine), qui ne laissait retrouver le cadre qu'en
+« Redressant ». Le mode se choisit dans la barre des réglages (« Normal » |
+« 4 coins »), ou par l'icône « 4 coins » de la barre d'outils, qui
+s'allume et rebascule. En mode Normal : cadre, poignées, poignée ronde ;
+la déformation est gardée et suit d'un bloc les déplacements, rotations
+et étirements. En mode 4 coins : seuls les points de la déformation, sans
+cadre ; un dessin sans déformation reçoit ses quatre coins au repos, un
+dessin déjà déformé garde la sienne. Choisir une grille passe en mode
+4 coins ; « Redresser » et Échap reviennent en mode Normal (Échap vide la
+sélection ensuite). Le mode vaut pour la sélection où on l'a choisi : une
+autre sélection commence en mode Normal.
+
 **D15-l. ⌘Z garde le zoom et l'endroit vus sur la façade.** Retour de
 Benjamin (13 novembre 2026) : « quand je fais pomme Z, le zoom change ».
 L'annulation relit le projet, et la relecture recadrait tout le plan. La

@@ -2,8 +2,12 @@
    rubriques ; le reste vient du système de design (src/ui/). */
 
 .compose-filter {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   width: 100%;
   margin-bottom: var(--ui-space-2);
+  box-shadow: 0 -8px 0 var(--ui-surface);
 }
 
 .compose-drawings {
@@ -13,10 +17,10 @@
   margin: 2px 0 var(--ui-space-2);
 }
 
-/* Bibliothèque classée par dossier (D-4.2-o) : une seule zone qui défile. */
+/* Bibliothèque classée par dossier (D-4.2-o) : elle descend jusqu'en bas
+   du panneau, qui défile ; le champ de recherche reste en haut (D-4.2-r). */
 .compose-library {
-  max-height: 60vh;
-  overflow-y: auto;
+  padding-bottom: var(--ui-space-2);
 }
 
 

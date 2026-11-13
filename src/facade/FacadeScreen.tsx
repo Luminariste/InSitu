@@ -575,6 +575,7 @@ export function FacadeScreen() {
         selected={composition.selected}
         actions={composition.actions}
         enabled={composing}
+        corners={composition.deforming}
       />
       <ToolSpacer />
       <MenuButton
