@@ -265,6 +265,14 @@ fn bad_options_are_refused() {
             min_area_px: f64::NAN,
             ..Default::default()
         },
+        VectorizeOptions {
+            smoothing_px: -1.0,
+            ..Default::default()
+        },
+        VectorizeOptions {
+            smoothing_px: 21.0,
+            ..Default::default()
+        },
     ];
     for options in bad {
         assert!(vectorize(&img, &options).is_err(), "{options:?}");
@@ -285,4 +293,71 @@ fn the_svg_draws_white_paths_on_black() {
     assert_eq!(num(-0.0001), "0");
     assert_eq!(num(2.5), "2.5");
     assert_eq!(num(3.0), "3");
+}
+
+/// Un disque au bord tremblé (± 1,5 px) : le lissage efface le tremblement
+/// sans rétrécir le disque, et il faut bien moins de morceaux pour le
+/// tracer (demande de Benjamin, D-5.2-g).
+#[test]
+fn smoothing_removes_wobble_and_reduces_pieces() {
+    let (cx, cy, r) = (100.0, 100.0, 60.0);
+    let img = image(200, 200, |x, y| {
+        let dx = x as f64 + 0.5 - cx;
+        let dy = y as f64 + 0.5 - cy;
+        let angle = dy.atan2(dx);
+        let edge = r + 1.5 * (angle * 40.0).sin();
+        if dx.hypot(dy) <= edge {
+            255
+        } else {
+            0
+        }
+    });
+    let plain = vectorize(&img, &VectorizeOptions::default()).unwrap();
+    let options = VectorizeOptions {
+        smoothing_px: 6.0,
+        tolerance_px: 1.0,
+        ..Default::default()
+    };
+    let smooth = vectorize(&img, &options).unwrap();
+    let pieces = |v: &Vectorization| v.stats.lines + v.stats.cubics;
+    assert_eq!(smooth.contours.len(), 1);
+    assert!(
+        pieces(&smooth) * 4 < pieces(&plain),
+        "lissé {} morceaux, brut {}",
+        pieces(&smooth),
+        pieces(&plain)
+    );
+    // Rayon moyen gardé (pas de rétrécissement) et tremblement effacé :
+    // chaque extrémité de morceau est à moins de 0,6 px du cercle moyen.
+    let ends: Vec<Point> = smooth.contours[0]
+        .segments
+        .iter()
+        .map(|s| s.end())
+        .collect();
+    let radii: Vec<f64> = ends.iter().map(|p| (p.x - cx).hypot(p.y - cy)).collect();
+    let mean = radii.iter().sum::<f64>() / radii.len() as f64;
+    assert!((mean - r).abs() < 0.5, "rayon moyen {mean}");
+    let worst = radii.iter().map(|q| (q - mean).abs()).fold(0.0, f64::max);
+    assert!(worst < 0.6, "écart au cercle {worst}");
+}
+
+#[test]
+fn smoothing_zero_changes_nothing() {
+    let img = image(30, 30, |x, y| {
+        if (5..25).contains(&x) && (8..20).contains(&y) {
+            255
+        } else {
+            0
+        }
+    });
+    let a = vectorize(&img, &VectorizeOptions::default()).unwrap();
+    let b = vectorize(
+        &img,
+        &VectorizeOptions {
+            smoothing_px: 0.0,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(a.contours, b.contours);
 }

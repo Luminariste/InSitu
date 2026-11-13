@@ -30,6 +30,8 @@ est ramenée à sa luminance ; la transparence compte comme du noir.
                    (70 par défaut).
   --min-area A     Ignore les taches et trous de moins de A pixels carrés
                    (0 par défaut : tout est gardé).
+  --smoothing P    Lisse les contours sur P pixels avant le tracé : efface le
+                   tremblement du trait (0 par défaut, 20 au plus).
   --threads N      Nombre de fils de calcul (tous les cœurs par défaut).
   --check          Mesure ensuite l'écart avec l'image (critère : moins d'un
                    demi-pixel), indépendamment de l'ajustement.
@@ -71,6 +73,7 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             "--tolerance" => options.tolerance_px = number("un nombre de pixels")?,
             "--corner" => options.corner_angle_deg = number("un angle en degrés")?,
             "--min-area" => options.min_area_px = number("une aire en pixels carrés")?,
+            "--smoothing" => options.smoothing_px = number("un nombre de pixels")?,
             "--threads" => options.threads = number("un nombre")?.max(0.0) as usize,
             "--check" => check = true,
             other if other.starts_with("--") => {
