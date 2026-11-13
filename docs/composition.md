@@ -245,7 +245,7 @@ dessin :
 ⌘Z annule l'import en deux fois (dessins posés, puis bibliothèque). Les masques d'écrêtage, l'opacité et les tracés
 dessinés dans Illustrator ne sont pas repris : seules les images liées.
 
-À essayer sur le Mac (version 0.1.42) : dans le projet Trevarez.insitu, qui a
+À essayer sur le Mac (version 0.1.43) : dans le projet Trevarez.insitu, qui a
 déjà des dessins en bibliothèque, ouvrir ECURIES-COMPOSITION.ai : la fenêtre
 doit montrer les 8 calques et marquer « Bibliothèque » les dessins déjà
 importés ; décocher « SixiemePlan », importer, et vérifier que la
