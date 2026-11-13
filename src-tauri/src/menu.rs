@@ -79,9 +79,8 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     // Apparence et démonstration de la visionneuse : l'ancien menu
     // Présentation de la fenêtre, passé ici (D15-s). L'interface reconnaît
     // ces identifiants (`src/App.tsx`, `APP_MENU`).
-    let plain = |id: &str, label: &str| {
-        MenuItemBuilder::with_id(format!("{PREFIX}{id}"), label).build(app)
-    };
+    let plain =
+        |id: &str, label: &str| MenuItemBuilder::with_id(format!("{PREFIX}{id}"), label).build(app);
     let appearance = SubmenuBuilder::new(app, "Apparence")
         .item(&plain("apparence:auto", "Automatique (comme macOS)")?)
         .item(&plain("apparence:dark", "Sombre")?)
