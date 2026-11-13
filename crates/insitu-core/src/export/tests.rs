@@ -614,7 +614,7 @@ fn drawings_add_to_the_fresco_and_outside_ones_are_ignored() {
         .count();
     assert!(brighter > 1_000, "{brighter}");
 
-    // Case « Fresque » décochée (D-3.5-n) : les dessins seuls, exactement
+    // Case « Fresque » décochée (D-3.5-o) : les dessins seuls, exactement
     // comme si le projet n'avait pas de fresque ; le réglage est gardé.
     let without = ExportSettings {
         fresco: false,
