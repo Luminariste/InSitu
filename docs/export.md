@@ -54,8 +54,16 @@ la façade. Un PNG par projecteur, prêt pour LightBurn.
    signalé, pas exporté. Les réglages sont gardés dans le projet.
 
 Depuis l'étape **Diapositive**, **Exporter cette diapositive…** (⌘E, en
-haut à droite) écrit le PNG de la diapositive affichée, avec les mêmes
-réglages (ceux de l'onglet Export de la Façade).
+haut à droite) ouvre une fenêtre avec les mêmes réglages que l'onglet
+Export de la Façade, puis écrit le PNG de la diapositive affichée. La case
+de la fresque y part cochée comme la case **Fresque** de l'aperçu : ce qui
+se voit est ce qui est gravé. Les réglages choisis deviennent ceux du
+projet.
+
+**Graver la fresque importée** (seulement si une fresque est importée) :
+décochée, la diapositive ne contient que les dessins posés, sans l'image
+de la fresque (D-3.5-n). Les dessins des calques masqués ne sont jamais
+gravés.
 
 Compter une quinzaine de secondes par diapositive à 1 400 dpi, un peu plus
 avec beaucoup de dessins posés.

@@ -603,6 +603,37 @@ fn drawings_add_to_the_fresco_and_outside_ones_are_ignored() {
         .count();
     assert!(brighter > 1_000, "{brighter}");
 
+    // Case « Fresque » décochée (D-3.5-n) : les dessins seuls, exactement
+    // comme si le projet n'avait pas de fresque ; le réglage est gardé.
+    let without = ExportSettings {
+        fresco: false,
+        ..s.clone()
+    };
+    let out_drawings = temp.path().join("export-dessins-seuls");
+    let report = export_slides(&dir, &out_drawings, &without, None, 0, &|_| {}).unwrap();
+    let drawings_only = to_gray(tiles::read_raster(&report.slides[0].path).unwrap());
+    assert!(!dir.load().unwrap().project.export.fresco);
+    let mut bare = dir.load().unwrap().project;
+    let kept_fresco = bare.fresco.take();
+    dir.save(&bare).unwrap();
+    let out_bare = temp.path().join("export-sans-fresque");
+    let report = export_slides(&dir, &out_bare, &s, None, 0, &|_| {}).unwrap();
+    let reference = to_gray(tiles::read_raster(&report.slides[0].path).unwrap());
+    assert_eq!(drawings_only.data, reference.data);
+    assert!(drawings_only.data != both.data);
+    // Sans dessin ni fresque gravée, l'erreur le dit.
+    bare = dir.load().unwrap().project;
+    bare.fresco = kept_fresco;
+    let placements = std::mem::take(&mut bare.placements);
+    dir.save(&bare).unwrap();
+    let nothing = export_slides(&dir, &out_bare, &without, None, 0, &|_| {});
+    assert!(
+        matches!(&nothing, Err(ExportError::Nothing(m)) if m.contains("Fresque")),
+        "{nothing:?}"
+    );
+    bare.placements = placements;
+    dir.save(&bare).unwrap();
+
     // Le dessin lointain, rapproché, est lu : son fichier manque.
     let mut project = dir.load().unwrap().project;
     project.placements[1].center = project.placements[0].center;

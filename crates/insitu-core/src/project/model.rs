@@ -1125,6 +1125,11 @@ pub struct ExportSettings {
     /// posés (tâche 5.3). La fresque importée en une image n'y est pas.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub svg: bool,
+    /// La fresque importée en une image (ou en PDF, SVG) est gravée avec
+    /// les dessins posés ; sinon, les dessins seuls (D-3.5-n). Oui par
+    /// défaut, comme avant.
+    #[serde(default = "yes", skip_serializing_if = "is_true")]
+    pub fresco: bool,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }
@@ -1139,6 +1144,7 @@ impl Default for ExportSettings {
             one_bit: false,
             threshold: units::DEFAULT_EXPORT_THRESHOLD,
             svg: false,
+            fresco: true,
             extra: ExtraFields::new(),
         }
     }
