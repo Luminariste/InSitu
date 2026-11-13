@@ -478,7 +478,12 @@ pub fn render_plan(
             Gray {
                 width: w,
                 height: h,
-                data: rgba.chunks_exact(4).map(luminance).collect(),
+                data: rgba
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .map(|p| luminance(p))
+                    .collect(),
             }
         }
         Source::Image(image) => {
