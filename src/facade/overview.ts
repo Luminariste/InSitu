@@ -40,6 +40,24 @@ export const DEFAULT_DISPLAY: OverviewDisplay = {
   hidden: new Set(),
 };
 
+/** Opacités proposées pour les photos des projecteurs (menu Affichage). */
+export const PHOTO_OPACITIES = [1, 0.8, 0.5, 0.25] as const;
+
+/** L'opacité proposée la plus proche de `opacity`, pour cocher le bon choix. */
+export function nearestOpacity(opacity: number): number {
+  return PHOTO_OPACITIES.reduce((best, o) => (Math.abs(o - opacity) < Math.abs(best - opacity) ? o : best), PHOTO_OPACITIES[0]);
+}
+
+/** Nombre de réglages de la vue des projecteurs changés par rapport à l'ouverture. */
+export function changedDisplay(display: OverviewDisplay): number {
+  return (
+    Number(display.photos !== DEFAULT_DISPLAY.photos) +
+    Number(display.footprints !== DEFAULT_DISPLAY.footprints) +
+    Number(display.overlaps !== DEFAULT_DISPLAY.overlaps) +
+    Number(nearestOpacity(display.photoOpacity) !== DEFAULT_DISPLAY.photoOpacity)
+  );
+}
+
 /** Un projecteur se montre s'il est recalé et pas masqué. */
 export function isShown(projector: ProjectorOverview, display: OverviewDisplay): boolean {
   return projector.footprint.length > 2 && !display.hidden.has(projector.projectorId);

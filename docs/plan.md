@@ -59,6 +59,7 @@ tableau à jour.
 | Onglet Dessins sur toute la hauteur, modes « Normal » et « 4 coins » (retours de Benjamin) | Version 0.1.54, **non validé** : essai sur Mac (`docs/composition.md`, point 7) ; vu dans le navigateur de la session (la liste finit au bas du panneau ; 4 coins, coin tiré, retour en Normal avec le cadre et la perspective gardée, Échap) ; décisions D-4.2-r et D-4.2-s |
 | Import Illustrator : images incorporées extraites, un seul bouton « Importer la fresque… » (demandes de Benjamin) | Version 0.1.58, **non validé** : essai sur Mac (`docs/composition.md`) ; prouvé par test : masque d'un bit et CMJN relus, PNG trait blanc sur noir, pose et calque, doublons réunis, image hors calque écartée ; lu sur ECURIES-COMPOSITION.ai (6 images, place vérifiée contre son rendu PDF) ; décisions D-6.3-i et j |
 | Points cliqués réglés aux flèches, ⇧ pour un pas plus grand (demande de Benjamin) | Version 0.1.60, **non validé** : essai sur Mac (`docs/composition.md`, point 9) ; vu dans le navigateur de la session (4 coins en Façade, décalage et point en Diapositive) ; Recalage, Assemblage, Redressement et Silhouette non essayés ; décision D15-p |
+| Retirer la fresque importée (demande de Benjamin) | Version 0.1.64, **non validé** : essai sur Mac (onglet Plan, rubrique Fresque, bouton « Retirer ») ; prouvé par test : fresque retirée du projet enregistré, fichier gardé dans fresque/, réimport possible ; décision D-3.5-n |
 | Toutes les autres | À faire |
 
 **Ce qui bloque la validation de la tâche 1.5.** Dans la version 0.1.1,

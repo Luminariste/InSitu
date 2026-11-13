@@ -4,6 +4,21 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-13 — Façade : tout l'affichage dans le menu Affichage (demande de Benjamin)
+
+Demande de Benjamin : « dans façade, il y a dans le menu de gauche
+afficher, tout devrait être dans le menu affichage ».
+
+**D15-q. Le panneau Projecteurs ne règle plus l'affichage.** La rubrique
+« Afficher » du panneau de gauche (photos, emprises, recouvrements,
+opacité des photos) disparaît : ces réglages sont dans le menu
+**Affichage** de la barre du haut, où photos, emprises et recouvrements
+étaient déjà. L'opacité devient un choix parmi 100, 80, 50 et 25 % (un
+menu n'a pas de curseur). La pastille du menu compte aussi ces réglages,
+et « Tout montrer » les remet à l'ouverture. Seules les cases devant
+chaque projecteur restent à gauche : elles disent quel projecteur on
+regarde, dans la liste même.
+
 ## 2026-11-13 — Points réglés aux flèches (demande de Benjamin)
 
 Demande de Benjamin : « décalage, 4 coins etc : quand on clique sur un
@@ -52,6 +67,13 @@ rendu en 8 192 px au plus grand côté de l'emprise (mémoire raisonnable) :
 pour une emprise de 4 m, un pixel du plan fait 0,5 mm sur la façade, assez
 pour juger un recalage. Il faut un plan mis à l'échelle ; un projecteur
 dont l'emprise tombe hors du plan est signalé, pas exporté.
+
+**D-3.5-n. La fresque se retire.** Demande de Benjamin (13 novembre 2026) :
+une fresque importée ne pouvait qu'être remplacée. Bouton **Retirer** à côté
+de **Remplacer…** (onglet Plan, rubrique Fresque), avec confirmation ;
+`remove_fresco`, `insitu fresco <projet> --remove`. Comme pour le plan
+(D15-h), ses fichiers restent dans `fresque/` : rien n'est effacé du disque,
+on peut la réimporter. Les dessins posés et leurs calques ne changent pas.
 
 ## 2026-11-13 — Fresque et plan dans la Diapositive (demande de Benjamin)
 

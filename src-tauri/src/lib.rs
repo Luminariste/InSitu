@@ -700,6 +700,12 @@ fn fresco_import(folder: String, path: String) -> Result<Project, String> {
     export::import_fresco(&project_dir(&folder)?, Path::new(&path), None).map_err(|e| e.to_string())
 }
 
+/// Retire la fresque du projet ; ses fichiers restent dans `fresque/`.
+#[tauri::command(async)]
+fn fresco_remove(folder: String) -> Result<Project, String> {
+    export::remove_fresco(&project_dir(&folder)?).map_err(|e| e.to_string())
+}
+
 /// Écrit un PNG par projecteur recalé dans `destination` : sa diapositive,
 /// ou son plan de contrôle (D-3.5-m).
 #[tauri::command(async)]
@@ -896,6 +902,7 @@ pub fn run() {
             library_set_silhouette,
             facade_overview,
             fresco_import,
+            fresco_remove,
             slides_export,
             slide_views,
             facade_simulation,

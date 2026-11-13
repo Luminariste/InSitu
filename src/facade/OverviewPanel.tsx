@@ -1,5 +1,6 @@
 // Panneau « Projecteurs » de l'écran Façade (tâche 3.3) : la liste des
-// projecteurs posés sur la façade, ce qu'on montre, et les recouvrements.
+// projecteurs posés sur la façade (cocher pour montrer ou cacher), et les
+// recouvrements. Photos, emprises et opacité sont dans le menu Affichage.
 
 import type { ReactNode } from "react";
 import type { FacadeOverview } from "../engine";
@@ -66,34 +67,6 @@ export function OverviewPanel({ overview, display, onDisplay, onReload, busy, ch
                 );
               })}
             </List>
-          </Section>
-          <Section title="Afficher">
-            <div className="facade-overview-show">
-              <label className="ui-check">
-                <input type="checkbox" checked={display.photos} onChange={(e) => onDisplay({ ...display, photos: e.target.checked })} />
-                Photos
-              </label>
-              <label className="ui-check">
-                <input type="checkbox" checked={display.footprints} onChange={(e) => onDisplay({ ...display, footprints: e.target.checked })} />
-                Emprises
-              </label>
-              <label className="ui-check">
-                <input type="checkbox" checked={display.overlaps} onChange={(e) => onDisplay({ ...display, overlaps: e.target.checked })} />
-                Recouvrements
-              </label>
-              <label className="facade-overview-opacity">
-                Opacité des photos
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={display.photoOpacity}
-                  disabled={!display.photos}
-                  onChange={(e) => onDisplay({ ...display, photoOpacity: Number(e.target.value) })}
-                />
-              </label>
-            </div>
           </Section>
           {overview.overlaps.length > 0 && (
             <Section title="Recouvrements">
