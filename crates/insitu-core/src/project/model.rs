@@ -864,6 +864,14 @@ pub struct VectorSettings {
     pub corner_angle_deg: f64,
     /// Taches et trous plus petits que cette aire (pixels carrés) ignorés.
     pub min_area_px: f64,
+    /// Lissage des contours avant l'ajustement, en pixels ; 0 : aucun
+    /// (D-5.2-g). Absent du fichier quand il vaut 0.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub smoothing_px: f64,
+}
+
+fn is_zero(v: &f64) -> bool {
+    *v == 0.0
 }
 
 impl Default for VectorSettings {
@@ -873,6 +881,7 @@ impl Default for VectorSettings {
             tolerance_px: 0.3,
             corner_angle_deg: 70.0,
             min_area_px: 0.0,
+            smoothing_px: 0.0,
         }
     }
 }

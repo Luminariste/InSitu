@@ -34,7 +34,7 @@ pub const USAGE: &str = r#"Usage :
   insitu library thumbnail <dessin> <sortie.png> [--size PX]
   insitu library vectors <projet.insitu> [<dessin>] --cache DOSSIER
          [--threshold N] [--tolerance PX] [--corner DEG] [--min-area PX2]
-         [--default]
+         [--smoothing PX] [--default]
   insitu library silhouette <projet.insitu> <dessin> --cache DOSSIER
          [--from CONTOURS.json | --none | --default] [--mask SORTIE.png]
   insitu library retouch <projet.insitu> <dessin>
@@ -147,7 +147,7 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             }
             "--none" => none = true,
             "--clear" => clear = true,
-            "--threshold" | "--tolerance" | "--corner" | "--min-area" => {
+            "--threshold" | "--tolerance" | "--corner" | "--min-area" | "--smoothing" => {
                 let value: f64 = rest
                     .next()
                     .and_then(|v| v.replace(',', ".").parse().ok())
@@ -162,6 +162,7 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                     }
                     "--tolerance" => s.tolerance_px = value,
                     "--corner" => s.corner_angle_deg = value,
+                    "--smoothing" => s.smoothing_px = value,
                     _ => s.min_area_px = value,
                 }
             }

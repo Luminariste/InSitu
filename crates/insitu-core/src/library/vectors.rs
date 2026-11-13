@@ -98,6 +98,7 @@ pub fn options(settings: &VectorSettings, threads: usize) -> VectorizeOptions {
         tolerance_px: settings.tolerance_px,
         corner_angle_deg: settings.corner_angle_deg,
         min_area_px: settings.min_area_px,
+        smoothing_px: settings.smoothing_px,
         threads,
     }
 }
@@ -129,6 +130,13 @@ pub fn vector_request_prefix(
         settings.corner_angle_deg,
         settings.min_area_px,
     );
+    // Le lissage n'entre dans la clé que s'il est réglé : les vecteurs déjà
+    // en cache sans lissage restent valables.
+    let identity = if settings.smoothing_px > 0.0 {
+        format!("{identity}|lissage{}", settings.smoothing_px)
+    } else {
+        identity
+    };
     Ok(format!(
         "{VECTOR_DIR}/{:016x}",
         tiles::fnv1a_64(identity.as_bytes())

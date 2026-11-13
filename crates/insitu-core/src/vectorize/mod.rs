@@ -7,7 +7,9 @@
 //!
 //! 1. **contours bruts** ([`contour`]) : la ligne de niveau du seuil, suivie
 //!    avec une précision inférieure au pixel grâce aux gris du bord du trait ;
-//! 2. **lissage** ([`fit`]) : chaque contour devient une suite de droites et
+//!    Un **lissage** facultatif ([`fit::smooth_closed`]) adoucit ensuite ces
+//!    contours (tremblement du trait, crénelage), sans les rétrécir ;
+//! 2. **ajustement** ([`fit`]) : chaque contour devient une suite de droites et
 //!    de cubiques de Bézier, à moins de la tolérance choisie des contours
 //!    bruts, avec des angles vifs là où le dessin en a.
 //!
@@ -52,6 +54,10 @@ pub struct VectorizeOptions {
     /// Les taches (ou les trous) plus petites que cette aire, en pixels
     /// carrés, sont ignorées. 0 : tout est gardé.
     pub min_area_px: f64,
+    /// Lissage des contours avant l'ajustement, en pixels (rayon de la
+    /// moyenne, demande de Benjamin, D-5.2-g) : efface le tremblement du
+    /// trait et le crénelage. 0 : aucun lissage.
+    pub smoothing_px: f64,
     /// Nombre de fils de calcul ; 0 : tous les cœurs.
     pub threads: usize,
 }
@@ -63,6 +69,7 @@ impl Default for VectorizeOptions {
             tolerance_px: 0.3,
             corner_angle_deg: 70.0,
             min_area_px: 0.0,
+            smoothing_px: 0.0,
             threads: 0,
         }
     }
@@ -75,6 +82,7 @@ pub enum VectorizeError {
     Tolerance(f64),
     CornerAngle(f64),
     MinArea(f64),
+    Smoothing(f64),
 }
 
 impl fmt::Display for VectorizeError {
@@ -92,6 +100,10 @@ impl fmt::Display for VectorizeError {
             VectorizeError::MinArea(a) => {
                 write!(f, "l'aire minimale doit être positive ou nulle (reçu {a})")
             }
+            VectorizeError::Smoothing(v) => write!(
+                f,
+                "le lissage doit être compris entre 0 et {MAX_SMOOTHING_PX} pixels (reçu {v})"
+            ),
         }
     }
 }
@@ -183,6 +195,9 @@ impl GrayImage {
     }
 }
 
+/// Lissage le plus fort accepté, en pixels.
+pub const MAX_SMOOTHING_PX: f64 = 20.0;
+
 /// Vérifie des réglages sans rien calculer.
 pub fn validate(options: &VectorizeOptions) -> Result<(), VectorizeError> {
     if options.threshold == 0 {
@@ -196,6 +211,9 @@ pub fn validate(options: &VectorizeOptions) -> Result<(), VectorizeError> {
     }
     if !(options.min_area_px >= 0.0 && options.min_area_px.is_finite()) {
         return Err(VectorizeError::MinArea(options.min_area_px));
+    }
+    if !(0.0..=MAX_SMOOTHING_PX).contains(&options.smoothing_px) {
+        return Err(VectorizeError::Smoothing(options.smoothing_px));
     }
     Ok(())
 }
@@ -223,7 +241,15 @@ pub fn vectorize(
         tolerance: options.tolerance_px,
         corner_cos: options.corner_angle_deg.to_radians().cos(),
     };
+    let smoothing = options.smoothing_px;
     let fitted = parallel_map(&raw, options.threads, |(points, area)| {
+        let smoothed;
+        let points = if smoothing > 0.0 {
+            smoothed = fit::smooth_closed(points, smoothing);
+            &smoothed
+        } else {
+            points
+        };
         let (start, segments, error) = fit::fit_closed(points, params);
         (
             Contour {

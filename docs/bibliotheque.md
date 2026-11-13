@@ -46,7 +46,7 @@ sur la façade à l'étape suivante (placement, tâche 4.2).
 - ⌘Z annule chaque rangement. Rien ne bouge sur le disque : dans le Finder,
   `bibliotheque/` garde le rangement de l'import (D-4.1-g).
 
-### Essai sur Mac (version 0.1.71)
+### Essai sur Mac (version 0.1.72)
 
 1. Ouvrir un projet avec une bibliothèque (Trévarez, par exemple), étape
    Bibliothèque.
@@ -79,8 +79,13 @@ Sous 0,5 px, le vecteur suit l'image.
   du dessin par pixel d'écran. À partir de 200 %, on voit les pixels du
   fichier ; le contour rouge doit longer le bord du trait ;
 - à droite, les réglages **du dessin** : seuil (plus bas, les gris pâles
-  entrent dans le trait), tolérance (plus grande, tracé plus lisse et plus
-  léger), angle des coins, aire minimale (retire les poussières).
+  entrent dans le trait), **lissage** (adoucit le bord du trait avant le
+  tracé : efface le tremblement de la main et les petites bosses ; 0 = le
+  trait tel quel), **réduction des points** (l'ancienne « tolérance » : plus
+  grande, moins de points et tracé plus simple, mais moins fidèle), angle
+  des coins, aire minimale (retire les poussières). Seuil, lissage et
+  réduction des points ont un curseur ; la ligne sous l'aperçu donne le
+  nombre de morceaux, pour voir l'effet.
   **Appliquer** refait les vecteurs et enregistre le réglage dans le projet ;
   **Réglages par défaut** revient au réglage commun ;
 - **Fermer** ou la touche Échap pour revenir à la bibliothèque.

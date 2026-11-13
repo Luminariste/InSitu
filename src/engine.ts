@@ -868,6 +868,8 @@ export interface VectorSettings {
   cornerAngleDeg: number;
   /** Taches et trous plus petits (pixels carrés) ignorés. */
   minAreaPx: number;
+  /** Lissage des contours avant le tracé, en pixels ; 0 ou absent : aucun (D-5.2-g). */
+  smoothingPx?: number;
 }
 
 /** Réglages par défaut, les mêmes que ceux du moteur. */
@@ -876,6 +878,7 @@ export const DEFAULT_VECTOR_SETTINGS: VectorSettings = {
   tolerancePx: 0.3,
   cornerAngleDeg: 70,
   minAreaPx: 0,
+  smoothingPx: 0,
 };
 
 /** Vecteurs d'un dessin, tels que le moteur les décrit (tâche 5.2). */
