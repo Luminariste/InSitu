@@ -619,6 +619,44 @@ rester un rectangle tourné (il serait cisaillé) : il reçoit une déformation
 l'interpolation de la grille suit une transformation affine. Prouvé par
 test sur un dessin tourné de 30°.
 
+**D-4.2-m. Tourner à la souris par une poignée ronde, curseurs visibles,
+miroir dans l'inspecteur.** Retours d'essai de Benjamin sur la 0.1.39
+(13 novembre 2026) : « il faut un outil pour faire la rotation de manière
+graphique », « la souris doit changer de curseur au niveau des poignées »,
+« ajouter miroir sur un dessin ». La rotation juste au-delà d'un coin
+(tâche 4.2, comme Illustrator) et les curseurs existaient, mais le curseur ne
+changeait jamais : la zone de la visionneuse imposait la main (`cursor: grab`
+dans `viewer.css`), qui l'emportait sur le curseur posé par l'écran. Sans
+curseur, la zone de rotation était introuvable. Choix :
+- le curseur passe par la variable CSS `--viewer-cursor` que la zone de la
+  visionneuse lit (`setViewerCursor`, `src/viewer/cursor.ts`) ; la main
+  reste le curseur par défaut ; l'écran Diapositive en profite aussi ;
+- une poignée ronde, au-dessus du milieu du côté haut du cadre (28 px
+  d'écran, reliée par un trait), tourne la sélection autour du centre du
+  cadre, ⇧ par pas de 45° ; la zone au-delà des coins est gardée pour les
+  habitués d'Illustrator ;
+- curseur de rotation dessiné en SVG (flèche courbe à deux pointes), tourné
+  vers la poignée saisie et qui suit l'angle pendant le geste ; le système
+  n'en a pas. Pendant le geste, l'angle s'affiche près du pointeur
+  (l'angle du dessin s'il est seul, l'angle tourné sinon) ;
+- le miroir existait en icônes dans la barre du haut (« Symétrie ») ; il est
+  ajouté en boutons avec texte dans l'onglet Dessins (« Gauche ↔ droite »,
+  « Haut ↕ bas »), et les bulles d'aide disent « Miroir ». Même calcul
+  qu'avant (`flip`), donc même export. Pas de raccourci clavier :
+  Illustrator n'en a pas par défaut.
+
+**D-4.2-n. Dessin déformé choisi : ses points seuls, sans le cadre.**
+Demande de Benjamin (13 novembre 2026) : « quand la fonction 4 coins est
+activée, ne pas afficher le rectangle de sélection, mais juste les 4
+coins ». Quand la sélection partage une déformation (quatre coins ou
+grille), le cadre, ses huit poignées et la poignée ronde ne s'affichent plus
+et ne se saisissent plus : on ne voit que les points bleus et le contour
+déformé. Le choix vaut aussi pour les grilles, par cohérence et parce que
+les poignées d'angle du cadre tombaient sur les points des coins. Glisser le
+dessin le déplace toujours ; pour tourner ou agrandir à la souris, il faut
+d'abord « Redresser » (barre du haut), ou passer par les quarts de tour, la
+case Rotation et la case Largeur.
+
 **Limite.** Les fichiers des dessins utilisés par une diapositive restent
 en mémoire pendant l'export (en niveaux de gris, un dessin de 4 096 px pèse
 16 Mo) ; à surveiller avec une très grande bibliothèque.

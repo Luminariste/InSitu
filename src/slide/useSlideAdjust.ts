@@ -12,7 +12,7 @@ import { nodeAt } from "../compose/gesture";
 import type { Placement, Point } from "../compose/placement";
 import { SelectionNode } from "../compose/SelectionNode";
 import { demoLibrary } from "../library/demo";
-import type { LayerSpec, ViewerHandle } from "../viewer";
+import { setViewerCursor, type LayerSpec, type ViewerHandle } from "../viewer";
 import { mmToScreen, screenToMm } from "../viewer/geometry";
 import {
   adjustedOutline,
@@ -213,7 +213,7 @@ export function useSlideAdjust(options: Options): SlideAdjust {
       const overNode =
         adjustment && nodeAt(nodePoints(adjustment).map(at.toScreen), at.screen) !== null ? "crosshair" : null;
       const overDrawing = drawingAt(drawings, adjustmentOf, at.mm) ? "move" : "";
-      if (stage.current) stage.current.style.cursor = overNode ?? overDrawing;
+      setViewerCursor(stage.current, overNode ?? overDrawing);
       return;
     }
     if (!current.moved && Math.hypot(event.clientX - current.down.x, event.clientY - current.down.y) < CLICK_PX) return;
