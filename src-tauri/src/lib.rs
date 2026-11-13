@@ -14,6 +14,7 @@ use insitu_core::export::{self, ExportReport};
 use insitu_core::facade::{self, Alignment, FacadeDisplay, PlanChoice, SourceInfo};
 use insitu_core::geometry::Point;
 use insitu_core::illustrator::{self, CompositionPreview, CompositionReport};
+use insitu_core::library::organize;
 use insitu_core::library::silhouette::{self, DrawingSilhouette};
 use insitu_core::library::vectors::{self, VectorSummary, VectorizeReport};
 use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
@@ -582,6 +583,36 @@ fn library_remove(folder: String, drawing: String) -> Result<(Project, usize), S
     library::remove_drawing(&project_dir(&folder)?, &drawing).map_err(|e| e.to_string())
 }
 
+/// Renomme un dessin de la bibliothèque ; le fichier garde son nom.
+#[tauri::command(async)]
+fn library_rename(folder: String, drawing: String, name: String) -> Result<Project, String> {
+    organize::rename_drawing(&project_dir(&folder)?, &drawing, &name).map_err(|e| e.to_string())
+}
+
+/// Range des dessins dans un dossier de la bibliothèque (vide : la racine).
+#[tauri::command(async)]
+fn library_move(folder: String, drawings: Vec<String>, target: String) -> Result<Project, String> {
+    organize::move_drawings(&project_dir(&folder)?, &drawings, &target).map_err(|e| e.to_string())
+}
+
+/// Crée un dossier vide dans la bibliothèque.
+#[tauri::command(async)]
+fn library_folder_create(folder: String, path: String) -> Result<Project, String> {
+    organize::create_folder(&project_dir(&folder)?, &path).map_err(|e| e.to_string())
+}
+
+/// Renomme un dossier de la bibliothèque, avec ses sous-dossiers et ses dessins.
+#[tauri::command(async)]
+fn library_folder_rename(folder: String, path: String, name: String) -> Result<Project, String> {
+    organize::rename_folder(&project_dir(&folder)?, &path, &name).map_err(|e| e.to_string())
+}
+
+/// Retire un dossier vide de la bibliothèque.
+#[tauri::command(async)]
+fn library_folder_remove(folder: String, path: String) -> Result<Project, String> {
+    organize::remove_folder(&project_dir(&folder)?, &path).map_err(|e| e.to_string())
+}
+
 /// L'aperçu (1 024 px, fond transparent) d'un dessin ; `original` : sans
 /// ses retouches à la gomme et au crayon (tâche 4.8).
 #[tauri::command(async)]
@@ -956,6 +987,11 @@ pub fn run() {
             illustrator_preview,
             library_list,
             library_remove,
+            library_rename,
+            library_move,
+            library_folder_create,
+            library_folder_rename,
+            library_folder_remove,
             library_preview,
             library_set_retouch,
             placements_set,

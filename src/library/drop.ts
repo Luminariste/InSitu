@@ -23,7 +23,9 @@ export function isDrawingName(path: string): boolean {
 
 /** Vrai si le glisser apporte des fichiers du Finder (et pas un dessin de la bibliothèque). */
 export function carriesFiles(types: readonly string[]): boolean {
-  return types.includes("Files");
+  // Un glisser interne (dessin vers la façade, vignettes vers un dossier)
+  // peut aussi annoncer « Files » dans la vue web : on l'ignore.
+  return types.includes("Files") && !types.some((t) => t.startsWith("application/x-insitu"));
 }
 
 /**

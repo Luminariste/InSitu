@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { countLabel, filterEntries, folderTree, formatSize, importSummary, matches, normalize } from "./logic";
+import {
+  childFolder,
+  countLabel,
+  draggedDrawings,
+  filterEntries,
+  folderTree,
+  formatSize,
+  importSummary,
+  matches,
+  moveSummary,
+  newFolderName,
+  normalize,
+  parentFolder,
+} from "./logic";
 
 const entry = (name: string, folder: string) => ({ name, folder });
 
@@ -64,5 +77,37 @@ describe("textes", () => {
     expect(
       importSummary({ folder: "bibliotheque/X", added: [], alreadyPresent: 0, failures: [{ file: "casse.png", reason: "?" }] }),
     ).toBe("Aucun nouveau dessin, 1 fichier illisible (casse.png).");
+  });
+});
+
+describe("ranger la bibliothèque", () => {
+  it("montre les dossiers créés à la main, même vides", () => {
+    const rows = folderTree([entry("a", "Oiseaux")], ["Oiseaux/Mer", "Poissons"]);
+    expect(rows.map((r) => [r.path, r.count, r.depth])).toEqual([
+      ["Oiseaux", 1, 0],
+      ["Oiseaux/Mer", 0, 1],
+      ["Poissons", 0, 0],
+    ]);
+  });
+
+  it("trouve un nom libre pour un nouveau dossier", () => {
+    expect(newFolderName(["Oiseaux"], null)).toBe("Nouveau dossier");
+    expect(newFolderName(["Nouveau dossier", "Nouveau dossier 2"], null)).toBe("Nouveau dossier 3");
+    expect(newFolderName(["Nouveau dossier"], "Oiseaux")).toBe("Nouveau dossier");
+    expect(childFolder("Oiseaux", "Mer")).toBe("Oiseaux/Mer");
+    expect(childFolder(null, "Mer")).toBe("Mer");
+    expect(parentFolder("Oiseaux/Mer")).toBe("Oiseaux");
+    expect(parentFolder("Oiseaux")).toBe("");
+  });
+
+  it("glisse toute la sélection, ou le seul dessin pris", () => {
+    const selection = new Set(["a", "b"]);
+    expect(draggedDrawings("a", selection).sort()).toEqual(["a", "b"]);
+    expect(draggedDrawings("c", selection)).toEqual(["c"]);
+  });
+
+  it("dit où les dessins sont rangés", () => {
+    expect(moveSummary(["merle"], "Oiseaux")).toBe("« merle » rangé dans « Oiseaux ».");
+    expect(moveSummary(["a", "b"], "")).toBe("2 dessins rangés hors de tout dossier.");
   });
 });

@@ -15,6 +15,7 @@ describe("dépôt depuis le Finder", () => {
   it("reconnaît un glisser du Finder", () => {
     expect(carriesFiles(["Files"])).toBe(true);
     expect(carriesFiles(["application/x-insitu-dessin", "text/plain"])).toBe(false);
+    expect(carriesFiles(["application/x-insitu-dessins", "Files"])).toBe(false);
   });
   it("écrit l'en-tête en ASCII, relu à l'identique", () => {
     const value = { depot: "abc-1", chemin: "Grands/héron été.tif" };
