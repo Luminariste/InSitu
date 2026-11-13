@@ -10,7 +10,7 @@ use insitu_core::library::vectors::{
     drawing_vectors, set_vector_settings, vectorize_drawings, VectorSummary,
 };
 use insitu_core::library::{
-    self, decode, encode_png, import_folder, rendition, ImportOptions, THUMBNAIL_SIDE,
+    self, decode, encode_png, import_folder, import_loose, rendition, ImportOptions, THUMBNAIL_SIDE,
 };
 use insitu_core::project::{ProjectDir, RetouchStroke, SilhouettePolygon, VectorSettings};
 
@@ -22,6 +22,7 @@ pub enum Problem {
 
 pub const USAGE: &str = r#"Usage :
   insitu library import <projet.insitu> <dossier> [--cache DOSSIER] [--threads N]
+  insitu library import-files <projet.insitu> <fichier>... [--cache DOSSIER]
   insitu library list <projet.insitu> [--cache DOSSIER]
   insitu library remove <projet.insitu> <dessin>
   insitu library thumbnail <dessin> <sortie.png> [--size PX]
@@ -42,6 +43,10 @@ PSD aplati, SVG).
              nouveaux dessins. Affiche le compte rendu en JSON (dessins
              ajoutés, déjà présents, fichiers illisibles) ; la durée est
              écrite sur la sortie d'erreur.
+  import-files
+             Copie des dessins choisis un à un sous bibliotheque/ (comme un
+             dépôt depuis le Finder dans l'app) ; les fichiers qui ne sont
+             pas des dessins sont ignorés. Compte rendu en JSON.
   list       Affiche la bibliothèque en JSON.
   remove     Retire un dessin (identifiant ou nom) de la bibliothèque, et ses
              placements sur la façade. Le fichier reste dans bibliotheque/.
@@ -179,6 +184,26 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                     eprintln!("Non vectorisé : {} : {}", failure.file, failure.reason);
                 }
             }
+            Ok(serde_json::to_string_pretty(&report).expect("sérialisable"))
+        }
+        ["import-files", folder, ref sources @ ..] if !sources.is_empty() => {
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let options = ImportOptions {
+                cache_root: cache,
+                threads,
+            };
+            let files: Vec<(PathBuf, String)> = sources
+                .iter()
+                .map(|source| {
+                    let path = PathBuf::from(source);
+                    let name = path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().into_owned())
+                        .unwrap_or_default();
+                    (path, name)
+                })
+                .collect();
+            let (_, report, _) = import_loose(&dir, &files, &options, &|_| {}).map_err(failed)?;
             Ok(serde_json::to_string_pretty(&report).expect("sérialisable"))
         }
         ["list", folder] => {

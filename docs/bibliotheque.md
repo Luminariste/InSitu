@@ -13,6 +13,13 @@ sur la façade à l'étape suivante (placement, tâche 4.2).
    `bibliotheque/<nom du dossier>/`. Une barre montre l'avancement ; à la
    fin, une phrase dit combien de dessins sont arrivés, combien étaient déjà
    là, et quels fichiers sont illisibles.
+   **Importer des dessins…** : choisir un ou plusieurs fichiers ; ils vont
+   dans `bibliotheque/`. On peut aussi **glisser depuis le Finder** des
+   fichiers ou des dossiers sur la fenêtre : un voile bleu dit « Déposer pour
+   importer » ; un dossier déposé garde son nom (D-4.1-f). Dans l'étape
+   Façade, les dessins lâchés sur le plan sont aussi posés à l'endroit du
+   lâcher ; lâchés ailleurs, ils entrent seulement dans la bibliothèque et
+   l'onglet Dessins s'ouvre.
 3. À gauche, les dossiers (avec le nombre de dessins) ; au milieu, les
    vignettes ; à droite, l'aperçu du dessin choisi et sa fiche (dossier,
    taille, fichier).

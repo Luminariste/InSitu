@@ -23,6 +23,8 @@ import {
   chooseProjectFolder,
   createProject,
   hasEngine,
+  importDroppedDrawings,
+  vectorizeDrawings,
   importFacade,
   removeFacade,
   rotateFacade,
@@ -78,6 +80,9 @@ import {
   withProjectExtension,
 } from "./scale";
 import { AssemblyScreen } from "../assembly/AssemblyScreen";
+import { ignoredNotice } from "../library/drop";
+import { importSummary } from "../library/logic";
+import { useFinderDrop } from "../library/useFinderDrop";
 import { recalledProject as recalled, rememberProject as remember } from "../project/current";
 import { ProjectMenu } from "../project/ProjectMenu";
 import {
@@ -85,6 +90,7 @@ import {
   Busy,
   Button,
   ConfirmDialog,
+  DropVeil,
   Dialog,
   Dot,
   EmptyState,
@@ -705,6 +711,29 @@ export function FacadeScreen() {
     setTab((current) => contextTab(previous, tabContext, current));
   }, [tabContext.hasPlan, tabContext.picking, tabContext.selection, busy]);
 
+  // Dessins glissés depuis le Finder (D-4.1-f) : ils entrent dans la
+  // bibliothèque ; lâchés sur la façade, ils y sont aussi posés, à l'endroit
+  // du lâcher ; lâchés ailleurs (onglet Dessins…), l'onglet Dessins les montre.
+  const dropping = useFinderDrop(engine && folder !== null && !assembling, (files, ignored, place) => {
+    if (files.length === 0) {
+      setError(ignoredNotice(Math.max(ignored, 1)));
+      return;
+    }
+    const onFacade = place.target instanceof Node && (stage.current?.contains(place.target) ?? false);
+    void run(files.length > 1 ? `Import de ${files.length} dessins…` : "Import du dessin…", async () => {
+      if (!folder) return;
+      const { project: updated, report, drawings } = await importDroppedDrawings(folder, files, () => {});
+      setProject(updated);
+      const entries = drawings
+        .map((id) => updated.library?.find((d) => d.id === id))
+        .filter((d): d is NonNullable<typeof d> => Boolean(d));
+      const placed = onFacade && composition.actions.placeNew(entries, place);
+      if (!placed) chooseTab("dessins");
+      setNotice([importSummary(report), placed ? "Posés sur la façade." : null, ignoredNotice(ignored)].filter(Boolean).join(" "));
+      if (report.added.length > 0) void vectorizeDrawings(folder, report.added, () => {}).catch(() => {});
+    });
+  });
+
   const inspector = (
     <TabbedPanel
       label="Propriétés de la façade"
@@ -1010,6 +1039,13 @@ export function FacadeScreen() {
           )
         )}
         {(busy ?? planGroups.busy) && <Busy>{busy ?? planGroups.busy}</Busy>}
+        {dropping && (
+          <DropVeil>
+            {composeBlocked === null && viewOptions.drawings
+              ? "Déposer pour ajouter à la bibliothèque et poser sur la façade"
+              : "Déposer pour ajouter à la bibliothèque"}
+          </DropVeil>
+        )}
       </div>
       {assembling && (
         <AssemblyScreen

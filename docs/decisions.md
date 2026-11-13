@@ -4,6 +4,40 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-13 — Dessins glissés depuis le Finder (demande de Benjamin)
+
+Demandes de Benjamin (13 novembre) : « pouvoir ajouter un dessin à la
+bibliothèque par glisser-déposer + fichier importer » ; « pouvoir ajouter un
+dessin depuis le Finder dans façade / dessin ».
+
+**D-4.1-f. Les dessins se déposent depuis le Finder, et s'importent un à
+un.** Bibliothèque : bouton **Importer des dessins…** (un ou plusieurs
+fichiers, rangés dans `bibliotheque/`), à côté d'« Importer un dossier… »
+(⌘I inchangé). Fichiers ou dossiers glissés depuis le Finder n'importe où sur
+la fenêtre, dans la Bibliothèque et la Façade : un voile bleu (`DropVeil`)
+dit ce que le lâcher fera ; un dossier déposé garde son nom
+(`bibliotheque/Oiseaux/…`), les fichiers cachés et ceux qui ne sont pas des
+dessins sont laissés de côté (et la phrase de compte rendu le dit). En
+Façade, lâchés sur le plan, les dessins sont aussi posés à l'endroit du
+lâcher, côte à côte s'ils sont plusieurs, sur le calque actif, à la taille
+d'un dessin glissé depuis l'onglet Dessins ; lâchés ailleurs (onglet
+Dessins…), ils entrent dans la bibliothèque et l'onglet Dessins s'ouvre. Un
+dessin déjà dans la bibliothèque à l'identique n'est pas recopié, mais il est
+quand même posé. Choix :
+- *La fenêtre ne capte toujours pas les glisser* (`dragDropEnabled: false`,
+  D-4.2-k, sinon le glisser d'un dessin sur la façade casse). La page
+  reçoit donc le dépôt comme un navigateur, sans le chemin des fichiers :
+  l'app en lit les octets et les envoie un à un au moteur
+  (`library_stage_dropped`, corps brut, nom en en-tête), qui les range dans
+  un dossier de dépôt du cache, puis les importe comme des fichiers choisis
+  (`library::import_loose`) et efface le dépôt. Les dossiers sont parcourus
+  par `webkitGetAsEntry`. Coût : le fichier est lu deux fois ; sans effet
+  pour des PNG de quelques mégaoctets, à revoir si Marc dépose des centaines
+  de gros TIFF.
+- Les glisser internes (dessin vers la façade, vignettes vers un dossier) ne
+  portent pas de fichiers : l'écoute du Finder les ignore.
+- Ligne de commande : `insitu library import-files <projet> <fichier>…`.
+
 ## 2026-11-13 — Réglages d'export depuis la Diapositive (demande de Benjamin)
 
 Demande de Benjamin : « dans diapositive > export : il y a la composition

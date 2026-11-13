@@ -466,6 +466,74 @@ fn library_import(
     .map_err(|e| e.to_string())
 }
 
+/// Importe des dessins choisis un à un, ou déposés depuis le Finder
+/// (D-4.1-f) : `files` donne pour chacun le fichier et son chemin dans la
+/// bibliothèque. `staging` : dossier de dépôt à effacer ensuite.
+#[tauri::command(async)]
+fn library_import_files(
+    app: AppHandle,
+    folder: String,
+    files: Vec<(String, String)>,
+    staging: Option<String>,
+) -> Result<(Project, ImportReport, Vec<String>), String> {
+    let options = ImportOptions {
+        cache_root: Some(tile_cache_dir(&app)?),
+        threads: 0,
+    };
+    let files: Vec<(PathBuf, String)> = files
+        .into_iter()
+        .map(|(path, inner)| (PathBuf::from(path), inner))
+        .collect();
+    let result = library::import_loose(&project_dir(&folder)?, &files, &options, &|progress| {
+        let _ = app.emit(LIBRARY_PROGRESS_EVENT, progress);
+    })
+    .map_err(|e| e.to_string());
+    if let Some(staging) = staging {
+        let _ = std::fs::remove_dir_all(staging);
+    }
+    result
+}
+
+/// Reçoit en octets un fichier déposé depuis le Finder (la vue web ne donne
+/// pas son chemin, D-4.1-f) et le range dans un dossier de dépôt du cache.
+/// En-tête `x-depot` : JSON `{ "depot": "...", "chemin": "Oiseaux/merle.png" }`.
+/// Rend `[fichier, chemin]`, ou rien si le fichier est ignoré (caché).
+#[tauri::command(async)]
+fn library_stage_dropped(
+    app: AppHandle,
+    request: tauri::ipc::Request<'_>,
+) -> Result<Option<(String, String, String)>, String> {
+    #[derive(serde::Deserialize)]
+    struct Header {
+        depot: String,
+        chemin: String,
+    }
+    let header = request
+        .headers()
+        .get("x-depot")
+        .and_then(|v| v.to_str().ok())
+        .ok_or("fichier déposé sans en-tête")?;
+    let header: Header = serde_json::from_str(header).map_err(|e| e.to_string())?;
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err("fichier déposé sans contenu".into());
+    };
+    let staging = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| e.to_string())?
+        .join("depot")
+        .join(library::clean_staging_id(&header.depot));
+    let staged =
+        library::stage_dropped_file(&staging, &header.chemin, bytes).map_err(|e| e.to_string())?;
+    Ok(staged.map(|(path, inner)| {
+        (
+            path.to_string_lossy().into_owned(),
+            inner,
+            staging.to_string_lossy().into_owned(),
+        )
+    }))
+}
+
 /// Recrée la composition d'un fichier Illustrator (tâche 6.3) : liens dans la
 /// bibliothèque, images placées en dessins posés.
 /// Ce que l'import d'un fichier Illustrator ferait, sans rien écrire.
@@ -882,6 +950,8 @@ pub fn run() {
             registration_preview,
             registration_adjust,
             library_import,
+            library_import_files,
+            library_stage_dropped,
             illustrator_import,
             illustrator_preview,
             library_list,

@@ -578,3 +578,73 @@ fn the_threshold_decides_whether_grey_strokes_are_kept() {
     assert_eq!(both.stats.contours, 2);
     assert!(both.comparison.max_deviation_px < 0.5);
 }
+
+/// Dessins déposés depuis le Finder ou choisis un à un (D-4.1-f) : rangés
+/// dans `bibliotheque/` sous leur nom ou leur chemin dans le dossier
+/// déposé ; noms rendus sûrs, fichiers cachés et formats inconnus écartés.
+#[test]
+fn loose_files_and_dropped_bytes_are_imported() {
+    let f = fixture();
+    let options = ImportOptions {
+        cache_root: Some(f.cache.clone()),
+        threads: 2,
+    };
+    let staging = f.cache.join("depot");
+    let merle = fs::read(f.source.join("merle.png")).unwrap();
+    let staged = stage_dropped_file(&staging, "Oiseaux/../Grands/merle.png", &merle)
+        .unwrap()
+        .expect("fichier rangé");
+    // « .. » est retiré, jamais suivi : on reste dans le dépôt.
+    assert_eq!(staged.1, "Oiseaux/Grands/merle.png");
+    assert!(staged.0.starts_with(&staging));
+    assert_eq!(
+        stage_dropped_file(&staging, "Oiseaux/.DS_Store", b"x").unwrap(),
+        None
+    );
+    assert_eq!(stage_dropped_file(&staging, "/../", b"x").unwrap(), None);
+
+    let files = vec![
+        staged,
+        (f.source.join("pie.bmp"), "pie.bmp".to_string()),
+        (f.source.join("notes.txt"), "notes.txt".to_string()),
+        (f.source.join("casse.png"), "casse.png".to_string()),
+    ];
+    let (project, report, drawings) =
+        import_loose(&f.dir, &files, &options, &|_| {}).expect("import");
+    assert_eq!(report.folder, "bibliotheque");
+    assert_eq!(report.added.len(), 2);
+    assert_eq!(report.failures.len(), 1);
+    let sources: Vec<&str> = project.library.iter().map(|d| d.source.as_str()).collect();
+    assert_eq!(
+        sources,
+        [
+            "bibliotheque/Oiseaux/Grands/merle.png",
+            "bibliotheque/pie.bmp"
+        ]
+    );
+    assert_eq!(project.library[0].name, "merle");
+    assert_eq!(drawings, report.added);
+
+    // Une seconde fois : rien de neuf.
+    let (_, again, drawings_again) =
+        import_loose(&f.dir, &files, &options, &|_| {}).expect("import");
+    assert_eq!(again.added.len(), 0);
+    assert_eq!(again.already_present, 2);
+    assert_eq!(drawings_again, drawings);
+
+    // Rien d'importable : refusé.
+    let none = vec![(f.source.join("notes.txt"), "notes.txt".to_string())];
+    assert!(matches!(
+        import_loose(&f.dir, &none, &options, &|_| {}),
+        Err(LibraryError::NoDrawings(_))
+    ));
+    // Un fichier du projet lui-même : refusé.
+    let inside = vec![(
+        f.dir.root().join("bibliotheque/pie.bmp"),
+        "pie.bmp".to_string(),
+    )];
+    assert!(matches!(
+        import_loose(&f.dir, &inside, &options, &|_| {}),
+        Err(LibraryError::InsideProject(_))
+    ));
+}

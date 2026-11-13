@@ -10,6 +10,7 @@ import {
   corners,
   distribute,
   dropped,
+  sideBySide,
   duplicate,
   expandToGroups,
   flip,
@@ -152,6 +153,24 @@ describe("dessins posés", () => {
     expect(d.x).toBeCloseTo(d.y);
     const p = dropped({ id: "merle", width: 2000, height: 1000 }, { x: 5, y: 6 }, 8000, () => "x");
     expect(p).toMatchObject({ id: "x", drawing: "merle", width: 2000, height: 1000, center: { x: 5, y: 6 } });
+  });
+
+  it("pose côte à côte des dessins déposés ensemble depuis le Finder", () => {
+    let n = 0;
+    const row = sideBySide(
+      [
+        { id: "merle", width: 2000, height: 1000 },
+        { id: "pie", width: 1000, height: 1000 },
+      ],
+      { x: 100, y: 50 },
+      8000,
+      () => `p${++n}`,
+    );
+    expect(row.map((p) => p.id)).toEqual(["p1", "p2"]);
+    expect(row[0]).toMatchObject({ drawing: "merle", width: 2000, height: 1000, center: { x: 100, y: 50 } });
+    // 1 000 (demi-merle) + 200 (écart) + 1 000 (demi-pie, 2 000 de large) après le centre du merle.
+    expect(row[1]).toMatchObject({ drawing: "pie", width: 2000, height: 2000, center: { x: 2300, y: 50 } });
+    expect(sideBySide([], { x: 0, y: 0 }, 8000)).toEqual([]);
   });
 
   it("choisit la diapositive à la main, et une copie revient à la proposition (tâche 4.5)", () => {

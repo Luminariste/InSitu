@@ -550,6 +550,107 @@ pub fn import_files(
     Ok((project, ids))
 }
 
+/// Importe des dessins choisis un à un ou déposés depuis le Finder
+/// (demande de Benjamin, D-4.1-f) : chaque fichier va dans
+/// `bibliotheque/<inner>`, `inner` étant son nom, ou son chemin dans le
+/// dossier déposé (`Oiseaux/merle.png`). Mêmes règles que l'import d'un
+/// dossier : un dessin déjà là à l'identique n'est pas ajouté deux fois,
+/// un fichier illisible est signalé sans arrêter les autres. Rend aussi
+/// les dessins de tous les fichiers lus, ajoutés ou déjà là (pour les poser
+/// sur la façade quand on les y a déposés).
+pub fn import_loose(
+    dir: &ProjectDir,
+    files: &[(PathBuf, String)],
+    options: &ImportOptions,
+    progress: &(dyn Fn(ImportProgress) + Sync),
+) -> Result<(Project, ImportReport, Vec<String>), LibraryError> {
+    let root = fs::canonicalize(dir.root()).map_err(|e| unreadable(dir.root(), e))?;
+    let mut found = Vec::new();
+    for (path, inner) in files {
+        if let Ok(canonical) = fs::canonicalize(path) {
+            if canonical.starts_with(&root) {
+                return Err(LibraryError::InsideProject(path.clone()));
+            }
+        }
+        let Some(inner) = clean_inner(inner) else {
+            continue;
+        };
+        if DrawingFormat::of(Path::new(&inner)).is_some() {
+            found.push(Found {
+                path: path.clone(),
+                inner,
+            });
+        }
+    }
+    if found.is_empty() {
+        let shown = files
+            .first()
+            .map_or_else(|| PathBuf::from("?"), |(path, _)| path.clone());
+        return Err(LibraryError::NoDrawings(shown));
+    }
+    found.sort_by(|a, b| a.inner.cmp(&b.inner));
+    let (project, report, ids) = import_found(
+        dir,
+        AssetKind::Drawing.directory(),
+        &found,
+        options,
+        progress,
+    )?;
+    let drawings = ids.into_iter().filter_map(Result::ok).collect();
+    Ok((project, report, drawings))
+}
+
+/// Chemin d'un fichier déposé, rendu sûr : morceaux vides, `.` et `..`
+/// retirés, fichiers cachés (`.DS_Store`, `._…`) écartés, caractères
+/// refusés remplacés (comme [`clean_segment`]). `None` s'il ne reste rien.
+fn clean_inner(inner: &str) -> Option<String> {
+    let parts: Vec<&str> = inner
+        .split(['/', '\\'])
+        .filter(|part| !part.is_empty() && *part != "." && *part != "..")
+        .collect();
+    if parts.iter().any(|part| part.starts_with('.')) {
+        return None;
+    }
+    let cleaned: Vec<String> = parts.into_iter().map(clean_segment).collect();
+    (!cleaned.is_empty()).then(|| cleaned.join("/"))
+}
+
+/// Nom sûr pour un dossier de dépôt choisi par l'interface : lettres,
+/// chiffres et tirets seulement (jamais `..` ni `/`).
+pub fn clean_staging_id(id: &str) -> String {
+    let cleaned: String = id
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-')
+        .take(64)
+        .collect();
+    if cleaned.is_empty() {
+        "depot".to_string()
+    } else {
+        cleaned
+    }
+}
+
+/// Range dans `staging` un fichier déposé depuis le Finder, reçu en octets
+/// par la fenêtre (la vue web ne donne pas son chemin, D-4.1-f), sous son
+/// chemin `inner` rendu sûr. Rend le fichier écrit, à passer ensuite à
+/// [`import_loose`] avec le même `inner`. `None` : fichier caché ou nom vide,
+/// ignoré.
+pub fn stage_dropped_file(
+    staging: &Path,
+    inner: &str,
+    bytes: &[u8],
+) -> Result<Option<(PathBuf, String)>, LibraryError> {
+    let Some(inner) = clean_inner(inner) else {
+        return Ok(None);
+    };
+    let path = staging.join(&inner);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| unreadable(parent, e))?;
+    }
+    fs::write(&path, bytes).map_err(|e| unreadable(&path, e))?;
+    Ok(Some((path, inner)))
+}
+
 /// Le travail commun aux imports : lecture, copie et vignette de chaque
 /// fichier en parallèle, puis enregistrement. Rend aussi, pour chaque
 /// fichier, l'identifiant de son dessin ou la raison de l'échec.

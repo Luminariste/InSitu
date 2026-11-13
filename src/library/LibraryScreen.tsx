@@ -17,6 +17,9 @@ import {
   fetchSilhouettes,
   hasEngine,
   importDrawingFolder,
+  importDrawingFiles,
+  importDroppedDrawings,
+  chooseDrawingFiles,
   openProject,
   removeDrawing,
   saveRetouch,
@@ -25,6 +28,7 @@ import {
   vectorizeDrawings,
   type DrawingSilhouette,
   type ImportProgress,
+  type ImportReport,
   type LibraryEntry,
   type Project,
   type RetouchStroke,
@@ -36,6 +40,8 @@ import { recalledProject } from "../project/current";
 import { countLabel, filterEntries, folderTree, formatSize, importSummary, progressLabel } from "./logic";
 import { demoLibrary, demoSilhouette, demoVectors } from "./demo";
 import { BACKDROPS, readBackdrop, saveBackdrop, type Backdrop } from "./backdrop";
+import { ignoredNotice } from "./drop";
+import { useFinderDrop } from "./useFinderDrop";
 import { RetouchEditor } from "./RetouchEditor";
 import { retouchLine } from "./retouchLogic";
 import { SilhouetteEditor } from "./SilhouetteEditor";
@@ -46,6 +52,7 @@ import { ProjectMenu } from "../project/ProjectMenu";
 import {
   Banner,
   Busy,
+  DropVeil,
   Button,
   ConfirmDialog,
   EmptyState,
@@ -152,23 +159,30 @@ export function LibraryScreen() {
     setEntries(demoLibrary(200));
   }, [engine, load]);
 
-  const importFolder = () =>
+  // Un import de la bibliothèque : dossier, fichiers choisis, ou dépôt du
+  // Finder (D-4.1-f). `start` demande ce qu'il faut importer et rend
+  // l'import à lancer, ou rien si l'utilisateur renonce.
+  const importWith = (
+    start: () => Promise<((folder: string) => Promise<{ project: Project; report: ImportReport }>) | null>,
+    notice: string | null = null,
+  ) =>
     run(null, async () => {
       if (!folder) return;
-      const source = await chooseDrawingFolder();
-      if (!source) return;
+      const job = await start();
+      if (!job) return;
       setMessage(null);
       setProgress({ done: 0, total: 0 });
       let added: string[] = [];
       try {
-        const { project: updated, report } = await importDrawingFolder(folder, source, setProgress);
+        const { project: updated, report } = await job(folder);
         setProject(updated);
         showEntries(await fetchLibrary(folder));
-        setMessage(importSummary(report));
+        setMessage([importSummary(report), notice].filter(Boolean).join(" "));
         const imported = report.folder.replace(/^bibliotheque\/?/, "");
         if (report.added.length > 0) {
           setCurrentFolder(imported || null);
           setQuery("");
+          if (report.added.length === 1) setSelected(report.added[0]);
         }
         added = report.added;
       } finally {
@@ -188,6 +202,27 @@ export function LibraryScreen() {
           .finally(() => setVectorProgress(null));
       }
     });
+
+  const importFolder = () =>
+    importWith(async () => {
+      const source = await chooseDrawingFolder();
+      return source ? (f) => importDrawingFolder(f, source, setProgress) : null;
+    });
+
+  const importFiles = () =>
+    importWith(async () => {
+      const paths = await chooseDrawingFiles();
+      return paths.length > 0 ? (f) => importDrawingFiles(f, paths, setProgress) : null;
+    });
+
+  // Dessins glissés depuis le Finder n'importe où sur l'écran.
+  const dropping = useFinderDrop(engine && !!folder, (files, ignored) => {
+    if (files.length === 0) {
+      setError(ignoredNotice(Math.max(ignored, 1)));
+      return;
+    }
+    void importWith(async () => (f) => importDroppedDrawings(f, files, setProgress), ignoredNotice(ignored));
+  });
 
   // --- Filtres et sélection -------------------------------------------------
 
@@ -420,7 +455,15 @@ export function LibraryScreen() {
         onError={setError}
       />
       <ToolSeparator />
-      <Button icon="import" shortcut="mod+i" title="Copier un dossier de dessins dans le projet" onClick={() => void importFolder()} disabled={!engine || !folder || !ready}>
+      <Button
+        icon="import"
+        title="Copier un ou plusieurs dessins dans le projet (ou les glisser depuis le Finder sur la fenêtre)"
+        onClick={() => void importFiles()}
+        disabled={!engine || !folder || !ready}
+      >
+        Importer des dessins…
+      </Button>
+      <Button icon="folder" shortcut="mod+i" title="Copier un dossier de dessins, et ses sous-dossiers, dans le projet" onClick={() => void importFolder()} disabled={!engine || !folder || !ready}>
         Importer un dossier…
       </Button>
       <input
@@ -604,15 +647,24 @@ export function LibraryScreen() {
           icon="image"
           title="La bibliothèque est vide"
           actions={
-            <Button variant="primary" icon="import" onClick={() => void importFolder()} disabled={!ready}>
-              Importer un dossier…
-            </Button>
+            <>
+              <Button variant="primary" icon="import" onClick={() => void importFiles()} disabled={!ready}>
+                Importer des dessins…
+              </Button>
+              <Button icon="folder" onClick={() => void importFolder()} disabled={!ready}>
+                Importer un dossier…
+              </Button>
+            </>
           }
         >
-          <p>Les dessins d'un dossier (et de ses sous-dossiers) sont copiés dans le projet. PNG, BMP, TIFF, PSD aplati, SVG.</p>
+          <p>
+            Les dessins sont copiés dans le projet (un dossier avec ses sous-dossiers). PNG, BMP, TIFF, PSD aplati, SVG. On peut
+            aussi les glisser depuis le Finder sur cette fenêtre.
+          </p>
         </EmptyState>
       )}
       {busy && <Busy>{busy}</Busy>}
+      {dropping && <DropVeil>Déposer pour importer dans la bibliothèque</DropVeil>}
       {removingEntry && (
         <ConfirmDialog
           title={`Retirer « ${removingEntry.name} » de la bibliothèque ?`}
