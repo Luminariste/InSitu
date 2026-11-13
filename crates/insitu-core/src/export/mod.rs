@@ -22,6 +22,7 @@
 pub mod drawings;
 pub mod fresco;
 pub mod marks;
+pub mod plan_view;
 pub mod preview;
 pub mod svg;
 #[cfg(test)]

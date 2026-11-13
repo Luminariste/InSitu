@@ -131,6 +131,31 @@ export function drawingsLayer(url: string | null, visible: boolean, opacity: num
   ];
 }
 
+/**
+ * Le plan de la façade vu par le projecteur (D-3.6-e), sous les dessins : un
+ * gris discret, plus foncé sur fond blanc, pour se repérer sans le confondre
+ * avec ce qui sera gravé.
+ */
+export function planLayer(url: string | null, visible: boolean, backdrop: SlideBackdrop): LayerSpec[] {
+  if (!url) return [];
+  return [
+    {
+      id: "plan-diapositive",
+      kind: "mesh-image",
+      url,
+      divisions: 1,
+      points: SLIDE_SQUARE,
+      opacity: 0.75,
+      visible,
+      tint: backdrop === "blanc" ? PLAN_ON_WHITE : PLAN_ON_DARK,
+    },
+  ];
+}
+
+/** Couleur du plan sur fond noir, pierre ou photo ; et sur fond blanc. */
+export const PLAN_ON_DARK = 0x8c9aa8;
+export const PLAN_ON_WHITE = 0x5a6470;
+
 /** Projecteur suivant (`step` = 1) ou précédent (-1), en boucle. */
 export function nextProjector(views: SlideView[], current: string | null, step: number): string | null {
   if (views.length === 0) return null;

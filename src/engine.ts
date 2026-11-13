@@ -1134,6 +1134,8 @@ export interface SlideView {
   /** Aperçu de la diapositive calculée, dans le cache de l'app. */
   preview: string | null;
   problem: string | null;
+  /** Plan de la façade vu par ce projecteur, dans le cache de l'app, s'il est demandé (D-3.6-e). */
+  plan: string | null;
   /** Dessins posés que porte cette diapositive, avant leur retouche (tâche 4.6). */
   drawings: SlideDrawing[];
   /** Dessins de cette diapositive qui en dépassent : la part perdue est en rouge sur la façade (D-4.5-h). */
@@ -1160,10 +1162,16 @@ export async function saveAdjustment(
   return invoke<Project>("placement_adjust", { folder, placement, adjustment });
 }
 
-/** Photo redressée et diapositive calculée de chaque projecteur. */
-export async function fetchSlideViews(folder: string): Promise<SlideView[]> {
+/** Ce que montre la vue diapositive en plus des dessins posés (D-3.6-d, D-3.6-e). */
+export interface SlideContent {
+  fresco: boolean;
+  plan: boolean;
+}
+
+/** Photo redressée et diapositive calculée de chaque projecteur ; avec ou sans fresque, avec ou sans plan. */
+export async function fetchSlideViews(folder: string, content: SlideContent = { fresco: true, plan: false }): Promise<SlideView[]> {
   requireEngine();
-  return invoke<SlideView[]>("slide_views", { folder });
+  return invoke<SlideView[]>("slide_views", { folder, fresco: content.fresco, plan: content.plan });
 }
 
 // --- Simulation et alertes (tâche 6.1) ------------------------------------------
