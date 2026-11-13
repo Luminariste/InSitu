@@ -1910,6 +1910,13 @@ dans un quadrilatère » (groupés, alignés…).
   `docs/etudes/recalage-automatique.md`. Choix de Benjamin (carte de décision,
   13 novembre 2026, parmi retirer, garder en petit coup de pouce ou
   continuer à chercher) : **le retirer pour l'instant**.
+- Correctif 0.1.62 : avec des points sûrs (5 paires ou plus), une photo
+  posée loin de l'origine de la façade (vers 35 m) était refusée, « la
+  transformation écrase le plan sur une ligne ». Le contrôle d'inversibilité
+  du trapèze comparait le déterminant au plus grand coefficient au cube,
+  qui grandit avec le décalage d'origine ; il le compare désormais au
+  produit des normes des colonnes (borne de Hadamard), indépendant de
+  l'échelle et de l'origine.
 
 ## 2026-11-12 — Tâche 2.5
 

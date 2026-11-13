@@ -177,8 +177,14 @@ impl Homography {
     pub fn inverse(&self) -> Result<Self, GeometryError> {
         let m = &self.m;
         let det = determinant(m);
-        let biggest = max_abs(m);
-        if !det.is_finite() || det.abs() <= 1e-12 * biggest * biggest * biggest {
+        // Seuil relatif au produit des normes des colonnes (borne de
+        // Hadamard) : il ne dépend ni de l'échelle de chaque axe ni du
+        // décalage d'origine. L'ancien seuil (plus grand coefficient au
+        // cube) refusait une pose façade → diapositive loin de l'origine de
+        // la façade (vers 35 m, 30 mm de façade par mm de diapositive).
+        let column = |c: usize| (m[0][c] * m[0][c] + m[1][c] * m[1][c] + m[2][c] * m[2][c]).sqrt();
+        let bound = column(0) * column(1) * column(2);
+        if !det.is_finite() || !bound.is_finite() || det.abs() <= 1e-12 * bound {
             return Err(GeometryError::SingularTransform);
         }
         let cofactor = |r1: usize, c1: usize, r2: usize, c2: usize| {
