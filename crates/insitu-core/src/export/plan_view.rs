@@ -113,7 +113,9 @@ fn image_window(
 /// `pixels` : RVBA, ligne par ligne.
 fn negative_gray(pixels: &[u8], width: u32, height: u32) -> Raster {
     let data = pixels
-        .chunks_exact(4)
+        .as_chunks::<4>()
+        .0
+        .iter()
         .map(|p| {
             let (r, g, b, a) = (
                 u32::from(p[0]),
