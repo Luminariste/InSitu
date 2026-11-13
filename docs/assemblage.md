@@ -84,7 +84,7 @@ On peut y poser des points ; rien n'est calculé ni enregistré.
 
 ## Essai sur Mac (critère du plan : « trois photos assemblées servent de fond de plan »)
 
-1. Créer un projet neuf (menu Projet, Nouveau projet…).
+1. Créer un projet neuf (menu Fichier, Nouveau projet…).
 2. Écran Façade, « Assembler des photos… », ajouter **trois** photos d'une
    même façade prises de gauche à droite (par exemple celles d'Épinal).
 3. Pour la 2e photo : poser 6 points communs avec la 1re. Pour la 3e : 6
@@ -103,7 +103,7 @@ s'afficherait couchée.
 
 ## Essai sur Mac de l'assemblage automatique (tâche 6.6)
 
-1. Créer un projet neuf (menu Projet, Nouveau projet…).
+1. Créer un projet neuf (menu Fichier, Nouveau projet…).
 2. Écran Façade, « Assembler des photos… », « Ajouter des photos… » et
    choisir **d'un coup** trois photos (ou plus) d'une même façade, prises
    de face en se décalant le long du mur, chacune recouvrant la

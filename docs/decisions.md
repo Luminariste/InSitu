@@ -4,6 +4,34 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-13 — Diapositive comme dans LightBurn, menu Projet retiré (demande de Benjamin)
+
+Demandes de Benjamin (13 novembre) : « menu diapositive : ajouter option
+pour voir ou non la photo. fond noir / blanc / pierre (= pouvoir voir la
+diapo telle qu'elle va être envoyée à LightBurn) » ; « menu horizontal : pas
+besoin du sélecteur de projet puisque présent dans le menu Mac ».
+
+**D-3.6-a. L'écran Diapositive montre la diapositive avec ou sans photo, sur
+un fond choisi.** Groupe « Photo » (montrer ou non la photo redressée) et
+groupe « Fond » (noir, blanc, pierre) : le fond est un carré de 280 mm sous
+la photo, visible quand elle est cachée. Sur fond blanc, des dessins blancs
+passent en noir (et inversement en revenant au noir ou à la pierre) pour
+ne jamais disparaître ; une couleur choisie (cyan…) est gardée. Bouton
+« Comme dans LightBurn » : sans photo, fond noir, traits blancs à pleine
+opacité, c'est-à-dire l'aperçu calculé par le moteur avec le même calcul
+que l'export (D-3.6) ; un second clic revient au réglage d'avant. Réglages
+retenus d'un lancement à l'autre (`localStorage`). L'aperçu fait 2 048 px :
+c'est le dessin de l'export, pas sa finesse (15 433 px).
+
+**D15-o. Le menu Projet ne s'affiche plus dans l'app.** Nouveau, Ouvrir,
+Relire, Annuler, Rétablir sont dans la barre de menus du Mac (Fichier,
+Édition, D15-g) : `ProjectMenu` ne dessine plus rien quand le moteur est là,
+mais garde ses raccourcis (c'est lui qui les exécute quand le menu du Mac
+les envoie). Le nom du projet ouvert passe dans la barre de l'app, à côté
+d'« InSitu » (dossier en bulle d'aide). Dans le navigateur seul, sans barre
+de menus, le menu reste en tête de la barre d'outils. Un séparateur en tête
+de barre ne s'affiche pas.
+
 ## 2026-11-13 — Options d'affichage et rangement des menus (demande de Benjamin)
 
 Demande de Benjamin (13 novembre) : « retouche dessin et silhouette : garde
@@ -244,6 +272,13 @@ comme avant, sans archive ni manifeste.
 
 **D16-e. La première version qui sait se mettre à jour s'installe à la
 main.** Les versions déjà installées n'ont pas ce module.
+
+**D16-f. « Rechercher les mises à jour… » dans le menu InSitu** (demande de
+Benjamin, 13 novembre). Même recherche qu'au lancement, mais dite : à jour
+(avec le numéro), nouvelle version (même dialogue qu'au lancement), ou
+pourquoi on ne sait pas (pas de réseau…). L'entrée n'a pas de raccourci ;
+elle passe par l'évènement `menu` avec l'identifiant `mises-a-jour`, que
+l'interface reconnaît avant les raccourcis.
 
 ## 2026-11-12 — Jeu d'essai Trévarez (hors plan, demande de Benjamin)
 

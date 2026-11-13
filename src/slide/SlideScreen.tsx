@@ -27,7 +27,23 @@ import { GRIDS } from "../compose/CompositionToolbar";
 import { recalledProject } from "../project/current";
 import { Viewer, placementForWidth, type LayerSpec, type TileSource, type ViewerHandle } from "../viewer";
 import { demoSlideViews, demoImages } from "./demo";
-import { SLIDE_MM, SLIDE_SQUARE, TINTS, cutNotice, drawingsLayer, nextProjector, viewProblem } from "./logic";
+import {
+  LIGHTBURN_LOOK,
+  cutNotice,
+  SLIDE_BACKDROPS,
+  SLIDE_MM,
+  SLIDE_SQUARE,
+  TINTS,
+  backdropLayer,
+  drawingsLayer,
+  isLightBurnLook,
+  nextProjector,
+  readLook,
+  saveLook,
+  viewProblem,
+  withBackdrop,
+  type SlideLook,
+} from "./logic";
 import { ProjectMenu } from "../project/ProjectMenu";
 import {
   Banner,
@@ -41,6 +57,7 @@ import {
   ListRow,
   Panel,
   Screen,
+  Segmented,
   StatusBar,
   StatusText,
   ToolGroup,
@@ -61,9 +78,25 @@ export function SlideScreen() {
   const [views, setViews] = useState<SlideView[]>([]);
   const [current, setCurrent] = useState<string | null>(null);
   const [photos, setPhotos] = useState<Record<string, TileSource>>({});
-  const [showDrawings, setShowDrawings] = useState(true);
-  const [opacity, setOpacity] = useState(0.9);
-  const [tint, setTint] = useState(TINTS[0].value);
+  // Ce qu'on regarde : photo ou non, fond, couleur des dessins ; retenu.
+  const [look, setLookState] = useState<SlideLook>(readLook);
+  const setLook = useCallback((next: SlideLook) => {
+    setLookState(next);
+    saveLook(next);
+  }, []);
+  const { showDrawings, opacity, tint } = look;
+  /** Le réglage d'avant « Comme dans LightBurn », pour y revenir. */
+  const beforeLightBurn = useRef<SlideLook | null>(null);
+  const lightBurn = isLightBurnLook(look);
+  const toggleLightBurn = () => {
+    if (lightBurn) {
+      setLook(beforeLightBurn.current ?? { ...look, photo: true });
+      beforeLightBurn.current = null;
+    } else {
+      beforeLightBurn.current = look;
+      setLook(LIGHTBURN_LOOK);
+    }
+  };
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** Dans le navigateur seul : photo et dessins inventés. */
@@ -154,9 +187,10 @@ export function SlideScreen() {
 
   const layers = useMemo<LayerSpec[]>(() => {
     if (!view) return [];
-    const out: LayerSpec[] = [];
+    // Le fond remplit le carré de 280 mm ; la photo, opaque, le couvre quand elle est montrée.
+    const out: LayerSpec[] = [backdropLayer(look.backdrop)];
     if (demo) {
-      out.push({ id: "photo-demo", kind: "mesh-image", url: demo.photo, divisions: 1, points: SLIDE_SQUARE });
+      out.push({ id: "photo-demo", kind: "mesh-image", url: demo.photo, divisions: 1, points: SLIDE_SQUARE, visible: look.photo });
       out.push(...drawingsLayer(demo.drawings[view.projectorId] ?? null, showDrawings, opacity, tint));
       out.push(...adjust.layers);
       return out;
@@ -168,12 +202,13 @@ export function SlideScreen() {
         kind: "tiles",
         source: photo,
         placement: placementForWidth(photo.pyramid.width, SLIDE_MM),
+        visible: look.photo,
       });
     }
     out.push(...drawingsLayer(view.preview ? cacheFileUrl(view.preview) : null, showDrawings, opacity, tint));
     out.push(...adjust.layers);
     return out;
-  }, [view, photos, demo, showDrawings, opacity, tint, adjust.layers]);
+  }, [view, photos, demo, showDrawings, opacity, tint, look.photo, look.backdrop, adjust.layers]);
 
   // Cadrer la diapositive à l'ouverture.
   useEffect(() => {
@@ -199,12 +234,39 @@ export function SlideScreen() {
         onError={setError}
       />
       <ToolSpacer />
-      <ToolGroup label="Dessins">
-        <label className="ui-check">
-          <input type="checkbox" checked={showDrawings} onChange={(e) => setShowDrawings(e.target.checked)} />
+      <Button
+        active={lightBurn}
+        onClick={toggleLightBurn}
+        title={
+          lightBurn
+            ? "Revenir à l'affichage d'avant (photo, couleurs)"
+            : "Voir la diapositive telle qu'elle part dans LightBurn : traits blancs sur fond noir, sans photo"
+        }
+      >
+        Comme dans LightBurn
+      </Button>
+      <ToolSeparator />
+      <ToolGroup label="Photo">
+        <label className="ui-check" title="Montrer la photo redressée sous les dessins">
+          <input type="checkbox" checked={look.photo} onChange={(e) => setLook({ ...look, photo: e.target.checked })} />
           Montrer
         </label>
-        <select className="ui-select" value={tint} onChange={(e) => setTint(Number(e.target.value))} aria-label="Couleur des dessins">
+      </ToolGroup>
+      <ToolGroup label="Fond">
+        <Segmented
+          label="Fond de la diapositive (vu sans la photo)"
+          value={look.backdrop}
+          onChange={(backdrop) => setLook(withBackdrop(look, backdrop))}
+          options={SLIDE_BACKDROPS.map((b) => ({ value: b.value, label: b.label, title: b.title, disabled: look.photo }))}
+        />
+      </ToolGroup>
+      <ToolSeparator />
+      <ToolGroup label="Dessins">
+        <label className="ui-check">
+          <input type="checkbox" checked={showDrawings} onChange={(e) => setLook({ ...look, showDrawings: e.target.checked })} />
+          Montrer
+        </label>
+        <select className="ui-select" value={tint} onChange={(e) => setLook({ ...look, tint: Number(e.target.value) })} aria-label="Couleur des dessins">
           {TINTS.map((t) => (
             <option key={t.value} value={t.value}>
               {t.label}
@@ -218,7 +280,7 @@ export function SlideScreen() {
           max={1}
           step={0.05}
           value={opacity}
-          onChange={(e) => setOpacity(Number(e.target.value))}
+          onChange={(e) => setLook({ ...look, opacity: Number(e.target.value) })}
           aria-label="Opacité des dessins"
           title="Opacité des dessins"
         />
@@ -315,7 +377,13 @@ export function SlideScreen() {
       status={
         <StatusBar>
           <StatusText>
-            {view ? `${view.label} : diapositive calculée sur la photo redressée (280 mm)` : "Aucun projecteur choisi"}
+            {view
+              ? lightBurn
+                ? `${view.label} : diapositive telle qu'elle part dans LightBurn (280 mm)`
+                : look.photo
+                  ? `${view.label} : diapositive calculée sur la photo redressée (280 mm)`
+                  : `${view.label} : diapositive calculée, sans la photo (280 mm)`
+              : "Aucun projecteur choisi"}
           </StatusText>
           {adjust.pending && engine && <StatusText>Recalcul de la diapositive…</StatusText>}
           <StatusText push>{adjust.hint ? `${adjust.hint} · ` : ""}← → : projecteur précédent ou suivant</StatusText>
@@ -332,7 +400,7 @@ export function SlideScreen() {
         <Viewer ref={viewer} layers={layers} cursorUnit="mm" />
         {engine && !folder && !busy && (
           <EmptyState icon="folder" title="Aucun projet ouvert">
-            <p>Ouvrir un projet avec le menu Projet (⌘O), ou en créer un (⌘N).</p>
+            <p>Ouvrir un projet (menu Fichier du Mac, ⌘O), ou en créer un (⌘N).</p>
           </EmptyState>
         )}
         {busy && <Busy>{busy}</Busy>}

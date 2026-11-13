@@ -43,7 +43,7 @@ On importe tout depuis `src/ui` (`import { Button, Panel } from "../ui"`).
 ┌──────────────────────────────────────────────────────────────────────┐
 │ InSitu   [1 Façade][2 Redressement][3 Recalage][4 Diapositive][5 Bibliothèque]  Présentation ▾ │  barre de l'app
 ├──────────────────────────────────────────────────────────────────────┤
-│ [▣ Projet ▾] │ actions de l'étape …                 │ affichage    │  barre d'outils
+│ actions de l'étape …                                │ affichage    │  barre d'outils
 ├──────────────────────────────────────────────────────────────────────┤
 │ bannière (message, erreur, progression) — seulement si besoin       │
 ├───────────┬──────────────────────────────────────┬───────────────────┤
@@ -65,7 +65,9 @@ de panneau de gauche.
   démonstration de la visionneuse). Un nouvel écran du plan y ajoute son
   étape, à sa place dans l'ordre du travail.
 - **Barre d'outils** (`Toolbar`), de gauche à droite : le menu Projet
-  (`ProjectMenu`, le même partout), un séparateur, les actions de l'étape
+  (`ProjectMenu`, le même partout ; dans l'app il ne s'affiche pas, ses
+  commandes étant dans la barre de menus du Mac et le nom du projet à côté
+  d'« InSitu », D15-o), un séparateur, les actions de l'étape
   (importer, détecter…), un `ToolSpacer`, puis l'affichage (choix de vue,
   « Tout voir ») et l'export tout à droite. Un groupe peut porter un petit
   libellé (`ToolGroup label="Mire"`) quand les boutons seuls ne disent pas de
@@ -190,8 +192,8 @@ Présentation → Apparence. La toile reste sombre dans les trois cas.
 ## 7. Menus et raccourcis
 
 Les menus suivent l'ordre des menus du Mac et montrent leurs raccourcis à
-droite (`MenuButton`). Dans la fenêtre : le menu Projet et le menu
-Présentation. En haut de l'écran, la **barre de menus du Mac**
+droite (`MenuButton`). Dans la fenêtre : le menu Présentation (le menu
+Projet n'apparaît que dans le navigateur seul, D15-o). En haut de l'écran, la **barre de menus du Mac**
 (`src-tauri/src/menu.rs`) : InSitu (À propos, Masquer, Quitter), Fichier
 (Nouveau, Ouvrir, Relire, Importer, Exporter, Fermer), Édition (Annuler et
 Rétablir, propres à InSitu depuis la tâche 4.3 : le projet hors d'un champ,

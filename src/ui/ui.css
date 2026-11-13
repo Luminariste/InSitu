@@ -314,6 +314,12 @@ input[type="range"] {
   flex: 1 1 auto;
 }
 
+/* Une barre qui commence par un séparateur (menu Projet absent dans l'app,
+   D15-o) ne le montre pas. */
+.ui-toolbar > .ui-toolseparator:first-child {
+  display: none;
+}
+
 /* --- Gabarit d'écran -------------------------------------------------------------- */
 
 .ui-screen {

@@ -11,6 +11,10 @@ use tauri::{AppHandle, Emitter, Runtime};
 
 const PREFIX: &str = "raccourci:";
 
+/// Entrée sans raccourci clavier : « Rechercher les mises à jour… »
+/// (`src/update/UpdateDialog.tsx`).
+const CHECK_UPDATES: &str = "mises-a-jour";
+
 /// Une entrée : libellé, raccourci de l'interface, raccourci du Mac.
 fn entry<R: Runtime>(
     app: &AppHandle<R>,
@@ -24,8 +28,16 @@ fn entry<R: Runtime>(
 }
 
 pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
+    // Recherche de mise à jour à la main (la recherche automatique se fait
+    // au lancement, D16) : l'interface reconnaît cet identifiant.
+    let check_updates = MenuItemBuilder::with_id(
+        format!("{PREFIX}{CHECK_UPDATES}"),
+        "Rechercher les mises à jour…",
+    )
+    .build(app)?;
     let insitu = SubmenuBuilder::new(app, "InSitu")
         .about(None)
+        .item(&check_updates)
         .separator()
         .services()
         .separator()

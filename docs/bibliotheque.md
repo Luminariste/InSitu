@@ -6,7 +6,7 @@ sur la façade à l'étape suivante (placement, tâche 4.2).
 
 ## Dans l'app
 
-1. Ouvrir ou créer le projet (menu **Projet**, en haut à gauche), puis
+1. Ouvrir ou créer le projet (menu **Fichier** du Mac), puis
    aller dans l'étape **Bibliothèque** (⌘5).
 2. **Importer un dossier…** : choisir un dossier de dessins. Tout son contenu
    est copié dans le projet, sous-dossiers compris, dans
