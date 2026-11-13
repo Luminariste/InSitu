@@ -275,6 +275,14 @@ fn a_project_exports_its_registered_projectors() {
         "fresque/fresque.png"
     );
 
+    // La fresque se retire, puis se réimporte (demande de Benjamin).
+    let removed = remove_fresco(&dir).unwrap();
+    assert!(removed.fresco.is_none());
+    assert!(dir.load().unwrap().project.fresco.is_none());
+    assert!(dir.root().join("fresque/fresque.png").exists());
+    assert!(matches!(remove_fresco(&dir), Err(ExportError::NoFresco)));
+    import_fresco(&dir, &image, Some(FRAME)).unwrap();
+
     let steps = std::sync::Mutex::new(Vec::new());
     let s = ExportSettings {
         dpi: 200.0,

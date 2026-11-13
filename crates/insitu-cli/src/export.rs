@@ -3,12 +3,15 @@
 
 use std::path::Path;
 
-use insitu_core::export::{export_control_plans, export_slides, import_fresco_page};
+use insitu_core::export::{export_control_plans, export_slides, import_fresco_page, remove_fresco};
 use insitu_core::project::{ProjectDir, RectMm};
 use serde_json::json;
 
 pub const FRESCO_USAGE: &str = r#"Usage :
   insitu fresco <projet.insitu> <fichier> [--frame X Y LARGEUR HAUTEUR] [--page N]
+  insitu fresco <projet.insitu> --remove
+
+--remove retire la fresque du projet ; ses fichiers restent dans fresque/.
 
 Copie la fresque dans le projet (dossier fresque/) et la pose sur la façade.
 Le fichier est une image (PNG, TIFF, JPEG, BMP), un PDF, un fichier
@@ -53,6 +56,11 @@ pub fn fresco(args: &[&str]) -> Result<String, (bool, String)> {
     let usage = |m: &str| (true, format!("{m} Voir : insitu fresco --help"));
     match args {
         [] | ["--help" | "-h"] => Ok(FRESCO_USAGE.to_string()),
+        [folder, "--remove"] => {
+            let dir = ProjectDir::open(folder).map_err(|e| (false, e.to_string()))?;
+            remove_fresco(&dir).map_err(|e| (false, e.to_string()))?;
+            Ok("Fresque retirée du projet.".to_string())
+        }
         [folder, image, rest @ ..] => {
             let n = |s: &str| {
                 s.replace(',', ".")

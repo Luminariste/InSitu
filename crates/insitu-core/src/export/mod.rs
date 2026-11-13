@@ -194,6 +194,18 @@ pub fn import_fresco_page(
     Ok(project)
 }
 
+/// Retire la fresque du projet et enregistre le projet (D-3.5-n). Ses
+/// fichiers restent dans `fresque/`, comme un plan retiré reste dans
+/// `facade/` : on peut la réimporter. Les dessins posés ne bougent pas.
+pub fn remove_fresco(dir: &ProjectDir) -> Result<Project, ExportError> {
+    let mut project = dir.load()?.project;
+    if project.fresco.take().is_none() {
+        return Err(ExportError::NoFresco);
+    }
+    dir.save(&project)?;
+    Ok(project)
+}
+
 /// Dossier temporaire effacé à la fin.
 struct TempFolder(PathBuf);
 
