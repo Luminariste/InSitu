@@ -3,8 +3,8 @@
 use std::path::Path;
 use std::time::Instant;
 
-use insitu_core::facade::{self, display};
-use insitu_core::project::{ProjectDir, SourcePoint};
+use insitu_core::facade::{self, display, PlanChoice};
+use insitu_core::project::{PointMm, Project, ProjectDir, SourcePoint};
 
 /// Ce qui peut mal tourner dans une commande de façade.
 pub enum Problem {
@@ -44,9 +44,33 @@ fn json(value: &impl serde::Serialize) -> String {
     serde_json::to_string_pretty(value).expect("sérialisable")
 }
 
+/// Sépare les `--layer NOM` (répétables) des autres arguments.
+fn take_layers<'a>(args: &[&'a str]) -> Result<(Vec<String>, Vec<&'a str>), Problem> {
+    let mut layers = Vec::new();
+    let mut rest = Vec::new();
+    let mut iter = args.iter().copied();
+    while let Some(arg) = iter.next() {
+        if arg == "--layer" {
+            layers.push(
+                iter.next()
+                    .ok_or_else(|| Problem::Usage("--layer attend un nom de calque".into()))?
+                    .to_string(),
+            );
+        } else {
+            rest.push(arg);
+        }
+    }
+    Ok((layers, rest))
+}
+
 /// Exécute `insitu facade <args>` et rend le texte à afficher.
 pub fn run(args: &[&str]) -> Result<String, Problem> {
     let (page, args) = take_page(args)?;
+    let (layers, args) = take_layers(&args)?;
+    if let ["plans", rest @ ..] = &args[..] {
+        return plans(rest, page, layers);
+    }
+    let layers = (!layers.is_empty()).then_some(layers);
     match args[..] {
         [] | ["--help" | "-h"] => Ok(USAGE.to_string()),
         ["inspect", plan] => facade::inspect(Path::new(plan), page)
@@ -86,8 +110,14 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
         }
         ["tiles", plan, cache] => {
             let start = Instant::now();
-            let shown = facade::open_for_display(Path::new(plan), page, 0, Path::new(cache))
-                .map_err(failed)?;
+            let shown = display::open_for_display_layers(
+                Path::new(plan),
+                page,
+                layers.as_deref(),
+                0,
+                Path::new(cache),
+            )
+            .map_err(failed)?;
             eprintln!(
                 "Affichage préparé en {:.1} s (niveaux fins rendus à la demande)",
                 start.elapsed().as_secs_f64()
@@ -104,7 +134,8 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             };
             let start = Instant::now();
             let (width, height, rgba) =
-                display::render_whole(Path::new(plan), page, 0, side).map_err(failed)?;
+                display::render_whole_layers(Path::new(plan), page, layers.as_deref(), 0, side)
+                    .map_err(failed)?;
             image::save_buffer(out, &rgba, width, height, image::ExtendedColorType::Rgba8)
                 .map_err(failed)?;
             Ok(format!(
@@ -116,6 +147,174 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             "Commande de façade inconnue : {other}\n\n{USAGE}"
         ))),
     }
+}
+
+/// Un groupe désigné par son identifiant ou son nom.
+fn group_id(project: &Project, wanted: &str) -> Result<String, Problem> {
+    project
+        .plan_groups
+        .iter()
+        .find(|g| g.id == wanted || g.name.eq_ignore_ascii_case(wanted))
+        .map(|g| g.id.clone())
+        .ok_or_else(|| Problem::Failed(format!("Aucun plan ajouté ne s'appelle « {wanted} ».")))
+}
+
+/// Une vue d'un groupe désignée par son identifiant ou son nom.
+fn plan_id(project: &Project, group: &str, wanted: &str) -> Result<String, Problem> {
+    project
+        .plan_group(group)
+        .and_then(|g| {
+            g.plans
+                .iter()
+                .find(|p| p.id == wanted || p.name.eq_ignore_ascii_case(wanted))
+        })
+        .map(|p| p.id.clone())
+        .ok_or_else(|| Problem::Failed(format!("Aucune vue ne s'appelle « {wanted} ».")))
+}
+
+fn summary(project: &Project) -> String {
+    let mut out = String::new();
+    if let Some(facade) = &project.facade {
+        out.push_str(&format!("Plan de référence : {}\n", facade.source));
+    }
+    for group in &project.plan_groups {
+        let (w, h) = group.size_mm();
+        out.push_str(&format!(
+            "{}{} [{}] : {} ; coin ({:.0} ; {:.0}) mm, {:.4} mm par unité, {:.2} × {:.2} m, {} quart(s) de tour\n",
+            if group.hidden { "(caché) " } else { "" },
+            group.name,
+            group.id,
+            group.source,
+            group.origin.x,
+            group.origin.y,
+            group.mm_per_unit,
+            w / 1000.0,
+            h / 1000.0,
+            group.rotation,
+        ));
+        for plan in &group.plans {
+            out.push_str(&format!(
+                "  {}{} [{}]{}{}\n",
+                if plan.hidden { "(cachée) " } else { "" },
+                plan.name,
+                plan.id,
+                plan.page.map_or(String::new(), |p| format!(", page {p}")),
+                plan.layers
+                    .as_ref()
+                    .map_or(String::new(), |l| format!(", calques : {}", l.join(", "))),
+            ));
+        }
+    }
+    if out.is_empty() {
+        out.push_str("Aucun plan.\n");
+    }
+    out
+}
+
+/// `insitu facade plans …` : les plans ajoutés à l'espace de travail.
+fn plans(args: &[&str], page: Option<u32>, layers: Vec<String>) -> Result<String, Problem> {
+    let open = |path: &str| -> Result<(ProjectDir, Project), Problem> {
+        let dir = ProjectDir::open(path).map_err(failed)?;
+        let project = dir.load().map_err(failed)?.project;
+        Ok((dir, project))
+    };
+    let turns = |text: &str| -> Result<i32, Problem> {
+        text.parse()
+            .map_err(|_| Problem::Usage("attendu : un nombre de quarts de tour (1, -1, 2…)".into()))
+    };
+    let project = match args[..] {
+        ["list", path] => return Ok(summary(&open(path)?.1)),
+        ["add", path, file] => {
+            let dir = ProjectDir::open(path).map_err(failed)?;
+            // Une vue par calque nommé ; sans calque, une vue entière.
+            let choices: Vec<PlanChoice> = if layers.is_empty() {
+                vec![PlanChoice {
+                    page,
+                    ..PlanChoice::default()
+                }]
+            } else {
+                layers
+                    .iter()
+                    .map(|name| PlanChoice {
+                        page,
+                        layers: Some(vec![name.clone()]),
+                        name: None,
+                    })
+                    .collect()
+            };
+            facade::add_plan_group(&dir, Path::new(file), &choices).map_err(failed)?
+        }
+        ["place", path, group, x, y, k] => {
+            let (dir, project) = open(path)?;
+            let id = group_id(&project, group)?;
+            facade::place_plan_group(&dir, &id, PointMm::new(number(x)?, number(y)?), number(k)?)
+                .map_err(failed)?
+        }
+        ["align", path, group, x1, y1, x2, y2, tx1, ty1, tx2, ty2] => {
+            let (dir, project) = open(path)?;
+            let id = group_id(&project, group)?;
+            let p = |x: &str, y: &str| -> Result<PointMm, Problem> {
+                Ok(PointMm::new(number(x)?, number(y)?))
+            };
+            let aligned = facade::align_plan_group(
+                &dir,
+                &id,
+                [p(x1, y1)?, p(x2, y2)?],
+                [p(tx1, ty1)?, p(tx2, ty2)?],
+            )
+            .map_err(failed)?;
+            return Ok(format!(
+                "{}Échelle multipliée par {:.4} ; écart d'angle restant : {:.2}°",
+                summary(&aligned.project),
+                aligned.factor,
+                aligned.turn_degrees
+            ));
+        }
+        ["rotate", path, group, n] => {
+            let (dir, project) = open(path)?;
+            let id = group_id(&project, group)?;
+            facade::rotate_plan_group(&dir, &id, turns(n)?).map_err(failed)?
+        }
+        [action @ ("show" | "hide"), path, group, ref view @ ..] if view.len() <= 1 => {
+            let (dir, project) = open(path)?;
+            let id = group_id(&project, group)?;
+            let view = view
+                .first()
+                .map(|v| plan_id(&project, &id, v))
+                .transpose()?;
+            facade::set_plan_hidden(&dir, &id, view.as_deref(), action == "hide").map_err(failed)?
+        }
+        ["rename", path, group, name] => {
+            let (dir, project) = open(path)?;
+            let id = group_id(&project, group)?;
+            facade::rename_plan(&dir, &id, None, name).map_err(failed)?
+        }
+        ["rename", path, group, view, name] => {
+            let (dir, project) = open(path)?;
+            let id = group_id(&project, group)?;
+            let view = plan_id(&project, &id, view)?;
+            facade::rename_plan(&dir, &id, Some(&view), name).map_err(failed)?
+        }
+        ["remove", path, group, ref view @ ..] if view.len() <= 1 => {
+            let (dir, project) = open(path)?;
+            let id = group_id(&project, group)?;
+            let view = view
+                .first()
+                .map(|v| plan_id(&project, &id, v))
+                .transpose()?;
+            facade::remove_plan(&dir, &id, view.as_deref()).map_err(failed)?
+        }
+        ["move", path, group, place] => {
+            let (dir, project) = open(path)?;
+            let id = group_id(&project, group)?;
+            let place: usize = place
+                .parse()
+                .map_err(|_| Problem::Usage("move attend une place (0 : au fond)".into()))?;
+            facade::move_plan_group(&dir, &id, place).map_err(failed)?
+        }
+        _ => return Err(Problem::Usage(USAGE.to_string())),
+    };
+    Ok(summary(&project))
 }
 
 pub const USAGE: &str = r#"Usage : insitu facade <commande>
@@ -141,9 +340,26 @@ pub const USAGE: &str = r#"Usage : insitu facade <commande>
       Met la façade à l'échelle : deux points du plan, dans son unité
       (origine en haut à gauche, y vers le bas), et leur distance réelle.
 
-  tiles <plan> <dossier> [--page N]
+  tiles <plan> <dossier> [--page N] [--layer NOM]…
       Prépare l'affichage dans un dossier de cache, comme le fait l'app.
 
-  render <plan vectoriel> <sortie.png> [--page N] [--width PX]
-      Rend le plan entier en une image (4 096 px de côté par défaut).
+  render <plan vectoriel> <sortie.png> [--page N] [--width PX] [--layer NOM]…
+      Rend le plan entier en une image (4 096 px de côté par défaut) ;
+      avec --layer, seulement ces calques d'un PDF ou d'un .ai.
+
+Plans ajoutés par-dessus le plan de référence (groupe ou vue : identifiant
+ou nom ; positions en mm de façade, origine en haut à gauche) :
+
+  plans list <projet.insitu>
+  plans add <projet.insitu> <fichier> [--page N] [--layer NOM]…
+      Un groupe tiré du fichier ; une vue par calque nommé, sinon une vue
+      entière. Même fichier que le plan de référence : posé pile dessus.
+  plans place <projet.insitu> <groupe> <x> <y> <mm par unité du fichier>
+  plans align <projet.insitu> <groupe> <x1> <y1> <x2> <y2> <X1> <Y1> <X2> <Y2>
+      Les points (x, y) du plan, là où ils sont, viennent en (X, Y).
+  plans rotate <projet.insitu> <groupe> <quarts de tour>
+  plans show|hide <projet.insitu> <groupe> [vue]
+  plans rename <projet.insitu> <groupe> [vue] <nom>
+  plans remove <projet.insitu> <groupe> [vue]
+  plans move <projet.insitu> <groupe> <place, 0 = au fond>
 "#;

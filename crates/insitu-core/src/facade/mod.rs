@@ -25,6 +25,8 @@ pub mod display;
 pub mod dxf;
 pub mod import;
 pub mod pdf;
+pub mod pdf_layers;
+pub mod plans;
 pub mod svg;
 
 use std::fmt;
@@ -38,6 +40,11 @@ use crate::tiles::TileError;
 
 pub use display::{open_for_display, open_project_facade, read_or_render, FacadeDisplay};
 pub use import::{import_facade, remove_facade, rotate_facade, set_scale};
+pub use plans::{
+    add_plan_group, add_plans, align_plan_group, alignment, move_plan_group, open_plan_display,
+    place_plan_group, remove_plan, rename_plan, rotate_plan_group, set_plan_hidden, Alignment,
+    PlanChoice,
+};
 
 /// Côté, en pixels, du niveau le plus fin d'un plan vectoriel. Sur un plan
 /// A0 en PDF, c'est 19 pixels par point, soit environ 1 400 dpi sur le
@@ -67,7 +74,9 @@ impl SourceKind {
             .map(|e| e.to_string_lossy().to_ascii_lowercase())
             .unwrap_or_default();
         match extension.as_str() {
-            "pdf" => Ok(Self::Pdf),
+            // Un `.ai` enregistré « compatible PDF » (réglage par défaut
+            // d'Illustrator) se lit comme un PDF, calques compris.
+            "pdf" | "ai" => Ok(Self::Pdf),
             "svg" | "svgz" => Ok(Self::Svg),
             "dxf" => Ok(Self::Dxf),
             "png" | "jpg" | "jpeg" | "tif" | "tiff" | "heic" | "heif" => Ok(Self::Image),
@@ -112,6 +121,10 @@ pub struct SourceInfo {
     /// faire par deux points et une cote.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub declared_mm_per_unit: Option<f64>,
+    /// PDF (ou `.ai`) : noms de ses calques, dans l'ordre du fichier ;
+    /// absent s'il n'en a pas.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub layers: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -134,6 +147,12 @@ pub enum FacadeError {
     BadScale(&'static str),
     /// Le plan ne peut pas tourner ; la raison complète la phrase.
     CannotRotate(&'static str),
+    /// Plan ajouté (ou vue d'un groupe) introuvable dans le projet.
+    UnknownPlan(String),
+    /// Le plan de référence n'est pas encore à l'échelle.
+    ReferenceNotScaled,
+    /// Place ou échelle refusée ; la raison complète la phrase.
+    BadPlacement(&'static str),
 }
 
 impl fmt::Display for FacadeError {
@@ -142,9 +161,6 @@ impl fmt::Display for FacadeError {
             Self::Unsupported(extension) => match extension.as_str() {
                 "dwg" => f.write_str(
                     "Le format DWG n'est pas lu : l'exporter en PDF ou en DXF depuis le logiciel de l'architecte.",
-                ),
-                "ai" => f.write_str(
-                    "Un fichier Illustrator n'est pas lu comme plan : l'enregistrer en PDF.",
                 ),
                 "" => f.write_str("Fichier sans extension : format inconnu."),
                 other => write!(
@@ -163,6 +179,11 @@ impl fmt::Display for FacadeError {
             Self::NoFacade => f.write_str("Le projet n'a pas encore de façade : importer d'abord un plan."),
             Self::BadScale(reason) => write!(f, "Mise à l'échelle impossible : {reason}."),
             Self::CannotRotate(reason) => write!(f, "Le plan ne peut pas tourner : {reason}."),
+            Self::UnknownPlan(id) => write!(f, "Plan introuvable dans le projet ({id})."),
+            Self::ReferenceNotScaled => f.write_str(
+                "Mettre d'abord le plan de référence à l'échelle : les autres plans se posent dessus, en millimètres.",
+            ),
+            Self::BadPlacement(reason) => write!(f, "Place du plan refusée : {reason}."),
         }
     }
 }
@@ -200,8 +221,25 @@ pub fn open_vector(
     kind: SourceKind,
     page: Option<u32>,
 ) -> Result<Box<dyn VectorPlan>, FacadeError> {
+    open_vector_layers(path, kind, page, None)
+}
+
+/// Comme [`open_vector`] ; pour un PDF, `layers` dit les seuls calques à
+/// montrer (tous si `None`, voir [`pdf_layers`]).
+pub fn open_vector_layers(
+    path: &Path,
+    kind: SourceKind,
+    page: Option<u32>,
+    layers: Option<&[String]>,
+) -> Result<Box<dyn VectorPlan>, FacadeError> {
     Ok(match kind {
-        SourceKind::Pdf => Box::new(pdf::PdfPlan::open(read(path)?, page.unwrap_or(1))?.0),
+        SourceKind::Pdf => {
+            let mut data = read(path)?;
+            if let Some(layers) = layers {
+                data = pdf_layers::with_layers(&data, layers)?;
+            }
+            Box::new(pdf::PdfPlan::open(data, page.unwrap_or(1))?.0)
+        }
         SourceKind::Svg => Box::new(svg::SvgPlan::open(&read(path)?, path.parent())?),
         SourceKind::Dxf => Box::new(dxf::DxfPlan::open(path)?),
         SourceKind::Image => {
@@ -228,6 +266,7 @@ pub fn inspect(path: &Path, page: Option<u32>) -> Result<SourceInfo, FacadeError
         page: None,
         origin: None,
         declared_mm_per_unit: None,
+        layers: Vec::new(),
     };
     match kind {
         SourceKind::Image => {
@@ -239,7 +278,9 @@ pub fn inspect(path: &Path, page: Option<u32>) -> Result<SourceInfo, FacadeError
         }
         SourceKind::Pdf => {
             let page = page.unwrap_or(1);
-            let (_, pdf) = pdf::PdfPlan::open(read(path)?, page)?;
+            let data = read(path)?;
+            info.layers = pdf_layers::layer_names(&data);
+            let (_, pdf) = pdf::PdfPlan::open(data, page)?;
             info.width = pdf.width;
             info.height = pdf.height;
             info.page_count = Some(pdf.page_count);

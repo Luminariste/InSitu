@@ -158,4 +158,8 @@ fn quarter_turn(project: &mut Project, carry_mm: bool) {
             pair.facade = turn_mm(pair.facade);
         }
     }
+    // Les plans ajoutés suivent aussi (D-PL-a).
+    for group in &mut project.plan_groups {
+        super::plans::turn_group_with_facade(group, h);
+    }
 }

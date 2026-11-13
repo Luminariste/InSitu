@@ -104,3 +104,53 @@
   display: flex;
   gap: var(--ui-space-1);
 }
+
+/* Plans ajoutés (D-PL-a à g) : les vues d'un groupe en retrait sous lui. */
+.facade-plan-views {
+  padding-left: var(--ui-space-4);
+}
+
+.facade-plan-name {
+  width: 100%;
+}
+
+.facade-plan-xy {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ui-space-2);
+}
+
+.facade-plan-tools {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ui-space-2);
+  margin-top: var(--ui-space-2);
+}
+
+.facade-plan-dialog-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-space-1);
+  max-height: 320px;
+  overflow-y: auto;
+  margin: var(--ui-space-2) 0;
+}
+
+.facade-plan-dialog-item {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+}
+
+.facade-plan-dialog-page {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+}
+
+.facade-plan-dialog-summary {
+  margin-right: auto;
+  color: var(--ui-text-secondary, inherit);
+  font-size: var(--ui-text-sm);
+}
