@@ -20,6 +20,7 @@ import {
   cacheFileUrl,
   fetchAssignments,
   fetchDrawingPreview,
+  fetchLostParts,
   fetchLibrary,
   fetchSilhouettes,
   saveComposition,
@@ -235,6 +236,7 @@ export function useComposition(options: Options): Composition {
   const [turn, setTurn] = useState<Composition["turn"]>(null);
   const [previews, setPreviews] = useState<Map<string, string>>(new Map());
   const [assignments, setAssignments] = useState<Map<string, Assignment>>(new Map());
+  const [lostParts, setLostParts] = useState<Map<string, Point[][][]>>(new Map());
   const [detected, setDetected] = useState<Map<string, SilhouettePolygon[]>>(new Map());
   const requested = useRef<Set<string>>(new Set());
   const active = useRef<Active | null>(null);
@@ -278,9 +280,11 @@ export function useComposition(options: Options): Composition {
   // Diapositive de chaque dessin : recalculée par le moteur à chaque
   // enregistrement (dessins posés ou recalage des projecteurs).
   const projectProjectors = project?.projectors;
+  const projectDrawings = project?.library;
   useEffect(() => {
     if (!engine || !folder) {
       setAssignments(new Map());
+      setLostParts(new Map());
       return;
     }
     let cancelled = false;
@@ -288,10 +292,16 @@ export function useComposition(options: Options): Composition {
       (list) => !cancelled && setAssignments(new Map(list.map((a) => [a.placement, a]))),
       (failure: unknown) => !cancelled && onError(String(failure)),
     );
+    // Ce qui ne sera pas projeté, en rouge sur la façade (D-4.5-h) ; la
+    // silhouette d'un dessin compte, d'où la bibliothèque dans les dépendances.
+    fetchLostParts(folder).then(
+      (list) => !cancelled && setLostParts(new Map(list.map((l) => [l.placement, l.shapes]))),
+      (failure: unknown) => !cancelled && onError(String(failure)),
+    );
     return () => {
       cancelled = true;
     };
-  }, [engine, folder, projectPlacements, projectProjectors, onError]);
+  }, [engine, folder, projectPlacements, projectProjectors, projectDrawings, onError]);
 
   useEffect(() => {
     setSelection(new Set());
@@ -503,7 +513,7 @@ export function useComposition(options: Options): Composition {
   useEffect(() => {
     const colors = new Map((project?.projectors ?? []).map((q, index) => [q.id, projectorColor(index)]));
     if (!visible) {
-      selectionNode.current?.set({ slides: [], outlines: [], frame: null, marquee: null, mesh: null });
+      selectionNode.current?.set({ slides: [], lost: [], outlines: [], frame: null, marquee: null, mesh: null });
       viewer.current?.scene()?.invalidate();
       return;
     }
@@ -512,8 +522,11 @@ export function useComposition(options: Options): Composition {
       if (!a) return [];
       return [{ outline: outline(p), color: a.projector ? (colors.get(a.projector) ?? null) : null, whole: a.whole }];
     });
+    const onScreen = new Set(shown(placements, layerList).map((p) => p.id));
+    const lost = [...lostParts].flatMap(([id, shapes]) => (onScreen.has(id) ? shapes : []));
     selectionNode.current?.set({
       slides,
+      lost,
       outlines: selected.map((p) => outline(p)),
       // Dessin déformé : seuls ses points se tirent, sans le cadre ni ses poignées (D-4.2-n).
       frame: editable ? null : frame,
@@ -530,6 +543,7 @@ export function useComposition(options: Options): Composition {
     editable,
     editableNodes,
     assignments,
+    lostParts,
     placements,
     layerList,
     project?.projectors,

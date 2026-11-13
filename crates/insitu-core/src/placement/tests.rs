@@ -732,3 +732,103 @@ fn a_manual_choice_is_kept() {
         Err(PlacementError::UnknownProjector(_))
     ));
 }
+
+/// Deux projecteurs côte à côte (emprises de 2,8 m, recouvrement de 0,8 m)
+/// et des dessins de 1 000 × 500 mm.
+fn lost_test_project(label: &str) -> (TempDir, ProjectDir) {
+    use crate::project::RegistrationPair;
+    let (temp, dir) = project_with_drawing(label);
+    let mut project = dir.load().unwrap().project;
+    for (name, x0) in [("A", 0.0), ("B", 2_000.0)] {
+        project.add_projector(name.to_string()).registration =
+            [(0.0, 0.0), (280.0, 0.0), (280.0, 280.0), (0.0, 280.0)]
+                .iter()
+                .map(|&(s, t)| {
+                    RegistrationPair::new(PointMm::new(s, t), PointMm::new(x0 + 10.0 * s, 10.0 * t))
+                })
+                .collect();
+    }
+    let ids: Vec<String> = project.projectors.iter().map(|p| p.id.clone()).collect();
+    let pose = |id: &str, x: f64, projector: Option<&String>| Placement {
+        id: id.into(),
+        drawing: "merle".into(),
+        center: PointMm::new(x, 1_400.0),
+        width: 1_000.0,
+        height: 500.0,
+        rotation: 0.0,
+        mirrored: false,
+        group: None,
+        layer: None,
+        deformation: None,
+        projector: projector.cloned(),
+        adjustment: None,
+        hidden: false,
+        locked: false,
+        extra: Default::default(),
+    };
+    project.placements = vec![
+        // Entièrement dans B : proposé à B, rien de perdu.
+        pose("dans-b", 3_000.0, None),
+        // À cheval sur le bord droit de A, choisi à la main dans A : la
+        // moitié droite (x de 2 800 à 3 300) n'est projetée par personne,
+        // bien que B couvre cet endroit.
+        pose("coupe", 2_800.0, Some(&ids[0])),
+        // Envoyé à la main dans B, mais posé dans A seul : tout est perdu.
+        pose("ailleurs", 1_000.0, Some(&ids[1])),
+        // Hors de toute emprise.
+        pose("dehors", 8_000.0, None),
+    ];
+    dir.save(&project).unwrap();
+    (temp, dir)
+}
+
+fn lost_area(parts: &[lost::LostPart], id: &str) -> f64 {
+    parts
+        .iter()
+        .find(|l| l.placement == id)
+        .map_or(0.0, |l| l.area_m2)
+}
+
+/// D-4.5-h : la part d'un dessin que sa diapositive ne projette pas est
+/// montrée sur la façade ; elle vaut ce qui sort de l'emprise choisie.
+#[test]
+fn what_its_slide_does_not_project_is_lost() {
+    let (_temp, dir) = lost_test_project("perdu");
+    let project = dir.load().unwrap().project;
+    let all = assign::assignments(&project);
+    let parts = lost::lost_parts(&project, &all, &[]);
+    let near = |a: f64, b: f64| (a - b).abs() < 1e-3;
+    assert!(near(lost_area(&parts, "dans-b"), 0.0));
+    assert!(
+        near(lost_area(&parts, "coupe"), 0.25),
+        "{}",
+        lost_area(&parts, "coupe")
+    );
+    assert!(near(lost_area(&parts, "ailleurs"), 0.5));
+    assert!(near(lost_area(&parts, "dehors"), 0.5));
+    let dehors = parts.iter().find(|l| l.placement == "dehors").unwrap();
+    assert_eq!(dehors.projector, None);
+    // La part perdue du dessin coupé est bien à droite du bord de A.
+    let coupe = parts.iter().find(|l| l.placement == "coupe").unwrap();
+    for q in &coupe.shapes[0][0] {
+        assert!(q.x >= 2_800.0 - 1e-6 && q.x <= 3_300.0 + 1e-6, "{q:?}");
+    }
+}
+
+/// La forme qui compte est la silhouette, pas le rectangle du fichier : un
+/// dessin dont seule la marge vide dépasse ne perd rien.
+#[test]
+fn only_the_silhouette_counts() {
+    let (_temp, dir) = lost_test_project("perdu-silhouette");
+    let mut project = dir.load().unwrap().project;
+    // Les traits n'occupent que la moitié gauche du fichier.
+    project.library[0].silhouette =
+        Some(vec![vec![[0.0, 0.0], [0.5, 0.0], [0.5, 1.0], [0.0, 1.0]]]);
+    dir.save(&project).unwrap();
+    let cache = TempDir::new("perdu-cache");
+    let parts = lost::load_lost_parts(&dir, cache.path()).unwrap();
+    // « coupe » : la moitié gauche (x de 2 300 à 2 800) tient dans A.
+    assert_eq!(lost_area(&parts, "coupe"), 0.0);
+    // « ailleurs » : la silhouette entière, 500 × 500 mm.
+    assert!((lost_area(&parts, "ailleurs") - 0.25).abs() < 1e-3);
+}

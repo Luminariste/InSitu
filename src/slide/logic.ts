@@ -56,3 +56,16 @@ export function viewProblem(view: SlideView | null): string | null {
   if (!view.preview) return `${view.label} : ${view.problem ?? "diapositive non calculée"}.`;
   return null;
 }
+
+/**
+ * Les dessins de la diapositive qui en dépassent (D-4.5-h) : la part hors
+ * de l'emprise n'est projetée par aucune diapositive.
+ */
+export function cutNotice(view: SlideView | null): string | null {
+  if (!view || view.cut.length === 0) return null;
+  const names = view.cut.map((c) => `« ${c.name} »`).join(", ");
+  const verb = view.cut.length > 1 ? "dépassent" : "dépasse";
+  const total = view.cut.reduce((sum, c) => sum + c.lostM2, 0);
+  const area = total.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${view.label} : ${names} ${verb} de cette diapositive ; ${area} m² ne seront pas projetés (en rouge sur la façade).`;
+}
