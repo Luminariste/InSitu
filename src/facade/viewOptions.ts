@@ -1,6 +1,6 @@
 // Options d'affichage de l'écran Façade (menu « Affichage » de la barre
 // d'outils) : montrer ou cacher le plan, la fresque, les dessins posés, et
-// passer le plan ou toute la vue en négatif. Ne touche pas au projet : c'est
+// passer le plan ou toute la vue en négatif, et vérifier le chevauchement. Ne touche pas au projet : c'est
 // une façon de regarder, retenue d'un lancement à l'autre. Logique pure,
 // testée sans écran (`viewOptions.test.ts`).
 
@@ -18,6 +18,13 @@ export interface ViewOptions {
    * Illustrator. Les couleurs des repères gardent leur teinte.
    */
   negative: boolean;
+  /**
+   * Vérifier le chevauchement (D-4.5-i) : contour de chaque dessin dans la
+   * couleur de sa diapositive, en rouge s'il est à cheval, et aplat rouge sur
+   * ce qui ne sera pas projeté. Désactivé par défaut : on compose sur une vue
+   * épurée, puis on vérifie avant l'export.
+   */
+  overlap: boolean;
 }
 
 export const DEFAULT_VIEW_OPTIONS: ViewOptions = {
@@ -26,6 +33,7 @@ export const DEFAULT_VIEW_OPTIONS: ViewOptions = {
   fresco: true,
   drawings: true,
   negative: false,
+  overlap: false,
 };
 
 /** Les options lues dans un texte enregistré ; ce qui manque prend la valeur par défaut. */

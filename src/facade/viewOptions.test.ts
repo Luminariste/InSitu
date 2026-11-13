@@ -3,7 +3,14 @@ import { DEFAULT_VIEW_OPTIONS, changedViewOptions, parseViewOptions, toggleViewO
 
 describe("options d'affichage de la façade", () => {
   it("montre tout, sans négatif, par défaut", () => {
-    expect(DEFAULT_VIEW_OPTIONS).toEqual({ plan: true, planNegative: false, fresco: true, drawings: true, negative: false });
+    expect(DEFAULT_VIEW_OPTIONS).toEqual({
+      plan: true,
+      planNegative: false,
+      fresco: true,
+      drawings: true,
+      negative: false,
+      overlap: false,
+    });
     expect(changedViewOptions(DEFAULT_VIEW_OPTIONS)).toBe(0);
   });
 
@@ -13,6 +20,14 @@ describe("options d'affichage de la façade", () => {
     expect(hidden.fresco).toBe(true);
     expect(changedViewOptions(hidden)).toBe(1);
     expect(toggleViewOption(hidden, "plan")).toEqual(DEFAULT_VIEW_OPTIONS);
+  });
+
+  it("le chevauchement est une vérification à allumer, éteinte par défaut (D-4.5-i)", () => {
+    expect(DEFAULT_VIEW_OPTIONS.overlap).toBe(false);
+    const on = toggleViewOption(DEFAULT_VIEW_OPTIONS, "overlap");
+    expect(on.overlap).toBe(true);
+    // Un réglage enregistré avant cette option reste sans chevauchement.
+    expect(parseViewOptions(JSON.stringify({ plan: true })).overlap).toBe(false);
   });
 
   it("relit ce qui a été enregistré", () => {
