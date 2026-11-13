@@ -63,11 +63,14 @@ Façade ; ils agissent sur les dessins choisis (bulle d'aide au survol) :
   compte pour un seul bloc ;
 - premier plan, avancer, reculer, arrière-plan ; grouper, dégrouper.
 
-La rubrique **Dessins posés** (onglet **Dessins**, qui s'ouvre seul) apparaît
-quand un dessin est choisi : centre X et Y, largeur (la hauteur suit ; taper
-par exemple `2,5 m`, `250 cm` ou `2500`, puis ↩), rotation en degrés (un seul
-dessin), miroir (boutons « Gauche ↔ droite » et « Haut ↕ bas »), calque,
-diapositive, retirer.
+Les réglages du dessin choisi sont dans une seconde barre, sous la barre
+d'outils, comme le panneau Contrôle d'Illustrator (D-4.2-p) : nom, calque
+(à partir de deux calques), diapositive, centre **X** et **Y**, largeur
+**L** (la hauteur **H** suit ; taper par exemple `2,5 m`, `250 cm` ou
+`2500`, puis ↩), **Angle** en degrés (un seul dessin), état de la
+déformation, **Retirer**. Le miroir est dans les icônes de la barre d'outils.
+L'onglet **Dessins** du panneau de droite ne montre plus que la
+bibliothèque, et choisir un dessin ne change plus d'onglet.
 
 Le curseur change sur chaque poignée : flèche double sur les carrés blancs
 (dans l'axe de la poignée), flèche courbe sur le rond et au-delà des coins,
@@ -83,12 +86,15 @@ croix sur un point de déformation, flèche à quatre pointes sur un dessin
 3. Passer sur le rond au-dessus du cadre : flèche courbe. Le glisser : le
    dessin tourne autour de son centre, l'angle s'affiche près du pointeur,
    la flèche suit. Avec ⇧ : par pas de 45°. Lâcher : l'angle est celui de la
-   case « Rotation » de l'onglet Dessins. ⌘Z annule.
+   case « Angle » de la barre des réglages, en haut. ⌘Z annule.
 4. Même chose juste au-delà d'un coin, hors du cadre.
-5. Onglet Dessins, ligne « Miroir » : « Gauche ↔ droite » retourne le
-   dessin ; la phrase sous les boutons dit qu'il est retourné. « Haut ↕ bas »
-   pareil. Exporter la diapositive : le dessin y est retourné de la même
-   façon.
+5. Icônes « Miroir » de la barre d'outils : la première retourne le dessin
+   de gauche à droite, et la barre des réglages ajoute « retourné » après
+   son nom. La seconde le retourne de haut en bas. Exporter la diapositive :
+   le dessin y est retourné de la même façon.
+8. Barre des réglages (sous la barre d'outils) : sans dessin choisi, elle
+   dit de cliquer un dessin ; avec un dessin, taper une largeur, un angle,
+   choisir une diapositive : le dessin suit aussitôt (D-4.2-p).
 6. Écran Diapositive : sur un dessin, le curseur devient la flèche à quatre
    pointes, sur un point bleu une croix.
 7. Choisir un dessin, cliquer « Quatre coins » dans la barre du haut : le

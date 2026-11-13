@@ -12,7 +12,7 @@ import { CompositionToolbar } from "../compose/CompositionToolbar";
 import { DrawingsSection } from "../compose/DrawingsSection";
 import { IllustratorImport } from "../compose/IllustratorImport";
 import { LayersSection } from "../compose/LayersSection";
-import { PlacementInspector } from "../compose/PlacementInspector";
+import { PlacementBar } from "../compose/PlacementBar";
 import { SlidesSection } from "../compose/SlidesSection";
 import { slideTree } from "../compose/slideTree";
 import { useComposition } from "../compose/useComposition";
@@ -535,7 +535,9 @@ export function FacadeScreen() {
   const toggleView = (key: keyof ViewOptions) => setViewOptions((current) => toggleViewOption(current, key));
   const showEverything = () => setViewOptions(() => DEFAULT_VIEW_OPTIONS);
 
+  const composing = composeBlocked === null && picking === "off" && ready && viewOptions.drawings;
   const toolbar = (
+    <div className="facade-toolbars">
     <Toolbar>
       <ProjectMenu
         name={projectName}
@@ -552,7 +554,7 @@ export function FacadeScreen() {
       <CompositionToolbar
         selected={composition.selected}
         actions={composition.actions}
-        enabled={composeBlocked === null && picking === "off" && ready && viewOptions.drawings}
+        enabled={composing}
       />
       <ToolSpacer />
       <MenuButton
@@ -588,6 +590,22 @@ export function FacadeScreen() {
       />
       <IconButton icon="fit" label="Tout voir" shortcut="mod+0" variant="default" onClick={() => viewer.current?.fitAll()} disabled={!view} />
     </Toolbar>
+    {/* Réglages du dessin posé, comme le panneau Contrôle d'Illustrator (D-4.2-p). */}
+    {composing && (
+      <Toolbar label="Dessin posé">
+        <PlacementBar
+          selected={composition.selected}
+          frame={composition.frame}
+          drawings={composition.drawings}
+          actions={composition.actions}
+          layers={composition.composeLayers}
+          projectors={project?.projectors ?? []}
+          assignments={composition.assignments}
+          enabled={composing}
+        />
+      </Toolbar>
+    )}
+    </div>
   );
 
   // Inspecteur en onglets (D15-i) : un onglet par sujet, choisi par le
@@ -623,7 +641,7 @@ export function FacadeScreen() {
       onChange={chooseTab}
       tabs={[
         { value: "plan", label: "Plan", icon: "document", title: "Le plan de la façade, sa mise en plan (échelle) et la fresque", badge: view && !k ? "warning" : undefined },
-        { value: "dessins", label: "Dessins", icon: "image", title: "Dessins à poser, et réglages des dessins choisis", badge: composition.selected.length },
+        { value: "dessins", label: "Dessins", icon: "image", title: "Bibliothèque : les dessins à poser, classés par dossier" },
         { value: "calques", label: "Calques", icon: "layers", title: "Ranger les dessins posés" },
         { value: "export", label: "Export", icon: "export", title: "Simulation, export des diapositives, fiche de calepinage" },
       ]}
@@ -734,15 +752,6 @@ export function FacadeScreen() {
         ),
         dessins: (
           <>
-            <PlacementInspector
-              selected={composition.selected}
-              frame={composition.frame}
-              drawings={composition.drawings}
-              actions={composition.actions}
-              layers={composition.composeLayers}
-              projectors={project?.projectors ?? []}
-              assignments={composition.assignments}
-            />
             <DrawingsSection
               drawings={composition.drawings}
               blocked={composeBlocked ?? (viewOptions.drawings ? null : "Les dessins posés sont cachés : les montrer (menu Affichage, en haut à droite).")}

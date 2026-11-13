@@ -710,6 +710,21 @@ dessin. Les dessins à la racine viennent en premier, sans titre. Les
 dossiers repliés ne sont pas retenus d'une session à l'autre. Calcul pur
 dans `src/compose/drawingTree.ts`, testé.
 
+**D-4.2-p. Réglages du dessin posé dans une barre en haut ; l'onglet
+Dessins ne garde que la bibliothèque.** Demande de Benjamin (13 novembre
+2026) : « dessin posé : mets tout dans le menu en haut, et ne laisse que les
+dessins dans le menu dessins ». Une seconde barre, sous la barre d'outils de
+l'écran Façade, comme le panneau Contrôle d'Illustrator : nom (et
+« retourné »), calque, diapositive (l'explication passe en bulle d'aide,
+« à cheval » en orange), X, Y, L, H, Angle, état de la déformation,
+Retirer. Elle est là dès que l'on peut composer (plan à l'échelle, dessins
+montrés), et invite à cliquer un dessin quand rien n'est choisi : la zone
+de travail ne saute pas à chaque clic. Le miroir reste en icônes dans la
+barre d'outils : les boutons texte de D-4.2-m quittent l'onglet Dessins.
+Choisir un dessin n'ouvre plus l'onglet Dessins (règle de D15-i retirée),
+puisque ses réglages n'y sont plus. `PlacementInspector` devient
+`PlacementBar`.
+
 **Limite.** Les fichiers des dessins utilisés par une diapositive restent
 en mémoire pendant l'export (en niveaux de gris, un dessin de 4 096 px pèse
 16 Mo) ; à surveiller avec une très grande bibliothèque.
