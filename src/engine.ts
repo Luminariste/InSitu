@@ -160,6 +160,8 @@ export interface Project {
   library?: ProjectDrawing[];
   /** Plans ajoutés par-dessus le plan de référence, du fond vers l'avant (D-PL-a). */
   planGroups?: PlanGroup[];
+  /** Dossiers de la bibliothèque créés à la main, gardés même vides (D-4.1-g). */
+  libraryFolders?: string[];
 }
 
 /**
@@ -1055,6 +1057,36 @@ export async function fetchLibrary(folder: string): Promise<LibraryEntry[]> {
 export async function removeDrawing(folder: string, drawing: string): Promise<[Project, number]> {
   requireEngine();
   return invoke<[Project, number]>("library_remove", { folder, drawing });
+}
+
+/** Renomme un dessin de la bibliothèque (le fichier garde son nom) ; rend le projet. */
+export async function renameDrawing(folder: string, drawing: string, name: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("library_rename", { folder, drawing, name });
+}
+
+/** Range des dessins dans un dossier de la bibliothèque (`""` : la racine) ; les fichiers ne bougent pas. */
+export async function moveDrawings(folder: string, drawings: string[], target: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("library_move", { folder, drawings, target });
+}
+
+/** Crée un dossier vide dans la bibliothèque (`Oiseaux/Mer`). */
+export async function createLibraryFolder(folder: string, path: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("library_folder_create", { folder, path });
+}
+
+/** Renomme un dossier de la bibliothèque, avec ses sous-dossiers et ses dessins. */
+export async function renameLibraryFolder(folder: string, path: string, name: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("library_folder_rename", { folder, path, name });
+}
+
+/** Retire un dossier vide de la bibliothèque. */
+export async function removeLibraryFolder(folder: string, path: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("library_folder_remove", { folder, path });
 }
 
 /** Adresse de l'aperçu (1 024 px, fond transparent) d'un dessin ; `original` : sans ses retouches. */

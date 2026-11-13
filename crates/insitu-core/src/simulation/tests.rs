@@ -28,6 +28,7 @@ fn two_projectors() -> Project {
         vector: None,
         silhouette: None,
         retouch: Vec::new(),
+        folder: None,
         extra: Default::default(),
     });
     project

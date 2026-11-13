@@ -21,6 +21,7 @@
 //! - [`silhouette`] : la silhouette de chaque dessin (tâche 4.7) ;
 //! - [`retouch`] : gomme et crayon sur un dessin (tâche 4.8).
 
+pub mod organize;
 pub mod psd;
 pub mod read;
 pub mod retouch;
@@ -91,6 +92,8 @@ pub enum LibraryError {
     Silhouette(String),
     /// Retouches à la gomme ou au crayon refusées.
     Retouch(String),
+    /// Nom ou dossier refusé en rangeant la bibliothèque.
+    Organize(String),
     /// Écriture d'une vignette impossible.
     Cache {
         path: PathBuf,
@@ -120,6 +123,11 @@ impl fmt::Display for LibraryError {
             Self::Settings(reason) => write!(f, "Réglages de vectorisation refusés : {reason}."),
             Self::Silhouette(reason) => write!(f, "Silhouette refusée : {reason}."),
             Self::Retouch(reason) => write!(f, "Retouches refusées : {reason}."),
+            Self::Organize(reason) => {
+                let mut chars = reason.chars();
+                let first = chars.next().map(|c| c.to_uppercase().collect::<String>());
+                write!(f, "{}{}.", first.unwrap_or_default(), chars.as_str())
+            }
             Self::Cache { path, reason } => {
                 write!(
                     f,
@@ -606,6 +614,7 @@ fn import_found(
                     vector: None,
                     silhouette: None,
                     retouch: Vec::new(),
+                    folder: None,
                     extra: ExtraFields::new(),
                 });
             }

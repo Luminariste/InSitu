@@ -31,6 +31,35 @@ sur la façade à l'étape suivante (placement, tâche 4.2).
    sur la façade (la fenêtre dit combien). Le fichier reste dans le dossier
    du projet ; réimporter le même dossier le remet dans la bibliothèque.
 
+## Ranger la bibliothèque
+
+- **Renommer un dessin** : double-clic sur sa vignette, ou le crayon à côté
+  de son nom dans le panneau de droite ; ↩ valide, Échap annule. Le fichier
+  garde son nom.
+- **Ranger des dessins** : les glisser sur un dossier de la colonne de
+  gauche. ⌘-clic ajoute un dessin au choix, ⇧-clic choisit tous ceux entre
+  deux ; on glisse alors tout le choix. Lâchés sur « Tous les dessins », ils
+  sortent de tout dossier.
+- **Dossiers** : « + » en haut de la colonne crée un dossier (dans le dossier
+  choisi) ; double-clic pour le renommer ; clic droit pour renommer, créer
+  un sous-dossier ou retirer un dossier vide.
+- ⌘Z annule chaque rangement. Rien ne bouge sur le disque : dans le Finder,
+  `bibliotheque/` garde le rangement de l'import (D-4.1-g).
+
+### Essai sur Mac (version 0.1.72)
+
+1. Ouvrir un projet avec une bibliothèque (Trévarez, par exemple), étape
+   Bibliothèque.
+2. Cliquer « + » en haut de « Dossiers » : « Nouveau dossier » apparaît, prêt
+   à être renommé. Taper « Essai », ↩.
+3. Choisir trois dessins (clic, puis ⌘-clic sur deux autres), les glisser
+   sur « Essai » : le dossier compte 3, un message le confirme.
+4. Double-clic sur une vignette, taper un autre nom, ↩ : le nom change dans
+   la grille, dans l'onglet Dessins de la Façade et dans l'arborescence.
+5. Double-clic sur « Essai », le renommer : les dessins suivent.
+6. ⌘Z plusieurs fois : tout revient comme avant.
+7. Fermer et rouvrir le projet : le rangement est gardé.
+
 ## Vecteurs (tâche 5.2)
 
 Chaque dessin est vectorisé juste après l'import (une ligne montre

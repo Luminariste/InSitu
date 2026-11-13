@@ -103,7 +103,7 @@
   overflow-wrap: anywhere;
 }
 
-.library-preview + .library-detail-name + .ui-facts {
+.library-preview ~ .ui-facts {
   margin: 0 var(--ui-space-1);
 }
 
@@ -318,4 +318,23 @@
 
 .retouche-cursor.gomme {
   border-color: var(--ui-marker);
+}
+
+/* Ranger la bibliothèque (D-4.1-g) : dossier survolé par un glisser, nom en
+   cours de saisie, crayon à côté du nom. */
+.library-folder.is-over .ui-row {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: -2px;
+  background: var(--ui-accent-soft);
+}
+
+.library-name-field {
+  width: 100%;
+  min-width: 0;
+}
+
+.library-detail-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }

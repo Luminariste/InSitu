@@ -4,6 +4,38 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-13 — Ranger la bibliothèque (demande de Benjamin)
+
+Demande de Benjamin (13 novembre 2026) : « pouvoir renommer fichier,
+dossier, réorganiser fichiers dans dossier ». Module
+`crates/insitu-core/src/library/organize.rs`, commandes `insitu library
+rename | move | folders | folder-create | folder-rename | folder-remove`,
+écran `src/library/LibraryScreen.tsx`.
+
+**D-4.1-g. Ranger ne déplace aucun fichier : tout est dans `projet.json`.**
+Le nom affiché d'un dessin est `library[].name` (déjà là) ; son dossier est
+`library[].folder` quand on l'a rangé à la main (absent : le dossier où le
+fichier a été copié, comme avant) ; les dossiers créés à la main, gardés même
+vides, sont dans `libraryFolders`. Les fichiers restent où l'import les a mis
+sous `bibliotheque/`. Raisons : ⌘Z ne remet que `projet.json` (D-4.3-d), un
+fichier déplacé ne reviendrait pas ; la fresque Illustrator, les caches et
+l'autre Mac (Dropbox) citent les chemins des fichiers. Conséquence : dans le
+Finder, `bibliotheque/` garde le rangement de l'import ; l'inspecteur montre
+toujours le vrai fichier (ligne « Fichier »). Un dessin rangé de nouveau dans
+le dossier de son fichier perd son champ `folder`.
+
+**D-4.1-h. Les gestes.** Dossiers : « + » de l'en-tête (dans le dossier
+choisi), double-clic pour renommer (le dossier garde son parent ; nom déjà
+pris refusé), clic droit : renommer, nouveau sous-dossier, retirer (seulement
+vide ; un dossier tiré des fichiers disparaît de lui-même quand on le vide).
+Dessins : double-clic sur la vignette ou crayon de l'inspecteur pour
+renommer ; ⌘-clic et ⇧-clic pour en choisir plusieurs ; glisser les vignettes
+sur un dossier pour les y ranger, sur « Tous les dessins » pour les sortir de
+tout dossier. Le glisser porte le type `application/x-insitu-dessins`, pour
+ne pas être pris pour un dépôt depuis le Finder. Un nom vide ou avec « / »
+est refusé. Non fait : glisser un dossier dans un autre (le renommer ne
+change pas son parent).
+
 ## 2026-11-13 — Vectorisation : lissage et réduction des points (demande de Benjamin)
 
 Demande de Benjamin (13 novembre) : « vectorisation : ajouter paramètre
@@ -25,6 +57,7 @@ du cache que s'il est réglé : les vecteurs déjà calculés restent valables.
 Un lissage éloigne volontairement les courbes de l'image : l'écart mesuré
 passe au rouge, et la phrase le dit. CLI : `--smoothing PX` (`insitu
 vectorize`, `insitu library vectors`).
+
 ## 2026-11-13 — Trait AB caché, menu Présentation dans la barre du Mac (demande de Benjamin)
 
 Demandes de Benjamin (13 novembre, essai de la 0.1.68) : « pas besoin de

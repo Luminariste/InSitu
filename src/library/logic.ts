@@ -46,17 +46,21 @@ export interface FolderRow {
   count: number;
 }
 
-/** L'arbre des dossiers, à plat, dans l'ordre alphabétique (accents compris). */
-export function folderTree(entries: Pick<LibraryEntry, "folder">[]): FolderRow[] {
+/**
+ * L'arbre des dossiers, à plat, dans l'ordre alphabétique (accents compris).
+ * `extra` : dossiers créés à la main, montrés même vides (D-4.1-g).
+ */
+export function folderTree(entries: Pick<LibraryEntry, "folder">[], extra: string[] = []): FolderRow[] {
   const counts = new Map<string, number>();
-  for (const { folder } of entries) {
-    if (!folder) continue;
-    const parts = folder.split("/");
+  const add = (folder: string, n: number) => {
+    const parts = folder.split("/").filter(Boolean);
     for (let i = 1; i <= parts.length; i++) {
       const path = parts.slice(0, i).join("/");
-      counts.set(path, (counts.get(path) ?? 0) + 1);
+      counts.set(path, (counts.get(path) ?? 0) + n);
     }
-  }
+  };
+  for (const { folder } of entries) if (folder) add(folder, 1);
+  for (const folder of extra) add(folder, 0);
   const collator = new Intl.Collator("fr", { numeric: true, sensitivity: "base" });
   return [...counts.entries()]
     .sort(([a], [b]) => {
@@ -106,4 +110,38 @@ export function importSummary(report: ImportReport): string {
 /** Texte de la barre d'avancement : « 37 / 200 ». */
 export function progressLabel(done: number, total: number): string {
   return `Import : ${integer.format(done)} / ${integer.format(total)}`;
+}
+
+// --- Ranger la bibliothèque (D-4.1-g) -------------------------------------------
+
+/** Dossier parent (`Oiseaux` pour `Oiseaux/Mer`, vide pour `Oiseaux`). */
+export function parentFolder(path: string): string {
+  const i = path.lastIndexOf("/");
+  return i < 0 ? "" : path.slice(0, i);
+}
+
+/** Chemin d'un sous-dossier `name` de `parent` (vide : la racine). */
+export function childFolder(parent: string | null, name: string): string {
+  return parent ? `${parent}/${name}` : name;
+}
+
+/** « Nouveau dossier », ou « Nouveau dossier 2 »… s'il existe déjà dans `parent`. */
+export function newFolderName(existing: string[], parent: string | null): string {
+  const taken = new Set(existing);
+  for (let n = 1; ; n++) {
+    const name = n === 1 ? "Nouveau dossier" : `Nouveau dossier ${n}`;
+    if (!taken.has(childFolder(parent, name))) return name;
+  }
+}
+
+/** Dessins à ranger quand on glisse `id` : toute la sélection s'il en fait partie, sinon lui seul. */
+export function draggedDrawings(id: string, selection: Set<string>): string[] {
+  return selection.has(id) ? [...selection] : [id];
+}
+
+/** Phrase de compte rendu d'un rangement. */
+export function moveSummary(names: string[], target: string): string {
+  const where = target ? `dans « ${target} »` : "hors de tout dossier";
+  if (names.length === 1) return `« ${names[0]} » rangé ${where}.`;
+  return `${countLabel(names.length)} rangés ${where}.`;
 }
