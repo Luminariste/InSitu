@@ -28,6 +28,8 @@ interface Props {
   assignments: Map<string, Assignment>;
   /** Faux quand la composition est indisponible (pas de plan, pas d'échelle, dessins cachés). */
   enabled: boolean;
+  /** Les points de la déformation se tirent (sinon, déformation née d'un étirement : rien à dire). */
+  deforming: boolean;
 }
 
 /** Champ qui ne s'applique qu'à ↩ ou en quittant le champ ; Échap rétablit. */
@@ -161,7 +163,7 @@ function SlideChoice({
   );
 }
 
-export function PlacementBar({ selected, frame, drawings, actions, layers, projectors, assignments, enabled }: Props) {
+export function PlacementBar({ selected, frame, drawings, actions, layers, projectors, assignments, enabled, deforming }: Props) {
   if (!enabled) return null;
   if (selected.length === 0 || !frame)
     return <p className="placement-empty">Dessin posé : cliquer un dessin sur la façade pour le régler ici.</p>;
@@ -175,7 +177,7 @@ export function PlacementBar({ selected, frame, drawings, actions, layers, proje
     : `${selected.length} dessins`;
   const grouped = selected.some((p) => p.group);
   const layerIds = new Set(selected.map((p) => layerOf(layers, p).id));
-  const deformation = deformationState(selected);
+  const deformation = deforming ? deformationState(selected) : null;
   return (
     <>
       <span className="placement-name" title={name}>

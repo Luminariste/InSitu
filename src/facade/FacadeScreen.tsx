@@ -49,6 +49,7 @@ import {
 } from "../engine";
 import type { TileSource } from "../viewer";
 import { useExportPanel } from "./ExportPanel";
+import { viewToRestore, type KeptView } from "./keepView";
 import { contextTab, readFacadeTab, saveFacadeTab, type FacadeTab, type TabContext } from "./inspectorTabs";
 import { frescoPlacement } from "./exportLogic";
 import { rotationLabel } from "./rotation";
@@ -210,6 +211,15 @@ export function FacadeScreen() {
     [run, loadOverview],
   );
 
+  // Relit le projet (après ⌘Z, ⇧⌘Z, ⌘R) en gardant le zoom et l'endroit vus (D15-l).
+  const keptView = useRef<KeptView | null>(null);
+  const reload = () => {
+    if (!folder) return;
+    const scene = viewer.current?.scene();
+    keptView.current = scene ? { view: scene.getView(), k } : null;
+    void load(folder);
+  };
+
   // Au lancement : le dernier projet dans l'app, le plan d'essai sinon.
   useEffect(() => {
     if (engine) {
@@ -263,8 +273,17 @@ export function FacadeScreen() {
 
   // Un changement d'unité (mise à l'échelle) change la taille du plan dans
   // la visionneuse : on recadre.
+  // Après une relecture du projet (⌘Z, ⇧⌘Z, ⌘R), la vue reste où elle
+  // était (D15-l).
   useEffect(() => {
-    const id = window.setTimeout(() => viewer.current?.fitAll(), 0);
+    if (!view) return;
+    const restore = viewToRestore(keptView.current, k);
+    keptView.current = null;
+    const id = window.setTimeout(() => {
+      const scene = viewer.current?.scene();
+      if (restore && scene) scene.setView(restore);
+      else viewer.current?.fitAll();
+    }, 0);
     return () => window.clearTimeout(id);
   }, [k, view]);
 
@@ -545,7 +564,7 @@ export function FacadeScreen() {
         ready={ready}
         placeholder="Essai sans moteur"
         onOpen={(path) => void load(path)}
-        onReload={() => folder && void load(folder)}
+        onReload={reload}
         onError={setError}
       />
       <ToolSeparator />
@@ -602,6 +621,7 @@ export function FacadeScreen() {
           projectors={project?.projectors ?? []}
           assignments={composition.assignments}
           enabled={composing}
+          deforming={composition.deforming}
         />
       </Toolbar>
     )}

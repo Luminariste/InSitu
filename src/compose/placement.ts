@@ -81,8 +81,10 @@ export const NUDGE_MM = 10;
 export const NUDGE_SHIFT_FACTOR = 10;
 /** Décalage d'une copie collée par ⌘V ou dupliquée par ⌘D sans geste à répéter. */
 export const PASTE_OFFSET_MM = 100;
-/** Pas de rotation et d'orientation de déplacement avec Maj. */
+/** Pas d'orientation d'un déplacement avec Maj. */
 export const SNAP_DEGREES = 45;
+/** Pas de la rotation à la souris avec Maj (demande de Benjamin, D-4.2-q). */
+export const ROTATE_SNAP_DEGREES = 5;
 /** Plus petite taille d'un dessin posé. */
 export const MIN_SIZE_MM = 1;
 
@@ -494,9 +496,9 @@ export function distribute(placements: Placement[], ids: Set<string>, axis: "hor
   return out;
 }
 
-/** Arrondit un angle au multiple de 45° le plus proche (Maj enfoncée). */
-export function snapAngle(deg: number): number {
-  return Math.round(deg / SNAP_DEGREES) * SNAP_DEGREES;
+/** Arrondit un angle au multiple de `step` le plus proche (Maj enfoncée), 45° par défaut. */
+export function snapAngle(deg: number, step = SNAP_DEGREES): number {
+  return Math.round(deg / step) * step;
 }
 
 /** Déplacement contraint (Maj) : horizontal, vertical ou à 45°. */

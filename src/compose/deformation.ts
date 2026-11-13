@@ -52,6 +52,29 @@ export function identity(frame: DeformationFrame, columns: number, rows: number)
   return { frame, columns, rows, nodes };
 }
 
+/**
+ * Vrai si la grille est une simple transformation affine du cadre (nœuds
+ * régulièrement espacés sur un parallélogramme) : c'est le cas d'un dessin
+ * tourné puis étiré par une poignée du cadre (D-4.2-l), ou d'une grille
+ * qu'on vient de tendre sans encore la tirer (D-4.2-q).
+ */
+export function isAffine(d: Deformation, tolerance = 1e-7): boolean {
+  const c = d.columns;
+  const r = d.rows;
+  const at = (i: number, j: number) => d.nodes[j * (c + 1) + i];
+  const o = at(0, 0);
+  const u = at(c, 0);
+  const v = at(0, r);
+  for (let j = 0; j <= r; j++)
+    for (let i = 0; i <= c; i++) {
+      const n = at(i, j);
+      const x = o[0] + (i / c) * (u[0] - o[0]) + (j / r) * (v[0] - o[0]);
+      const y = o[1] + (i / c) * (u[1] - o[1]) + (j / r) * (v[1] - o[1]);
+      if (Math.abs(n[0] - x) > tolerance || Math.abs(n[1] - y) > tolerance) return false;
+    }
+  return true;
+}
+
 /** Homographie du carré unité vers les quatre nœuds (ordre des lignes). */
 function squareToQuad(n: [number, number][]): (s: number, t: number) => [number, number] {
   // Coins dans l'ordre du tour : (0,0), (1,0), (1,1), (0,1).
