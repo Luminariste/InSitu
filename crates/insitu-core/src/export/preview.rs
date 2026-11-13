@@ -174,7 +174,11 @@ fn preview_request(
     for drawing in used {
         if let Some(d) = project.library.iter().find(|d| d.id == drawing) {
             identity.push('|');
-            identity.push_str(&file_identity(&dir.resolve(&d.source)).unwrap_or_default());
+            // Le dessin retouché à la gomme ou au crayon (tâche 4.8) : son nom
+            // dépend des retouches.
+            let file = crate::library::retouch::readable_file(dir, d);
+            identity.push_str(&file.to_string_lossy());
+            identity.push_str(&file_identity(&file).unwrap_or_default());
             // Une silhouette retouchée change ce qui est caché (tâche 4.7).
             if let Some(s) = &d.silhouette {
                 identity.push_str(&serde_json::to_string(s).expect("sérialisable"));

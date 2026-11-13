@@ -63,6 +63,7 @@ fn project(temp: &TempDir) -> ProjectDir {
         height: f64::from(side),
         vector: None,
         silhouette: None,
+        retouch: Vec::new(),
         extra: Default::default(),
     });
     for (id, x, size) in [

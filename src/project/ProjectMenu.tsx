@@ -23,6 +23,11 @@ interface Props {
   ready: boolean;
   /** Ce que montre le menu sans moteur (navigateur seul). */
   placeholder?: string;
+  /**
+   * Faux : les raccourcis du menu (⌘Z, ⌘N…) laissent la main, par exemple
+   * à un éditeur plein écran qui a sa propre annulation (tâche 4.8).
+   */
+  shortcuts?: boolean;
   /** Erreur à remonter à l'écran. */
   onError: (message: string) => void;
 }
@@ -36,7 +41,7 @@ export async function askNewProject(): Promise<string | null> {
   return path;
 }
 
-export function ProjectMenu({ name, folder, onOpen, onReload, ready, placeholder, onError }: Props) {
+export function ProjectMenu({ name, folder, onOpen, onReload, ready, placeholder, onError, shortcuts = true }: Props) {
   const engine = hasEngine();
   const attempt = (task: () => Promise<string | null>) => () => {
     task().then(
@@ -75,11 +80,11 @@ export function ProjectMenu({ name, folder, onOpen, onReload, ready, placeholder
   };
 
   useShortcuts([
-    { keys: "mod+n", run: create, enabled: engine && ready },
-    { keys: "mod+o", run: open, enabled: engine && ready },
-    { keys: "mod+r", run: () => onReload?.(), enabled: canReload },
-    { keys: "mod+shift+z", run: undoOrRedo(true) },
-    { keys: "mod+z", run: undoOrRedo(false) },
+    { keys: "mod+n", run: create, enabled: shortcuts && engine && ready },
+    { keys: "mod+o", run: open, enabled: shortcuts && engine && ready },
+    { keys: "mod+r", run: () => onReload?.(), enabled: shortcuts && canReload },
+    { keys: "mod+shift+z", run: undoOrRedo(true), enabled: shortcuts },
+    { keys: "mod+z", run: undoOrRedo(false), enabled: shortcuts },
   ]);
 
   return (

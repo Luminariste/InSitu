@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use super::svg::VectorDrawing;
 use super::{to_gray, ExportError};
 use crate::geometry::{Point, PointWarp, Transform};
+use crate::library::retouch::retouched_file;
 use crate::library::silhouette;
 use crate::library::vectors::{self, SVG_VECTOR_SIDE};
 use crate::library::{flatten_on_black, read::decode};
@@ -238,7 +239,8 @@ impl DrawingCache {
                 .map(|q| q.width.max(q.height) / px_mm)
                 .fold(0.0, f64::max);
             let svg_side = (largest.ceil() as u32).clamp(SVG_SIDE_RANGE.0, SVG_SIDE_RANGE.1);
-            let path = dir.resolve(&drawing.source);
+            let path = retouched_file(dir, drawing)
+                .map_err(|e| ExportError::Image(format!("dessin « {} » : {e}", drawing.name)))?;
             let decoded = decode(&path, svg_side)
                 .map_err(|e| ExportError::Image(format!("dessin « {} » : {e}", drawing.name)))?;
             let image = to_gray(flatten_on_black(decoded.raster));
@@ -277,7 +279,8 @@ impl DrawingCache {
             let Some(drawing) = project.drawing(&p.drawing) else {
                 continue;
             };
-            let path = dir.resolve(&drawing.source);
+            let path = retouched_file(dir, drawing)
+                .map_err(|e| ExportError::Image(format!("dessin « {} » : {e}", drawing.name)))?;
             let raster = decode(&path, SVG_VECTOR_SIDE)
                 .map_err(|e| ExportError::Image(format!("dessin « {} » : {e}", drawing.name)))?
                 .raster;

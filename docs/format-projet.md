@@ -277,9 +277,13 @@ en millimètres réels. Le coin haut-gauche du fichier est l'origine.
 | `width`, `height` | Taille du fichier : pixels pour une image, pixels CSS (1/96 de pouce) pour un SVG |
 | `vector` | Facultatif (tâche 5.2) : réglages de vectorisation propres au dessin, `threshold` (1 à 255), `tolerancePx`, `cornerAngleDeg`, `minAreaPx`. Absent : réglages par défaut (128 ; 0,3 px ; 70° ; 0) |
 | `silhouette` | Facultatif (tâche 4.7) : silhouette retouchée à la main, une liste de contours, chacun une liste de points `[u, v]` en fractions du dessin (`[0, 0]` en haut à gauche, `[1, 1]` en bas à droite). Absente : silhouette détectée automatiquement ; liste vide : le dessin ne cache rien |
+| `retouch` | Facultatif (tâche 4.8) : retouches à la gomme et au crayon, dans l'ordre où elles ont été faites. Chacune : `tool` (`erase` : peint du noir, `draw` : peint du blanc), `points` (liste de `[u, v]` en fractions du dessin), et soit `fill: true` (zone : le polygone rempli), soit `size` (trait rond qui passe par les points, épaisseur en fraction du plus grand côté du dessin). Absent : le dessin tel qu'importé |
 
 Le fichier copié n'est jamais modifié : son fond noir est rendu transparent
-à l'affichage seulement. Les vignettes, les vecteurs et les silhouettes
+à l'affichage seulement. Un dessin retouché (`retouch`) est fabriqué à part,
+en PNG à pleine résolution, dans le dossier `retouches/` du projet
+(`retouches/<id>-<clé>.png`, la clé dépend des retouches) ; il est refait
+s'il manque. Les vignettes, les vecteurs et les silhouettes
 détectées ne sont pas dans le projet : l'app les range dans son cache et les
 refait au besoin.
 

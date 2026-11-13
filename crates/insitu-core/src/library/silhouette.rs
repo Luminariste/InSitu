@@ -368,7 +368,7 @@ pub fn silhouettes(
             },
             None => DrawingSilhouette {
                 drawing: drawing.id.clone(),
-                polygons: ensure_detected(&dir.resolve(&drawing.source), cache_root)
+                polygons: ensure_detected(&super::retouch::readable_file(dir, drawing), cache_root)
                     .unwrap_or_default(),
                 manual: false,
             },

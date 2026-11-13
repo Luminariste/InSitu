@@ -241,7 +241,7 @@ fn vectors_in(
 ) -> Result<VectorSummary, LibraryError> {
     let settings = settings_of(project, id)?;
     let drawing = project.drawing(id).expect("vérifié par settings_of");
-    let path = dir.resolve(&drawing.source);
+    let path = super::retouch::retouched_file(dir, drawing)?;
     let mut summary = ensure_vectors(&path, &settings, cache_root, 0)?;
     summary.image = ensure_rendition(&path, cache_root, COMPARE_SIDE)?;
     Ok(summary)
@@ -311,7 +311,7 @@ pub fn vectorize_drawings(
         &chosen,
         thread_count(threads),
         |drawing| {
-            let path = dir.resolve(&drawing.source);
+            let path = super::retouch::retouched_file(dir, drawing)?;
             ensure_vectors(&path, &drawing.vector.unwrap_or_default(), cache_root, 1)
         },
         |done| progress(ImportProgress { done, total }),

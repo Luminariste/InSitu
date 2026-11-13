@@ -91,6 +91,28 @@ contour en rouge :
   nouveau** oublie les retouches ; **Aucune silhouette** (puis Enregistrer)
   : le dessin ne cache plus rien.
 
+## Gomme et crayon (tâche 4.8)
+
+Pour enlever d'un dessin des traits inutiles venus de l'original, ou en
+ajouter : dans l'inspecteur, section **Gomme et crayon**, **Retoucher le
+dessin…** ouvre le dessin en grand.
+
+- **Gomme** (touche E) efface, **Crayon** (touche N) ajoute du blanc.
+- **Trait** (T) peint le long du geste, à l'épaisseur choisie à droite
+  (touches [ et ] pour l'affiner) ; le cercle autour du pointeur montre
+  l'épaisseur. **Zone** (Z) : entourer une partie, elle est effacée ou
+  remplie au lâcher. Pratique pour enlever d'un coup tout un morceau.
+- Chaque retouche s'enregistre seule, peu après le geste. ⌘Z retire la
+  dernière, ⇧⌘Z la remet ; **Revenir au dessin d'origine** les retire toutes
+  (⌘Z les remet aussi).
+- Espace + glisser déplace la vue ; molette ou pincement : zoom.
+
+Le fichier importé n'est jamais modifié. L'app fabrique à côté le dessin
+retouché (dossier `retouches/` du projet) et s'en sert partout : vignette,
+façade, vecteurs, silhouette détectée, vue Diapositive, simulation, fiche et
+export (D-4.8-a à d). Un dessin SVG retouché devient une image de 4 096 px
+(D-4.8-c).
+
 ## En ligne de commande
 
 ```
@@ -105,7 +127,15 @@ insitu library silhouette Épinal.insitu merle --cache /tmp/vignettes --mask mer
 insitu library silhouette Épinal.insitu merle --cache /tmp/vignettes --from contours.json
 insitu library silhouette Épinal.insitu merle --cache /tmp/vignettes --none
 insitu library silhouette Épinal.insitu merle --cache /tmp/vignettes --default
+insitu library retouch Épinal.insitu merle
+insitu library retouch Épinal.insitu merle --from retouches.json --out merle-retouche.png
+insitu library retouch Épinal.insitu merle --clear
 ```
+
+`retouch` affiche les retouches à la gomme et au crayon et le fichier lu à
+la place de l'original ; `--from` les remplace (liste JSON, voir
+`docs/format-projet.md`), `--clear` revient au dessin d'origine, `--out`
+écrit le dessin retouché.
 
 `silhouette` affiche la silhouette en JSON ; `--mask` l'écrit aussi en image
 (blanc dedans), pour la comparer au dessin.
@@ -150,3 +180,20 @@ avec et sans gris, un PSD, un SVG.
 5. Fermer l'app, la rouvrir : un dessin réglé garde son réglage (« réglages
    propres » sous l'aperçu).
 6. Noter les dessins dont le résultat ne convient pas, avec ce qui ne va pas.
+
+## Essai sur Mac de la gomme et du crayon (tâche 4.8)
+
+1. Étape **Bibliothèque**, choisir un dessin avec un trait en trop.
+2. **Retoucher le dessin…** ; gomme, trait : effacer le trait en trop. Le
+   cercle du pointeur doit avoir la taille du trait effacé ; le geste doit
+   suivre la souris sans retard, même zoomé.
+3. Passer en **Zone** et entourer un morceau : il disparaît au lâcher.
+4. **Crayon** : ajouter un trait, puis une zone remplie.
+5. ⌘Z deux fois, puis ⇧⌘Z : les retouches partent et reviennent.
+6. **Fermer** : la vignette et l'aperçu montrent le dessin retouché ; la
+   ligne « Gomme et crayon » compte les retouches.
+7. Étape **Façade** : le dessin posé est retouché ; l'export des
+   diapositives (et le SVG) aussi.
+8. Fermer l'app, la rouvrir : les retouches sont toujours là.
+9. Dire si les épaisseurs proposées conviennent et si la gomme doit aussi
+   pouvoir effacer « en dur » (sans bord adouci).

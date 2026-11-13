@@ -566,8 +566,66 @@ pub struct Drawing {
     /// liste vide : le dessin n'en a pas (il ne cache rien).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub silhouette: Option<Vec<SilhouettePolygon>>,
+    /// Gomme et crayon (tâche 4.8) : retouches posées sur le dessin, dans
+    /// l'ordre où elles ont été faites. Vide : le dessin tel qu'importé.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub retouch: Vec<RetouchStroke>,
     #[serde(flatten)]
     pub extra: ExtraFields,
+}
+
+/// L'outil d'une retouche : la gomme peint du noir (le trait disparaît), le
+/// crayon du blanc (un trait apparaît).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RetouchTool {
+    Erase,
+    Draw,
+}
+
+/// Une retouche à la gomme ou au crayon (tâche 4.8), en fractions du dessin
+/// comme la silhouette : elle suit le dessin à toute résolution.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RetouchStroke {
+    pub tool: RetouchTool,
+    /// Vrai : une zone, le polygone `points` rempli ; faux : un trait qui
+    /// passe par `points`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub fill: bool,
+    /// Épaisseur d'un trait, en fraction du plus grand côté du dessin
+    /// (ignorée pour une zone).
+    #[serde(default)]
+    pub size: f64,
+    /// Points `[u, v]` en fractions du dessin.
+    pub points: Vec<[f64; 2]>,
+}
+
+/// Ce qui ne va pas dans des retouches, s'il y a quelque chose.
+pub fn retouch_problem(strokes: &[RetouchStroke]) -> Option<String> {
+    for (i, stroke) in strokes.iter().enumerate() {
+        let n = i + 1;
+        if stroke.points.is_empty() {
+            return Some(format!("la retouche {n} n'a aucun point"));
+        }
+        if stroke.fill && stroke.points.len() < 3 {
+            return Some(format!("la zone {n} a moins de trois points"));
+        }
+        if !stroke.fill && !(stroke.size.is_finite() && stroke.size > 0.0 && stroke.size <= 1.0) {
+            return Some(format!("le trait {n} a une épaisseur invalide"));
+        }
+        if stroke
+            .points
+            .iter()
+            .flatten()
+            .any(|c| !c.is_finite() || !(-1.0..=2.0).contains(c))
+        {
+            return Some(format!(
+                "la retouche {n} a un point hors du dessin ou invalide"
+            ));
+        }
+    }
+    None
 }
 
 /// Un polygone de silhouette : points `[u, v]` en fractions du dessin,

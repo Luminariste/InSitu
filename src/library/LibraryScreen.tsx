@@ -19,6 +19,7 @@ import {
   importDrawingFolder,
   openProject,
   removeDrawing,
+  saveRetouch,
   saveSilhouette,
   saveVectorSettings,
   vectorizeDrawings,
@@ -26,6 +27,7 @@ import {
   type ImportProgress,
   type LibraryEntry,
   type Project,
+  type RetouchStroke,
   type SilhouettePolygon,
   type VectorSettings,
   type VectorSummary,
@@ -33,6 +35,8 @@ import {
 import { recalledProject } from "../project/current";
 import { countLabel, filterEntries, folderTree, formatSize, importSummary, progressLabel } from "./logic";
 import { demoLibrary, demoSilhouette, demoVectors } from "./demo";
+import { RetouchEditor } from "./RetouchEditor";
+import { retouchLine } from "./retouchLogic";
 import { SilhouetteEditor } from "./SilhouetteEditor";
 import { silhouetteLine } from "./silhouetteLogic";
 import { VectorCompare, type ShownVectors } from "./VectorCompare";
@@ -99,6 +103,19 @@ export function LibraryScreen() {
   const [silhouetteError, setSilhouetteError] = useState<string | null>(null);
   const [silhouetteBusy, setSilhouetteBusy] = useState(false);
   const [editingSilhouette, setEditingSilhouette] = useState(false);
+  // Gomme et crayon (tâche 4.8) : l'éditeur, l'aperçu sans retouche, et
+  // l'enregistrement en cours (un seul à la fois, le dernier état gagne).
+  const [editingRetouch, setEditingRetouch] = useState(false);
+  const [originalPreview, setOriginalPreview] = useState<string | null>(null);
+  const [retouchSaving, setRetouchSaving] = useState(false);
+  const [retouchError, setRetouchError] = useState<string | null>(null);
+  const [demoRetouch, setDemoRetouch] = useState<Record<string, RetouchStroke[]>>({});
+  /** Augmente à chaque retouche enregistrée : aperçu, vecteurs et silhouette se refont. */
+  const [revision, setRevision] = useState(0);
+  const retouchQueue = useRef<{ running: boolean; next: { id: string; strokes: RetouchStroke[] } | null }>({
+    running: false,
+    next: null,
+  });
   const grid = useRef<HTMLDivElement>(null);
 
   const run = useCallback(async (label: string | null, task: () => Promise<void>) => {
@@ -196,7 +213,8 @@ export function LibraryScreen() {
     return () => {
       cancelled = true;
     };
-  }, [chosen, engine, folder]);
+    // `revision` : le dessin vient d'être retouché à la gomme ou au crayon.
+  }, [chosen, engine, folder, revision]);
 
   // Vecteurs du dessin choisi (tâche 5.2) : déjà en cache après l'import ;
   // sinon le moteur les calcule (quelques dixièmes de seconde par dessin).
@@ -229,7 +247,7 @@ export function LibraryScreen() {
     };
     // `entries` ne sert qu'au mode démonstration : pas de nouvelle demande
     // quand la liste change (réglages appliqués).
-  }, [chosen?.id, chosen?.problem, engine, folder, showVectors]);
+  }, [chosen?.id, chosen?.problem, engine, folder, showVectors, revision]);
 
   const applySettings = (settings: VectorSettings | null) => {
     if (!engine || !folder || !chosen) return;
@@ -264,7 +282,62 @@ export function LibraryScreen() {
     return () => {
       cancelled = true;
     };
-  }, [chosen?.id, chosen?.problem, engine, folder]);
+  }, [chosen?.id, chosen?.problem, engine, folder, revision]);
+
+  // --- Gomme et crayon (tâche 4.8) --------------------------------------------
+
+  const savedRetouch: RetouchStroke[] = chosen
+    ? engine
+      ? (project?.library?.find((d) => d.id === chosen.id)?.retouch ?? [])
+      : (demoRetouch[chosen.id] ?? [])
+    : [];
+
+  const openRetouch = () => {
+    if (!chosen) return;
+    setRetouchError(null);
+    setOriginalPreview(null);
+    setEditingRetouch(true);
+    if (!engine || !folder) {
+      setOriginalPreview(chosen.url);
+      return;
+    }
+    fetchDrawingPreview(folder, chosen.id, true).then(setOriginalPreview, (failure: unknown) =>
+      setRetouchError(String(failure).replace(/^Error: /, "")),
+    );
+  };
+
+  /** Enregistre les retouches d'un dessin ; pendant un enregistrement, seul le dernier état attend son tour. */
+  const saveRetouchLater = (id: string, strokes: RetouchStroke[]) => {
+    if (!engine || !folder) {
+      setDemoRetouch((all) => ({ ...all, [id]: strokes }));
+      return;
+    }
+    const queue = retouchQueue.current;
+    queue.next = { id, strokes };
+    if (queue.running) return;
+    const drain = async () => {
+      queue.running = true;
+      setRetouchSaving(true);
+      while (queue.next) {
+        const job = queue.next;
+        queue.next = null;
+        try {
+          const { project: updated, entry } = await saveRetouch(folder, job.id, job.strokes);
+          setProject(updated);
+          setEntries((list) =>
+            list.map((e) => (e.id === entry.id ? { ...entry, url: entry.thumbnail ? cacheFileUrl(entry.thumbnail) : null } : e)),
+          );
+          setRetouchError(null);
+        } catch (failure) {
+          setRetouchError(String(failure).replace(/^Error: /, ""));
+        }
+      }
+      queue.running = false;
+      setRetouchSaving(false);
+      setRevision((r) => r + 1);
+    };
+    void drain();
+  };
 
   const applySilhouette = (polygons: SilhouettePolygon[] | null) => {
     if (!chosen) return;
@@ -324,9 +397,16 @@ export function LibraryScreen() {
 
   const ready = busy === null && progress === null;
 
+  // Pas de raccourci de la bibliothèque sous un éditeur plein écran.
+  const overlay = editingSilhouette || editingRetouch || comparing;
+
   useShortcuts([
-    { keys: "mod+i", run: () => void importFolder(), enabled: engine && !!folder && ready },
-    { keys: "backspace", run: () => chosen && setRemoving(chosen.id), enabled: engine && !!folder && ready && !!chosen },
+    { keys: "mod+i", run: () => void importFolder(), enabled: engine && !!folder && ready && !overlay },
+    {
+      keys: "backspace",
+      run: () => chosen && setRemoving(chosen.id),
+      enabled: engine && !!folder && ready && !!chosen && !overlay,
+    },
   ]);
 
   const toolbar = (
@@ -336,6 +416,7 @@ export function LibraryScreen() {
         folder={folder}
         ready={ready}
         placeholder="Exemple sans moteur"
+        shortcuts={!overlay}
         onOpen={(path) => void load(path)}
         onReload={() => folder && void load(folder)}
         onError={setError}
@@ -437,6 +518,16 @@ export function LibraryScreen() {
               </p>
               <Button icon="search" onClick={() => setComparing(true)} disabled={!vectors}>
                 Comparer image et vecteurs…
+              </Button>
+            </Section>
+          )}
+          {!chosen.problem && (
+            <Section title="Gomme et crayon">
+              <p className={retouchError ? "library-vectors library-problem" : "library-vectors"}>
+                {retouchError ?? retouchLine(savedRetouch)}
+              </p>
+              <Button icon="eraser" onClick={openRetouch}>
+                Retoucher le dessin…
               </Button>
             </Section>
           )}
@@ -552,6 +643,22 @@ export function LibraryScreen() {
           error={silhouetteError}
           onSave={applySilhouette}
           onClose={() => setEditingSilhouette(false)}
+        />
+      )}
+      {editingRetouch && chosen && (
+        <RetouchEditor
+          key={chosen.id}
+          name={chosen.name}
+          originalUrl={originalPreview}
+          width={chosen.width}
+          height={chosen.height}
+          strokes={savedRetouch}
+          backdrop={backdrop}
+          editable
+          saving={retouchSaving}
+          error={retouchError}
+          onChange={(strokes) => saveRetouchLater(chosen.id, strokes)}
+          onClose={() => setEditingRetouch(false)}
         />
       )}
       {comparing && chosen && (
