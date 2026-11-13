@@ -53,7 +53,7 @@ import { viewToRestore, type KeptView } from "./keepView";
 import { contextTab, readFacadeTab, saveFacadeTab, type FacadeTab, type TabContext } from "./inspectorTabs";
 import { frescoPlacement } from "./exportLogic";
 import { rotationLabel } from "./rotation";
-import { DEFAULT_DISPLAY, overviewLayers, type OverviewDisplay } from "./overview";
+import { DEFAULT_DISPLAY, PHOTO_OPACITIES, changedDisplay, nearestOpacity, overviewLayers, type OverviewDisplay } from "./overview";
 import { demoOverview, demoSimulation } from "./overviewDemo";
 import { OverviewPanel } from "./OverviewPanel";
 import { SimulationSection } from "./SimulationSection";
@@ -578,9 +578,14 @@ export function FacadeScreen() {
   ]);
   useShortcuts(composition.shortcuts);
 
-  const changed = changedViewOptions(viewOptions);
+  const changed = changedViewOptions(viewOptions) + changedDisplay(display);
   const toggleView = (key: keyof ViewOptions) => setViewOptions((current) => toggleViewOption(current, key));
-  const showEverything = () => setViewOptions(() => DEFAULT_VIEW_OPTIONS);
+  // Tout remontrer ; les projecteurs décochés à gauche restent cachés.
+  const showEverything = () => {
+    setViewOptions(() => DEFAULT_VIEW_OPTIONS);
+    setDisplay({ ...DEFAULT_DISPLAY, hidden: display.hidden });
+  };
+  const photoOpacity = nearestOpacity(display.photoOpacity);
 
   const composing = composeBlocked === null && picking === "off" && ready && viewOptions.drawings;
   const toolbar = (
@@ -609,7 +614,7 @@ export function FacadeScreen() {
         label={changed > 0 ? `Affichage (${changed})` : "Affichage"}
         icon={viewOptions.plan && viewOptions.fresco && viewOptions.drawings ? "eye" : "eyeOff"}
         align="end"
-        title="Montrer ou cacher le plan, la fresque, les dessins ; passer en négatif"
+        title="Montrer ou cacher le plan, la fresque, les dessins, les photos et emprises des projecteurs ; passer en négatif"
         items={[
           { heading: "Montrer" },
           { label: "Le plan", checked: viewOptions.plan, onSelect: () => toggleView("plan"), disabled: !view },
@@ -623,6 +628,14 @@ export function FacadeScreen() {
           { label: "Les photos des projecteurs", checked: display.photos, onSelect: () => setDisplay({ ...display, photos: !display.photos }) },
           { label: "Les emprises", checked: display.footprints, onSelect: () => setDisplay({ ...display, footprints: !display.footprints }) },
           { label: "Les recouvrements", checked: display.overlaps, onSelect: () => setDisplay({ ...display, overlaps: !display.overlaps }) },
+          { separator: true },
+          { heading: "Opacité des photos" },
+          ...PHOTO_OPACITIES.map((o) => ({
+            label: `${Math.round(o * 100)} %`,
+            checked: photoOpacity === o,
+            onSelect: () => setDisplay({ ...display, photoOpacity: o }),
+            disabled: !display.photos,
+          })),
           { separator: true },
           { heading: "Couleurs" },
           {
