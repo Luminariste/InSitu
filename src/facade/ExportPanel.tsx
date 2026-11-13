@@ -19,7 +19,11 @@ import {
 } from "../engine";
 import { Button, Progress, Property, Section, useShortcuts } from "../ui";
 import {
+  ALL_SLIDES,
+  exportButtonLabel,
   exportSettingsOf,
+  exportTargets,
+  keptTarget,
   exportSizeLabel,
   exportSummary,
   fileName,
@@ -64,6 +68,10 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
   // De quoi graver : la fresque, ou des dessins posés (le moteur écarte les calques masqués).
   const artwork = fresco !== null || (project?.placements?.length ?? 0) > 0;
   const ready = engine && folder !== null && busy === null;
+  // Toutes les diapositives, ou celle d'un seul projecteur recalé.
+  const targets = exportTargets(project?.projectors ?? []);
+  const [targetChoice, setTargetChoice] = useState<string>(ALL_SLIDES);
+  const target = keptTarget(targetChoice, targets);
   const set = (patch: Partial<ExportSettings>) => setSettings({ ...settings, ...patch });
 
   const run = async (label: string, task: () => Promise<void>, from: "fresco" | "export" = "export") => {
@@ -98,7 +106,7 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
       const chosen = { ...settings, dpi };
       const destination = await chooseExportFolder();
       if (!destination) return;
-      const report = await exportSlides(folder, destination, chosen, setProgress);
+      const report = await exportSlides(folder, destination, chosen, setProgress, target === ALL_SLIDES ? undefined : [target]);
       setSettings(chosen);
       setMessage(exportSummary(report, destination));
     });
@@ -195,9 +203,32 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
             </label>
           )}
         </fieldset>
+        <Property label="Diapositives" hint={target === ALL_SLIDES ? `${targets.length} projecteur${targets.length > 1 ? "s" : ""} recalé${targets.length > 1 ? "s" : ""}` : "Un seul PNG"}>
+          <select
+            className="ui-select"
+            value={target}
+            onChange={(e) => setTargetChoice(e.target.value)}
+            disabled={busy !== null || targets.length === 0}
+            aria-label="Diapositives à exporter"
+          >
+            <option value={ALL_SLIDES}>Toutes</option>
+            {targets.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label} seulement
+              </option>
+            ))}
+          </select>
+        </Property>
         <div className="facade-export-go">
-          <Button variant="primary" icon="export" shortcut="mod+e" title="Un PNG par projecteur recalé : la fresque et les dessins posés" onClick={() => void exportAll()} disabled={!ready || !artwork}>
-            Exporter les diapositives…
+          <Button
+            variant="primary"
+            icon="export"
+            shortcut="mod+e"
+            title={target === ALL_SLIDES ? "Un PNG par projecteur recalé : la fresque et les dessins posés" : "Le PNG de ce projecteur seulement"}
+            onClick={() => void exportAll()}
+            disabled={!ready || !artwork}
+          >
+            {exportButtonLabel(target, targets)}
           </Button>
           <Button
             icon="document"

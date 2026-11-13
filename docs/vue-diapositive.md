@@ -30,7 +30,10 @@ colonnes, fenêtres.
    diapositive telle qu'elle part dans LightBurn : traits blancs pleins sur
    fond noir, sans photo ; un second clic revient à l'affichage d'avant.
    Ces réglages sont retenus d'un lancement à l'autre.
-5. Zoomer pour juger d'un détail. L'aperçu fait 2 048 px (0,14 mm par
+5. **Exporter cette diapositive…** (⌘E), en haut à droite : le PNG de la
+   diapositive affichée seulement, avec les réglages de l'onglet Export de
+   la Façade.
+6. Zoomer pour juger d'un détail. L'aperçu fait 2 048 px (0,14 mm par
    pixel), comme le détail utile d'une photo redressée.
 
 Si un dessin tombe à côté de l'élément visé, corriger le recalage (étape
