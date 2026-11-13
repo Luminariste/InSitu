@@ -25,6 +25,21 @@ se voit est ce qui part). Les réglages choisis deviennent ceux du projet,
 comme depuis la Façade. Les dessins des calques masqués restent écartés
 (inchangé). Le plan de contrôle garde les réglages du projet.
 
+## 2026-11-13 — Façade : tout l'affichage dans le menu Affichage (demande de Benjamin)
+
+Demande de Benjamin : « dans façade, il y a dans le menu de gauche
+afficher, tout devrait être dans le menu affichage ».
+
+**D15-q. Le panneau Projecteurs ne règle plus l'affichage.** La rubrique
+« Afficher » du panneau de gauche (photos, emprises, recouvrements,
+opacité des photos) disparaît : ces réglages sont dans le menu
+**Affichage** de la barre du haut, où photos, emprises et recouvrements
+étaient déjà. L'opacité devient un choix parmi 100, 80, 50 et 25 % (un
+menu n'a pas de curseur). La pastille du menu compte aussi ces réglages,
+et « Tout montrer » les remet à l'ouverture. Seules les cases devant
+chaque projecteur restent à gauche : elles disent quel projecteur on
+regarde, dans la liste même.
+
 ## 2026-11-13 — Points réglés aux flèches (demande de Benjamin)
 
 Demande de Benjamin : « décalage, 4 coins etc : quand on clique sur un
