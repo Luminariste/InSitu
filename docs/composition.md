@@ -30,7 +30,7 @@ Tout s'enregistre dans le projet à la fin de chaque geste.
 | ⌥-glisser | Déplacer une copie |
 | Poignée de coin (carré blanc) | Étirer en largeur et en hauteur à la fois ; ⇧ : proportions gardées ; ⌥ : depuis le centre |
 | Poignée au milieu d'un côté | Étirer seulement en largeur (côtés gauche et droit) ou en hauteur (haut et bas) ; ⌥ : depuis le centre |
-| Rond au-dessus du cadre | Tourner autour du centre ; ⇧ : par pas de 45° ; l'angle s'affiche près du pointeur (D-4.2-m) |
+| Rond au-dessus du cadre | Tourner autour du centre ; ⇧ : sur un angle rond, multiple de 5° (D-4.2-q) ; l'angle s'affiche près du pointeur (D-4.2-m) |
 | Juste au-delà d'un coin | Tourner aussi, comme dans Illustrator (le curseur devient une flèche courbe) |
 | Espace + glisser, ou défiler à deux doigts | Déplacer la vue |
 
@@ -63,11 +63,14 @@ Façade ; ils agissent sur les dessins choisis (bulle d'aide au survol) :
   compte pour un seul bloc ;
 - premier plan, avancer, reculer, arrière-plan ; grouper, dégrouper.
 
-La rubrique **Dessins posés** (onglet **Dessins**, qui s'ouvre seul) apparaît
-quand un dessin est choisi : centre X et Y, largeur (la hauteur suit ; taper
-par exemple `2,5 m`, `250 cm` ou `2500`, puis ↩), rotation en degrés (un seul
-dessin), miroir (boutons « Gauche ↔ droite » et « Haut ↕ bas »), calque,
-diapositive, retirer.
+Les réglages du dessin choisi sont dans une seconde barre, sous la barre
+d'outils, comme le panneau Contrôle d'Illustrator (D-4.2-p) : nom, calque
+(à partir de deux calques), diapositive, centre **X** et **Y**, largeur
+**L** (la hauteur **H** suit ; taper par exemple `2,5 m`, `250 cm` ou
+`2500`, puis ↩), **Angle** en degrés (un seul dessin), état de la
+déformation, **Retirer**. Le miroir est dans les icônes de la barre d'outils.
+L'onglet **Dessins** du panneau de droite ne montre plus que la
+bibliothèque, et choisir un dessin ne change plus d'onglet.
 
 Le curseur change sur chaque poignée : flèche double sur les carrés blancs
 (dans l'axe de la poignée), flèche courbe sur le rond et au-delà des coins,
@@ -82,13 +85,22 @@ croix sur un point de déformation, flèche à quatre pointes sur un dessin
    dessin : flèche à quatre pointes. Dans le vide : flèche normale.
 3. Passer sur le rond au-dessus du cadre : flèche courbe. Le glisser : le
    dessin tourne autour de son centre, l'angle s'affiche près du pointeur,
-   la flèche suit. Avec ⇧ : par pas de 45°. Lâcher : l'angle est celui de la
-   case « Rotation » de l'onglet Dessins. ⌘Z annule.
+   la flèche suit. Avec ⇧ : angle rond, multiple de 5°. Lâcher : l'angle est celui de la
+   case « Angle » de la barre des réglages, en haut. ⌘Z annule.
 4. Même chose juste au-delà d'un coin, hors du cadre.
-5. Onglet Dessins, ligne « Miroir » : « Gauche ↔ droite » retourne le
-   dessin ; la phrase sous les boutons dit qu'il est retourné. « Haut ↕ bas »
-   pareil. Exporter la diapositive : le dessin y est retourné de la même
-   façon.
+5. Icônes « Miroir » de la barre d'outils : la première retourne le dessin
+   de gauche à droite, et la barre des réglages ajoute « retourné » après
+   son nom. La seconde le retourne de haut en bas. Exporter la diapositive :
+   le dessin y est retourné de la même façon.
+9. Tourner un dessin de 30° (case Angle), puis tirer la poignée du milieu
+   du côté droit : le dessin s'étire, le cadre et ses carrés blancs restent
+   (D-4.2-q).
+10. Tourner avec ⇧ : l'angle s'arrête sur 5°, 10°, 15°…
+11. Zoomer sur un coin de la façade, déplacer un dessin, puis ⌘Z : le dessin
+    revient, la vue ne bouge pas (D15-l).
+8. Barre des réglages (sous la barre d'outils) : sans dessin choisi, elle
+   dit de cliquer un dessin ; avec un dessin, taper une largeur, un angle,
+   choisir une diapositive : le dessin suit aussitôt (D-4.2-p).
 6. Écran Diapositive : sur un dessin, le curseur devient la flèche à quatre
    pointes, sur un point bleu une croix.
 7. Choisir un dessin, cliquer « Quatre coins » dans la barre du haut : le

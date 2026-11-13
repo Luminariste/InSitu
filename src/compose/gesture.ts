@@ -3,7 +3,7 @@
 // l'horizontale, à la verticale ou à 45°), une poignée de coin l'étire en x
 // et en y (⇧ : en gardant les proportions), une poignée de côté seulement en
 // x ou en y (⌥ : depuis le centre, D-4.2-l), juste au-delà d'un coin on le tourne (⇧ : par pas
-// de 45°), la poignée ronde au-dessus du cadre le tourne aussi (demande de
+// de 5°), la poignée ronde au-dessus du cadre le tourne aussi (demande de
 // Benjamin, D-4.2-m), glisser dans le vide trace un cadre de sélection, un nœud d'un
 // dessin déformé se tire (tâche 4.4). ⌘D répète le dernier geste. Calculs
 // purs, testés sans écran (`gesture.test.ts`).
@@ -16,6 +16,7 @@ import {
   inMarquee,
   moveSharedNode,
   normalizeAngle,
+  ROTATE_SNAP_DEGREES,
   rectCenter,
   rotate,
   scale,
@@ -198,7 +199,13 @@ export function applyGesture(g: Gesture, at: Point, mods: Modifiers, makeId?: ()
   }
   if (g.kind === "rotate") {
     let deg = normalizeAngle(angleOf(at, g.pivot) - angleOf(g.start, g.pivot));
-    if (mods.shift) deg = snapAngle(deg);
+    if (mods.shift) {
+      // ⇧ : un dessin seul s'arrête sur un angle rond (multiple de 5°) ;
+      // plusieurs dessins tournent par pas de 5° (D-4.2-q).
+      const only = g.ids.size === 1 ? g.before.find((p) => g.ids.has(p.id)) : undefined;
+      const base = only?.rotation ?? 0;
+      deg = normalizeAngle(snapAngle(base + deg, ROTATE_SNAP_DEGREES) - base);
+    }
     return {
       placements: rotate(g.before, g.ids, deg, g.pivot),
       selection: g.ids,

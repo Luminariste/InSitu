@@ -93,7 +93,7 @@ import {
   updateLayer,
 } from "./layers";
 import type { Layer } from "./placement";
-import { meshLines, nodePoints } from "./deformation";
+import { isAffine, meshLines, nodePoints } from "./deformation";
 import { SelectionNode } from "./SelectionNode";
 import { dropInTree, setFlag, type TreeDrop } from "./slideTree";
 import { DRAWING_DRAG_TYPE, draggedDrawing, droppedDrawingId, endDrawingDrag } from "./dragDrawing";
@@ -188,6 +188,8 @@ export interface Composition {
   assignments: Map<string, Assignment>;
   /** Consigne du geste possible, pour la barre d'état. */
   hint: string | null;
+  /** Vrai quand les points de la déformation se tirent (le cadre est caché, D-4.2-n et q). */
+  deforming: boolean;
   /** Angle affiché près du pointeur pendant une rotation à la souris (pixels de la zone). */
   turn: { x: number; y: number; text: string } | null;
   actions: CompositionActions;
@@ -449,7 +451,18 @@ export function useComposition(options: Options): Composition {
   const selected = useMemo(() => placements.filter((p) => selection.has(p.id)), [placements, selection]);
   const frame = useMemo(() => bounds(selected), [selected]);
   // Les nœuds ne se tirent que sur une sélection qui partage une même déformation.
-  const editable = useMemo(() => sharedDeformation(selected), [selected]);
+  // Les points d'une déformation ne se montrent (et le cadre ne se cache,
+  // D-4.2-n) que si l'on vient de choisir « Quatre coins » ou une grille sur
+  // cette sélection, ou si la déformation a déjà été tirée. Une déformation
+  // née d'un étirement (dessin tourné, D-4.2-l) reste affine : le dessin
+  // garde alors son cadre et ses poignées (D-4.2-q).
+  const selectionKey = useMemo(() => [...selection].sort().join(","), [selection]);
+  const [meshFor, setMeshFor] = useState<string | null>(null);
+  const shared = useMemo(() => sharedDeformation(selected), [selected]);
+  const editable = useMemo(
+    () => (shared && (meshFor === selectionKey || !isAffine(shared)) ? shared : null),
+    [shared, meshFor, selectionKey],
+  );
   const editableNodes = useMemo(() => (editable ? nodePoints(editable) : []), [editable]);
 
   const layers = useMemo<LayerSpec[]>(
@@ -799,7 +812,10 @@ export function useComposition(options: Options): Composition {
       const r = moveToLayer(current, selection, id);
       if (r !== current) commit(r.placements, undefined, r.layers);
     },
-    deform: (columns, rows) => apply(deform(placements, selection, columns, rows)),
+    deform: (columns, rows) => {
+      setMeshFor(columns > 0 ? selectionKey : null);
+      apply(deform(placements, selection, columns, rows));
+    },
     assignTo: (projector) => apply(assignTo(placements, selection, projector)),
     select: (ids) => setSelection(new Set(ids.filter((id) => placements.some((p) => p.id === id)))),
     dropInTree: (dragged, drop) => apply(dropInTree(placements, assignments, dragged, drop), new Set([dragged])),
@@ -870,7 +886,7 @@ export function useComposition(options: Options): Composition {
     : has
       ? editable
         ? "Glisser un point bleu : déformer · glisser le dessin : déplacer · Redresser (barre du haut) : retrouver le cadre · Espace : déplacer la vue"
-        : "Glisser : déplacer (⌥ copie, ⇧ droit) · coin : agrandir · rond au-dessus du cadre : tourner (⇧ par 45°) · Espace : déplacer la vue"
+        : "Glisser : déplacer (⌥ copie, ⇧ droit) · coin : agrandir · rond au-dessus du cadre : tourner (⇧ par 5°) · Espace : déplacer la vue"
       : picks.length > 0
         ? "Cliquer un dessin pour le choisir, ou glisser autour de plusieurs"
         : drawings.length > 0
@@ -889,6 +905,7 @@ export function useComposition(options: Options): Composition {
     layers,
     assignments,
     hint,
+    deforming: editable !== null,
     turn,
     actions,
     onPointerDown,
