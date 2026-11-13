@@ -2,16 +2,16 @@
 //! communs entre la photo redressée (mm de diapositive) et la façade (mm
 //! réels) donnent la correspondance diapositive → façade.
 //!
-//! Le modèle est celui de la tâche 2.3 : quatre paires donnent le trapèze,
-//! les suivantes une correction lisse qui suit le relief. Chaque paire reçoit
-//! un écart, mesuré en millimètres sur la diapositive et sur la façade :
+//! La photo est posée par un **trapèze seul** (perspective pure) : exact
+//! avec 4 paires, ajusté au mieux sur toutes au-delà. Il n'y a plus de
+//! correction du relief, qui courbait l'image au-delà de 5 points (D-3.2-l,
+//! demande de Benjamin du 13 novembre 2026). Chaque paire reçoit un écart,
+//! mesuré en millimètres sur la diapositive et sur la façade :
 //!
 //! - avec 4 paires, le trapèze passe exactement par elles : pas d'écart ;
-//! - avec 5 paires, l'écart de chaque paire au trapèze ajusté sur les cinq ;
-//! - à partir de 6 paires, l'écart de **validation croisée** : où les autres
-//!   paires, sans elle, placent ce point. Un point mal cliqué s'y voit ; un
-//!   relief réel est partagé par les voisins. Le moteur signale les points
-//!   aberrants (D-2.3, réglages : [`RegistrationOptions`]).
+//! - au-delà, l'écart de chaque paire au trapèze ajusté sur toutes. À
+//!   partir de 6 paires, le moteur signale aussi les points aberrants
+//!   (D-2.3, réglages : [`RegistrationOptions`]).
 //!
 //! L'ajustement de diagnostic va de la façade vers la diapositive, pour que
 //! les écarts et le seuil des points aberrants soient en mm de diapositive,
@@ -65,7 +65,7 @@ pub enum RegistrationStage {
     Incomplete,
     /// 4 ou 5 paires : un trapèze seul.
     Trapeze,
-    /// 6 paires ou plus : trapèze et correction du relief, points aberrants
+    /// 6 paires ou plus : trapèze ajusté au mieux, points aberrants
     /// recherchés.
     Corrected,
 }
@@ -230,26 +230,23 @@ pub fn report(
     };
     let (_, diagnostic) = fit_with_report(&facade, &slide, &fit_options)?;
     // Correspondance utile : diapositive → façade.
-    let warp = PointWarp::fit(&slide, &facade, 0.0)?;
+    let warp = PointWarp::trapeze(&slide, &facade)?;
     result.footprint = footprint(&warp);
     result.trapeze_rms_slide_mm = Some(diagnostic.homography_residuals.rms);
 
-    let (on_slide, on_facade) = if n >= MIN_POINTS_FOR_OUTLIERS {
-        result.stage = RegistrationStage::Corrected;
-        (
-            diagnostic.leave_one_out.map(|s| s.per_point),
-            diagnostic.leave_one_out_in_source.map(|s| s.per_point),
-        )
+    result.stage = if n >= MIN_POINTS_FOR_OUTLIERS {
+        RegistrationStage::Corrected
     } else {
-        result.stage = RegistrationStage::Trapeze;
-        if n == 4 {
-            (None, None)
-        } else {
-            (
-                Some(diagnostic.homography_residuals.per_point),
-                Some(diagnostic.homography_residuals_in_source.per_point),
-            )
-        }
+        RegistrationStage::Trapeze
+    };
+    // L'écart de chaque point au trapèze, qui pose la photo (D-3.2-l).
+    let (on_slide, on_facade) = if n == 4 {
+        (None, None)
+    } else {
+        (
+            Some(diagnostic.homography_residuals.per_point),
+            Some(diagnostic.homography_residuals_in_source.per_point),
+        )
     };
     for &i in &diagnostic.outliers {
         result.pairs[i].outlier = true;
@@ -281,7 +278,7 @@ pub fn slide_to_facade(pairs: &[RegistrationPair]) -> Option<PointWarp> {
     }
     let slide: Vec<Point> = pairs.iter().map(|p| point(p.slide)).collect();
     let facade: Vec<Point> = pairs.iter().map(|p| point(p.facade)).collect();
-    PointWarp::fit(&slide, &facade, 0.0).ok()
+    PointWarp::trapeze(&slide, &facade).ok()
 }
 
 /// Contour du carré de la diapositive envoyé sur la façade (emprise), fermé.

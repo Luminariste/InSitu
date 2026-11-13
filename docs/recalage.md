@@ -31,8 +31,9 @@ de fenêtre, le pied d'une colonne, la pointe d'un arc… visibles sur les deux.
      elle tourne et change aussi de taille, sans se déformer ;
    - 3 points : elle se penche aussi ;
    - 4 points bien répartis : sa forme ne dépend plus que d'eux.
-   Une phrase sous les boutons dit où l'on en est. Au-delà, chaque point
-   en plus corrige le relief (façade pas plate).
+   Une phrase sous les boutons dit où l'on en est. Au-delà, la photo
+   reste un trapèze (une perspective, sans courbe), ajusté au mieux sur
+   tous les points (D-3.2-l).
 5. Pour déplacer la vue pendant ce travail : **barre d'espace + glisser**
    (comme dans Illustrator), ou défilement à deux doigts sur le pavé
    tactile. ⌘0 recadre les deux vues.
@@ -45,8 +46,10 @@ point où il était, sans rien annuler d'autre.
 ### Caler par lignes
 
 Quand un bord se voit mieux qu'un point (bord de fenêtre, corniche, chaîne
-d'angle), choisir **Lignes** en haut du panneau de droite (la photo doit
-être posée par ses coins).
+d'angle), choisir **Lignes** en haut du panneau de droite. Le choix est
+toujours là ; il faut seulement que la photo soit posée (par ses coins, ou
+par 4 points). S'il manque des coins guides (points posés un à un, coin
+déplacé sur la photo), ils sont remis à la pose actuelle, sans la changer.
 
 1. Sur la **photo** (à gauche), appuyer sur un bout du bord et glisser
    jusqu'à l'autre : un trait jaune attend son double.
@@ -116,14 +119,14 @@ La pose en deux clics reste possible, et se combine avec ce qui précède :
    façade, **et la photo redressée s'y pose, par-dessus le plan**.
    En haut, **Photo recalée** la montre ou la cache, et le curseur à côté
    règle sa transparence.
-5. Les points suivants corrigent le relief. À partir du 5e, chaque point a
-   un **écart** : en mm sur la diapositive, en cm sur la façade (colonne de
-   droite). À partir du 6e, c'est l'écart du point **prédit par les
-   autres** : un point mal cliqué s'y voit tout de suite.
+5. Les points suivants affinent le trapèze, ajusté au mieux sur tous (la
+   photo ne se courbe pas, D-3.2-l). À partir du 5e, chaque point a un
+   **écart** au trapèze : en mm sur la diapositive, en cm sur la façade
+   (colonne de droite). À partir du 6e, un point que les autres
+   contredisent nettement est signalé.
    - vert : moins de 1 mm sur la diapositive ;
-   - orange : plus de 1 mm, sans être jugé faux (souvent un vrai relief, ou
-     un point au bord, prédit de loin ; les coins posés à l'œil y tombent
-     souvent) ;
+   - orange : plus de 1 mm, sans être jugé faux (un point cliqué un peu à
+     côté, ou une façade qui n'est pas plane) ;
    - rouge : **point douteux**, que les autres contredisent nettement. Le
      vérifier, le déplacer ou le retirer.
 6. **Corriger un point : le glisser.** Au-dessus d'un point, le pointeur

@@ -108,7 +108,7 @@ export function summary(report: RegistrationReport | null, count: number): strin
   if (report.stage === "trapeze") {
     return count === 4
       ? "Trapèze calculé (4 points, sans écart mesurable). Pour affiner : attraper un détail de la photo sur la façade et le lâcher sur le même détail du plan."
-      : "Trapèze calculé sur 5 points. Au 6e, le relief est corrigé et les points douteux sont signalés.";
+      : "Trapèze ajusté au mieux sur 5 points. Au 6e, les points douteux sont signalés.";
   }
   const outliers = report.pairs.filter((p) => p.outlier).length;
   const mean = `écart moyen ${formatSlideMm(report.rmsSlideMm)} sur la diapositive, ${formatFacadeCm(report.rmsFacadeMm)} sur la façade`;
@@ -735,4 +735,23 @@ export function constraintsText(pairs: RegistrationPair[], lines: RegistrationLi
   if (equations >= 6) return `${what} : la photo glisse, tourne, change de taille et se penche ; il manque une ligne ou un point pour la forme libre.`;
   if (equations >= 4) return `${what} : la photo glisse, tourne et change de taille ; sa forme vient des coins guides.`;
   return `${what} : la photo glisse pour la suivre ; le reste vient des coins guides.`;
+}
+
+/**
+ * Remet les quatre coins guides quand ils manquent (points posés un à un,
+ * ou coin déplacé sur la photo, qui n'est alors plus un coin) : la pose
+ * actuelle, trapèze ajusté au mieux sur tous les points, donne la place des
+ * coins ; les points sûrs restent. Il faut au moins 4 points. Sans quoi,
+ * ou si les quatre coins sont déjà là, rien ne change (D-3.2-k).
+ */
+export function ensureGuides(pairs: RegistrationPair[]): RegistrationPair[] {
+  if (pairs.filter(isGuide).length === 4 || pairs.length < 4) return pairs;
+  const h = homographyLeastSquares(
+    pairs.map((p) => p.slide),
+    pairs.map((p) => p.facade),
+  );
+  if (!h) return pairs;
+  const corners = SLIDE_CORNERS.map((c) => ({ slide: { x: c.x, y: c.y }, facade: applyHomography(h, c) }));
+  if (!corners.every((p) => Number.isFinite(p.facade.x) && Number.isFinite(p.facade.y))) return pairs;
+  return [...corners, ...pairs.filter((p) => !isGuide(p))];
 }

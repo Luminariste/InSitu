@@ -3,15 +3,16 @@ use crate::project::test_support::TempDir;
 use crate::project::{PointMm, RegistrationPair};
 
 /// Recalage d'essai : la diapositive tombe, agrandie environ 14 fois et en
-/// trapèze, sur la façade ; deux points de plus ajoutent du relief.
+/// trapèze, sur la façade ; deux points de plus tombent sur le même trapèze
+/// (la photo est posée par un trapèze seul, D-3.2-l).
 fn pairs() -> Vec<RegistrationPair> {
     [
         ((0.0, 0.0), (1_000.0, 800.0)),
         ((280.0, 0.0), (5_100.0, 600.0)),
         ((280.0, 280.0), (5_300.0, 4_700.0)),
         ((0.0, 280.0), (900.0, 4_500.0)),
-        ((140.0, 140.0), (3_080.0, 2_690.0)),
-        ((70.0, 210.0), (1_990.0, 3_640.0)),
+        ((140.0, 140.0), (2_965.158_371, 2_582.352_941)),
+        ((70.0, 210.0), (1_924.083_770, 3_549.065_071)),
     ]
     .iter()
     .map(|&((sx, sy), (fx, fy))| RegistrationPair::new(PointMm::new(sx, sy), PointMm::new(fx, fy)))

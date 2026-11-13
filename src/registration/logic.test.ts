@@ -14,6 +14,7 @@ import {
   removePair,
   summary,
   cornerName,
+  ensureGuides,
   cornerPairs,
   demoTrapezeMesh,
   facadeGrab,
@@ -31,6 +32,7 @@ import {
 } from "./logic";
 
 const p = (x: number, y: number) => ({ x, y });
+type XY = { x: number; y: number };
 
 describe("pose des points communs", () => {
   it("ajoute une paire quand les deux côtés sont posés, dans n'importe quel ordre", () => {
@@ -383,3 +385,48 @@ describe("lignes communes (D-3.2-k)", () => {
     expect(followConstraints([...guides, ...pins], [])).toEqual(followPins([...guides, ...pins]));
   });
 });
+
+describe("coins guides remis avant de caler par lignes (D-3.2-k)", () => {
+  // Points posés un à un, comme sur le projecteur A de Trévarez : aucun coin.
+  const pins = [
+    { slide: { x: 50.17, y: 199.58 }, facade: { x: 27671.8, y: 16203.8 } },
+    { slide: { x: 52.79, y: 176.39 }, facade: { x: 27679.1, y: 15367.7 } },
+    { slide: { x: 236.99, y: 175.08 }, facade: { x: 34180.2, y: 15861.3 } },
+    { slide: { x: 15.04, y: 157.56 }, facade: { x: 26351.2, y: 14714.0 } },
+    { slide: { x: 135.23, y: 182.42 }, facade: { x: 30992.7, y: 15864.5 } },
+    { slide: { x: 222.5, y: 223.73 }, facade: { x: 33586.8, y: 17359.9 } },
+  ];
+
+  it("des points sans coin : 4 coins ajoutés, les points gardés", () => {
+    const out = ensureGuides(pins);
+    expect(out.filter(isGuide)).toHaveLength(4);
+    expect(out.filter((q) => !isGuide(q))).toEqual(pins);
+    // Une ligne compte ensuite : la photo bouge pour la suivre.
+    const line = { slide: [{ x: 20, y: 120 }, { x: 260, y: 120 }] as [XY, XY], facade: [{ x: 26000, y: 14000 }, { x: 35000, y: 14000 }] as [XY, XY] };
+    const moved = followConstraints(out, [line]);
+    expect(moved).not.toEqual(out);
+    expect(moved.filter(isGuide)).toHaveLength(4);
+  });
+
+  it("un coin déplacé sur la photo (D de Trévarez) : 4 coins à nouveau", () => {
+    const d = [
+      { slide: { x: 0, y: 0 }, facade: { x: 35151, y: 14120 } },
+      { slide: { x: 280, y: 0 }, facade: { x: 44968, y: 13797 } },
+      { slide: { x: 280, y: 280 }, facade: { x: 44987, y: 21146 } },
+      { slide: { x: 2.35, y: 277.57 }, facade: { x: 35474, y: 21108 } },
+    ];
+    const out = ensureGuides(d);
+    expect(out.filter(isGuide)).toHaveLength(4);
+    expect(out).toHaveLength(5);
+    // Les 4 coins tombent sur la pose actuelle : les coins qui y étaient ne bougent pas.
+    expect(out[0].facade.x).toBeCloseTo(35151, 3);
+    expect(out[2].facade.y).toBeCloseTo(21146, 3);
+  });
+
+  it("4 coins déjà là, ou moins de 4 points : rien ne change", () => {
+    const g = cornerPairs(p(5000, 5000), 2800);
+    expect(ensureGuides(g)).toBe(g);
+    expect(ensureGuides(pins.slice(0, 3))).toEqual(pins.slice(0, 3));
+  });
+});
+
