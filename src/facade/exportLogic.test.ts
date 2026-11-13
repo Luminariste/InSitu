@@ -8,8 +8,7 @@ import {
   frescoPlacement,
   sheetFileName,
   sheetSummary,
-  validDpi,
-} from "./exportLogic";
+  validDpi, ALL_SLIDES, exportButtonLabel, exportTargets, keptTarget } from "./exportLogic";
 
 describe("export des diapositives", () => {
   it("donne la taille du PNG, avec ou sans marge", () => {
@@ -53,5 +52,33 @@ describe("export des diapositives", () => {
       "Fiche de calepinage écrite dans « Épinal - calepinage.pdf » : 3 pages A3, 7 diapositives, 2 alertes.",
     );
     expect(sheetSummary({ ...report, alerts: 0 }, "f.pdf")).toMatch(/aucune alerte\.$/);
+  });
+});
+
+describe("une diapositive ou toutes", () => {
+  const pair = { slide: { x: 0, y: 0 }, facade: { x: 0, y: 0 } };
+  const projectors = [
+    { id: "p1", label: "A", registration: [pair, pair, pair, pair] },
+    { id: "p2", label: "B", registration: [pair, pair] },
+    { id: "p3", label: "C", registration: [pair, pair, pair, pair, pair] },
+  ];
+
+  it("ne propose seuls que les projecteurs recalés", () => {
+    expect(exportTargets(projectors)).toEqual([
+      { id: "p1", label: "A" },
+      { id: "p3", label: "C" },
+    ]);
+  });
+
+  it("dit ce que le bouton va exporter", () => {
+    const targets = exportTargets(projectors);
+    expect(exportButtonLabel(ALL_SLIDES, targets)).toBe("Exporter les diapositives…");
+    expect(exportButtonLabel("p3", targets)).toBe("Exporter la diapositive C…");
+  });
+
+  it("revient à toutes quand le projecteur choisi n'est plus recalé", () => {
+    const targets = exportTargets(projectors);
+    expect(keptTarget("p1", targets)).toBe("p1");
+    expect(keptTarget("p2", targets)).toBe(ALL_SLIDES);
   });
 });

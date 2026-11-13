@@ -46,9 +46,16 @@ la façade. Un PNG par projecteur, prêt pour LightBurn.
    - **Miroir**, **Négatif** ;
    - **Noir et blanc pur (1 bit)** et son **seuil** ; sinon niveaux de gris.
    La taille du PNG s'affiche dessous.
-4. **Exporter les diapositives…** (⌘E), choisir un dossier. Un fichier par
-   projecteur : `<projet>-<diapositive>.png`. Un projecteur pas encore
-   recalé est signalé, pas exporté. Les réglages sont gardés dans le projet.
+4. **Diapositives** : **Toutes**, ou un seul projecteur recalé (« A
+   seulement »).
+5. **Exporter les diapositives…** (ou **Exporter la diapositive A…**) (⌘E),
+   choisir un dossier. Un fichier par projecteur :
+   `<projet>-<diapositive>.png`. Un projecteur pas encore recalé est
+   signalé, pas exporté. Les réglages sont gardés dans le projet.
+
+Depuis l'étape **Diapositive**, **Exporter cette diapositive…** (⌘E, en
+haut à droite) écrit le PNG de la diapositive affichée, avec les mêmes
+réglages (ceux de l'onglet Export de la Façade).
 
 Compter une quinzaine de secondes par diapositive à 1 400 dpi, un peu plus
 avec beaucoup de dessins posés.

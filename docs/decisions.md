@@ -4,6 +4,23 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-13 — Exporter une diapositive ou toutes (demande de Benjamin)
+
+Demande de Benjamin : « export : propose l'export d'une diapo ou de toutes
+les diapos », et « dans le menu diapositive, prévoir un export (pour
+exporter qu'une diapo) ».
+
+**D-3.5-l. On peut exporter une seule diapositive.** Le moteur savait déjà
+n'exporter que certains projecteurs (`only`, ligne de commande
+`insitu export --only`) ; la commande de la coque le reçoit maintenant.
+Onglet Export de la Façade : choix « Toutes » ou « A seulement » (seuls
+les projecteurs recalés sont proposés ; le bouton dit ce qu'il exporte).
+Étape Diapositive : bouton « Exporter cette diapositive… » (⌘E), avec les
+réglages d'export enregistrés dans le projet, relus au moment d'exporter
+(on ne règle pas l'export depuis la Diapositive, pour n'avoir qu'un seul
+endroit où le faire). Le choix « une ou toutes » n'est pas gardé dans le
+projet : il revient à « Toutes » d'un lancement à l'autre.
+
 ## 2026-11-13 — Diapositive comme dans LightBurn, menu Projet retiré (demande de Benjamin)
 
 Demandes de Benjamin (13 novembre) : « menu diapositive : ajouter option

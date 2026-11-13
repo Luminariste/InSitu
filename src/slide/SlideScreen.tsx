@@ -13,6 +13,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   cacheFileUrl,
+  chooseExportFolder,
+  exportSlides,
   fetchSlideViews,
   hasEngine,
   openProject,
@@ -23,6 +25,7 @@ import {
   type SlideView,
 } from "../engine";
 import { useSlideAdjust } from "./useSlideAdjust";
+import { exportSettingsOf, exportSummary } from "../facade/exportLogic";
 import { GRIDS } from "../compose/CompositionToolbar";
 import { recalledProject } from "../project/current";
 import { Viewer, placementForWidth, type LayerSpec, type TileSource, type ViewerHandle } from "../viewer";
@@ -99,6 +102,7 @@ export function SlideScreen() {
   };
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   /** Dans le navigateur seul : photo et dessins inventés. */
   const [demo, setDemo] = useState<{ photo: string; drawings: Record<string, string> } | null>(null);
 
@@ -220,7 +224,31 @@ export function SlideScreen() {
   const cut = cutNotice(view);
 
   const ready = busy === null;
-  useShortcuts([{ keys: "mod+0", run: () => viewer.current?.fitAll(), enabled: view !== null }]);
+  // Exporter la seule diapositive affichée, avec les réglages d'export du
+  // projet (ceux de l'onglet Export de la Façade, relus au moment d'exporter).
+  const canExport = engine && folder !== null && ready && view !== null && view.preview !== null;
+  const exportThis = async () => {
+    if (!folder || !view) return;
+    setError(null);
+    setNotice(null);
+    try {
+      const destination = await chooseExportFolder();
+      if (!destination) return;
+      setBusy(`Export de la diapositive ${view.label}…`);
+      const project = await openProject(folder);
+      const report = await exportSlides(folder, destination, exportSettingsOf(project.export), () => {}, [view.projectorId]);
+      setNotice(exportSummary(report, destination));
+    } catch (failure) {
+      setError(String(failure).replace(/^Error: /, ""));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  useShortcuts([
+    { keys: "mod+0", run: () => viewer.current?.fitAll(), enabled: view !== null },
+    { keys: "mod+e", run: () => void exportThis(), enabled: canExport },
+  ]);
 
   const toolbar = (
     <Toolbar>
@@ -332,6 +360,21 @@ export function SlideScreen() {
       <Button icon="fit" shortcut="mod+0" title="Voir toute la diapositive" onClick={() => viewer.current?.fitAll()} disabled={!view}>
         Tout voir
       </Button>
+      <ToolSeparator />
+      <Button
+        variant="primary"
+        icon="export"
+        shortcut="mod+e"
+        title={
+          engine
+            ? "Le PNG de cette diapositive seulement, avec les réglages d'export du projet (onglet Export de la Façade)"
+            : "Dans l'app seulement"
+        }
+        onClick={() => void exportThis()}
+        disabled={!canExport}
+      >
+        Exporter cette diapositive…
+      </Button>
     </Toolbar>
   );
 
@@ -369,6 +412,10 @@ export function SlideScreen() {
           </Banner>
         ) : problem ? (
           <Banner tone="warning">{problem}</Banner>
+        ) : notice ? (
+          <Banner tone="success" onClose={() => setNotice(null)}>
+            {notice}
+          </Banner>
         ) : cut ? (
           <Banner tone="warning">{cut}</Banner>
         ) : null
