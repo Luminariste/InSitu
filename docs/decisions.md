@@ -699,6 +699,19 @@ d'un fichier a souvent de grandes marges vides : sur Trévarez, deux dessins
 silhouette ne peut être lue (fichier absent), le dessin compte pour son
 rectangle, sans bloquer l'écran.
 
+**D-4.5-i. Le chevauchement se vérifie à la demande.** Retour de Benjamin
+(13 novembre 2026, sur la 0.1.45) : à l'import, tout était rouge, les
+diapositives n'existant pas encore ; il veut une vue épurée pour composer
+la fresque, puis une vérification avant l'export. Le menu Affichage de la
+façade gagne une rubrique « Vérifier » avec **Chevauchement**, décoché par
+défaut et retenu d'un lancement à l'autre comme les autres options
+(`ViewOptions.overlap`). Décoché, la façade ne montre ni le contour de
+chaque dessin dans la couleur de sa diapositive (D-4.5-e), ni le rouge de
+ce qui ne sera pas projeté (D-4.5-h), et le moteur ne calcule pas les parts
+perdues. Coché, les deux reviennent. Ne changent pas : la simulation (6.1),
+l'arborescence par diapositive, et le bandeau de la vue Diapositive, qui
+sont déjà des écrans de vérification.
+
 ## 2026-11-12 — Tâche 4.4 : déformation libre
 
 Modules `crates/insitu-core/src/placement/mesh.rs` (moteur) et

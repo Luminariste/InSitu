@@ -116,6 +116,12 @@ interface Options {
    * dessiné, ni les dessins, ni leurs contours, ni la sélection. Vrai par défaut.
    */
   visible?: boolean;
+  /**
+   * Vérifier le chevauchement (menu Affichage, D-4.5-i) : contours dans la
+   * couleur des diapositives et rouge sur ce qui ne sera pas projeté. Faux
+   * par défaut.
+   */
+  checkOverlap?: boolean;
   onError: (message: string | null) => void;
 }
 
@@ -227,6 +233,7 @@ function previewMesh(p: Placement): { divisions: number; points: Point[] } {
 export function useComposition(options: Options): Composition {
   const { engine, folder, project, onProject, viewer, stage, enabled, onError } = options;
   const visible = options.visible ?? true;
+  const checkOverlap = options.checkOverlap ?? false;
   const [drawings, setDrawings] = useState<ComposeDrawing[]>([]);
   const [placements, setPlacements] = useState<Placement[]>([]);
   const [layerList, setLayerList] = useState<Layer[]>([]);
@@ -294,14 +301,16 @@ export function useComposition(options: Options): Composition {
     );
     // Ce qui ne sera pas projeté, en rouge sur la façade (D-4.5-h) ; la
     // silhouette d'un dessin compte, d'où la bibliothèque dans les dépendances.
-    fetchLostParts(folder).then(
-      (list) => !cancelled && setLostParts(new Map(list.map((l) => [l.placement, l.shapes]))),
-      (failure: unknown) => !cancelled && onError(String(failure)),
-    );
+    if (!checkOverlap) setLostParts(new Map());
+    else
+      fetchLostParts(folder).then(
+        (list) => !cancelled && setLostParts(new Map(list.map((l) => [l.placement, l.shapes]))),
+        (failure: unknown) => !cancelled && onError(String(failure)),
+      );
     return () => {
       cancelled = true;
     };
-  }, [engine, folder, projectPlacements, projectProjectors, projectDrawings, onError]);
+  }, [engine, folder, projectPlacements, projectProjectors, projectDrawings, checkOverlap, onError]);
 
   useEffect(() => {
     setSelection(new Set());
@@ -517,13 +526,15 @@ export function useComposition(options: Options): Composition {
       viewer.current?.scene()?.invalidate();
       return;
     }
-    const slides = shown(placements, layerList).flatMap((p) => {
+    // Vue épurée par défaut : couleurs des diapositives et rouge seulement
+    // quand on vérifie le chevauchement (D-4.5-i).
+    const slides = (checkOverlap ? shown(placements, layerList) : []).flatMap((p) => {
       const a = assignments.get(p.id);
       if (!a) return [];
       return [{ outline: outline(p), color: a.projector ? (colors.get(a.projector) ?? null) : null, whole: a.whole }];
     });
     const onScreen = new Set(shown(placements, layerList).map((p) => p.id));
-    const lost = [...lostParts].flatMap(([id, shapes]) => (onScreen.has(id) ? shapes : []));
+    const lost = checkOverlap ? [...lostParts].flatMap(([id, shapes]) => (onScreen.has(id) ? shapes : [])) : [];
     selectionNode.current?.set({
       slides,
       lost,
@@ -544,6 +555,7 @@ export function useComposition(options: Options): Composition {
     editableNodes,
     assignments,
     lostParts,
+    checkOverlap,
     placements,
     layerList,
     project?.projectors,
