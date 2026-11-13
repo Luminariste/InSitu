@@ -108,3 +108,47 @@ Lecture :
   donnerait la place directement ; elle n'est pas encore prise en charge.
 - Piste : une photo de la façade (assemblage, tâche 6.4) comme fond au lieu
   du plan ressemblerait davantage à la photo redressée.
+
+## Suite, 13 novembre après-midi : le plan détaillé
+
+Benjamin a remplacé le plan par `ECURIES-COMPOSITION PlanBase-2.pdf`, bien
+plus détaillé : chaque ardoise du toit et chaque rang de briques y est
+dessiné. L'ajustement « tombe toujours à côté ». Essais faits sur les photos
+A, C et D, par des scripts hors moteur, sur l'ordinateur de Benjamin, en
+lecture seule.
+
+**Vraies places, relevées à la main sur ce plan** (en mm de façade, coin
+haut-gauche de la diapositive et côté) :
+
+| Photo | Coin haut-gauche | Côté | Précision |
+| --- | --- | --- | --- |
+| C | (21 750, 5 270) | 9 520 | environ 0,3 m (oculus, arc, porte) |
+| D | (28 200, 6 100) | 9 800 | environ 0,5 m (corniche, trois baies) |
+| A | — | — | photo en forte perspective, pas relevée |
+
+Les poses alors enregistrées dans le projet en étaient loin : D sur l'aile
+droite, C environ 3 m trop bas. Elles ne pouvaient donc pas servir de
+référence.
+
+**Méthodes essayées**, en partant de la vraie place et de 7 départs décalés
+(jusqu'à 1,5 m et 15 % d'échelle) :
+
+| Méthode | C | D |
+| --- | --- | --- |
+| Chamfer des lignes horizontales et verticales longues (idée de Benjamin) | médiane 4,3 m | 1,6 m |
+| Même chose, hachures retirées (traits parallèles serrés), chamfer dans les deux sens | 2,6 à 2,8 m | 2,3 à 4,7 m |
+| Contours d'une densité d'encre floutée (corrélation d'orientations) | maximum à 0,5 m de la vraie place | maximum à 1,4 m |
+
+Aucune ne garde la photo à moins de 60 cm de sa place, même partie de la
+bonne place. Ce qui brouille :
+
+- sur le plan, des centaines de traits parallèles (ardoises, briques) que
+  rien ne distingue des vraies arêtes. Retirer les familles serrées enlève
+  aussi la corniche, qui est faite de plusieurs traits proches ;
+- sur la photo, l'image sombre et voilée, la croix et les cercles de la
+  mire, le matériel posé devant le mur, la texture du toit.
+
+Décision (D-3.2-j) : le bouton est caché, et le recalage passe par des
+points sûrs libres, posés n'importe où. Une piste pour plus tard : faire
+désigner la corniche une fois (un trait sur la photo, un sur le plan), puis
+chercher le reste le long d'elle seulement.

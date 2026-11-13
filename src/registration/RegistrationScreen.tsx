@@ -56,6 +56,10 @@ import {
   onSlide,
   pairStatus,
   movePoint,
+  ADJUST_SHOWN,
+  followPins,
+  pinFitText,
+  isGuide,
   removePair,
   summary,
   type Pending,
@@ -185,6 +189,8 @@ export function RegistrationScreen() {
   /** Points d'avant le dernier « Ajuster », tant qu'on peut l'annuler (D-3.2-i). */
   const [adjustUndo, setAdjustUndo] = useState<RegistrationPair[] | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /** Enregistrements en cours : ⌘Z attend qu'ils soient finis (sinon il annulerait l'action d'avant). */
+  const [saving, setSaving] = useState(0);
 
   const projector = project?.projectors.find((p) => p.id === selectedProjector) ?? null;
   const facadeInfo = project?.facade ?? null;
@@ -254,6 +260,33 @@ export function RegistrationScreen() {
         await refreshOverview(path);
       }),
     [run, showProjector, refreshOverview],
+  );
+
+  /**
+   * Relit le projet après ⌘Z, ⇧⌘Z ou ⌘R sans changer de projecteur ni de
+   * vue : seuls les points, le compte rendu et la photo posée changent. Si
+   * le plan lui-même a changé, on rouvre tout.
+   */
+  const reload = useCallback(
+    (path: string, current: Project | null, keep: string | null) =>
+      run(null, async () => {
+        const opened = await openProject(path);
+        const p = opened.projectors.find((q) => q.id === keep) ?? null;
+        if (!current || !p || JSON.stringify(opened.facade ?? null) !== JSON.stringify(current.facade ?? null)) {
+          await load(path);
+          return;
+        }
+        setProject(opened);
+        setPending(NO_PENDING);
+        setSelected(null);
+        setDragging(null);
+        setLive(null);
+        setAdjustUndo(null);
+        setPairs(p.registration ?? []);
+        setReport(p.rectifiedPhoto ? await fetchRegistration(path, p.id) : null);
+        await refreshOverview(path);
+      }),
+    [run, load, refreshOverview],
   );
 
   // Au lancement : le projet ouvert dans les autres écrans ; l'exemple sinon.
@@ -356,7 +389,9 @@ export function RegistrationScreen() {
     setAdjustUndo(null);
     setPairs(next);
     if (!engine || !folder || !projector) return;
-    saveRegistration(folder, projector.id, next).then(
+    setSaving((n) => n + 1);
+    saveRegistration(folder, projector.id, next)
+      .then(
       (saved) => {
         setProject(saved.project);
         setReport(saved.report);
@@ -369,7 +404,8 @@ export function RegistrationScreen() {
         setLive(null);
         setError(String(failure).replace(/^Error: /, ""));
       },
-    );
+      )
+      .finally(() => setSaving((n) => n - 1));
   };
 
   /**
@@ -467,7 +503,7 @@ export function RegistrationScreen() {
 
   const remove = (index: number) => {
     setSelected(null);
-    commit(removePair(pairs, index));
+    commit(isGuide(pairs[index]) ? removePair(pairs, index) : followPins(removePair(pairs, index)));
   };
 
   /** Le pointeur, en mm de la vue `side` et en pixels de son écran. */
@@ -534,10 +570,12 @@ export function RegistrationScreen() {
       let next: RegistrationPair[] | null = null;
       if (dragging.kind === "point" && dragging.side === side) {
         next = movePoint(dragging.before, dragging.index, side, at.mm);
+        // Un point sûr entraîne les coins guides ; un coin guide se glisse seul.
+        if (!isGuide(dragging.before[dragging.index])) next = followPins(next);
       } else if (dragging.kind === "move" && side === "facade") {
         next = translateFacade(dragging.before, at.mm.x - dragging.start.x, at.mm.y - dragging.start.y);
       } else if (dragging.kind === "pin" && side === "facade" && moved) {
-        next = [...dragging.before, { slide: dragging.slide, facade: at.mm }];
+        next = followPins([...dragging.before, { slide: dragging.slide, facade: at.mm }]);
       }
       if (next) {
         setPairs(next);
@@ -589,6 +627,7 @@ export function RegistrationScreen() {
     }
     setError(null);
     const result = click(pairs, pending, selected, side, at);
+    if (result.changed && (selected === null || !isGuide(pairs[selected]))) result.pairs = followPins(result.pairs);
     setPending(result.pending);
     if (result.changed) commit(result.pairs);
   };
@@ -666,7 +705,8 @@ export function RegistrationScreen() {
     if (selected === null || selected >= pairs.length) return false;
     const zoom = (selectedSide === "slide" ? slideViewer : facadeViewer).current?.scene()?.getView().zoom;
     if (!zoom) return false;
-    const next = movePoint(pairs, selected, selectedSide, nudged(pairs[selected][selectedSide], step, zoom));
+    const moved = movePoint(pairs, selected, selectedSide, nudged(pairs[selected][selectedSide], step, zoom));
+    const next = isGuide(pairs[selected]) ? moved : followPins(moved);
     setPairs(next);
     requestPreview(next);
     settle.current.push(pairs, (before) => commit(next, before));
@@ -682,6 +722,17 @@ export function RegistrationScreen() {
         facadeViewer.current?.fitAll();
       },
     },
+    {
+      // ⌘Z pendant un glisser : le point revient où il était (rien n'est encore enregistré).
+      keys: "mod+z",
+      run: () => {
+        if (!dragging) return;
+        setPairs(dragging.before);
+        setDragging(null);
+        setLive(null);
+      },
+      enabled: dragging !== null,
+    },
     { keys: "backspace", run: () => selected !== null && remove(selected), enabled: selected !== null && ready },
   ]);
 
@@ -690,10 +741,10 @@ export function RegistrationScreen() {
       <ProjectMenu
         name={project?.name ?? null}
         folder={folder}
-        ready={ready}
+        ready={ready && dragging === null && saving === 0}
         placeholder="Exemple sans moteur"
         onOpen={(path) => void load(path)}
-        onReload={() => folder && void load(folder)}
+        onReload={() => folder && void reload(folder, project, selectedProjector)}
         onError={setError}
       />
       <ToolSpacer />
@@ -764,8 +815,8 @@ export function RegistrationScreen() {
             Poser la photo sur la façade
           </Button>
           <p className="ui-note">
-            Puis l'amener à peu près à sa place (poignée du centre, coins) et cliquer « Ajuster sur le plan » : la photo se
-            cale sur les lignes du plan. Retoucher ensuite à la main si besoin.
+            Puis l'amener à peu près à sa place (poignée du centre, coins), et caler par des points sûrs : attraper un détail
+            de la photo et le lâcher sur le même détail du plan.
           </p>
         </div>
       )}
@@ -780,6 +831,7 @@ export function RegistrationScreen() {
       )}
       {pairs.length >= 4 && (
         <div className="registration-advice">
+          {ADJUST_SHOWN && (
           <Button
             variant="primary"
             icon="search"
@@ -795,15 +847,18 @@ export function RegistrationScreen() {
           >
             Ajuster sur le plan
           </Button>
+          )}
           {adjustUndo && (
             <Button icon="refresh" onClick={undoAdjust} disabled={!ready} title="Remet les points d'avant l'ajustement">
               Annuler l'ajustement
             </Button>
           )}
           <p className="ui-note">
-            Pour affiner : sur la façade, attraper un détail de la photo (coin de fenêtre…) et le lâcher sur le même détail du
-            plan. Chaque détail ainsi posé devient un point. Barre d'espace + glisser : déplacer la vue.
+            Pour caler : sur la façade, attraper un détail sûr de la photo (coin de fenêtre, pointe d'un arc…), où qu'il soit, et
+            le lâcher sur le même détail du plan. Les coins ne sont qu'un guide : ils suivent vos points. Barre d'espace +
+            glisser : déplacer la vue.
           </p>
+          {pinFitText(pairs) && <p className="ui-note">{pinFitText(pairs)}</p>}
         </div>
       )}
       {pairs.length > 0 ? (

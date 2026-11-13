@@ -22,6 +22,10 @@ import {
   meshCenter,
   pairTitle,
   translateFacade,
+  followPins,
+  isGuide,
+  pinFit,
+  pinFitText,
 } from "./logic";
 
 const p = (x: number, y: number) => ({ x, y });
@@ -184,10 +188,10 @@ describe("pose directe sur la façade (D-3.2-h)", () => {
     expect(pairs.map((q) => q.slide)).toEqual([p(0, 0), p(280, 0), p(280, 280), p(0, 280)]);
     expect(pairs.map((q) => q.facade)).toEqual([p(1000, 500), p(3800, 500), p(3800, 3300), p(1000, 3300)]);
     expect(pairs.map((_, i) => pairTitle(pairs, i))).toEqual([
-      "Coin haut-gauche",
-      "Coin haut-droit",
-      "Coin bas-droit",
-      "Coin bas-gauche",
+      "Coin haut-gauche (guide)",
+      "Coin haut-droit (guide)",
+      "Coin bas-droit (guide)",
+      "Coin bas-gauche (guide)",
     ]);
     expect(cornerName({ slide: p(140, 0), facade: p(0, 0) })).toBeNull();
     expect(pairTitle([...pairs, { slide: p(10, 10), facade: p(0, 0) }], 4)).toBe("Point 5");
@@ -235,5 +239,81 @@ describe("pose directe sur la façade (D-3.2-h)", () => {
     expect(facadeGrab({ ...base, at: p(0, 0) })).toEqual({ kind: "none" });
     expect(facadeGrab({ ...base, photoShown: false })).toEqual({ kind: "none" });
     expect(facadeGrab({ ...base, pointHit: 2, spaceHeld: true })).toEqual({ kind: "none" });
+  });
+});
+
+describe("points sûrs libres (D-3.2-j)", () => {
+  // Pose de départ : carré de 2 800 mm centré sur (5 000, 5 000), soit 10 mm de façade par mm de diapositive.
+  const guides = cornerPairs(p(5000, 5000), 2800);
+  const onPose = (pairs: ReturnType<typeof cornerPairs>, s: { x: number; y: number }) => {
+    // Maillage d'un point par mm de diapositive, par l'homographie des coins guides.
+    const m = demoTrapezeMesh(pairs.filter(isGuide), 280)!;
+    return m.facade[Math.round(s.y) * 281 + Math.round(s.x)];
+  };
+
+  it("1 point : la photo glisse, sans tourner ni changer de taille", () => {
+    const out = followPins([...guides, { slide: p(70, 70), facade: p(4000, 4500) }]);
+    // (70, 70) était en (4 300, 4 300) : tout glisse de (-300, +200).
+    out.slice(0, 4).forEach((g, i) => {
+      expect(g.facade.x).toBeCloseTo(guides[i].facade.x - 300, 6);
+      expect(g.facade.y).toBeCloseTo(guides[i].facade.y + 200, 6);
+    });
+    expect(out[4]).toEqual({ slide: p(70, 70), facade: p(4000, 4500) });
+  });
+
+  it("2 points : la photo tourne et change de taille pour passer par les deux", () => {
+    const pins = [
+      { slide: p(100, 140), facade: p(5000, 6000) },
+      { slide: p(200, 140), facade: p(5000, 8000) },
+    ];
+    const out = followPins([...guides, ...pins]);
+    for (const pin of pins) {
+      const at = onPose(out, pin.slide);
+      expect(at.x).toBeCloseTo(pin.facade.x, 3);
+      expect(at.y).toBeCloseTo(pin.facade.y, 3);
+    }
+    // Toujours un carré : côtés égaux et angle droit.
+    const [a, b, , d] = out.map((q) => q.facade);
+    expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeCloseTo(Math.hypot(d.x - a.x, d.y - a.y), 6);
+  });
+
+  it("3 points alignés : pas de déformation, la forme reste celle du guide", () => {
+    const slides = [p(40, 100), p(140, 102), p(240, 104)];
+    expect(pinFit(slides)).toBe("similitude");
+    const out = followPins([...guides, ...slides.map((s, k) => ({ slide: s, facade: p(4000 + 1000 * k, 4200) }))]);
+    const [a, b, c, d] = out.map((q) => q.facade);
+    const side = (u: { x: number; y: number }, v: { x: number; y: number }) => Math.hypot(v.x - u.x, v.y - u.y);
+    expect(side(a, b)).toBeCloseTo(side(b, c), 6);
+    expect(side(c, d)).toBeCloseTo(side(d, a), 6);
+  });
+
+  it("4 points bien répartis : la forme vient des seuls points sûrs", () => {
+    // Points d'une vraie pose en trapèze (homographie connue).
+    const truth = [
+      { slide: p(0, 0), facade: p(1000, 1000) },
+      { slide: p(280, 0), facade: p(4000, 1200) },
+      { slide: p(280, 280), facade: p(3800, 4100) },
+      { slide: p(0, 280), facade: p(900, 3900) },
+    ];
+    const at = (s: { x: number; y: number }) => {
+      const m = demoTrapezeMesh(truth, 280)!;
+      return m.facade[Math.round(s.y) * 281 + Math.round(s.x)];
+    };
+    const slides = [p(50, 60), p(230, 40), p(220, 240), p(60, 220), p(140, 150)];
+    expect(pinFit(slides)).toBe("libre");
+    const out = followPins([...guides, ...slides.map((s) => ({ slide: s, facade: at(s) }))]);
+    out.slice(0, 4).forEach((g, i) => {
+      expect(g.facade.x).toBeCloseTo(truth[i].facade.x, 3);
+      expect(g.facade.y).toBeCloseTo(truth[i].facade.y, 3);
+    });
+    expect(pinFitText(out)).toContain("5 points sûrs bien répartis");
+  });
+
+  it("sans point sûr, ou sans les quatre coins, rien ne bouge", () => {
+    expect(followPins(guides)).toEqual(guides);
+    const loose = [{ slide: p(10, 10), facade: p(0, 0) }, { slide: p(100, 10), facade: p(900, 0) }];
+    expect(followPins(loose)).toEqual(loose);
+    expect(pinFit([p(10, 10)])).toBe("glisse");
+    expect(pinFit([p(20, 20), p(250, 30), p(140, 250)])).toBe("affine");
   });
 });
