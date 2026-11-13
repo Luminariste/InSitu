@@ -9,7 +9,7 @@ import type { Placement } from "./placement";
 import type { CompositionActions } from "./useComposition";
 
 /** Grilles proposées (colonnes × rangées) : une rangée de six pour une voussure, des grilles carrées. */
-const GRIDS: [number, number][] = [
+export const GRIDS: [number, number][] = [
   [2, 2],
   [3, 3],
   [4, 4],

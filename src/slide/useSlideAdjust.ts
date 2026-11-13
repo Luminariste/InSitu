@@ -4,6 +4,11 @@
 // façade ni dans les autres diapositives. À la fin de chaque geste, la
 // retouche est envoyée au moteur, qui la contrôle et l'enregistre ; l'aperçu
 // de la diapositive est alors recalculé.
+//
+// Le dessin retouché s'affiche en bleu pendant le geste et jusqu'à ce que
+// l'aperçu recalculé arrive ; ensuite seul l'aperçu le montre (retour
+// d'essai du 13 novembre : le bleu, resté par-dessus, cachait l'aperçu à
+// jour tant que le dessin était choisi).
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, type RefObject } from "react";
 import { fetchDrawingPreview, saveAdjustment, type Project, type SlideDrawing, type SlideView } from "../engine";
@@ -15,11 +20,13 @@ import { demoLibrary } from "../library/demo";
 import { setViewerCursor, type LayerSpec, type ViewerHandle } from "../viewer";
 import { mmToScreen, screenToMm } from "../viewer/geometry";
 import {
+  adjustedCenter,
   adjustedOutline,
   adjustedPoints,
   applyAdjustGesture,
   drawingAt,
   restAdjustment,
+  rotateAdjustment,
   type AdjustGesture,
 } from "./adjust";
 
@@ -45,8 +52,12 @@ export interface SlideAdjust {
   adjustment: Deformation | null;
   layers: LayerSpec[];
   hint: string;
+  /** Vrai pendant un geste et jusqu'à l'arrivée de l'aperçu recalculé. */
+  pending: boolean;
   /** Grille au repos (1 × 1 : quatre coins) ; 0 retire la retouche. */
   setGrid(columns: number, rows: number): void;
+  /** Tourne le dessin dans cette diapositive seulement. */
+  rotateBy(deg: number): void;
   onPointerDown(event: PointerEvent<HTMLDivElement>): void;
   onPointerMove(event: PointerEvent<HTMLDivElement>): void;
   onPointerUp(event: PointerEvent<HTMLDivElement>): void;
@@ -59,6 +70,8 @@ export function useSlideAdjust(options: Options): SlideAdjust {
   const [local, setLocal] = useState<Map<string, Deformation | null>>(new Map());
   const [previews, setPreviews] = useState<Map<string, string>>(new Map());
   const active = useRef<{ gesture: AdjustGesture; down: Point; moved: boolean } | null>(null);
+  /** Un geste est en cours, ou son aperçu recalculé n'est pas encore là. */
+  const [pending, setPending] = useState(false);
   const node = useRef<SelectionNode | null>(null);
 
   const projector = view?.projectorId ?? null;
@@ -67,6 +80,8 @@ export function useSlideAdjust(options: Options): SlideAdjust {
   // Le projet fait foi : on oublie l'état local à chaque nouvel état du projet.
   useEffect(() => setLocal(new Map()), [placements]);
   useEffect(() => setSelectedId(null), [projector]);
+  // Un nouvel état de la diapositive (aperçu recalculé) : le bleu s'efface.
+  useEffect(() => setPending(false), [view]);
 
   const adjustmentOf = useCallback(
     (placement: string): Deformation | null => {
@@ -102,7 +117,8 @@ export function useSlideAdjust(options: Options): SlideAdjust {
 
   const layers = useMemo<LayerSpec[]>(() => {
     const url = selected ? previews.get(selected.drawing) : undefined;
-    if (!selected || !url) return [];
+    // Sans moteur, l'aperçu ne se recalcule pas : le bleu montre la retouche.
+    if (!selected || !url || (engine && !pending)) return [];
     return [
       {
         id: `retouche:${selected.placement}`,
@@ -114,7 +130,7 @@ export function useSlideAdjust(options: Options): SlideAdjust {
         opacity: 0.9,
       },
     ];
-  }, [selected, previews, adjustment]);
+  }, [selected, previews, adjustment, engine, pending]);
 
   // Contour, grille et points, par-dessus.
   useEffect(() => {
@@ -152,10 +168,12 @@ export function useSlideAdjust(options: Options): SlideAdjust {
   const save = (placement: string, next: Deformation | null) => {
     setLocal((m) => new Map(m).set(placement, next));
     if (!engine || !folder || !projector) return;
+    setPending(true);
     saveAdjustment(folder, placement, next ? { projector, deformation: next } : null).then(
       onProject,
       (failure: unknown) => {
         onError(String(failure).replace(/^Error: /, ""));
+        setPending(false);
         setLocal((m) => {
           const copy = new Map(m);
           copy.delete(placement);
@@ -168,6 +186,13 @@ export function useSlideAdjust(options: Options): SlideAdjust {
   const setGrid = (columns: number, rows: number) => {
     if (!selected) return;
     save(selected.placement, columns === 0 ? null : restAdjustment(selected, columns, rows));
+  };
+
+  const rotateBy = (deg: number) => {
+    if (!selected) return;
+    const base = adjustment ?? restAdjustment(selected, 1, 1);
+    if (!base) return;
+    save(selected.placement, rotateAdjustment(base, deg, adjustedCenter(selected, base)));
   };
 
   const pointerAt = (event: { clientX: number; clientY: number }) => {
@@ -218,6 +243,7 @@ export function useSlideAdjust(options: Options): SlideAdjust {
       return;
     }
     if (!current.moved && Math.hypot(event.clientX - current.down.x, event.clientY - current.down.y) < CLICK_PX) return;
+    if (!current.moved) setPending(true);
     current.moved = true;
     const id = selectedId ?? drawingAt(drawings, adjustmentOf, current.gesture.start)?.placement;
     if (!id) return;
@@ -231,9 +257,16 @@ export function useSlideAdjust(options: Options): SlideAdjust {
     active.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId))
       event.currentTarget.releasePointerCapture(event.pointerId);
-    if (!current.moved || !selectedId) return;
+    if (!current.moved) return;
+    if (!selectedId) {
+      setPending(false);
+      return;
+    }
     const at = pointerAt(event);
-    if (!at) return;
+    if (!at) {
+      setPending(false);
+      return;
+    }
     save(selectedId, applyAdjustGesture(current.gesture, at.mm));
   };
 
@@ -245,5 +278,5 @@ export function useSlideAdjust(options: Options): SlideAdjust {
       ? "Cliquer un dessin pour le retoucher dans cette diapositive"
       : "";
 
-  return { selected, adjustment, layers, hint, setGrid, onPointerDown, onPointerMove, onPointerUp };
+  return { selected, adjustment, layers, hint, pending, setGrid, rotateBy, onPointerDown, onPointerMove, onPointerUp };
 }

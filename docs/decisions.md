@@ -483,6 +483,30 @@ façade, mieux vaut la refaire (« Réinitialiser »). Une copie du dessin part
 sans retouche. Si le dessin change de diapositive, la retouche de l'ancienne
 est ignorée.
 
+**D-4.6-e. Le bleu ne reste que le temps du recalcul.** Retour d'essai de
+Benjamin (13 novembre 2026) : après une retouche, il devait désélectionner
+le dessin pour voir le résultat. Le dessin retouché, montré en bleu par-dessus
+l'aperçu tant qu'il était choisi, cachait l'aperçu recalculé. Désormais le
+bleu s'affiche pendant le geste et jusqu'à l'arrivée de l'aperçu recalculé
+(« Recalcul de la diapositive… » dans la barre d'état) ; ensuite seuls le
+contour et les points restent. Sans moteur (navigateur seul), l'aperçu ne se
+recalcule pas : le bleu reste.
+
+**D-4.6-f. Les outils du dessin dans la barre, comme sur la façade.**
+Demande de Benjamin (13 novembre 2026) : déplacer un dessin dans la
+diapositive sans toucher à la façade lui convient ; il veut la même barre
+d'outils que sur la façade et un retour au dessin calé sur la façade. La
+barre montre, quand un dessin est choisi : tourner d'un quart de tour (à
+gauche, à droite), quatre coins, grille (mêmes tailles que sur la façade),
+et « Comme sur la façade », qui retire la retouche (ancien
+« Réinitialiser »). Tourner fait tourner les **nœuds** de la retouche autour
+du centre du dessin retouché (le cadre seul ne changerait rien) : c'est une
+rotation exacte, en quatre coins comme en grille, prouvée par test ; sans
+retouche, on part de quatre coins au repos. Pas de miroir ni d'alignement,
+d'ordre ou de groupe : un miroir dans la retouche replierait la grille (le
+moteur la refuse, D-4.4), et les autres changent la façade, donc toutes les
+diapositives.
+
 ## 2026-11-12 — Tâche 4.5 : affectation des dessins aux diapositives
 
 Module `crates/insitu-core/src/placement/assign.rs`.

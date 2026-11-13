@@ -23,6 +23,7 @@ import {
   type SlideView,
 } from "../engine";
 import { useSlideAdjust } from "./useSlideAdjust";
+import { GRIDS } from "../compose/CompositionToolbar";
 import { recalledProject } from "../project/current";
 import { Viewer, placementForWidth, type LayerSpec, type TileSource, type ViewerHandle } from "../viewer";
 import { demoSlideViews, demoImages } from "./demo";
@@ -34,7 +35,9 @@ import {
   Button,
   Dot,
   EmptyState,
+  IconButton,
   List,
+  MenuButton,
   ListRow,
   Panel,
   Screen,
@@ -223,22 +226,44 @@ export function SlideScreen() {
       <ToolSeparator />
       {adjust.selected && (
         <>
-          <ToolGroup label="Retouche">
-            <Button size="sm" onClick={() => adjust.setGrid(1, 1)} title="Quatre coins à tirer, dans cette diapositive seulement">
-              Quatre coins
-            </Button>
-            <Button size="sm" onClick={() => adjust.setGrid(3, 3)} title="Grille de 3 × 3 cases à tirer, dans cette diapositive seulement">
-              Grille
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => adjust.setGrid(0, 0)}
-              disabled={!adjust.adjustment}
-              title="Retirer la retouche : le dessin revient où la façade le place"
-            >
-              Réinitialiser
-            </Button>
+          {/* Mêmes outils que la barre de la façade, pour cette diapositive seulement. */}
+          <ToolGroup label="Dessin">
+            <IconButton
+              icon="rotateLeft"
+              label="Tourner d'un quart de tour vers la gauche, dans cette diapositive seulement"
+              onClick={() => adjust.rotateBy(-90)}
+            />
+            <IconButton
+              icon="rotateRight"
+              label="Tourner d'un quart de tour vers la droite, dans cette diapositive seulement"
+              onClick={() => adjust.rotateBy(90)}
+            />
           </ToolGroup>
+          <ToolSeparator />
+          <ToolGroup>
+            <IconButton
+              icon="warpCorners"
+              label="Quatre coins à tirer, en perspective, dans cette diapositive seulement (remplace la retouche actuelle)"
+              onClick={() => adjust.setGrid(1, 1)}
+            />
+            <MenuButton
+              label="Tendre une grille de retouche, dans cette diapositive seulement"
+              icon="warpGrid"
+              iconOnly
+              variant="quiet"
+              items={GRIDS.map(([c, r]) => ({ label: `Grille ${c} × ${r}`, onSelect: () => adjust.setGrid(c, r) }))}
+            />
+          </ToolGroup>
+          <ToolSeparator />
+          <Button
+            size="sm"
+            icon="undo"
+            onClick={() => adjust.setGrid(0, 0)}
+            disabled={!adjust.adjustment}
+            title="Retirer la retouche de cette diapositive : le dessin revient tel qu'il est calé sur la façade"
+          >
+            Comme sur la façade
+          </Button>
           <ToolSeparator />
         </>
       )}
@@ -292,6 +317,7 @@ export function SlideScreen() {
           <StatusText>
             {view ? `${view.label} : diapositive calculée sur la photo redressée (280 mm)` : "Aucun projecteur choisi"}
           </StatusText>
+          {adjust.pending && engine && <StatusText>Recalcul de la diapositive…</StatusText>}
           <StatusText push>{adjust.hint ? `${adjust.hint} · ` : ""}← → : projecteur précédent ou suivant</StatusText>
         </StatusBar>
       }
