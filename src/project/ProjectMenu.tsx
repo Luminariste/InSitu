@@ -1,4 +1,10 @@
-// Menu « Projet », le même en tête de la barre d'outils de chaque écran :
+// Menu « Projet » : nouveau, ouvrir, relire, annuler, rétablir.
+//
+// Dans l'app, ces commandes sont dans la barre de menus du Mac (Fichier,
+// Édition) : le menu n'est plus montré dans la barre d'outils (demande de
+// Benjamin, D15-o) ; il ne garde que ses raccourcis, et le nom du projet
+// ouvert passe dans la barre de l'app, à côté d'« InSitu ». Dans le
+// navigateur seul (sans barre de menus), il reste en tête de la barre d'outils :
 // le nom du projet ouvert, et Nouveau / Ouvrir / Relire avec leurs
 // raccourcis (⌘N, ⌘O, ⌘R), et Annuler / Rétablir (⌘Z, ⇧⌘Z, tâche 4.3).
 // L'écran garde la main sur l'ouverture : le menu lui donne seulement le
@@ -6,9 +12,10 @@
 
 import { chooseNewProjectPath, chooseProjectFolder, createProject, hasEngine, historyStep } from "../engine";
 import { projectNameFromPath, withProjectExtension } from "../facade/scale";
+import { useEffect } from "react";
 import { MenuButton, useShortcuts } from "../ui";
 import { isTextEntry } from "../ui/shortcuts";
-import { rememberProject } from "./current";
+import { announceProject, rememberProject } from "./current";
 
 interface Props {
   /** Nom du projet ouvert ; `null` si aucun. */
@@ -86,6 +93,14 @@ export function ProjectMenu({ name, folder, onOpen, onReload, ready, placeholder
     { keys: "mod+shift+z", run: undoOrRedo(true), enabled: shortcuts },
     { keys: "mod+z", run: undoOrRedo(false), enabled: shortcuts },
   ]);
+
+  // Le nom du projet ouvert, montré dans la barre de l'app.
+  useEffect(() => {
+    if (engine) announceProject(name, folder);
+  }, [engine, name, folder]);
+
+  // Dans l'app : les commandes sont dans la barre de menus du Mac.
+  if (engine) return null;
 
   return (
     <MenuButton

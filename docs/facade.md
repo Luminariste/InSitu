@@ -2,10 +2,11 @@
 
 ## Dans l'app
 
-1. Étape **Façade** (⌘1). Le menu **Projet**, en haut à gauche de chaque
-   écran : **Nouveau projet…** (⌘N) crée un projet (un dossier
+1. Étape **Façade** (⌘1). Le menu **Fichier** de la barre de menus du
+   Mac : **Nouveau projet…** (⌘N) crée un projet (un dossier
    `Nom.insitu`, à mettre dans le Dropbox) ; **Ouvrir un projet…** (⌘O)
-   rouvre un projet existant. L'app rouvre seule le dernier projet au
+   rouvre un projet existant. Le nom du projet ouvert s'affiche en haut à
+   gauche, à côté d'« InSitu ». L'app rouvre seule le dernier projet au
    lancement suivant.
 2. **Importer un plan…** (⌘I, panneau de droite, onglet **Plan**, en haut) : PDF d'architecte, image (PNG, JPEG, TIFF, HEIC), SVG
    ou DXF. Pour un PDF de plusieurs pages, l'app demande laquelle est la

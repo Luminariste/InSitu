@@ -33,6 +33,11 @@ sur « Installer et relancer ». L'app télécharge la nouvelle version, vérifi
 qu'elle vient bien de Luminariste, se remplace et se relance. « Plus tard » :
 la question revient au lancement suivant.
 
+Pour chercher sans relancer l'app : menu **InSitu** (barre de menus du
+Mac, à côté de la pomme) → **Rechercher les mises à jour…**. L'app dit si
+une version plus récente existe, si elle est déjà à jour, ou pourquoi elle
+ne peut pas savoir (pas de connexion à Internet).
+
 Si cela ne marche pas (pas de réseau, ou version installée trop ancienne pour
 se mettre à jour seule), téléchargez la nouvelle version ici et glissez-la
 dans Applications en acceptant de remplacer l'ancienne.

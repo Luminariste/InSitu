@@ -37,3 +37,21 @@ export function failureMessage(error: unknown): string {
     : "La mise à jour n'a pas pu être installée.";
   return `${head} L'app actuelle reste en place. Détail : ${detail}`;
 }
+
+/**
+ * Pourquoi une recherche demandée à la main n'a pas abouti. Le cas le plus
+ * fréquent (pas de réseau, GitHub injoignable) est dit simplement.
+ */
+export function checkFailureMessage(error: unknown): string {
+  const detail = error instanceof Error ? error.message : String(error);
+  const network = /network|connect|dns|timed? ?out|resolve|request/i.test(detail);
+  const head = network
+    ? "Impossible de joindre GitHub pour savoir s'il existe une nouvelle version : vérifier la connexion à Internet."
+    : "La recherche de mise à jour n'a pas abouti.";
+  return `${head} Détail : ${detail}`;
+}
+
+/** Ce qu'on dit quand l'app est déjà la dernière version publiée. */
+export function upToDateMessage(version: string | null): string {
+  return version ? `InSitu ${version} est la dernière version publiée.` : "InSitu est la dernière version publiée.";
+}

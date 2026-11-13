@@ -71,7 +71,7 @@ coin a bougé au plus. Si ce n'est pas mieux : **Annuler l'ajustement**.
 La pose en deux clics reste possible, et se combine avec ce qui précède :
 
 1. Étape **Recalage** (⌘3). L'écran reprend le projet ouvert dans les
-   autres étapes (menu **Projet** → **Relire depuis le disque**, ⌘R, le
+   autres étapes (menu **Fichier** → **Relire depuis le disque**, ⌘R, le
    recharge). Le panneau **Projecteurs**, à gauche, ne montre que les
    projecteurs redressés ; le panneau **Points communs**, à droite, liste
    les points et leur écart.

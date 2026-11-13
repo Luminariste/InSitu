@@ -757,7 +757,7 @@ export function RectificationScreen() {
             </EmptyState>
           ) : !folder ? (
             <EmptyState icon="folder" title="Aucun projet ouvert">
-              <p>Ouvrir un projet avec le menu Projet (⌘O), ou en créer un (⌘N).</p>
+              <p>Ouvrir un projet (menu Fichier du Mac, ⌘O), ou en créer un (⌘N).</p>
             </EmptyState>
           ) : !projector ? (
             <EmptyState

@@ -297,3 +297,160 @@
 .placement-hint {
   color: var(--ui-text-secondary);
 }
+
+/* Fenêtre d'aperçu de l'import Illustrator : le résultat à gauche, les
+   calques et leurs fichiers à cocher à droite. */
+.compose-ai {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: var(--ui-space-4);
+  align-items: start;
+}
+
+.compose-ai-map {
+  margin: 0;
+}
+
+.compose-ai-map svg {
+  display: block;
+  width: 100%;
+  max-height: 58vh;
+  background: var(--ui-canvas);
+  border-radius: var(--ui-radius-md);
+}
+
+.compose-ai-board {
+  fill: none;
+  stroke: var(--ui-canvas-text-faint);
+  stroke-width: 0.2%;
+  vector-effect: non-scaling-stroke;
+}
+
+.compose-ai-image {
+  vector-effect: non-scaling-stroke;
+  fill-opacity: 0.18;
+  stroke: var(--ui-accent);
+  fill: var(--ui-accent);
+}
+
+.compose-ai-image.is-left {
+  fill-opacity: 0.03;
+  stroke-opacity: 0.3;
+}
+
+.compose-ai-image.is-missing {
+  fill: none;
+  stroke: var(--ui-danger);
+  stroke-dasharray: 2 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.compose-ai-image.is-hidden {
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.compose-ai-image.is-lit {
+  fill-opacity: 0.55;
+  stroke-opacity: 1;
+}
+
+.compose-ai-map figcaption {
+  margin-top: var(--ui-space-2);
+}
+
+.compose-ai-tree {
+  max-height: 62vh;
+  overflow-y: auto;
+  font-size: var(--ui-text-md);
+  color: var(--ui-text);
+}
+
+.compose-ai-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+  min-height: var(--ui-row-h);
+  padding: 0 var(--ui-space-2);
+  border-radius: var(--ui-radius-sm);
+}
+
+.compose-ai-row:hover {
+  background: var(--ui-hover);
+}
+
+.compose-ai-row.is-head {
+  font-weight: var(--ui-weight-medium);
+  border-bottom: 1px solid var(--ui-separator);
+  border-radius: 0;
+}
+
+.compose-ai-row.is-layer {
+  cursor: default;
+}
+
+.compose-ai-row.is-file,
+.compose-ai-indent {
+  padding-left: calc(var(--ui-space-6) + var(--ui-space-2));
+}
+
+.compose-ai-row.tone-missing .compose-ai-name {
+  color: var(--ui-text-tertiary);
+}
+
+.compose-ai-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-1);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.compose-ai-name .ui-icon {
+  color: var(--ui-text-tertiary);
+}
+
+.compose-ai-count {
+  color: var(--ui-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.compose-ai-swatch {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 2px;
+  background: var(--ui-accent);
+}
+
+.compose-ai-status {
+  font-size: var(--ui-text-sm);
+  padding: 0 6px;
+  border-radius: var(--ui-radius-sm);
+  white-space: nowrap;
+}
+
+.compose-ai-status.is-library,
+.compose-ai-status.is-libraryByName {
+  color: var(--ui-success);
+  background: var(--ui-success-soft);
+}
+
+.compose-ai-status.is-new {
+  color: var(--ui-info);
+  background: var(--ui-info-soft);
+}
+
+.compose-ai-status.is-missing {
+  color: var(--ui-danger);
+  background: var(--ui-danger-soft);
+}
+
+.compose-ai-summary {
+  margin-right: auto;
+  align-self: center;
+  color: var(--ui-text-secondary);
+}

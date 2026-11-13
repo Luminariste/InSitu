@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { failureMessage, isDownloaded, progressLabel, progressShare } from "./update";
+import { checkFailureMessage, failureMessage, isDownloaded, progressLabel, progressShare, upToDateMessage } from "./update";
 
 const MB = 1024 * 1024;
 
@@ -32,5 +32,17 @@ describe("échec de la mise à jour", () => {
     const message = failureMessage("signature invalide");
     expect(message).toContain("n'a pas pu être installée");
     expect(message).toContain("signature invalide");
+  });
+});
+
+describe("recherche de mise à jour demandée à la main", () => {
+  it("dit que l'app est à jour, avec son numéro", () => {
+    expect(upToDateMessage("0.1.45")).toBe("InSitu 0.1.45 est la dernière version publiée.");
+    expect(upToDateMessage(null)).toBe("InSitu est la dernière version publiée.");
+  });
+
+  it("dit simplement qu'Internet manque", () => {
+    expect(checkFailureMessage(new Error("error sending request for url"))).toMatch(/^Impossible de joindre GitHub/);
+    expect(checkFailureMessage("signature invalide")).toMatch(/^La recherche de mise à jour n'a pas abouti\. Détail : signature invalide$/);
   });
 });

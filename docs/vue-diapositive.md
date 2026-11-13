@@ -14,7 +14,7 @@ colonnes, fenêtres.
 ## Dans l'app
 
 1. Étape **Diapositive** (⌘4). L'écran reprend le projet ouvert ; menu
-   **Projet** → **Relire depuis le disque** (⌘R) recalcule après un
+   **Fichier** → **Relire depuis le disque** (⌘R) recalcule après un
    changement fait ailleurs.
 2. À gauche, la liste des projecteurs ; une pastille orange s'il manque
    quelque chose (la ligne et le bandeau disent quoi). Les **flèches ← →**
@@ -23,7 +23,14 @@ colonnes, fenêtres.
    par-dessus, en **cyan** par défaut. Le groupe **Dessins** de la barre
    d'outils propose d'autres couleurs, règle leur opacité, et la case
    **Montrer** les masque.
-4. Zoomer pour juger d'un détail. L'aperçu fait 2 048 px (0,14 mm par
+4. Groupe **Photo** : **Montrer** cache ou remontre la photo redressée.
+   Sans la photo, le groupe **Fond** colore le carré de 280 mm : **Noir**,
+   **Blanc** (les dessins blancs passent alors en noir pour rester
+   visibles) ou **Pierre**. Le bouton **Comme dans LightBurn** montre la
+   diapositive telle qu'elle part dans LightBurn : traits blancs pleins sur
+   fond noir, sans photo ; un second clic revient à l'affichage d'avant.
+   Ces réglages sont retenus d'un lancement à l'autre.
+5. Zoomer pour juger d'un détail. L'aperçu fait 2 048 px (0,14 mm par
    pixel), comme le détail utile d'une photo redressée.
 
 Si un dessin tombe à côté de l'élément visé, corriger le recalage (étape

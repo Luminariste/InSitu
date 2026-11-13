@@ -4,6 +4,34 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-13 — Diapositive comme dans LightBurn, menu Projet retiré (demande de Benjamin)
+
+Demandes de Benjamin (13 novembre) : « menu diapositive : ajouter option
+pour voir ou non la photo. fond noir / blanc / pierre (= pouvoir voir la
+diapo telle qu'elle va être envoyée à LightBurn) » ; « menu horizontal : pas
+besoin du sélecteur de projet puisque présent dans le menu Mac ».
+
+**D-3.6-a. L'écran Diapositive montre la diapositive avec ou sans photo, sur
+un fond choisi.** Groupe « Photo » (montrer ou non la photo redressée) et
+groupe « Fond » (noir, blanc, pierre) : le fond est un carré de 280 mm sous
+la photo, visible quand elle est cachée. Sur fond blanc, des dessins blancs
+passent en noir (et inversement en revenant au noir ou à la pierre) pour
+ne jamais disparaître ; une couleur choisie (cyan…) est gardée. Bouton
+« Comme dans LightBurn » : sans photo, fond noir, traits blancs à pleine
+opacité, c'est-à-dire l'aperçu calculé par le moteur avec le même calcul
+que l'export (D-3.6) ; un second clic revient au réglage d'avant. Réglages
+retenus d'un lancement à l'autre (`localStorage`). L'aperçu fait 2 048 px :
+c'est le dessin de l'export, pas sa finesse (15 433 px).
+
+**D15-o. Le menu Projet ne s'affiche plus dans l'app.** Nouveau, Ouvrir,
+Relire, Annuler, Rétablir sont dans la barre de menus du Mac (Fichier,
+Édition, D15-g) : `ProjectMenu` ne dessine plus rien quand le moteur est là,
+mais garde ses raccourcis (c'est lui qui les exécute quand le menu du Mac
+les envoie). Le nom du projet ouvert passe dans la barre de l'app, à côté
+d'« InSitu » (dossier en bulle d'aide). Dans le navigateur seul, sans barre
+de menus, le menu reste en tête de la barre d'outils. Un séparateur en tête
+de barre ne s'affiche pas.
+
 ## 2026-11-13 — Options d'affichage et rangement des menus (demande de Benjamin)
 
 Demande de Benjamin (13 novembre) : « retouche dessin et silhouette : garde
@@ -67,6 +95,45 @@ Vérifié par `crates/insitu-core/tests/mire_v2_sens.rs` sur le PDF à
 imprimer rendu par le moteur, dans les quatre sens, détection seule et
 coins donnés dans le désordre ; pas encore sur une vraie photo de la mire
 imprimée.
+
+## 2026-11-13 — Import Illustrator : aperçu, choix, lien avec la bibliothèque (demande de Benjamin)
+
+Benjamin veut que l'import d'un `.ai` crée un dessin par image, fasse le lien
+avec les dessins déjà dans la bibliothèque, garde les calques d'Illustrator,
+et passe par une fenêtre qui montre le résultat et laisse choisir quoi
+importer. Module `crates/insitu-core/src/illustrator/plan.rs`, commande
+`insitu illustrator preview` et options `--images`, `--layer` de `import`,
+fenêtre `src/compose/IllustratorPreviewDialog.tsx`.
+
+**D-6.3-f. Un lien reprend le dessin déjà dans la bibliothèque.** Avant
+toute copie, chaque fichier lié est comparé à la bibliothèque du projet :
+même contenu, octet pour octet (taille d'abord, quel que soit le dossier) →
+ce dessin est repris, avec ses retouches, sa silhouette et ses réglages ; si
+le fichier lié n'est pas sur ce Mac, un dessin du même nom de fichier (sans
+accents ni casse, de préférence dans un dossier du même nom) est repris.
+Sinon le fichier entre dans `bibliotheque/<nom du .ai>/` comme avant
+(D-6.3-e). Raison : Benjamin importe souvent les dossiers de dessins avant
+la composition ; les copier une seconde fois doublait la bibliothèque et
+perdait les retouches. Limite : un dessin du même nom mais d'un autre
+contenu, quand le fichier lié est présent, n'est pas repris (le fichier du
+`.ai` fait foi).
+
+**D-6.3-g. L'import passe par un aperçu, sans rien écrire.** La lecture du
+`.ai` rend calques (nom, masqué, verrouillé, couleur d'Illustrator, images
+liées et incorporées), fichiers liés (bibliothèque, bibliothèque par le nom,
+nouveau, introuvable) et chaque image à sa place sur la façade. La fenêtre
+dessine les images en rectangles de la couleur de leur calque, liste les
+calques (l'avant en haut, comme dans Illustrator) et leurs fichiers, avec
+des cases à cocher. Tout ce qui peut être importé est coché au départ ; un
+lien introuvable ne se coche pas. Le moteur reçoit le rang des images
+choisies. Les calques sans image liée (tracés seulement) sont nommés, pas
+repris. Une image incorporée hors de tout calque (réserve de symboles) n'est
+comptée que dans le total.
+
+**D-6.3-h. Calques : ceux de premier niveau, toujours.** Le fichier de
+Trévarez n'a pas de sous-calques ; l'app non plus (D-4.3). Les images d'un
+sous-calque restent dans le calque de premier niveau, comme en D-6.3-b. Si
+un fichier réel en a besoin, ce sera une demande à part.
 
 ## 2026-11-12 — Tâche 6.3 : import Illustrator
 
@@ -205,6 +272,13 @@ comme avant, sans archive ni manifeste.
 
 **D16-e. La première version qui sait se mettre à jour s'installe à la
 main.** Les versions déjà installées n'ont pas ce module.
+
+**D16-f. « Rechercher les mises à jour… » dans le menu InSitu** (demande de
+Benjamin, 13 novembre). Même recherche qu'au lancement, mais dite : à jour
+(avec le numéro), nouvelle version (même dialogue qu'au lancement), ou
+pourquoi on ne sait pas (pas de réseau…). L'entrée n'a pas de raccourci ;
+elle passe par l'évènement `menu` avec l'identifiant `mises-a-jour`, que
+l'interface reconnaît avant les raccourcis.
 
 ## 2026-11-12 — Jeu d'essai Trévarez (hors plan, demande de Benjamin)
 
