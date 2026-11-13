@@ -353,6 +353,7 @@ export function FacadeScreen() {
     stage,
     enabled: composeBlocked === null && picking === "off" && busy === null && viewOptions.drawings,
     visible: viewOptions.drawings,
+    checkOverlap: viewOptions.overlap,
     onError: setError,
   });
   const viewerLayers = useMemo(() => [...layers, ...composition.layers], [layers, composition.layers]);
@@ -603,6 +604,14 @@ export function FacadeScreen() {
             disabled: !view,
           },
           { label: "Tout en négatif (traits noirs sur blanc)", checked: viewOptions.negative, onSelect: () => toggleView("negative") },
+          { separator: true },
+          { heading: "Vérifier" },
+          {
+            label: "Chevauchement : diapositive de chaque dessin, en rouge ce qui ne sera pas projeté",
+            checked: viewOptions.overlap,
+            onSelect: () => toggleView("overlap"),
+            disabled: !viewOptions.drawings,
+          },
           { separator: true },
           { label: "Tout montrer, sans négatif", onSelect: showEverything, disabled: changed === 0 },
         ]}

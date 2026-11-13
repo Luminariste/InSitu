@@ -169,6 +169,11 @@ deux projecteurs. Sur la façade, son contour a la couleur de son projecteur
 choisie à la main le coupe. Un contour gris : il ne tombe dans aucune
 emprise.
 
+**Vérifier le chevauchement** (menu Affichage, rubrique « Vérifier »,
+version 0.1.49) : par défaut la façade reste épurée, pour composer ; les
+couleurs des diapositives et le rouge n'apparaissent que quand on coche
+« Chevauchement », avant l'export.
+
 **Ce qui ne sera pas projeté est en rouge** (version 0.1.45) : la part
 d'un dessin qui sort de l'emprise de sa diapositive est couverte d'un aplat
 rouge sur la façade. Personne ne la projette, même si une diapositive
