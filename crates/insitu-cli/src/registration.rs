@@ -1,10 +1,10 @@
 //! Commandes `insitu registration …` : le recalage d'un projecteur sur la
 //! façade, comme le fait l'écran Recalage de l'app (tâche 3.2).
 
-use insitu_core::project::{PointMm, ProjectDir, RegistrationPair};
+use insitu_core::project::{PointMm, ProjectDir, RegistrationLine, RegistrationPair};
 use insitu_core::registration::auto::projector_adjustment;
 use insitu_core::registration::{
-    projector_report, set_registration, RegistrationOptions, RegistrationReport,
+    projector_report, set_registration_with_lines, RegistrationOptions, RegistrationReport,
 };
 use serde::Deserialize;
 
@@ -29,6 +29,11 @@ redressée (mm de diapositive, 0 à 280) et la façade (mm réels, façade mise
          le projet et affiche le compte rendu. Fichier :
 
            { "pairs": [ { "slide": [21.4, 18.9], "facade": [612.0, 480.0] }, … ] }
+
+         Facultatif, les lignes communes (deux points de chaque côté) :
+
+           "lines": [ { "slide": [[10, 140], [270, 138]],
+                        "facade": [[28000, 11000], [37000, 11000]] }, … ]
 
   preview  Pose provisoire, sans projet ni enregistrement : emprise et
            maillage de la diapositive sur la façade pour ces paires (ce que
@@ -57,6 +62,16 @@ sur la façade (emprise du projecteur)."#;
 #[serde(deny_unknown_fields)]
 struct PairsFile {
     pairs: Vec<PairEntry>,
+    /// Lignes communes (D-3.2-k), facultatives.
+    #[serde(default)]
+    lines: Option<Vec<LineEntry>>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LineEntry {
+    slide: [[f64; 2]; 2],
+    facade: [[f64; 2]; 2],
 }
 
 #[derive(Deserialize)]
@@ -115,9 +130,9 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             projector_report(&dir, projector, &options).map_err(failed)?
         }
         ["set", folder, projector, file] => {
-            let pairs = read_pairs(file)?;
+            let (pairs, lines) = read_file(file)?;
             let dir = ProjectDir::open(folder).map_err(failed)?;
-            set_registration(&dir, projector, pairs, &options)
+            set_registration_with_lines(&dir, projector, pairs, lines, &options)
                 .map_err(failed)?
                 .1
         }
@@ -135,6 +150,12 @@ fn json(report: &RegistrationReport) -> String {
 }
 
 fn read_pairs(path: &str) -> Result<Vec<RegistrationPair>, Problem> {
+    Ok(read_file(path)?.0)
+}
+
+type PairsAndLines = (Vec<RegistrationPair>, Option<Vec<RegistrationLine>>);
+
+fn read_file(path: &str) -> Result<PairsAndLines, Problem> {
     let text = std::fs::read_to_string(path)
         .map_err(|e| Problem::Failed(format!("Impossible de lire « {path} » : {e}")))?;
     let file: PairsFile = serde_json::from_str(&text).map_err(|e| {
@@ -142,7 +163,7 @@ fn read_pairs(path: &str) -> Result<Vec<RegistrationPair>, Problem> {
             "« {path} » n'a pas le format attendu ({e}). Voir : insitu registration --help"
         ))
     })?;
-    Ok(file
+    let pairs = file
         .pairs
         .into_iter()
         .map(|p| {
@@ -151,5 +172,17 @@ fn read_pairs(path: &str) -> Result<Vec<RegistrationPair>, Problem> {
                 PointMm::new(p.facade[0], p.facade[1]),
             )
         })
-        .collect())
+        .collect();
+    let mm = |p: [f64; 2]| PointMm::new(p[0], p[1]);
+    let lines = file.lines.map(|lines| {
+        lines
+            .into_iter()
+            .map(|l| RegistrationLine {
+                slide: [mm(l.slide[0]), mm(l.slide[1])],
+                facade: [mm(l.facade[0]), mm(l.facade[1])],
+                extra: Default::default(),
+            })
+            .collect()
+    });
+    Ok((pairs, lines))
 }

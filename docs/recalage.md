@@ -42,6 +42,26 @@ point (coin compris) se corrige en le glissant à nouveau, se supprime par
 la corbeille de sa ligne ou ⌫. ⌘Z pendant qu'on glisse un point remet ce
 point où il était, sans rien annuler d'autre.
 
+### Caler par lignes
+
+Quand un bord se voit mieux qu'un point (bord de fenêtre, corniche, chaîne
+d'angle), choisir **Lignes** en haut du panneau de droite (la photo doit
+être posée par ses coins).
+
+1. Sur la **photo** (à gauche), appuyer sur un bout du bord et glisser
+   jusqu'à l'autre : un trait jaune attend son double.
+2. Sur le **plan** (à droite), tracer le même bord de la même façon. Les
+   deux traits n'ont pas besoin d'avoir la même longueur. La ligne
+   devient **L1** (rose, des deux côtés) et la photo suit.
+3. Recommencer. Une horizontale : la photo glisse. Deux lignes : elle
+   tourne et change de taille. **Deux horizontales et deux verticales :
+   le trapèze est retrouvé.** Les points sûrs comptent aussi.
+
+Un bout de ligne se corrige en le glissant, une ligne se supprime par la
+corbeille de sa rangée dans la liste. Échap abandonne un trait en attente.
+En mode Lignes, glisser trace un trait : pour déplacer la vue, barre
+d'espace + glisser.
+
 ### Essai sur le Mac (à faire par Benjamin)
 
 1. Projet Trévarez, étape Recalage, projecteur **D**. Supprimer ses points
@@ -58,6 +78,16 @@ point où il était, sans rien annuler d'autre.
    qu'ils donnent ; la phrase sous les boutons le dit.
 5. Glisser un point puis, **pendant le glisser**, ⌘Z : le point revient,
    rien d'autre n'est annulé. Après le lâcher, ⌘Z annule ce seul geste.
+
+Par lignes (D-3.2-k), sur le même projecteur :
+
+6. Choisir **Lignes**. Tracer sur la photo le bas de la corniche, puis le
+   même sur le plan. Attendu : la photo glisse pour que sa corniche tombe
+   sur celle du plan.
+7. Tracer ensuite une deuxième horizontale (appuis des fenêtres) et deux
+   verticales (bords de deux fenêtres éloignées). Attendu : après la
+   quatrième ligne, les fenêtres de la photo tombent sur celles du plan.
+8. Glisser un bout d'une ligne sur le plan : la photo suit ; ⌘Z annule.
 
 « Ajuster sur le plan » n'est plus montré pour l'instant (D-3.2-j) : sur
 les photos de Trévarez et le plan détaillé, il tombait à côté.

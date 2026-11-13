@@ -26,6 +26,8 @@ import {
   isGuide,
   pinFit,
   pinFitText,
+  followConstraints,
+  constraintsText,
 } from "./logic";
 
 const p = (x: number, y: number) => ({ x, y });
@@ -315,5 +317,69 @@ describe("points sûrs libres (D-3.2-j)", () => {
     expect(followPins(loose)).toEqual(loose);
     expect(pinFit([p(10, 10)])).toBe("glisse");
     expect(pinFit([p(20, 20), p(250, 30), p(140, 250)])).toBe("affine");
+  });
+});
+
+describe("lignes communes (D-3.2-k)", () => {
+  const guides = cornerPairs(p(5000, 5000), 2800);
+  // Vraie pose : un trapèze (homographie connue), diapositive → façade.
+  const truth = [
+    { slide: p(0, 0), facade: p(1000, 1000) },
+    { slide: p(280, 0), facade: p(4000, 1200) },
+    { slide: p(280, 280), facade: p(3800, 4100) },
+    { slide: p(0, 280), facade: p(900, 3900) },
+  ];
+  const at = (s: { x: number; y: number }) => demoTrapezeMesh(truth, 280)!.facade[Math.round(s.y) * 281 + Math.round(s.x)];
+  /** Une ligne vraie : deux points de la photo, et deux autres points de la même droite sur la façade. */
+  const line = (a: { x: number; y: number }, b: { x: number; y: number }) => {
+    const fa = at(a);
+    const fb = at(b);
+    // Sur la façade, d'autres points de la même droite (on ne trace pas les mêmes bouts).
+    const f0 = { x: fa.x + 0.3 * (fb.x - fa.x), y: fa.y + 0.3 * (fb.y - fa.y) };
+    const f1 = { x: fa.x + 1.4 * (fb.x - fa.x), y: fa.y + 1.4 * (fb.y - fa.y) };
+    return { slide: [a, b] as [typeof a, typeof b], facade: [f0, f1] as [typeof a, typeof b] };
+  };
+
+  it("2 horizontales et 2 verticales retrouvent le trapèze", () => {
+    const lines = [line(p(20, 60), p(260, 60)), line(p(20, 220), p(260, 220)), line(p(40, 20), p(40, 260)), line(p(230, 20), p(230, 260))];
+    const out = followConstraints(guides, lines);
+    out.forEach((g, i) => {
+      expect(g.facade.x).toBeCloseTo(truth[i].facade.x, 0);
+      expect(g.facade.y).toBeCloseTo(truth[i].facade.y, 0);
+    });
+    expect(constraintsText(out, lines)).toContain("assez pour décider");
+  });
+
+  it("une corniche seule : la photo s'y aligne, le reste vient des guides", () => {
+    // Corniche de la photo à y = 140 ; sur le plan, une horizontale à y = 4 400.
+    const cornice = { slide: [p(10, 140), p(270, 140)] as [ReturnType<typeof p>, ReturnType<typeof p>], facade: [p(0, 4400), p(9000, 4400)] as [ReturnType<typeof p>, ReturnType<typeof p>] };
+    const out = followConstraints(guides, [cornice]);
+    const m = demoTrapezeMesh(out, 280)!;
+    const left = m.facade[140 * 281 + 10];
+    const right = m.facade[140 * 281 + 270];
+    expect(left.y).toBeCloseTo(4400, 2);
+    expect(right.y).toBeCloseTo(4400, 2);
+    // Pas de déformation ni de changement de taille : juste une glisse.
+    expect(out[1].facade.x - out[0].facade.x).toBeCloseTo(2800, 3);
+    expect(out[0].facade.x).toBeCloseTo(guides[0].facade.x, 3);
+  });
+
+  it("des lignes et un point sûr se combinent", () => {
+    // 3 lignes (une corniche, deux bords) et 1 point : 8 équations. (Deux
+    // lignes qui se croisent et deux points ne suffisent jamais : une
+    // homologie de centre leur croisement et d'axe la droite des deux
+    // points les respecte tous.)
+    const lines = [line(p(20, 60), p(260, 60)), line(p(40, 20), p(40, 260)), line(p(230, 20), p(230, 260))];
+    const pins = [p(200, 200)].map((s) => ({ slide: s, facade: at(s) }));
+    const out = followConstraints([...guides, ...pins], lines);
+    out.slice(0, 4).forEach((g, i) => {
+      expect(g.facade.x).toBeCloseTo(truth[i].facade.x, 0);
+      expect(g.facade.y).toBeCloseTo(truth[i].facade.y, 0);
+    });
+  });
+
+  it("sans ligne, c'est le calcul des points sûrs", () => {
+    const pins = [{ slide: p(70, 70), facade: p(4000, 4500) }];
+    expect(followConstraints([...guides, ...pins], [])).toEqual(followPins([...guides, ...pins]));
   });
 });

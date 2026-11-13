@@ -1,6 +1,7 @@
 // Ce que l'écran de recalage dessine sur chacune des deux vues : les points
 // communs numérotés (couleur selon leur écart), le point en attente de son
-// double, et, sur la façade, l'emprise du projecteur.
+// double, les lignes communes (L1, L2…) et le trait en attente de son double,
+// et, sur la façade, l'emprise du projecteur.
 // Tailles en pixels d'écran, quel que soit le zoom.
 
 import { Container, Graphics, Text } from "pixi.js";
@@ -17,6 +18,7 @@ const PENDING = 0xffe14d;
 const SELECTED = 0xffffff;
 const FOOTPRINT = 0x4fb3ff;
 const HANDLE = 0xffffff;
+const LINE = 0xff7ad9;
 
 export interface MarkersContent {
   points: { x: number; y: number; status: PairStatus }[];
@@ -28,9 +30,13 @@ export interface MarkersContent {
   footprint: Point[] | null;
   /** Poignée qui déplace toute la photo, au centre de la diapositive (façade seulement). */
   handle?: Point | null;
+  /** Lignes communes de ce côté (D-3.2-k), chacune par ses deux bouts. */
+  lines?: [Point, Point][];
+  /** Trait en cours de tracé, ou tracé de ce côté et en attente de l'autre. */
+  draft?: [Point, Point] | null;
 }
 
-export const EMPTY_MARKERS: MarkersContent = { points: [], selected: null, pending: null, footprint: null, handle: null };
+export const EMPTY_MARKERS: MarkersContent = { points: [], selected: null, pending: null, footprint: null, handle: null, lines: [], draft: null };
 
 export class PairMarkersNode implements SceneNode {
   readonly container = new Container();
@@ -71,7 +77,7 @@ export class PairMarkersNode implements SceneNode {
     const zoom = frame.view.zoom;
     if (zoom === this.drawnZoom) return;
     this.drawnZoom = zoom;
-    const { points, selected, pending, footprint, handle } = this.content;
+    const { points, selected, pending, footprint, handle, lines = [], draft = null } = this.content;
     const px = 1 / zoom; // un pixel d'écran, en unités de la scène
     const g = this.graphics;
     g.clear();
@@ -97,7 +103,24 @@ export class PairMarkersNode implements SceneNode {
       label.scale.set(px);
       label.position.set(p.x + r + 3 * px, p.y + r - 2 * px);
     });
-    for (let i = points.length; i < this.labels.length; i++) this.labels[i].visible = false;
+
+    lines.forEach(([a, b], j) => {
+      g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 2 * px, color: LINE });
+      for (const end of [a, b]) g.circle(end.x, end.y, 5 * px).stroke({ width: 2 * px, color: LINE });
+      const label = this.label(points.length + j);
+      label.text = `L${j + 1}`;
+      label.style.fill = LINE;
+      label.visible = true;
+      label.scale.set(px);
+      label.position.set((a.x + b.x) / 2 + 6 * px, (a.y + b.y) / 2 + 4 * px);
+    });
+    for (let i = points.length + lines.length; i < this.labels.length; i++) this.labels[i].visible = false;
+
+    if (draft) {
+      const [a, b] = draft;
+      g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 2 * px, color: PENDING });
+      for (const end of [a, b]) g.circle(end.x, end.y, 5 * px).stroke({ width: 2 * px, color: PENDING });
+    }
 
     if (handle) {
       // Poignée de déplacement : un disque et quatre flèches.

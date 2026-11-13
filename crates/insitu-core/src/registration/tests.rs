@@ -273,6 +273,36 @@ fn registration_is_saved_in_the_project() {
         projector_report(&dir, "Z", &options()),
         Err(RegistrationError::UnknownProjector(_))
     ));
+
+    // Lignes communes (D-3.2-k) : enregistrées avec les paires, gardées si
+    // on ne les donne pas, refusées si un trait n'a pas de longueur.
+    let line = RegistrationLine {
+        slide: [PointMm::new(10.0, 140.0), PointMm::new(270.0, 141.0)],
+        facade: [PointMm::new(500.0, 900.0), PointMm::new(3000.0, 905.0)],
+        extra: ExtraFields::new(),
+    };
+    let (saved, _) =
+        set_registration_with_lines(&dir, &id, set.clone(), Some(vec![line.clone()]), &options())
+            .unwrap();
+    assert_eq!(
+        saved.projector(&id).unwrap().registration_lines,
+        vec![line.clone()]
+    );
+    let (saved, _) = set_registration(&dir, &id, set.clone(), &options()).unwrap();
+    assert_eq!(
+        saved.projector(&id).unwrap().registration_lines,
+        vec![line.clone()]
+    );
+    let flat = RegistrationLine {
+        slide: [PointMm::new(10.0, 10.0), PointMm::new(10.0, 10.0)],
+        ..line.clone()
+    };
+    assert!(matches!(
+        set_registration_with_lines(&dir, &id, set.clone(), Some(vec![flat]), &options()),
+        Err(RegistrationError::BadPair(_))
+    ));
+    let text = std::fs::read_to_string(tmp.path().join("essai.insitu/projet.json")).unwrap();
+    assert!(text.contains("registrationLines"));
 }
 
 /// Retour de Benjamin (0.1.61) : une photo posée loin de l'origine de la
