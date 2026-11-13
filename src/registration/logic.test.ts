@@ -124,6 +124,9 @@ describe("textes", () => {
     expect(hint({ slide: p(1, 1), facade: null }, null)).toMatch(/sur la façade/);
     expect(hint({ slide: null, facade: p(1, 1) }, null)).toMatch(/sur la photo/);
     expect(hint(NO_PENDING, 2)).toMatch(/^Point 3/);
+    // Les flèches déplacent le point du côté cliqué en dernier (D15-p).
+    expect(hint(NO_PENDING, 2)).toMatch(/point de la façade/);
+    expect(hint(NO_PENDING, 2, "slide")).toMatch(/point de la photo/);
   });
 });
 

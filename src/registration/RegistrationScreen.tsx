@@ -29,7 +29,7 @@ import {
   type RegistrationPair,
   type RegistrationReport,
 } from "../engine";
-import { Viewer, placementForWidth, type LayerSpec, type Placement, type TileSource, type ViewerHandle } from "../viewer";
+import { NudgeSettle, Viewer, nudged, placementForWidth, useArrowNudge, type LayerSpec, type Placement, type TileSource, type ViewerHandle } from "../viewer";
 import { mmToScreen, screenToMm } from "../viewer/geometry";
 import { hitHandle } from "../rectification/logic";
 import { recalledProject } from "../project/current";
@@ -166,6 +166,9 @@ export function RegistrationScreen() {
   const [report, setReport] = useState<RegistrationReport | null>(null);
   const [pending, setPending] = useState<Pending>(NO_PENDING);
   const [selected, setSelected] = useState<number | null>(null);
+  /** Côté du point choisi que les flèches déplacent : le dernier cliqué. */
+  const [selectedSide, setSelectedSide] = useState<Side>("facade");
+  const settle = useRef(new NudgeSettle<RegistrationPair[]>());
   /** Ce qui est saisi pour être glissé, et les paires d'avant. */
   const [dragging, setDragging] = useState<Drag | null>(null);
   /** Pose provisoire calculée par le moteur pendant un glisser (D-3.2-h). */
@@ -507,6 +510,7 @@ export function RegistrationScreen() {
 
   const onPointerDown = (side: Side) => (event: PointerEvent<HTMLDivElement>) => {
     pointerDown.current = { x: event.clientX, y: event.clientY, t: event.timeStamp };
+    settle.current.flush();
     if (!ready || spaceHeld.current) return;
     const at = pointerAt(side, event);
     if (!at) return;
@@ -554,6 +558,7 @@ export function RegistrationScreen() {
       const drag = dragging;
       setDragging(null);
       if (drag.kind === "point") {
+        setSelectedSide(drag.side);
         if (clicked) {
           // Simple clic sur un point : il est choisi (ou ne l'est plus).
           setPairs(drag.before);
@@ -639,7 +644,7 @@ export function RegistrationScreen() {
           : rectified.length === 0
             ? "Redresser d'abord la photo de mire d'un projecteur (écran Redressement)."
             : null;
-  const instruction = hint(pending, selected);
+  const instruction = hint(pending, selected, selectedSide);
   const stageClass = `registration-stage${dragging ? " registration-dragging" : grabbable ? " registration-grab" : ""}`;
 
   const tones: Record<string, Tone> = { bon: "success", moyen: "warning", aberrant: "danger", inconnu: "info" };
@@ -653,6 +658,21 @@ export function RegistrationScreen() {
     setPending(NO_PENDING);
     setSelected(selected === null ? 0 : Math.min(pairs.length - 1, Math.max(0, selected + step)));
   };
+
+  // Flèches : le point choisi bouge d'un point d'écran (dix avec ⇧), du côté
+  // cliqué en dernier ; la photo suit sur la façade, l'enregistrement attend
+  // la fin de la rafale (D15-p).
+  useArrowNudge(selected !== null && ready, (step) => {
+    if (selected === null || selected >= pairs.length) return false;
+    const zoom = (selectedSide === "slide" ? slideViewer : facadeViewer).current?.scene()?.getView().zoom;
+    if (!zoom) return false;
+    const next = movePoint(pairs, selected, selectedSide, nudged(pairs[selected][selectedSide], step, zoom));
+    setPairs(next);
+    requestPreview(next);
+    settle.current.push(pairs, (before) => commit(next, before));
+    return true;
+  });
+  useEffect(() => () => settle.current.flush(), []);
 
   useShortcuts([
     {

@@ -35,7 +35,7 @@ import {
   type AutoReport,
   type Project,
 } from "../engine";
-import { Viewer, type LayerSpec, type TileSource, type ViewerHandle } from "../viewer";
+import { NudgeSettle, Viewer, nudged, useArrowNudge, type LayerSpec, type TileSource, type ViewerHandle } from "../viewer";
 import { mmToScreen, screenToMm } from "../viewer/geometry";
 import { hitHandle } from "../rectification/logic";
 import { isClick } from "../facade/scale";
@@ -154,6 +154,9 @@ export function AssemblyScreen({ folder, project: initial, onClose, onRendered }
   const [pairs, setPairs] = useState<AssemblyPair[]>([]);
   const [pending, setPending] = useState<Pending>(NO_PENDING);
   const [selected, setSelected] = useState<number | null>(null);
+  /** Côté du point choisi que les flèches déplacent : le dernier cliqué. */
+  const [selectedSide, setSelectedSide] = useState<Side>("here");
+  const settle = useRef(new NudgeSettle<AssemblyPair[]>());
   const [dragging, setDragging] = useState<{ side: Side; index: number; before: AssemblyPair[] } | null>(null);
   const [grabbable, setGrabbable] = useState(false);
   const [sources, setSources] = useState<Record<string, TileSource>>({});
@@ -403,6 +406,7 @@ export function AssemblyScreen({ folder, project: initial, onClose, onRendered }
 
   const onPointerDown = (side: Side) => (event: PointerEvent<HTMLDivElement>) => {
     pointerDown.current = { x: event.clientX, y: event.clientY, t: event.timeStamp };
+    settle.current.flush();
     if (!ready) return;
     const at = pointerAt(side, event);
     const hit = at ? pointUnder(side, at) : null;
@@ -432,6 +436,7 @@ export function AssemblyScreen({ folder, project: initial, onClose, onRendered }
       event.currentTarget.releasePointerCapture(event.pointerId);
       const { index: grabbed, before } = dragging;
       setDragging(null);
+      setSelectedSide(dragging.side);
       if (down && isClick(down, up)) {
         setPairs(before);
         setSelected(selected === grabbed ? null : grabbed);
@@ -455,6 +460,20 @@ export function AssemblyScreen({ folder, project: initial, onClose, onRendered }
     if (result.changed) commit(result.pairs);
   };
 
+  // Flèches : le point choisi bouge d'un point d'écran (dix avec ⇧), sur la
+  // photo cliquée en dernier ; l'enregistrement attend la fin de la rafale.
+  useArrowNudge(selected !== null && ready, (step) => {
+    const size = sizeOf(selectedSide);
+    if (selected === null || selected >= pairs.length || !size) return false;
+    const zoom = (selectedSide === "here" ? hereViewer : thereViewer).current?.scene()?.getView().zoom;
+    if (!zoom) return false;
+    const next = movePoint(pairs, selected, selectedSide, nudged(pairs[selected][selectedSide], step, zoom), size);
+    setPairs(next);
+    settle.current.push(pairs, (before) => commit(next, before));
+    return true;
+  });
+  useEffect(() => () => settle.current.flush(), []);
+
   useShortcuts([
     {
       keys: "escape",
@@ -477,7 +496,7 @@ export function AssemblyScreen({ folder, project: initial, onClose, onRendered }
   // --- Affichage -------------------------------------------------------------
 
   const tones: Record<string, Tone> = { bon: "success", moyen: "warning", aberrant: "danger", inconnu: "info" };
-  const instruction = hint(pending, selected);
+  const instruction = hint(pending, selected, selectedSide);
   const stageClass = `registration-stage${dragging ? " registration-dragging" : grabbable ? " registration-grab" : ""}`;
   const candidates = photo && !isReference ? possibleAnchors(photos, photo.id) : [];
 

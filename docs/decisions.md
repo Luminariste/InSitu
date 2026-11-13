@@ -4,6 +4,34 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-13 — Points réglés aux flèches (demande de Benjamin)
+
+Demande de Benjamin : « décalage, 4 coins etc : quand on clique sur un
+point on peut déplacer avec les flèches. avec shift le pas est plus grand ».
+
+**D15-p. Un point cliqué se déplace aux flèches, d'un point d'écran (dix
+avec ⇧).** Le pas est compté en points d'écran et non en millimètres : les
+points vivent dans des unités différentes selon l'écran (mm de façade, mm de
+diapositive, pixels de photo, fractions de dessin), et un pas d'écran suit
+le zoom comme l'œil (zoomer donne un réglage plus fin). Les endroits :
+- **Façade, mode 4 coins** : le point cliqué est dessiné plus gros, cœur
+  blanc ; les flèches le déplacent. Sans point cliqué, les flèches gardent
+  leur sens (la sélection de 10 mm, 100 avec ⇧). Échap oublie d'abord le
+  point, puis quitte le mode 4 coins.
+- **Diapositive, retouche** : le point cliqué de la grille bouge ; sans
+  point cliqué, tout le dessin choisi se décale dans la diapositive. Tant
+  qu'un dessin est choisi, ← et → ne changent plus de projecteur (cliquer
+  dans le vide pour retrouver ce raccourci).
+- **Recalage** et **assemblage de photos** : le point choisi bouge du côté
+  cliqué en dernier (façade ou photo ; photo à placer ou photo d'appui) ;
+  la consigne le dit.
+- **Redressement, coins seuls** : la dernière poignée saisie.
+- **Silhouette** (Bibliothèque) : le point choisi.
+Une flèche tenue enfoncée répète le pas ; en Diapositive, Recalage et
+Assemblage, l'enregistrement (et le calcul du moteur) attend 0,4 s après le
+dernier appui (`NudgeSettle`, `src/viewer/nudge.ts`). En Façade, chaque
+appui est un pas d'annulation, comme le déplacement de la sélection.
+
 ## 2026-11-13 — Plan de contrôle à graver (demande de Benjamin)
 
 Demande de Benjamin : « pouvoir graver le plan vu d'une diapositive, pour

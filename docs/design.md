@@ -228,6 +228,7 @@ Un raccourci ajouté à la barre de menus doit donc exister dans un
 | ← → ↑ ↓ (⇧ : × 10) | Façade : déplacer les dessins choisis de 10 mm |
 | Espace + glisser | Façade : déplacer la vue (quand des dessins sont posés) ; Gomme et crayon : déplacer la vue |
 | E / N, T / Z, [ ] | Gomme et crayon (Bibliothèque, tâche 4.8) : gomme / crayon, trait / zone, épaisseur ; ⌘Z y annule la dernière retouche |
+| ← → ↑ ↓, ⇧ + flèche | Point cliqué (4 coins, retouche en Diapositive, Recalage, Assemblage, coins du Redressement, silhouette) : le déplacer d'un point d'écran, dix avec ⇧ (D15-p) |
 
 Réservés pour la suite (ne pas les prendre pour autre chose) : ⌘+ / ⌘− zoomer, ⌘, préférences (6.5).
 

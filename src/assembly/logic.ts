@@ -154,8 +154,9 @@ export function summary(report: AssemblyReport | null, photoCount: number): stri
 }
 
 /** Consigne selon ce qui reste à poser. */
-export function hint(pending: Pending, selected: number | null): string | null {
-  if (selected !== null) return `Point ${selected + 1} : le glisser, ou cliquer sur l'une des photos pour l'y amener.`;
+export function hint(pending: Pending, selected: number | null, side: Side = "here"): string | null {
+  if (selected !== null)
+    return `Point ${selected + 1} : le glisser, ou cliquer sur l'une des photos pour l'y amener. Flèches : déplacer son point ${side === "here" ? "sur la photo à placer" : "sur la photo d'appui"} (⇧ : pas plus grand).`;
   if (pending.here && !pending.there) return "Cliquer maintenant le même point sur la photo d'appui (à droite).";
   if (pending.there && !pending.here) return "Cliquer maintenant le même point sur la photo à placer (à gauche).";
   return null;

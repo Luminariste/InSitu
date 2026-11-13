@@ -32,7 +32,7 @@ import {
   type RectificationView,
   type XY,
 } from "../engine";
-import { Viewer, placementForWidth, type LayerSpec, type Point, type TileSource, type ViewerHandle } from "../viewer";
+import { Viewer, nudged, placementForWidth, useArrowNudge, type LayerSpec, type Point, type TileSource, type ViewerHandle } from "../viewer";
 import { mmToScreen, screenToMm } from "../viewer/geometry";
 import { recalledProject, rememberProject } from "../project/current";
 import {
@@ -151,6 +151,11 @@ export function RectificationScreen() {
   const [editing, setEditing] = useState(false);
   const [corners, setCorners] = useState<Corners | null>(null);
   const [dragging, setDragging] = useState<number | null>(null);
+  /** Dernière poignée saisie : les flèches la déplacent (⇧ : pas plus grand). */
+  const [chosen, setChosen] = useState<number | null>(null);
+  useEffect(() => {
+    if (!editing) setChosen(null);
+  }, [editing]);
   const [loupeCenter, setLoupeCenter] = useState<Point | null>(null);
   const [dpi, setDpi] = useState<number>(500);
   const [format, setFormat] = useState<"tif" | "png">("tif");
@@ -245,9 +250,9 @@ export function RectificationScreen() {
       nodes: nodesInView,
       outline: view && mode === "brute" && !editing ? view.outline.map(fromXY) : null,
       handles,
-      activeHandle: dragging,
+      activeHandle: dragging ?? chosen,
     });
-  }, [nodesInView, view, mode, editing, corners, dragging, setOverlay]);
+  }, [nodesInView, view, mode, editing, corners, dragging, chosen, setOverlay]);
 
   // Changement d'image : on recadre.
   useEffect(() => {
@@ -436,6 +441,7 @@ export function RectificationScreen() {
     if (!scene || !at) return;
     const handles = corners.map((c) => mmToScreen(scene.getView(), scene.getViewport(), c));
     const hit = hitHandle(handles, at.screen, HANDLE_RADIUS);
+    setChosen(hit);
     if (hit === null) return;
     // La poignée est saisie : la visionneuse ne doit pas se déplacer.
     event.stopPropagation();
@@ -465,6 +471,17 @@ export function RectificationScreen() {
     setDragging(null);
   };
 
+  // Flèches : la poignée choisie bouge d'un point d'écran (dix avec ⇧).
+  useArrowNudge(editing && mode === "brute" && chosen !== null, (step) => {
+    const zoom = viewer.current?.scene()?.getView().zoom;
+    if (chosen === null || !corners || !zoom) return false;
+    const moved = [...corners] as Corners;
+    moved[chosen] = clampToPhoto(nudged(corners[chosen], step, zoom));
+    setCorners(moved);
+    setLoupeCenter(moved[chosen]);
+    return true;
+  });
+
   // --- Affichage ---------------------------------------------------------------
 
   const ready = busy === null;
@@ -473,7 +490,7 @@ export function RectificationScreen() {
   let hint: string | null = null;
   if (editing) {
     hint =
-      "Glisser chaque poignée sur un coin de la mire, dans n'importe quel ordre (la loupe aide à viser), puis « Détecter depuis les coins ». Le sens de la mire est retrouvé tout seul, et la grille affine ensuite.";
+      "Glisser chaque poignée sur un coin de la mire, dans n'importe quel ordre (la loupe aide à viser), puis « Détecter depuis les coins ». Une poignée cliquée se règle aussi aux flèches (⇧ : pas plus grand). Le sens de la mire est retrouvé tout seul, et la grille affine ensuite.";
   }
 
   const projectors = project?.projectors ?? [];

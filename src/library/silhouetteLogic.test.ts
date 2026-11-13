@@ -4,6 +4,7 @@ import {
   edgeAt,
   insertVertex,
   moveVertex,
+  nudgeVertex,
   polygonsPath,
   removeVertex,
   samePolygons,
@@ -49,6 +50,14 @@ describe("retouche de silhouette", () => {
     expect(moved[0][0]).toEqual([0, 0.1]);
     expect(moved[0][1]).toBe(square[1]);
     expect(square[0]).toEqual([0.25, 0.25]);
+  });
+
+  it("décale un point aux flèches d'un point d'écran, selon le zoom (D15-p)", () => {
+    // Dessin de 200 × 100 affiché à 2 points d'écran par unité : 10 points d'écran = 5 unités.
+    const moved = nudgeVertex([square], { polygon: 0, index: 0 }, { x: 10, y: -10 }, 2, { width: 200, height: 100 });
+    expect(moved[0][0][0]).toBeCloseTo(0.25 + 5 / 200);
+    expect(moved[0][0][1]).toBeCloseTo(0.25 - 5 / 100);
+    expect(nudgeVertex([square], { polygon: 3, index: 0 }, { x: 1, y: 0 }, 2, { width: 1, height: 1 })).toEqual([square]);
   });
 
   it("retire un point, et le contour entier sous trois points", () => {

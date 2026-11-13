@@ -80,6 +80,8 @@ describe("états et textes", () => {
     expect(summary({ ready: false, photos: [report({ id: "a", placed: true }), report({})] }, 2)).toMatch(/^1 photo à placer/);
     expect(hint({ here: { x: 0, y: 0 }, there: null }, null)).toMatch(/photo d'appui/);
     expect(hint(NO_PENDING, null)).toBeNull();
+    expect(hint(NO_PENDING, 0)).toMatch(/Flèches : déplacer son point sur la photo à placer/);
+    expect(hint(NO_PENDING, 0, "there")).toMatch(/photo d'appui/);
   });
 });
 

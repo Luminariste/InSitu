@@ -31,7 +31,7 @@ import {
 } from "../engine";
 import { projectorColor } from "../facade/overview";
 import { demoLibrary, demoSilhouette } from "../library/demo";
-import { setViewerCursor, type LayerSpec, type ViewerHandle } from "../viewer";
+import { NUDGE_PX, NUDGE_SHIFT_PX, nudged, setViewerCursor, type LayerSpec, type ViewerHandle } from "../viewer";
 import { mmToScreen, screenToMm, visibleRect } from "../viewer/geometry";
 import {
   applyGesture,
@@ -58,6 +58,7 @@ import {
   distribute,
   dropped,
   expandToGroups,
+  moveSharedNode,
   facadePoint,
   flip,
   group,
@@ -472,6 +473,10 @@ export function useComposition(options: Options): Composition {
   const shared = useMemo(() => sharedDeformation(selected), [selected]);
   const editable = useMemo(() => (shared && meshFor === selectionKey ? shared : null), [shared, meshFor, selectionKey]);
   const editableNodes = useMemo(() => (editable ? nodePoints(editable) : []), [editable]);
+  // Point cliqué en mode 4 coins : les flèches le déplacent (⇧ : pas plus grand).
+  const [activeNode, setActiveNode] = useState<number | null>(null);
+  useEffect(() => setActiveNode(null), [meshFor, selectionKey]);
+  const chosenNode = editable && activeNode !== null && activeNode < editableNodes.length ? activeNode : null;
 
   const layers = useMemo<LayerSpec[]>(
     () =>
@@ -541,7 +546,7 @@ export function useComposition(options: Options): Composition {
       // Dessin déformé : seuls ses points se tirent, sans le cadre ni ses poignées (D-4.2-n).
       frame: editable ? null : frame,
       marquee,
-      mesh: editable ? { lines: meshLines(editable), nodes: editableNodes } : null,
+      mesh: editable ? { lines: meshLines(editable), nodes: editableNodes, active: chosenNode } : null,
     });
     viewer.current?.scene()?.invalidate();
   }, [
@@ -552,6 +557,7 @@ export function useComposition(options: Options): Composition {
     layers,
     editable,
     editableNodes,
+    chosenNode,
     assignments,
     lostParts,
     checkOverlap,
@@ -589,6 +595,7 @@ export function useComposition(options: Options): Composition {
     const node = nodeUnder(at);
     const handle = node === null ? handleUnder(at) : null;
     let gesture: Gesture | null = null;
+    setActiveNode(node);
     if (node !== null && editable) {
       gesture = {
         kind: "node",
@@ -794,7 +801,19 @@ export function useComposition(options: Options): Composition {
     apply(where === "back" ? [...copies, ...placements] : [...placements, ...copies], ids);
   };
 
-  const nudge = (dx: number, dy: number) => () => apply(translate(placements, selection, dx, dy));
+  // Flèches : le point choisi en mode 4 coins bouge d'un point d'écran (dix
+  // avec ⇧) ; sans point choisi, la sélection bouge de 10 mm (100 avec ⇧).
+  const nudge = (dx: number, dy: number, shift: boolean) => () => {
+    if (editable && chosenNode !== null) {
+      const zoom = viewer.current?.scene()?.getView().zoom;
+      if (!zoom) return;
+      const s = shift ? NUDGE_SHIFT_PX : NUDGE_PX;
+      const to = nudged(editableNodes[chosenNode], { x: Math.sign(dx) * s, y: Math.sign(dy) * s }, zoom);
+      apply(moveSharedNode(placements, selection, editable, chosenNode, to));
+      return;
+    }
+    apply(translate(placements, selection, dx, dy));
+  };
   const big = NUDGE_MM * NUDGE_SHIFT_FACTOR;
 
   const actions: CompositionActions = {
@@ -864,18 +883,18 @@ export function useComposition(options: Options): Composition {
     {
       keys: "escape",
       // Échap : quitte d'abord le mode 4 coins, puis vide la sélection.
-      run: () => (editable ? setMeshFor(null) : setSelection(new Set())),
+      run: () => (chosenNode !== null ? setActiveNode(null) : editable ? setMeshFor(null) : setSelection(new Set())),
       enabled: enabled && has,
     },
     { keys: "backspace", run: actions.remove, enabled: enabled && has },
-    { keys: "arrowleft", run: nudge(-NUDGE_MM, 0), enabled: enabled && has },
-    { keys: "arrowright", run: nudge(NUDGE_MM, 0), enabled: enabled && has },
-    { keys: "arrowup", run: nudge(0, -NUDGE_MM), enabled: enabled && has },
-    { keys: "arrowdown", run: nudge(0, NUDGE_MM), enabled: enabled && has },
-    { keys: "shift+arrowleft", run: nudge(-big, 0), enabled: enabled && has },
-    { keys: "shift+arrowright", run: nudge(big, 0), enabled: enabled && has },
-    { keys: "shift+arrowup", run: nudge(0, -big), enabled: enabled && has },
-    { keys: "shift+arrowdown", run: nudge(0, big), enabled: enabled && has },
+    { keys: "arrowleft", run: nudge(-NUDGE_MM, 0, false), enabled: enabled && has },
+    { keys: "arrowright", run: nudge(NUDGE_MM, 0, false), enabled: enabled && has },
+    { keys: "arrowup", run: nudge(0, -NUDGE_MM, false), enabled: enabled && has },
+    { keys: "arrowdown", run: nudge(0, NUDGE_MM, false), enabled: enabled && has },
+    { keys: "shift+arrowleft", run: nudge(-big, 0, true), enabled: enabled && has },
+    { keys: "shift+arrowright", run: nudge(big, 0, true), enabled: enabled && has },
+    { keys: "shift+arrowup", run: nudge(0, -big, true), enabled: enabled && has },
+    { keys: "shift+arrowdown", run: nudge(0, big, true), enabled: enabled && has },
     { keys: "mod+c", run: () => (clipboard.current = selected), enabled: enabled && has },
     {
       keys: "mod+x",
@@ -909,7 +928,7 @@ export function useComposition(options: Options): Composition {
     ? null
     : has
       ? editable
-        ? "Mode 4 coins : glisser un point bleu · Échap ou « Normal » : retrouver le cadre · Espace : déplacer la vue"
+        ? "Mode 4 coins : glisser un point bleu, ou le cliquer puis flèches (⇧ : pas plus grand) · Échap ou « Normal » : retrouver le cadre · Espace : déplacer la vue"
         : "Glisser : déplacer (⌥ copie, ⇧ droit) · coin : agrandir · rond au-dessus du cadre : tourner (⇧ par 5°) · Espace : déplacer la vue"
       : picks.length > 0
         ? "Cliquer un dessin pour le choisir, ou glisser autour de plusieurs"

@@ -120,9 +120,9 @@ export function summary(report: RegistrationReport | null, count: number): strin
 }
 
 /** Consigne selon ce qui reste à poser. */
-export function hint(pending: Pending, selected: number | null): string | null {
+export function hint(pending: Pending, selected: number | null, side: Side = "facade"): string | null {
   if (selected !== null)
-    return `Point ${selected + 1} : le glisser, ou cliquer sur la photo ou sur la façade pour l'y amener.`;
+    return `Point ${selected + 1} : le glisser, ou cliquer sur la photo ou sur la façade pour l'y amener. Flèches : déplacer son point ${side === "facade" ? "de la façade" : "de la photo"} (⇧ : pas plus grand).`;
   if (pending.slide && !pending.facade) return "Cliquer maintenant le même point sur la façade.";
   if (pending.facade && !pending.slide) return "Cliquer maintenant le même point sur la photo.";
   return null;

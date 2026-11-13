@@ -42,7 +42,7 @@ export interface SelectionDrawing {
   /** Cadre tracé à la souris. */
   marquee: Rect | null;
   /** Grille de la déformation partagée par la sélection, avec ses nœuds (tâche 4.4). */
-  mesh: { lines: Point[][]; nodes: Point[] } | null;
+  mesh: { lines: Point[][]; nodes: Point[]; active?: number | null } | null;
 }
 
 export class SelectionNode implements SceneNode {
@@ -128,10 +128,17 @@ export class SelectionNode implements SceneNode {
           false,
         ).stroke({ width: 1 * px, color: ACCENT, alpha: 0.6 });
       const r = HANDLE_PX * 0.7 * px;
-      for (const n of mesh.nodes)
-        g.circle(n.x, n.y, r)
-          .fill({ color: ACCENT })
-          .stroke({ width: 1 * px, color: 0xffffff });
+      mesh.nodes.forEach((n, i) => {
+        // Le point choisi (que les flèches déplacent) : plus gros, cœur blanc.
+        if (i === mesh.active)
+          g.circle(n.x, n.y, r * 1.6)
+            .fill({ color: 0xffffff })
+            .stroke({ width: 3 * px, color: ACCENT });
+        else
+          g.circle(n.x, n.y, r)
+            .fill({ color: ACCENT })
+            .stroke({ width: 1 * px, color: 0xffffff });
+      });
     }
     if (marquee) {
       g.rect(marquee.x, marquee.y, marquee.width, marquee.height)

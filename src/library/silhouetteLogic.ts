@@ -82,6 +82,22 @@ export function moveVertex(polygons: SilhouettePolygon[], ref: VertexRef, to: [n
   );
 }
 
+/**
+ * Le point décalé de `screen` points d'écran à cette échelle (points d'écran
+ * par unité du dessin) : flèches du clavier, D15-p.
+ */
+export function nudgeVertex(
+  polygons: SilhouettePolygon[],
+  ref: VertexRef,
+  screen: { x: number; y: number },
+  scale: number,
+  size: { width: number; height: number },
+): SilhouettePolygon[] {
+  const point = polygons[ref.polygon]?.[ref.index];
+  if (!point || scale <= 0) return polygons;
+  return moveVertex(polygons, ref, [point[0] + screen.x / (scale * size.width), point[1] + screen.y / (scale * size.height)]);
+}
+
 /** Les contours avec un point ajouté après `ref.index`. */
 export function insertVertex(
   polygons: SilhouettePolygon[],
