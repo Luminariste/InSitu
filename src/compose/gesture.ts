@@ -3,7 +3,8 @@
 // l'horizontale, à la verticale ou à 45°), une poignée de coin l'étire en x
 // et en y (⇧ : en gardant les proportions), une poignée de côté seulement en
 // x ou en y (⌥ : depuis le centre, D-4.2-l), juste au-delà d'un coin on le tourne (⇧ : par pas
-// de 45°), glisser dans le vide trace un cadre de sélection, un nœud d'un
+// de 45°), la poignée ronde au-dessus du cadre le tourne aussi (demande de
+// Benjamin, D-4.2-m), glisser dans le vide trace un cadre de sélection, un nœud d'un
 // dessin déformé se tire (tâche 4.4). ⌘D répète le dernier geste. Calculs
 // purs, testés sans écran (`gesture.test.ts`).
 
@@ -14,6 +15,7 @@ import {
   duplicate,
   inMarquee,
   moveSharedNode,
+  normalizeAngle,
   rectCenter,
   rotate,
   scale,
@@ -29,6 +31,10 @@ import {
 export const HANDLE_PX = 7;
 /** Au-delà de la poignée et jusqu'à cette distance : zone de rotation. */
 export const ROTATE_PX = 24;
+/** Distance entre le haut du cadre et la poignée ronde de rotation, en pixels d'écran (D-4.2-m). */
+export const KNOB_PX = 28;
+/** Numéro de la poignée ronde de rotation dans `Handle.corner`. */
+export const KNOB = 8;
 
 /** Cadre de la sélection : coins haut-gauche, haut-droit, bas-droit, bas-gauche. */
 export function frameCorners(r: Rect): [Point, Point, Point, Point] {
@@ -50,7 +56,19 @@ export function frameHandles(r: Rect): Point[] {
   return [a, b, c, d, mid(a, b), mid(b, c), mid(c, d), mid(d, a)];
 }
 
-/** `corner` : la poignée saisie, de 0 à 7 (voir `frameHandles`) ; la rotation ne se prend qu'aux coins. */
+/**
+ * Poignée ronde de rotation, à l'écran : au-dessus du milieu du côté haut
+ * (`screenHandles` : les huit poignées à l'écran, voir `frameHandles`).
+ */
+export function knobOf(screenHandles: Point[]): Point {
+  const top = screenHandles[4];
+  return { x: top.x, y: top.y - KNOB_PX };
+}
+
+/**
+ * `corner` : la poignée saisie, de 0 à 7 (voir `frameHandles`), ou `KNOB`
+ * pour la poignée ronde ; la rotation se prend aux coins ou à la poignée ronde.
+ */
 export type Handle = { kind: "scale" | "rotate"; corner: number };
 
 /**
@@ -61,6 +79,10 @@ export type Handle = { kind: "scale" | "rotate"; corner: number };
  */
 export function handleAt(screenHandles: Point[], pointer: Point): Handle | null {
   const screenCorners = screenHandles.slice(0, 4);
+  if (screenHandles.length >= 8) {
+    const knob = knobOf(screenHandles);
+    if (Math.hypot(pointer.x - knob.x, pointer.y - knob.y) <= HANDLE_PX + 2) return { kind: "rotate", corner: KNOB };
+  }
   for (let side = 4; side < screenHandles.length; side++) {
     const c = screenHandles[side];
     if (Math.hypot(pointer.x - c.x, pointer.y - c.y) <= HANDLE_PX) return { kind: "scale", corner: side };
@@ -101,7 +123,7 @@ export function nodeAt(screenNodes: Point[], pointer: Point): number | null {
 export type Gesture =
   | { kind: "move"; start: Point; before: Placement[]; ids: Set<string> }
   | { kind: "scale"; start: Point; before: Placement[]; ids: Set<string>; frame: Rect; corner: number }
-  | { kind: "rotate"; start: Point; before: Placement[]; ids: Set<string>; pivot: Point }
+  | { kind: "rotate"; start: Point; before: Placement[]; ids: Set<string>; pivot: Point; corner?: number }
   | { kind: "marquee"; start: Point; before: Placement[]; ids: Set<string> }
   | {
       kind: "node";
@@ -134,6 +156,8 @@ export interface GestureStep {
   marquee?: Rect;
   /** Le geste tel qu'on pourra le répéter. */
   repeat?: Repeatable;
+  /** Angle tourné depuis le début du geste, en degrés (geste « rotate »). */
+  turned?: number;
 }
 
 function angleOf(p: Point, pivot: Point): number {
@@ -173,12 +197,13 @@ export function applyGesture(g: Gesture, at: Point, mods: Modifiers, makeId?: ()
     };
   }
   if (g.kind === "rotate") {
-    let deg = angleOf(at, g.pivot) - angleOf(g.start, g.pivot);
+    let deg = normalizeAngle(angleOf(at, g.pivot) - angleOf(g.start, g.pivot));
     if (mods.shift) deg = snapAngle(deg);
     return {
       placements: rotate(g.before, g.ids, deg, g.pivot),
       selection: g.ids,
       repeat: { kind: "rotate", deg, copy: false },
+      turned: deg,
     };
   }
   // Poignées : la poignée opposée reste en place, ou le centre avec ⌥.
@@ -233,4 +258,36 @@ export function repeatGesture(
   if (r.kind === "scale") list = scale(list, ids, r.factor, c);
   if (r.kind === "stretch") list = stretch(list, ids, r.sx, r.sy, c);
   return { placements: list, selection: ids };
+}
+
+/** Direction d'une poignée de rotation vue du centre du cadre, en degrés (0 : vers le haut, sens horaire). */
+const HANDLE_BEARING = [-45, 45, 135, -135, 0, 90, 180, -90, 0];
+
+/**
+ * Curseur de rotation : une flèche courbe à deux pointes, tournée vers la
+ * poignée saisie, et qui suit la rotation pendant le geste (`turned`,
+ * arrondi à 15° près). Dessiné en SVG : les curseurs du système n'en ont pas
+ * (D-4.2-m).
+ */
+export function rotateCursor(corner: number, turned = 0): string {
+  const angle = Math.round(((HANDLE_BEARING[corner] ?? 0) + turned) / 15) * 15;
+  const arc = "M6 14 A8 8 0 0 1 18 14";
+  const heads = "M3.4 17 L3.9 12.2 L8.1 15.9 Z M20.6 17 L20.1 12.2 L15.9 15.9 Z";
+  const svg =
+    `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'>` +
+    `<g transform='rotate(${angle} 12 12)'>` +
+    `<path d='${arc}' fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/>` +
+    `<path d='${heads}' fill='black' stroke='white' stroke-width='1.2' stroke-linejoin='round'/>` +
+    `<path d='${arc}' fill='none' stroke='black' stroke-width='1.6'/>` +
+    `</g></svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 12 12, alias`;
+}
+
+/** Curseur d'une poignée d'étirement : flèche double dans l'axe de la poignée. */
+export function scaleCursor(corner: number): string {
+  return (
+    ["nwse-resize", "nesw-resize", "nwse-resize", "nesw-resize", "ns-resize", "ew-resize", "ns-resize", "ew-resize"][
+      corner
+    ] ?? "nwse-resize"
+  );
 }

@@ -224,3 +224,23 @@
 .compose-tree-row.is-locked .compose-tree-label {
   font-style: italic;
 }
+
+/* Angle affiché près du pointeur pendant une rotation à la souris (D-4.2-m). */
+.compose-turn {
+  position: absolute;
+  z-index: 2;
+  padding: 2px 6px;
+  border-radius: var(--ui-radius-sm, 4px);
+  background: var(--ui-accent);
+  color: #fff;
+  font-size: var(--ui-text-sm);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.compose-mirror {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ui-space-1);
+}

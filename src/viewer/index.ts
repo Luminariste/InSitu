@@ -14,3 +14,4 @@ export type {
 } from "./nodes";
 export { placementForWidth } from "./geometry";
 export type { Placement, Point, Pyramid, PyramidLevel, Rect, Size, ViewState } from "./geometry";
+export { setViewerCursor } from "./cursor";
