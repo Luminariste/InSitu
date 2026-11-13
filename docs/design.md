@@ -83,9 +83,13 @@ de panneau de gauche.
   B ouvre « Plan ») et reste celui qu'on a choisi tant que rien de neuf ne
   se passe. Une pastille dit qu'un onglet attend quelque chose : un nombre
   (dessins choisis) ou un point orange (plan pas à l'échelle). Façade :
-  Plan (plan, mise en plan, fresque) · Dessins · Calques · Export.
+  Plan (importer le plan ou assembler des photos, mise en plan, fresque)
+  · Dessins · Calques · Export.
   L'inspecteur porte les *réglages et mesures* ; les *outils* (actions sur
-  la sélection) sont des icônes dans la barre d'outils (D15-j).
+  la sélection) sont des icônes dans la barre d'outils (D15-j). Ce qui
+  change la façon de regarder sans changer le projet (montrer, cacher,
+  négatif) est dans un menu **Affichage**, à droite de la barre d'outils,
+  près de « Tout voir » (D15-l).
 - **Barre d'état** (`StatusBar`) : une phrase d'état (avec sa couleur), la
   consigne du geste en cours, et à droite la légende des pastilles.
 

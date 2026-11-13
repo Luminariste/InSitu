@@ -22,6 +22,7 @@ import {
   type VertexRef,
 } from "./silhouetteLogic";
 import { fitView, scaleLabel, zoomAt, type View } from "./vectorLogic";
+import { BACKDROPS, type Backdrop } from "./backdrop";
 
 type Mode = "contour" | "resultat";
 
@@ -40,7 +41,9 @@ interface Props {
   width: number;
   height: number;
   silhouette: DrawingSilhouette | null;
-  backdrop: string;
+  backdrop: Backdrop;
+  /** Change le fond (le même que celui de la bibliothèque). */
+  onBackdrop: (backdrop: Backdrop) => void;
   /** Faux dans le navigateur seul : rien ne s'enregistre. */
   editable: boolean;
   busy: boolean;
@@ -50,7 +53,7 @@ interface Props {
 }
 
 export function SilhouetteEditor(props: Props) {
-  const { name, imageUrl, width, height, silhouette, backdrop, editable, busy, error, onSave, onClose } = props;
+  const { name, imageUrl, width, height, silhouette, backdrop, onBackdrop, editable, busy, error, onSave, onClose } = props;
   const [mode, setMode] = useState<Mode>("contour");
   const [view, setView] = useState<View | null>(null);
   const [draft, setDraft] = useState<SilhouettePolygon[]>(silhouette?.polygons ?? []);
@@ -192,6 +195,10 @@ export function SilhouetteEditor(props: Props) {
         <ToolSeparator />
         <Segmented label="Affichage" value={mode} onChange={setMode} options={MODES} />
         <ToolSpacer />
+        <ToolGroup label="Fond">
+          <Segmented label="Fond derrière le dessin" value={backdrop} onChange={onBackdrop} options={BACKDROPS} />
+        </ToolGroup>
+        <ToolSeparator />
         <ToolGroup label="Zoom">
           <IconButton icon="minus" label="Zoom arrière" onClick={() => zoomBy(1 / 1.5)} />
           <span className="vc-scale">{view ? scaleLabel(view.scale) : "—"}</span>
@@ -208,7 +215,7 @@ export function SilhouetteEditor(props: Props) {
 
       <div className="vc-body">
         <div
-          className={mode === "resultat" ? "vc-stage silhouette-resultat" : `vc-stage fond-${backdrop}`}
+          className={`vc-stage fond-${backdrop}${mode === "resultat" ? " silhouette-resultat" : ""}`}
           ref={stage}
           onWheel={onWheel}
           onPointerDown={onPointerDown}

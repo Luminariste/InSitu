@@ -35,6 +35,7 @@ import {
 import { recalledProject } from "../project/current";
 import { countLabel, filterEntries, folderTree, formatSize, importSummary, progressLabel } from "./logic";
 import { demoLibrary, demoSilhouette, demoVectors } from "./demo";
+import { BACKDROPS, readBackdrop, saveBackdrop, type Backdrop } from "./backdrop";
 import { RetouchEditor } from "./RetouchEditor";
 import { retouchLine } from "./retouchLogic";
 import { SilhouetteEditor } from "./SilhouetteEditor";
@@ -71,14 +72,6 @@ interface Shown extends LibraryEntry {
   url: string | null;
 }
 
-type Backdrop = "damier" | "noir" | "facade";
-
-const BACKDROPS: { value: Backdrop; label: string }[] = [
-  { value: "damier", label: "Damier" },
-  { value: "noir", label: "Noir" },
-  { value: "facade", label: "Pierre" },
-];
-
 export function LibraryScreen() {
   const engine = hasEngine();
   const [folder, setFolder] = useState<string | null>(null);
@@ -88,7 +81,12 @@ export function LibraryScreen() {
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [backdrop, setBackdrop] = useState<Backdrop>("damier");
+  // Fond derrière les dessins : le même ici et dans les éditeurs, retenu.
+  const [backdrop, setBackdropState] = useState<Backdrop>(readBackdrop);
+  const setBackdrop = (next: Backdrop) => {
+    setBackdropState(next);
+    saveBackdrop(next);
+  };
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -638,6 +636,7 @@ export function LibraryScreen() {
           height={chosen.height}
           silhouette={silhouette}
           backdrop={backdrop}
+          onBackdrop={setBackdrop}
           editable
           busy={silhouetteBusy}
           error={silhouetteError}
@@ -654,6 +653,7 @@ export function LibraryScreen() {
           height={chosen.height}
           strokes={savedRetouch}
           backdrop={backdrop}
+          onBackdrop={setBackdrop}
           editable
           saving={retouchSaving}
           error={retouchError}
@@ -666,6 +666,7 @@ export function LibraryScreen() {
           name={chosen.name}
           vectors={vectors}
           backdrop={backdrop}
+          onBackdrop={setBackdrop}
           editable={engine}
           busy={vectorBusy}
           error={vectorError}

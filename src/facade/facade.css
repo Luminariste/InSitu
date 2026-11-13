@@ -11,6 +11,20 @@
   height: 100%;
 }
 
+/* Tout en négatif (menu Affichage) : fond blanc, traits noirs. La rotation
+   de teinte rend aux repères colorés leur teinte d'origine. */
+.facade-negative .viewer-canvas {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Onglet Plan : importer le plan, assembler des photos. */
+.facade-plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ui-space-2);
+  margin-bottom: var(--ui-space-3);
+}
+
 .facade-picking .viewer-canvas {
   cursor: crosshair;
 }

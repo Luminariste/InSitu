@@ -110,6 +110,11 @@ interface Options {
   stage: RefObject<HTMLDivElement | null>;
   /** Faux pendant un autre geste de l'écran (pose des points d'échelle) ou sans façade à l'échelle. */
   enabled: boolean;
+  /**
+   * Faux quand les dessins posés sont cachés (menu Affichage) : rien n'est
+   * dessiné, ni les dessins, ni leurs contours, ni la sélection. Vrai par défaut.
+   */
+  visible?: boolean;
   onError: (message: string | null) => void;
 }
 
@@ -218,6 +223,7 @@ function previewMesh(p: Placement): { divisions: number; points: Point[] } {
 
 export function useComposition(options: Options): Composition {
   const { engine, folder, project, onProject, viewer, stage, enabled, onError } = options;
+  const visible = options.visible ?? true;
   const [drawings, setDrawings] = useState<ComposeDrawing[]>([]);
   const [placements, setPlacements] = useState<Placement[]>([]);
   const [layerList, setLayerList] = useState<Layer[]>([]);
@@ -438,7 +444,7 @@ export function useComposition(options: Options): Composition {
 
   const layers = useMemo<LayerSpec[]>(
     () =>
-      shown(placements, layerList).flatMap((p) => {
+      (visible ? shown(placements, layerList) : []).flatMap((p) => {
         const url = previews.get(p.drawing);
         if (!url) return [];
         const pose = { id: `pose:${p.id}`, kind: "mesh-image", url, ...previewMesh(p) } satisfies LayerSpec;
@@ -457,7 +463,7 @@ export function useComposition(options: Options): Composition {
         } satisfies LayerSpec;
         return [mask, pose];
       }),
-    [placements, layerList, previews, manualSilhouettes, detected],
+    [visible, placements, layerList, previews, manualSilhouettes, detected],
   );
 
   // Le cadre de sélection, dessiné par-dessus tout.
@@ -483,6 +489,11 @@ export function useComposition(options: Options): Composition {
   }, [viewer]);
   useEffect(() => {
     const colors = new Map((project?.projectors ?? []).map((q, index) => [q.id, projectorColor(index)]));
+    if (!visible) {
+      selectionNode.current?.set({ slides: [], outlines: [], frame: null, marquee: null, mesh: null });
+      viewer.current?.scene()?.invalidate();
+      return;
+    }
     const slides = shown(placements, layerList).flatMap((p) => {
       const a = assignments.get(p.id);
       if (!a) return [];
@@ -509,6 +520,7 @@ export function useComposition(options: Options): Composition {
     placements,
     layerList,
     project?.projectors,
+    visible,
   ]);
 
   // --- Pointeur ------------------------------------------------------------------------------

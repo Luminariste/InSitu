@@ -8,7 +8,10 @@ l'échelle** : les dessins sont posés en vraies dimensions (mm de façade).
 
 1. Importer des dessins dans l'étape Bibliothèque (⌘5) si ce n'est pas fait.
 2. Dans l'étape Façade, l'onglet **Dessins** du panneau de droite montre la
-   bibliothèque (rubrique **Dessins**) ; un champ permet de chercher.
+   bibliothèque (rubrique **Dessins**), classée par dossier comme dans
+   l'étape Bibliothèque : un clic sur un dossier le replie ou le déplie, le
+   chiffre à droite compte ses dessins. Le champ du haut cherche par nom ou
+   par dossier (D-4.2-o).
 3. Glisser une vignette sur le plan. Le dessin arrive au point de chute, large
    du quart de ce qu'on voit, aux proportions du fichier. Un double-clic sur
    la vignette le pose au centre de la vue.
@@ -245,7 +248,7 @@ dessin :
 ⌘Z annule l'import en deux fois (dessins posés, puis bibliothèque). Les masques d'écrêtage, l'opacité et les tracés
 dessinés dans Illustrator ne sont pas repris : seules les images liées.
 
-À essayer sur le Mac (version 0.1.43) : dans le projet Trevarez.insitu, qui a
+À essayer sur le Mac (version 0.1.47) : dans le projet Trevarez.insitu, qui a
 déjà des dessins en bibliothèque, ouvrir ECURIES-COMPOSITION.ai : la fenêtre
 doit montrer les 8 calques et marquer « Bibliothèque » les dessins déjà
 importés ; décocher « SixiemePlan », importer, et vérifier que la

@@ -25,6 +25,16 @@ deux projecteurs, avec leur surface.
    famille. **Opacité des photos** : de transparent à plein.
 5. En bas du panneau, la liste des **recouvrements** : quels projecteurs, et
    quelle surface. Sur le plan, ils sont en rouge.
+6. Menu **Affichage**, en haut à droite (à côté de « Tout voir ») : montrer
+   ou cacher **le plan**, **la fresque**, **les dessins posés**, les photos,
+   les emprises et les recouvrements ; **Plan en négatif** (le plan
+   d'architecte en traits blancs sur fond noir, comme les dessins) ; **Tout
+   en négatif** (fond blanc, traits noirs, comme une planche Illustrator ;
+   les couleurs des repères gardent leur teinte). Quand des dessins sont
+   cachés, on ne peut ni les choisir ni en poser : le menu le rappelle par
+   son nombre, « Affichage (1) ». **Tout montrer, sans négatif** remet tout.
+   Ces choix ne changent pas le projet ni l'export ; ils sont retenus d'un
+   lancement à l'autre.
 
 ## Sans écran
 

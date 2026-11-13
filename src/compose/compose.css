@@ -10,9 +10,15 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
   gap: var(--ui-space-2);
-  max-height: 320px;
+  margin: 2px 0 var(--ui-space-2);
+}
+
+/* Bibliothèque classée par dossier (D-4.2-o) : une seule zone qui défile. */
+.compose-library {
+  max-height: 60vh;
   overflow-y: auto;
 }
+
 
 .compose-drawing {
   display: flex;
