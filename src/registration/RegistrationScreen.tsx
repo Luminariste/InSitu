@@ -20,6 +20,7 @@ import {
   openProject,
   openTiledImage,
   openTileFolder,
+  adjustRegistration,
   previewRegistration,
   projectFile,
   saveRegistration,
@@ -178,6 +179,9 @@ export function RegistrationScreen() {
   const [overview, setOverview] = useState<FacadeOverview | null>(null);
   const [showPhoto, setShowPhoto] = useState(true);
   const [photoOpacity, setPhotoOpacity] = useState(0.6);
+  /** Points d'avant le dernier « Ajuster », tant qu'on peut l'annuler (D-3.2-i). */
+  const [adjustUndo, setAdjustUndo] = useState<RegistrationPair[] | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const projector = project?.projectors.find((p) => p.id === selectedProjector) ?? null;
   const facadeInfo = project?.facade ?? null;
@@ -214,6 +218,8 @@ export function RegistrationScreen() {
     setPhoto(null);
     setReport(null);
     setLive(null);
+    setAdjustUndo(null);
+    setNotice(null);
     const p = opened.projectors.find((q) => q.id === id) ?? null;
     setPairs(p?.registration ?? []);
     if (!p?.rectifiedPhoto) return;
@@ -343,6 +349,8 @@ export function RegistrationScreen() {
 
   /** Enregistre les paires et relit le compte rendu du moteur. */
   const commit = (next: RegistrationPair[], previous: RegistrationPair[] = pairs) => {
+    // Toute autre retouche rend l'ajustement définitif.
+    setAdjustUndo(null);
     setPairs(next);
     if (!engine || !folder || !projector) return;
     saveRegistration(folder, projector.id, next).then(
@@ -390,15 +398,21 @@ export function RegistrationScreen() {
     [engine],
   );
 
-  /** Pose la photo sur la façade par ses quatre coins, au milieu de la vue. */
-  const placeByCorners = () => {
+  /** La partie de la façade visible à l'écran, en mm. */
+  const visibleFacade = () => {
     const scene = facadeViewer.current?.scene();
-    if (!scene) return;
+    if (!scene) return null;
     const view = scene.getView();
     const viewport = scene.getViewport();
     const a = screenToMm(view, viewport, { x: 0, y: 0 });
     const b = screenToMm(view, viewport, { x: viewport.width, y: viewport.height });
-    const rect = { x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y };
+    return { x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y };
+  };
+
+  /** Pose la photo sur la façade par ses quatre coins, au milieu de la vue. */
+  const placeByCorners = () => {
+    const rect = visibleFacade();
+    if (!rect) return;
     const others = (overview?.projectors ?? []).filter((q) => q.projectorId !== selectedProjector).map((q) => q.footprint);
     const side = initialSide(rect, others);
     const next = cornerPairs({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }, side);
@@ -407,6 +421,38 @@ export function RegistrationScreen() {
     setShowPhoto(true);
     requestPreview(next);
     commit(next);
+  };
+
+  /**
+   * Cale la pose affichée sur les lignes du plan (D-3.2-i) : le moteur part
+   * des points actuels et rend les quatre coins ajustés, qu'on enregistre.
+   */
+  const adjustNow = () =>
+    run("Ajustement sur les lignes du plan…", async () => {
+      if (!folder || !projector || pairs.length < 4) return;
+      setNotice(null);
+      const result = await adjustRegistration(folder, projector.id, pairs);
+      if (result.movedMm < 1) {
+        setNotice("Rien de mieux autour de cette pose : la photo reste où elle est. La rapprocher à la main et réessayer.");
+        return;
+      }
+      const before = pairs;
+      setPending(NO_PENDING);
+      setSelected(null);
+      setShowPhoto(true);
+      requestPreview(result.pairs);
+      commit(result.pairs, before);
+      setAdjustUndo(before);
+      setNotice(
+        `Photo calée sur le plan : un coin a bougé de ${(result.movedMm / 10).toFixed(0)} cm au plus. Vérifier que les fenêtres tombent juste ; sinon « Annuler l'ajustement ».`,
+      );
+    });
+
+  const undoAdjust = () => {
+    if (!adjustUndo) return;
+    setNotice(null);
+    requestPreview(adjustUndo);
+    commit(adjustUndo);
   };
 
   const chooseProjector = (id: string) =>
@@ -698,8 +744,8 @@ export function RegistrationScreen() {
             Poser la photo sur la façade
           </Button>
           <p className="ui-note">
-            Puis glisser ses quatre coins sur la façade jusqu'à ce que les fenêtres de la photo tombent sur celles du plan. La
-            poignée du centre déplace toute la photo.
+            Puis l'amener à peu près à sa place (poignée du centre, coins) et cliquer « Ajuster sur le plan » : la photo se
+            cale sur les lignes du plan. Retoucher ensuite à la main si besoin.
           </p>
         </div>
       )}
@@ -714,6 +760,26 @@ export function RegistrationScreen() {
       )}
       {pairs.length >= 4 && (
         <div className="registration-advice">
+          <Button
+            variant="primary"
+            icon="search"
+            onClick={() => void adjustNow()}
+            disabled={!engine || !ready || !photo || !facade || !projector}
+            title={
+              !engine
+                ? "Demande l'application (le moteur n'est pas là dans un simple navigateur)"
+                : pairs.length > 4
+                  ? "Cale la photo sur les lignes du plan, autour de la pose actuelle ; remplace les points par les quatre coins"
+                  : "Cale la photo sur les lignes du plan, autour de la pose actuelle"
+            }
+          >
+            Ajuster sur le plan
+          </Button>
+          {adjustUndo && (
+            <Button icon="refresh" onClick={undoAdjust} disabled={!ready} title="Remet les points d'avant l'ajustement">
+              Annuler l'ajustement
+            </Button>
+          )}
           <p className="ui-note">
             Pour affiner : sur la façade, attraper un détail de la photo (coin de fenêtre…) et le lâcher sur le même détail du
             plan. Chaque détail ainsi posé devient un point. Barre d'espace + glisser : déplacer la vue.
@@ -774,10 +840,16 @@ export function RegistrationScreen() {
       className="registration"
       toolbar={toolbar}
       banner={
-        error && (
+        error ? (
           <Banner tone="danger" onClose={() => setError(null)}>
             {error}
           </Banner>
+        ) : (
+          notice && (
+            <Banner tone="success" onClose={() => setNotice(null)}>
+              {notice}
+            </Banner>
+          )
         )
       }
       sidebar={sidebar}
