@@ -25,6 +25,28 @@ du cache que s'il est réglé : les vecteurs déjà calculés restent valables.
 Un lissage éloigne volontairement les courbes de l'image : l'écart mesuré
 passe au rouge, et la phrase le dit. CLI : `--smoothing PX` (`insitu
 vectorize`, `insitu library vectors`).
+## 2026-11-13 — Trait AB caché, menu Présentation dans la barre du Mac (demande de Benjamin)
+
+Demandes de Benjamin (13 novembre, essai de la 0.1.68) : « pas besoin de
+voir le trait AB une fois mesuré » ; « menu présentation à enlever (mettre
+dans menu mac) ».
+
+**D15-r. Les points A et B ne se voient que pendant la mesure.** Ils
+s'affichent quand on les pose, et tant que les points posés ne sont pas
+ceux de l'échelle enregistrée (mesure pas encore validée). Une fois
+l'échelle validée, ils disparaissent ; « Reposer A et B » les remontre.
+L'échelle reste écrite dans l'onglet Plan (« 1 pt = … »). Règle pure
+`showScaleMarkers` (`src/facade/scale.ts`), testée.
+
+**D15-s. Le menu Présentation de la fenêtre passe dans la barre de menus
+du Mac.** Comme le menu Projet (D15-o) : dans l'app, la barre de l'app ne
+garde que le nom du projet et les étapes. Le menu Présentation du Mac
+reçoit un sous-menu **Apparence** (Automatique, Sombre, Clair) et
+« Démonstration de la visionneuse » ; « Raccourcis clavier » y était déjà
+(menu Aide, ⌘/). Les entrées d'apparence ne portent pas de coche (la coque
+ne connaît pas le choix, retenu par l'interface) ; le changement se voit
+aussitôt. Dans le navigateur seul, sans barre de menus, le menu reste en
+haut à droite.
 
 ## 2026-11-13 — Réglages d'export depuis la Diapositive (demande de Benjamin)
 
