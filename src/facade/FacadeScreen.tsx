@@ -803,6 +803,11 @@ export function FacadeScreen() {
         onDrop={composition.onDrop}
       >
         <Viewer ref={viewer} layers={viewerLayers} />
+        {composition.turn && (
+          <div className="compose-turn" style={{ left: composition.turn.x + 18, top: composition.turn.y + 18 }}>
+            {composition.turn.text}
+          </div>
+        )}
         {!view && !busy && (
           !engine ? (
             <EmptyState icon="document" title="Pas de moteur dans ce navigateur">

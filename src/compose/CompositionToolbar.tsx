@@ -36,8 +36,8 @@ export function CompositionToolbar({ selected, actions, enabled }: Props) {
       <ToolGroup>
         <IconButton icon="rotateLeft" label="Tourner d'un quart de tour vers la gauche" onClick={() => actions.rotateBy(-90)} disabled={!has} />
         <IconButton icon="rotateRight" label="Tourner d'un quart de tour vers la droite" onClick={() => actions.rotateBy(90)} disabled={!has} />
-        <IconButton icon="flipHorizontal" label="Symétrie : échanger la gauche et la droite" onClick={() => actions.flip("horizontal")} disabled={!has} />
-        <IconButton icon="flipVertical" label="Symétrie : échanger le haut et le bas" onClick={() => actions.flip("vertical")} disabled={!has} />
+        <IconButton icon="flipHorizontal" label="Miroir : échanger la gauche et la droite" onClick={() => actions.flip("horizontal")} disabled={!has} />
+        <IconButton icon="flipVertical" label="Miroir : échanger le haut et le bas" onClick={() => actions.flip("vertical")} disabled={!has} />
       </ToolGroup>
       <ToolSeparator />
       <ToolGroup>
