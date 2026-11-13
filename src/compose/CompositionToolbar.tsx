@@ -23,9 +23,11 @@ interface Props {
   actions: CompositionActions;
   /** Faux quand la composition est indisponible (pas de plan, pas d'échelle, geste en cours). */
   enabled: boolean;
+  /** Mode 4 coins actif sur la sélection (D-4.2-s). */
+  corners?: boolean;
 }
 
-export function CompositionToolbar({ selected, actions, enabled }: Props) {
+export function CompositionToolbar({ selected, actions, enabled, corners = false }: Props) {
   const has = enabled && selected.length > 0;
   // Unités à aligner : un groupe compte pour un.
   const units = new Set(selected.map((p) => p.group ?? `seul:${p.id}`)).size;
@@ -41,7 +43,13 @@ export function CompositionToolbar({ selected, actions, enabled }: Props) {
       </ToolGroup>
       <ToolSeparator />
       <ToolGroup>
-        <IconButton icon="warpCorners" label="Quatre coins à tirer, en perspective (remplace la déformation actuelle)" onClick={() => actions.deform(1, 1)} disabled={!has} />
+        <IconButton
+          icon="warpCorners"
+          label={corners ? "Revenir au mode normal : cadre et poignées (Échap)" : "Mode 4 coins : tirer les coins, en perspective"}
+          active={has && corners}
+          onClick={() => actions.setMode(corners ? "normal" : "corners")}
+          disabled={!has}
+        />
         <MenuButton
           label="Tendre une grille de déformation"
           icon="warpGrid"

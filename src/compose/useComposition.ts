@@ -93,7 +93,7 @@ import {
   updateLayer,
 } from "./layers";
 import type { Layer } from "./placement";
-import { isAffine, meshLines, nodePoints } from "./deformation";
+import { meshLines, nodePoints } from "./deformation";
 import { SelectionNode } from "./SelectionNode";
 import { dropInTree, setFlag, type TreeDrop } from "./slideTree";
 import { DRAWING_DRAG_TYPE, draggedDrawing, droppedDrawingId, endDrawingDrag } from "./dragDrawing";
@@ -152,6 +152,8 @@ export interface CompositionActions {
    * (1 × 1 : quatre coins), d'un bloc ; 0 retire la déformation (tâche 4.4).
    */
   deform(columns: number, rows: number): void;
+  /** Mode « Normal » (cadre, poignées) ou « 4 coins » (points de la déformation), D-4.2-s. */
+  setMode(mode: "normal" | "corners"): void;
   /** Choisit ces dessins posés (ceux qui existent), par identifiant (tâche 6.1). */
   select(ids: string[]): void;
   /** Un dessin lâché dans l'arborescence des diapositives : autre diapositive, ou devant un autre dessin. */
@@ -194,7 +196,7 @@ export interface Composition {
   assignments: Map<string, Assignment>;
   /** Consigne du geste possible, pour la barre d'état. */
   hint: string | null;
-  /** Vrai quand les points de la déformation se tirent (le cadre est caché, D-4.2-n et q). */
+  /** Mode 4 coins : les points de la déformation se tirent, le cadre est caché (D-4.2-n et s). */
   deforming: boolean;
   /** Angle affiché près du pointeur pendant une rotation à la souris (pixels de la zone). */
   turn: { x: number; y: number; text: string } | null;
@@ -460,18 +462,15 @@ export function useComposition(options: Options): Composition {
   const selected = useMemo(() => placements.filter((p) => selection.has(p.id)), [placements, selection]);
   const frame = useMemo(() => bounds(selected), [selected]);
   // Les nœuds ne se tirent que sur une sélection qui partage une même déformation.
-  // Les points d'une déformation ne se montrent (et le cadre ne se cache,
-  // D-4.2-n) que si l'on vient de choisir « Quatre coins » ou une grille sur
-  // cette sélection, ou si la déformation a déjà été tirée. Une déformation
-  // née d'un étirement (dessin tourné, D-4.2-l) reste affine : le dessin
-  // garde alors son cadre et ses poignées (D-4.2-q).
+  // Deux modes pour la sélection (demande de Benjamin, D-4.2-s) : « Normal »
+  // (cadre, poignées, rotation ; la déformation suit d'un bloc) et « 4 coins »
+  // (seuls les points de la déformation se tirent, sans cadre). Le mode
+  // « 4 coins » vaut pour la sélection où on l'a choisi ; une autre
+  // sélection revient en mode Normal.
   const selectionKey = useMemo(() => [...selection].sort().join(","), [selection]);
   const [meshFor, setMeshFor] = useState<string | null>(null);
   const shared = useMemo(() => sharedDeformation(selected), [selected]);
-  const editable = useMemo(
-    () => (shared && (meshFor === selectionKey || !isAffine(shared)) ? shared : null),
-    [shared, meshFor, selectionKey],
-  );
+  const editable = useMemo(() => (shared && meshFor === selectionKey ? shared : null), [shared, meshFor, selectionKey]);
   const editableNodes = useMemo(() => (editable ? nodePoints(editable) : []), [editable]);
 
   const layers = useMemo<LayerSpec[]>(
@@ -825,8 +824,16 @@ export function useComposition(options: Options): Composition {
       if (r !== current) commit(r.placements, undefined, r.layers);
     },
     deform: (columns, rows) => {
+      // Une grille tendue passe en mode 4 coins ; « Redresser » revient en mode Normal.
       setMeshFor(columns > 0 ? selectionKey : null);
       apply(deform(placements, selection, columns, rows));
+    },
+    setMode: (mode) => {
+      if (mode === "normal") return setMeshFor(null);
+      setMeshFor(selectionKey);
+      // Sans déformation commune, on tend les quatre coins au repos ; sinon on
+      // reprend celle du dessin telle qu'elle est.
+      if (!shared) apply(deform(placements, selection, 1, 1));
     },
     assignTo: (projector) => apply(assignTo(placements, selection, projector)),
     select: (ids) => setSelection(new Set(ids.filter((id) => placements.some((p) => p.id === id)))),
@@ -854,7 +861,12 @@ export function useComposition(options: Options): Composition {
       enabled: enabled && picks.length > 0,
     },
     { keys: "mod+shift+a", run: () => setSelection(new Set()), enabled: enabled && has },
-    { keys: "escape", run: () => setSelection(new Set()), enabled: enabled && has },
+    {
+      keys: "escape",
+      // Échap : quitte d'abord le mode 4 coins, puis vide la sélection.
+      run: () => (editable ? setMeshFor(null) : setSelection(new Set())),
+      enabled: enabled && has,
+    },
     { keys: "backspace", run: actions.remove, enabled: enabled && has },
     { keys: "arrowleft", run: nudge(-NUDGE_MM, 0), enabled: enabled && has },
     { keys: "arrowright", run: nudge(NUDGE_MM, 0), enabled: enabled && has },
@@ -897,7 +909,7 @@ export function useComposition(options: Options): Composition {
     ? null
     : has
       ? editable
-        ? "Glisser un point bleu : déformer · glisser le dessin : déplacer · Redresser (barre du haut) : retrouver le cadre · Espace : déplacer la vue"
+        ? "Mode 4 coins : glisser un point bleu · Échap ou « Normal » : retrouver le cadre · Espace : déplacer la vue"
         : "Glisser : déplacer (⌥ copie, ⇧ droit) · coin : agrandir · rond au-dessus du cadre : tourner (⇧ par 5°) · Espace : déplacer la vue"
       : picks.length > 0
         ? "Cliquer un dessin pour le choisir, ou glisser autour de plusieurs"
