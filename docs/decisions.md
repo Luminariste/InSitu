@@ -10,7 +10,7 @@ Demande de Benjamin : « export : propose l'export d'une diapo ou de toutes
 les diapos », et « dans le menu diapositive, prévoir un export (pour
 exporter qu'une diapo) ».
 
-**D-3.5-e. On peut exporter une seule diapositive.** Le moteur savait déjà
+**D-3.5-l. On peut exporter une seule diapositive.** Le moteur savait déjà
 n'exporter que certains projecteurs (`only`, ligne de commande
 `insitu export --only`) ; la commande de la coque le reçoit maintenant.
 Onglet Export de la Façade : choix « Toutes » ou « A seulement » (seuls
