@@ -17,6 +17,7 @@ pub const USAGE: &str = r#"Usage :
   insitu place set <projet.insitu> <placements.json> [--history DOSSIER]
   insitu place deform <projet.insitu> <id>… (--corners | --grid CxR | --none)
   insitu place slides <projet.insitu>
+  insitu place lost <projet.insitu> --cache DOSSIER
   insitu place assign <projet.insitu> <id>… (--to PROJECTEUR | --auto)
   insitu place adjust <projet.insitu> <id> (--corners | --grid CxR | --none)
 
@@ -40,6 +41,10 @@ Dessins posés sur la façade. Longueurs en mm réels de façade, origine en hau
   slides  Affiche en JSON la diapositive de chaque dessin posé (tâche 4.5) :
           projecteur, choix à la main ou non, dessin entier ou à cheval, et
           les diapositives qui le contiennent en entier.
+  lost    Affiche en JSON, pour chaque dessin qui dépasse de sa
+          diapositive, la part qui ne sera pas projetée, sur la façade (mm),
+          d'après sa silhouette ; les silhouettes détectées sont rangées
+          dans le cache --cache (D-4.5-h).
   assign  Choisit à la main la diapositive des dessins donnés (--to, libellé
           ou identifiant du projecteur) ; --auto les rend à la proposition
           du moteur.
@@ -68,6 +73,7 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
     let mut mirrored = false;
     let mut group: Option<String> = None;
     let mut history: Option<String> = None;
+    let mut cache: Option<String> = None;
     let mut grid: Option<(u32, u32)> = None;
     let mut target: Option<Option<String>> = None;
     let mut words = Vec::new();
@@ -102,6 +108,14 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
                 history = Some(
                     args.get(i + 1)
                         .ok_or_else(|| usage("--history attend un dossier."))?
+                        .to_string(),
+                );
+                i += 1;
+            }
+            "--cache" => {
+                cache = Some(
+                    args.get(i + 1)
+                        .ok_or_else(|| usage("--cache attend un dossier."))?
                         .to_string(),
                 );
                 i += 1;
@@ -231,6 +245,13 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             let project = dir.load().map_err(failed)?.project;
             let all = placement::assign::assignments(&project);
             Ok(serde_json::to_string_pretty(&all).expect("sérialisable"))
+        }
+        ["lost", folder] => {
+            let cache = cache.ok_or_else(|| usage("Donner le cache : --cache DOSSIER."))?;
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let lost = placement::lost::load_lost_parts(&dir, std::path::Path::new(&cache))
+                .map_err(failed)?;
+            Ok(serde_json::to_string_pretty(&lost).expect("sérialisable"))
         }
         ["assign", folder, ref ids @ ..] if !ids.is_empty() => {
             let target = target.ok_or_else(|| usage("Choisir --to PROJECTEUR ou --auto."))?;

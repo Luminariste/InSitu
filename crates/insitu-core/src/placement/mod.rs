@@ -7,6 +7,7 @@
 
 pub mod adjust;
 pub mod assign;
+pub mod lost;
 pub mod mesh;
 
 use std::collections::BTreeSet;
