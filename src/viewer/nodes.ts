@@ -21,7 +21,7 @@ export interface TileSource {
   baseUrl: string;
 }
 
-export type LayerBlend = "normal" | "screen";
+export type LayerBlend = "normal" | "screen" | "multiply";
 
 interface LayerBase {
   /** Identifiant stable : il permet de mettre à jour un calque sans le recréer. */
@@ -33,6 +33,8 @@ interface LayerBase {
   /**
    * `screen` éclaircit ce qui est dessous au lieu de le recouvrir : le noir
    * d'un dessin devient transparent, ses traits blancs restent.
+   * `multiply` fait l'inverse : le blanc d'un plan devient transparent, ses
+   * traits noirs restent (plans superposés comme du papier calque).
    */
   blend?: LayerBlend;
   /**

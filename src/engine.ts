@@ -156,6 +156,45 @@ export interface Project {
   facadeAssembly?: FacadeAssembly | null;
   /** Dessins de la bibliothèque (seuls les champs lus par l'interface). */
   library?: ProjectDrawing[];
+  /** Plans ajoutés par-dessus le plan de référence, du fond vers l'avant (D-PL-a). */
+  planGroups?: PlanGroup[];
+}
+
+/**
+ * Un groupe de plans : un fichier posé sur la façade, dont on montre une ou
+ * plusieurs vues (pages, calques). Ses vues bougent ensemble (D-PL-b).
+ */
+export interface PlanGroup {
+  id: string;
+  name: string;
+  /** Chemin relatif au projet, sous `facade/plans/`. */
+  source: string;
+  /** Coin haut-gauche des vues, en mm de façade. */
+  origin: { x: number; y: number };
+  /** Millimètres de façade par unité du fichier. */
+  mmPerUnit: number;
+  rotation?: number;
+  hidden?: boolean;
+  plans: GroupPlan[];
+}
+
+/** Une vue d'un groupe : une page, éventuellement réduite à certains calques. */
+export interface GroupPlan {
+  id: string;
+  name: string;
+  page?: number;
+  layers?: string[] | null;
+  /** Dimensions affichées (rotation du groupe appliquée), dans l'unité du fichier. */
+  sourceWidth: number;
+  sourceHeight: number;
+  hidden?: boolean;
+}
+
+/** Une vue à tirer d'un fichier. */
+export interface PlanChoice {
+  page?: number | null;
+  layers?: string[] | null;
+  name?: string | null;
 }
 
 /** Un dessin de la bibliothèque, tel qu'enregistré dans `projet.json`. */
@@ -244,6 +283,8 @@ export interface PlanInfo {
   page?: number;
   origin?: [number, number];
   declaredMmPerUnit?: number;
+  /** PDF ou .ai : noms de ses calques ; absent s'il n'en a pas. */
+  layers?: string[];
 }
 
 /** Plan prêt à afficher : ses tuiles, et l'unité du fichier par pixel. */
@@ -320,6 +361,96 @@ export async function openFacadeView(folder: string): Promise<FacadeView> {
     sourceHeight: number;
     sourceUnitsPerPixel: number;
   }>("facade_display", { folder });
+  return {
+    kind: shown.kind,
+    source: { pyramid: shown.pyramid, baseUrl: `${TILE_SCHEME_ROOT}/${shown.key}` },
+    sourceWidth: shown.sourceWidth,
+    sourceHeight: shown.sourceHeight,
+    sourceUnitsPerPixel: shown.sourceUnitsPerPixel,
+  };
+}
+
+// --- Plans ajoutés à l'espace de travail (D-PL-a à g) --------------------------
+
+/** Ajoute un groupe de plans tiré d'un fichier : une vue par choix. */
+export async function addPlanGroup(folder: string, path: string, choices: PlanChoice[]): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("plans_add", { folder, path, choices });
+}
+
+/** Ajoute des vues (pages, calques) du même fichier à un groupe. */
+export async function addGroupViews(folder: string, group: string, choices: PlanChoice[]): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("plans_add_views", { folder, group, choices });
+}
+
+/** Pose un groupe : coin haut-gauche (mm) et mm par unité du fichier. */
+export async function placePlanGroup(
+  folder: string,
+  group: string,
+  origin: { x: number; y: number },
+  mmPerUnit: number,
+): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("plans_place", { folder, group, origin, mmPerUnit });
+}
+
+export interface PlanAlignment {
+  project: Project;
+  /** Écart d'angle qui reste (le plan ne tourne pas librement), en degrés. */
+  turnDegrees: number;
+  factor: number;
+}
+
+/** Cale un groupe : les points `from` (mm, sur le plan) viennent sur `to`. */
+export async function alignPlanGroup(
+  folder: string,
+  group: string,
+  from: [{ x: number; y: number }, { x: number; y: number }],
+  to: [{ x: number; y: number }, { x: number; y: number }],
+): Promise<PlanAlignment> {
+  requireEngine();
+  return invoke<PlanAlignment>("plans_align", { folder, group, from, to });
+}
+
+export async function rotatePlanGroup(folder: string, group: string, quarterTurns: number): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("plans_rotate", { folder, group, quarterTurns });
+}
+
+/** Montre ou cache un groupe (`plan` absent) ou une de ses vues. */
+export async function setPlanHidden(folder: string, group: string, plan: string | null, hidden: boolean): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("plans_set_hidden", { folder, group, plan, hidden });
+}
+
+export async function renamePlan(folder: string, group: string, plan: string | null, name: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("plans_rename", { folder, group, plan, name });
+}
+
+/** Retire un groupe (`plan` absent) ou une vue ; le fichier reste dans le projet. */
+export async function removePlan(folder: string, group: string, plan: string | null): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("plans_remove", { folder, group, plan });
+}
+
+export async function movePlanGroup(folder: string, group: string, to: number): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("plans_move", { folder, group, to });
+}
+
+/** Prépare l'affichage d'une vue d'un groupe (tuiles, comme le plan de référence). */
+export async function openPlanView(folder: string, group: string, plan: string): Promise<FacadeView> {
+  requireEngine();
+  const shown = await invoke<{
+    key: string;
+    pyramid: Pyramid;
+    kind: PlanKind;
+    sourceWidth: number;
+    sourceHeight: number;
+    sourceUnitsPerPixel: number;
+  }>("plans_display", { folder, group, plan });
   return {
     kind: shown.kind,
     source: { pyramid: shown.pyramid, baseUrl: `${TILE_SCHEME_ROOT}/${shown.key}` },
@@ -479,7 +610,7 @@ export async function exportRectified(
 // --- Fenêtres de choix de fichiers (macOS) ----------------------------------
 
 /** Extensions de plan acceptées pour la façade. */
-export const PLAN_EXTENSIONS = ["pdf", "png", "jpg", "jpeg", "tif", "tiff", "heic", "heif", "svg", "dxf"];
+export const PLAN_EXTENSIONS = ["pdf", "ai", "png", "jpg", "jpeg", "tif", "tiff", "heic", "heif", "svg", "dxf"];
 
 /** Demande un dossier de projet existant ; `null` si l'utilisateur renonce. */
 export async function chooseProjectFolder(): Promise<string | null> {
@@ -498,13 +629,13 @@ export async function chooseNewProjectPath(): Promise<string | null> {
 }
 
 /** Demande un fichier de plan ; `null` si l'utilisateur renonce. */
-export async function choosePlanFile(): Promise<string | null> {
+export async function choosePlanFile(title = "Importer le plan de façade"): Promise<string | null> {
   requireEngine();
   const { open } = await import("@tauri-apps/plugin-dialog");
   const chosen = await open({
     multiple: false,
     directory: false,
-    title: "Importer le plan de façade",
+    title,
     filters: [{ name: "Plan de façade", extensions: PLAN_EXTENSIONS }],
   });
   return typeof chosen === "string" ? chosen : null;

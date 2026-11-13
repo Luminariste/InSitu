@@ -62,6 +62,9 @@ import { alertTarget, simulationLayers } from "./simulation";
 import { Viewer, type LayerSpec, type ViewerHandle } from "../viewer";
 import { fitView, screenToMm } from "../viewer/geometry";
 import { ScaleMarkersNode } from "./markers";
+import { AddPlanDialog } from "./plans/AddPlanDialog";
+import { PlansSection } from "./plans/PlansSection";
+import { usePlanGroups } from "./plans/usePlanGroups";
 import {
   facadePlacement,
   formatLength,
@@ -302,6 +305,20 @@ export function FacadeScreen() {
     };
   }, [engine, folder, frescoPath]);
 
+  // Plans ajoutés par-dessus le plan de référence (D-PL-a à g).
+  const planGroups = usePlanGroups({
+    engine,
+    folder,
+    project,
+    onProject: setProject,
+    viewer,
+    stage,
+    negative: viewOptions.planNegative,
+    scaled: k !== null,
+    onError: setError,
+    onNotice: setNotice,
+  });
+
   const layers = useMemo<LayerSpec[]>(() => {
     const plan: LayerSpec[] = view
       ? [
@@ -330,12 +347,19 @@ export function FacadeScreen() {
       });
     }
     const url = engine ? cacheFileUrl : (request: string) => request;
+    // Plans ajoutés (D-PL-a) : leurs feuilles sous tout, leurs vues juste
+    // au-dessus du plan de référence.
+    const reference = view ? plan.slice(0, 1) : [];
+    const rest = view ? plan.slice(1) : plan;
     return [
-      ...plan,
+      ...planGroups.sheets,
+      ...reference,
+      ...planGroups.layers,
+      ...rest,
       ...overviewLayers(overview, display, url),
       ...simulationLayers(overview, simulation, display, showSlides, url),
     ];
-  }, [view, k, overview, display, engine, project?.fresco, frescoSource, showFresco, simulation, showSlides, viewOptions.plan, viewOptions.planNegative]);
+  }, [view, k, overview, display, engine, project?.fresco, frescoSource, showFresco, simulation, showSlides, viewOptions.plan, viewOptions.planNegative, planGroups.sheets, planGroups.layers]);
 
   // Dessins posés sur la façade (tâche 4.2) : il faut une façade à l'échelle
   // (dans le navigateur sans moteur, le plan d'essai suffit).
@@ -351,7 +375,7 @@ export function FacadeScreen() {
     onProject: setProject,
     viewer,
     stage,
-    enabled: composeBlocked === null && picking === "off" && busy === null && viewOptions.drawings,
+    enabled: composeBlocked === null && picking === "off" && planGroups.mode === "off" && busy === null && viewOptions.drawings,
     visible: viewOptions.drawings,
     checkOverlap: viewOptions.overlap,
     onError: setError,
@@ -501,11 +525,13 @@ export function FacadeScreen() {
   // --- Clics sur le plan ------------------------------------------------------
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (picking === "off" && composition.onPointerDown(event)) return;
+    if (picking === "off" && planGroups.onPointerDown(event)) return;
+    if (picking === "off" && planGroups.mode === "off" && composition.onPointerDown(event)) return;
     pointerDown.current = { x: event.clientX, y: event.clientY, t: event.timeStamp };
   };
 
   const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    if (planGroups.onPointerUp(event)) return;
     if (composition.onPointerUp(event)) return;
     const down = pointerDown.current;
     pointerDown.current = null;
@@ -548,6 +574,7 @@ export function FacadeScreen() {
     { keys: "mod+i", run: () => void choosePlan(), enabled: canImport && !assembling },
     { keys: "mod+0", run: () => viewer.current?.fitAll(), enabled: view !== null && !assembling },
     { keys: "escape", run: () => setPicking("off"), enabled: picking !== "off" && !assembling },
+    { keys: "escape", run: () => planGroups.setMode("off"), enabled: planGroups.mode !== "off" && !assembling },
   ]);
   useShortcuts(composition.shortcuts);
 
@@ -777,6 +804,22 @@ export function FacadeScreen() {
                 </div>
               </form>
             </Section>
+            <PlansSection
+              state={planGroups}
+              referenceName={facade ? planName : null}
+              referenceShown={viewOptions.plan}
+              onToggleReference={() => toggleView("plan")}
+              blocked={
+                !engine
+                  ? "Ajouter des plans demande l'application."
+                  : !facade
+                    ? "Importer d'abord le plan de référence."
+                    : !k
+                      ? "Mettre d'abord le plan de référence à l'échelle (rubrique Mise en plan) : les autres plans se posent dessus."
+                      : null
+              }
+              disabled={!ready || planGroups.busy !== null || picking !== "off"}
+            />
             {exportPanel.fresco}
           </>
         ),
@@ -850,6 +893,10 @@ export function FacadeScreen() {
             <StatusText tone="info" push>
               Cliquer le point {picking === "a" ? "A" : "B"} sur le plan (Échap : annuler)
             </StatusText>
+          ) : planGroups.hint ? (
+            <StatusText tone="info" push>
+              {planGroups.hint}
+            </StatusText>
           ) : (
             composition.hint && (
               <StatusText tone="info" push>
@@ -897,7 +944,9 @@ export function FacadeScreen() {
         className={`facade-stage${picking !== "off" ? " facade-picking" : ""}${viewOptions.negative ? " facade-negative" : ""}`}
         ref={stage}
         onPointerDownCapture={onPointerDown}
-        onPointerMoveCapture={composition.onPointerMove}
+        onPointerMoveCapture={(event) => {
+          if (!planGroups.onPointerMove(event)) composition.onPointerMove(event);
+        }}
         onPointerUpCapture={onPointerUp}
         onDragOver={composition.onDragOver}
         onDrop={composition.onDrop}
@@ -946,7 +995,7 @@ export function FacadeScreen() {
             </EmptyState>
           )
         )}
-        {busy && <Busy>{busy}</Busy>}
+        {(busy ?? planGroups.busy) && <Busy>{busy ?? planGroups.busy}</Busy>}
       </div>
       {assembling && (
         <AssemblyScreen
@@ -973,6 +1022,9 @@ export function FacadeScreen() {
           <p>Le plan et sa mise à l'échelle sortent du projet. Le fichier reste dans le dossier facade/ du projet.</p>
           <p>Les dessins posés, les points de recalage et la fresque sont gardés, en millimètres : ils retrouvent leur place sur le prochain plan une fois mis à l'échelle.</p>
         </ConfirmDialog>
+      )}
+      {planGroups.pending && (
+        <AddPlanDialog pending={planGroups.pending} onConfirm={(choices) => void planGroups.actions.confirmPending(choices)} onCancel={planGroups.cancelPending} />
       )}
       {pending && (
         <Dialog
