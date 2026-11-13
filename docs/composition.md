@@ -103,9 +103,13 @@ croix sur un point de déformation, flèche à quatre pointes sur un dessin
    choisir une diapositive : le dessin suit aussitôt (D-4.2-p).
 6. Écran Diapositive : sur un dessin, le curseur devient la flèche à quatre
    pointes, sur un point bleu une croix.
-7. Choisir un dessin, cliquer « Quatre coins » dans la barre du haut : le
-   rectangle de sélection et ses carrés blancs disparaissent, seuls les
-   quatre points bleus restent (D-4.2-n). « Redresser » ramène le cadre.
+7. Choisir un dessin, cliquer « 4 coins » dans la barre des réglages (ou
+   l'icône « 4 coins » de la barre d'outils, qui s'allume) : le rectangle de
+   sélection disparaît, seuls les quatre points bleus restent. Tirer un
+   coin. Cliquer « Normal » (ou Échap) : le rectangle revient, le dessin
+   garde sa perspective et se déplace, tourne et s'étire d'un bloc.
+   Revenir en « 4 coins » : les points sont là où on les avait laissés
+   (D-4.2-s).
 
 ## Calques (tâche 4.3)
 
