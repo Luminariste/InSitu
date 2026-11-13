@@ -1,7 +1,7 @@
 // Écran Recalage (tâche 3.2) : pour chaque projecteur, des points communs
 // entre sa photo redressée (à gauche, en mm de diapositive) et la façade (à
-// droite, en mm réels). Quatre points donnent le trapèze ; les suivants
-// suivent le relief. Le moteur mesure l'écart de chaque point et signale
+// droite, en mm réels). Quatre points donnent le trapèze ; au-delà, il est
+// ajusté au mieux sur tous (perspective pure, D-3.2-l). Le moteur mesure l'écart de chaque point et signale
 // ceux qui semblent mal placés ; l'emprise du projecteur se dessine sur la
 // façade.
 //
@@ -59,6 +59,7 @@ import {
   movePoint,
   ADJUST_SHOWN,
   constraintsText,
+  ensureGuides,
   followConstraints,
   isGuide,
   lineDrawn,
@@ -562,7 +563,8 @@ export function RegistrationScreen() {
 
   /** Quatre coins guides : la condition pour caler par lignes. */
   const guideCount = pairs.filter(isGuide).length;
-  const lineMode = mode === "lines" && guideCount === 4;
+  // Sans les quatre coins, ils sont remis au premier trait (`ensureGuides`).
+  const lineMode = mode === "lines" && pairs.length >= 4;
 
   /** Le pointeur, en mm de la vue `side` et en pixels de son écran. */
   const pointerAt = (side: Side, event: PointerEvent) => {
@@ -640,7 +642,7 @@ export function RegistrationScreen() {
     event.currentTarget.setPointerCapture(event.pointerId);
     if (grab.kind === "point") setDragging({ kind: "point", side, index: grab.index, before: pairs });
     else if (grab.kind === "lineEnd")
-      setDragging({ kind: "lineEnd", side, line: grab.line, end: grab.end, before: pairs, beforeLines: lines });
+      setDragging({ kind: "lineEnd", side, line: grab.line, end: grab.end, before: ensureGuides(pairs), beforeLines: lines });
     else if (grab.kind === "draw") setDragging({ kind: "draw", side, start: at.mm, end: at.mm, before: pairs });
     else if (grab.kind === "move") setDragging({ kind: "move", start: at.mm, before: pairs });
     else setDragging({ kind: "pin", slide: grab.slide, before: pairs });
@@ -700,7 +702,7 @@ export function RegistrationScreen() {
           const line: RegistrationLine =
             side === "slide" ? { slide: seg, facade: halfLine.seg } : { slide: halfLine.seg, facade: seg };
           const nextLines = [...lines, line];
-          const next = follow(pairs, nextLines);
+          const next = follow(ensureGuides(pairs), nextLines);
           setHalfLine(null);
           requestPreview(next);
           commit(next, pairs, nextLines, lines);
@@ -812,7 +814,7 @@ export function RegistrationScreen() {
       ? halfLine.side === "slide"
         ? "Tracer maintenant la même ligne sur le plan : appuyer sur un bout, glisser jusqu'à l'autre."
         : "Tracer maintenant la même ligne sur la photo : appuyer sur un bout, glisser jusqu'à l'autre."
-      : "Glisser sur la photo le long d'un bord sûr (bord de fenêtre, corniche), puis le même sur le plan."
+      : "Glisser sur la photo, à gauche, le long d'un bord sûr (bord de fenêtre, corniche), puis le même sur le plan, à droite."
     : hint(pending, selected, selectedSide);
   const stageClass = `registration-stage${dragging && dragging.kind !== "draw" ? " registration-dragging" : grabbable ? " registration-grab" : ""}`;
 
@@ -934,6 +936,34 @@ export function RegistrationScreen() {
 
   const inspector = (
     <Panel side="right" title="Points communs">
+      <div className="registration-advice">
+        <Segmented<Mode>
+          label="Caler par"
+          value={mode}
+          onChange={(value) => {
+            setMode(value);
+            setHalfLine(null);
+            setPending(NO_PENDING);
+            setSelected(null);
+            // Les lignes s'appuient sur les quatre coins guides : on les remet
+            // s'ils manquent (points posés un à un, coin déplacé sur la photo).
+            if (value === "lines" && guideCount !== 4) {
+              const next = ensureGuides(pairs);
+              if (next !== pairs) {
+                requestPreview(next);
+                commit(next);
+              }
+            }
+          }}
+          options={[
+            { value: "points", label: "Points", title: "Caler par des points sûrs : un détail de la photo lâché sur le même détail du plan" },
+            { value: "lines", label: "Lignes", title: "Caler par des lignes : un bord tracé sur la photo, le même tracé sur le plan" },
+          ]}
+        />
+        {mode === "lines" && pairs.length < 4 && (
+          <p className="ui-note">Pour caler par lignes, poser d'abord la photo sur la façade, par ses quatre coins.</p>
+        )}
+      </div>
       {pairs.length === 0 && (
         <div className="registration-advice">
           <Button
@@ -962,20 +992,6 @@ export function RegistrationScreen() {
       )}
       {pairs.length >= 4 && (
         <div className="registration-advice">
-          <Segmented<Mode>
-            label="Caler par"
-            value={mode}
-            onChange={(value) => {
-              setMode(value);
-              setHalfLine(null);
-              setPending(NO_PENDING);
-              setSelected(null);
-            }}
-            options={[
-              { value: "points", label: "Points", title: "Caler par des points sûrs : un détail de la photo lâché sur le même détail du plan" },
-              { value: "lines", label: "Lignes", title: "Caler par des lignes : un bord tracé sur la photo, le même tracé sur le plan" },
-            ]}
-          />
           {ADJUST_SHOWN && (
           <Button
             variant="primary"
@@ -1004,17 +1020,12 @@ export function RegistrationScreen() {
               et le lâcher sur le même détail du plan. Les coins ne sont qu'un guide : ils suivent vos points. Barre d'espace +
               glisser : déplacer la vue.
             </p>
-          ) : guideCount === 4 ? (
+          ) : (
             <p className="ui-note">
               Tracer un bord sûr sur la photo (à gauche), puis le même sur le plan (à droite) : une verticale (bord de fenêtre),
               une horizontale (corniche)… Les deux traits n'ont pas besoin d'avoir la même longueur. Deux horizontales et deux
               verticales suffisent à retrouver le trapèze ; les points sûrs comptent aussi. Barre d'espace + glisser : déplacer
               la vue.
-            </p>
-          ) : (
-            <p className="ui-note">
-              Les lignes demandent une photo posée par ses quatre coins : supprimer les points et la poser avec « Poser la photo
-              sur la façade ».
             </p>
           )}
           {constraintsText(pairs, lines) && <p className="ui-note">{constraintsText(pairs, lines)}</p>}

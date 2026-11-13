@@ -1996,6 +1996,30 @@ choisir selon la situation (automatique, par point, par ligne).
   toujours par les paires, dont les coins guides, qui suivent les lignes.
   L'écart affiché reste celui des points.
 
+**D-3.2-l. La photo est posée par un trapèze seul ; le mode Lignes marche
+sans réglage préalable.** Retours d'essai de Benjamin sur la 0.1.68
+(13 novembre 2026) : « au-delà de 5 points, j'ai une image avec des
+courbes, ce qui n'est pas cohérent » ; « la technique par ligne bug
+souvent » ; « on est obligé d'avoir un point pour activer le mode ligne ? ».
+
+- **Plus de correction du relief.** Le recalage (`slide_to_facade`,
+  `report`) pose la photo par un trapèze seul (perspective pure,
+  `PointWarp::trapeze`), exact avec 4 paires, ajusté aux moindres carrés
+  au-delà. Les droites restent droites. Cela revient, avec l'accord de
+  Benjamin (son retour ci-dessus), sur la correction lisse des tâches 2.3 et
+  3.2 pour le recalage. L'écart affiché d'un point est désormais son écart
+  à ce trapèze ; la recherche des points douteux (6 points et plus) est
+  inchangée. Le redressement des photos de mire (2.3, 2.4) n'est pas touché.
+- **Le choix Points / Lignes est toujours visible** en haut du panneau (il
+  n'apparaissait qu'à partir de 4 points).
+- **Les coins guides sont remis quand ils manquent.** Le projet Trévarez
+  montrait des projecteurs recalés point par point (aucun coin guide) ou
+  dont un coin avait été déplacé sur la photo (ce n'était plus un coin) :
+  le mode Lignes n'y faisait rien. Au passage en mode Lignes, au premier
+  trait et au premier glisser d'un bout de ligne, les quatre coins sont
+  replacés sur la pose actuelle (trapèze ajusté sur tous les points), sans
+  la changer ; les points sûrs restent (`ensureGuides`).
+
 ## 2026-11-12 — Tâche 2.5
 
 Écran de redressement : `src/rectification/`, module

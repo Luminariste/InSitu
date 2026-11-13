@@ -198,9 +198,11 @@ fn residuals_of_good_points_stay_small() {
         rms_facade > 5.0 * rms && rms_facade < 60.0 * rms,
         "{rms_facade}"
     );
+    // La photo est posée par le trapèze seul (D-3.2-l) : son écart est celui
+    // des points.
     assert!(
-        r.trapeze_rms_slide_mm.unwrap() > rms,
-        "le trapèze seul laisse plus d'écart"
+        (r.trapeze_rms_slide_mm.unwrap() - rms).abs() < 1e-9,
+        "l'écart affiché est celui du trapèze"
     );
 }
 
@@ -336,5 +338,32 @@ fn une_pose_loin_de_l_origine_reste_utilisable() {
             report.err()
         );
         assert!(slide_to_facade(&pairs).is_some());
+    }
+}
+
+#[test]
+fn beyond_five_points_the_photo_stays_a_trapeze() {
+    // Huit points pris sur une perspective, avec un peu de bruit de pointage :
+    // la pose doit rester une perspective pure, donc envoyer une droite de la
+    // diapositive sur une droite de la façade (pas de courbe, D-3.2-l).
+    let mut rng = Lcg(11);
+    let set = pairs(4, 0.4, &mut rng);
+    assert!(set.len() > 5);
+    let warp = slide_to_facade(&set).unwrap();
+    let line: Vec<_> = (0..=20)
+        .map(|k| {
+            let t = f64::from(k) / 20.0;
+            warp.apply(crate::geometry::Point::new(
+                10.0 + 260.0 * t,
+                40.0 + 200.0 * t,
+            ))
+            .unwrap()
+        })
+        .collect();
+    let (a, b) = (line[0], line[20]);
+    let len = ((b.x - a.x).powi(2) + (b.y - a.y).powi(2)).sqrt();
+    for q in &line {
+        let off = ((b.x - a.x) * (q.y - a.y) - (b.y - a.y) * (q.x - a.x)).abs() / len;
+        assert!(off < 1e-6, "écart à la droite : {off} mm");
     }
 }

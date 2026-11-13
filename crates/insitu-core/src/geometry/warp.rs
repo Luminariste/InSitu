@@ -62,6 +62,20 @@ impl PointWarp {
         })
     }
 
+    /// Le trapèze seul, ajusté au mieux sur `N ≥ 4` paires (exact pour 4,
+    /// aux moindres carrés au-delà), sans correction locale : une perspective
+    /// pure, qui ne courbe jamais les droites.
+    pub fn trapeze(source: &[Point], target: &[Point]) -> Result<Self, GeometryError> {
+        validate_pairs(source, target, 4)?;
+        let base = Homography::fit(source, target)?;
+        let base_inverse = base.inverse()?;
+        Ok(Self {
+            base,
+            base_inverse,
+            correction: None,
+        })
+    }
+
     /// Le trapèze seul, sans la correction locale.
     pub fn base(&self) -> &Homography {
         &self.base
