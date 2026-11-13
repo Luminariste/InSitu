@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { FacadeOverview, ProjectorOverview } from "../engine";
 import {
   DEFAULT_DISPLAY,
+  changedDisplay,
+  nearestOpacity,
   formatArea,
   overlapLabel,
   overviewLayers,
@@ -72,5 +74,17 @@ describe("vue façade", () => {
     expect(formatArea(null)).toBe("—");
     expect(overlapLabel(overview.overlaps[0], overview.projectors)).toBe("A et B");
     expect(overviewSummary(overview)).toBe("2 recalés sur 3 · 1 recouvrement");
+  });
+});
+
+describe("vue des projecteurs dans le menu Affichage", () => {
+  it("coche l'opacité proposée la plus proche", () => {
+    expect(nearestOpacity(0.8)).toBe(0.8);
+    expect(nearestOpacity(0.3)).toBe(0.25);
+    expect(nearestOpacity(0.95)).toBe(1);
+  });
+  it("compte ce qui a changé, pas les projecteurs masqués", () => {
+    expect(changedDisplay(DEFAULT_DISPLAY)).toBe(0);
+    expect(changedDisplay({ ...DEFAULT_DISPLAY, photos: false, photoOpacity: 0.5, hidden: new Set(["a"]) })).toBe(2);
   });
 });

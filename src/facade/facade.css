@@ -50,12 +50,6 @@
   margin-top: var(--ui-space-1);
 }
 
-/* Projecteurs : la case montre ou cache l'emprise. */
-.facade-overview-show {
-  display: grid;
-  gap: 6px;
-}
-
 .facade-overview-opacity {
   display: grid;
   gap: 4px;
