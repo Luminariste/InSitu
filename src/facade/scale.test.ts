@@ -6,6 +6,7 @@ import {
   mmPerSourceUnit,
   parseDistanceMm,
   projectNameFromPath,
+  showScaleMarkers,
   sourceToView,
   viewToSource,
   withProjectExtension,
@@ -76,5 +77,26 @@ describe("présentation", () => {
     expect(withProjectExtension("/Users/b/Épinal")).toBe("/Users/b/Épinal.insitu");
     expect(withProjectExtension("/Users/b/Épinal.insitu/")).toBe("/Users/b/Épinal.insitu");
     expect(projectNameFromPath("/Users/b/Épinal.insitu")).toBe("Épinal");
+  });
+});
+
+describe("showScaleMarkers", () => {
+  const a = { x: 10, y: 20 };
+  const b = { x: 110, y: 20 };
+  const saved = { pointA: a, pointB: b, distanceMm: 5000 };
+  it("montre A et B pendant qu'on les pose", () => {
+    expect(showScaleMarkers(true, [], saved)).toBe(true);
+    expect(showScaleMarkers(true, [a], null)).toBe(true);
+  });
+  it("les montre tant que la mesure n'est pas validée", () => {
+    expect(showScaleMarkers(false, [a, b], null)).toBe(true);
+    expect(showScaleMarkers(false, [a, { x: 120, y: 20 }], saved)).toBe(true);
+  });
+  it("les cache une fois l'échelle validée", () => {
+    expect(showScaleMarkers(false, [a, b], saved)).toBe(false);
+    expect(showScaleMarkers(false, [{ ...a }, { ...b }], saved)).toBe(false);
+  });
+  it("ne montre rien sans points", () => {
+    expect(showScaleMarkers(false, [], saved)).toBe(false);
   });
 });

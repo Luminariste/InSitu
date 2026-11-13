@@ -75,6 +75,7 @@ import {
   parseDistanceMm,
   projectNameFromPath,
   sourceDistance,
+  showScaleMarkers,
   sourceToView,
   viewToSource,
   withProjectExtension,
@@ -275,10 +276,11 @@ export function FacadeScreen() {
     };
   }, []);
   useEffect(() => {
-    markerPoints.current = points.map((p) => sourceToView(p, k));
+    // Le trait AB disparaît une fois l'échelle validée (D15-r).
+    markerPoints.current = showScaleMarkers(picking !== "off", points, scale) ? points.map((p) => sourceToView(p, k)) : [];
     markers.current?.setPoints(markerPoints.current);
     viewer.current?.scene()?.invalidate();
-  }, [points, k]);
+  }, [points, k, picking, scale]);
 
   // Un changement d'unité (mise à l'échelle) change la taille du plan dans
   // la visionneuse : on recadre.

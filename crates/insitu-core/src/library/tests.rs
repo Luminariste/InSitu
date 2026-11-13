@@ -447,6 +447,7 @@ fn settings_are_kept_per_drawing_and_change_the_vectors() {
         tolerance_px: 1.5,
         corner_angle_deg: 45.0,
         min_area_px: 4.0,
+        smoothing_px: 2.5,
     };
     let (saved, after) = set_vector_settings(&f.dir, &merle, Some(custom), &f.cache).unwrap();
     assert_eq!(after.settings, custom);
@@ -523,6 +524,10 @@ fn refused_settings_leave_the_project_untouched() {
         },
         VectorSettings {
             min_area_px: -1.0,
+            ..VectorSettings::default()
+        },
+        VectorSettings {
+            smoothing_px: 25.0,
             ..VectorSettings::default()
         },
     ] {

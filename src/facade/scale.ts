@@ -63,6 +63,20 @@ export function sourceDistance(a: Point, b: Point): number {
   return Math.hypot(b.x - a.x, b.y - a.y);
 }
 
+/**
+ * Les points A et B et leur trait ne se montrent que pendant la mesure
+ * (demande de Benjamin, D15-r) : en posant les points, ou tant que les
+ * points posés ne sont pas ceux de l'échelle enregistrée. Une fois
+ * l'échelle validée, ils disparaissent ; « Reposer A et B » les remontre.
+ */
+export function showScaleMarkers(measuring: boolean, points: Point[], saved: ScaleSpec | null | undefined): boolean {
+  if (measuring) return true;
+  if (points.length === 0) return false;
+  if (!saved || points.length < 2) return true;
+  const same = (p: Point, q: Point) => Math.abs(p.x - q.x) < 1e-9 && Math.abs(p.y - q.y) < 1e-9;
+  return !(same(points[0], saved.pointA) && same(points[1], saved.pointB));
+}
+
 const metres = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const millimetres = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
 

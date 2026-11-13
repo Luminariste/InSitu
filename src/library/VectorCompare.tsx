@@ -17,6 +17,8 @@ import {
   parseDraft,
   sameSettings,
   scaleLabel,
+  sliderText,
+  MAX_SMOOTHING_PX,
   zoomAt,
   type SettingsDraft,
   type View,
@@ -40,12 +42,44 @@ const MODES: { value: Mode; label: string; title: string }[] = [
   { value: "rideau", label: "Rideau", title: "Image à gauche, vecteurs à droite : glisser le rideau" },
 ];
 
-const FIELDS: { key: keyof VectorSettings; label: string; unit: string; help: string }[] = [
-  { key: "threshold", label: "Seuil", unit: "1 à 255", help: "Un pixel au moins aussi clair fait partie du trait. Plus bas : les gris pâles sont gardés." },
-  { key: "tolerancePx", label: "Tolérance", unit: "px", help: "Écart permis entre les courbes et l'image. Plus grand : tracé plus lisse, moins de points." },
+/** Réglages, dans l'ordre où on les touche ; un curseur à côté des plus utiles (D-5.2-g). */
+const FIELDS: {
+  key: keyof VectorSettings;
+  label: string;
+  unit: string;
+  help: string;
+  range?: { min: number; max: number; step: number; fallback: number };
+}[] = [
+  {
+    key: "threshold",
+    label: "Seuil",
+    unit: "1 à 255",
+    help: "Un pixel au moins aussi clair fait partie du trait. Plus bas : les gris pâles sont gardés.",
+    range: { min: 1, max: 255, step: 1, fallback: 128 },
+  },
+  {
+    key: "smoothingPx",
+    label: "Lissage",
+    unit: "px",
+    help: "Adoucit le bord du trait avant le tracé : efface le tremblement et les petites bosses. 0 : le trait tel quel.",
+    range: { min: 0, max: MAX_SMOOTHING_PX, step: 0.5, fallback: 0 },
+  },
+  {
+    key: "tolerancePx",
+    label: "Réduction des points",
+    unit: "px",
+    help: "Écart permis entre les courbes et l'image. Plus grand : moins de points, tracé plus simple, mais moins fidèle.",
+    range: { min: 0.05, max: 5, step: 0.05, fallback: 0.3 },
+  },
   { key: "cornerAngleDeg", label: "Angle des coins", unit: "°", help: "Au-delà de ce virage, un coin reste vif ; en deçà, la courbe est arrondie." },
   { key: "minAreaPx", label: "Aire minimale", unit: "px²", help: "Les poussières et petits trous plus petits sont retirés. 0 : tout est gardé." },
 ];
+
+/** Valeur du curseur pour un réglage saisi (« 0,3 ») ; la valeur par défaut si illisible. */
+function rangeValue(text: string, fallback: number): number {
+  const v = Number(text.trim().replace(/\s/g, "").replace(",", "."));
+  return text.trim() !== "" && Number.isFinite(v) ? v : fallback;
+}
 
 interface Props {
   name: string;
@@ -291,9 +325,9 @@ export function VectorCompare({ name, vectors, backdrop, onBackdrop, editable, b
               }}
             >
               {FIELDS.map((field) => (
-                <Property key={field.key} label={`${field.label} (${field.unit})`} hint={field.key === "threshold" ? field.help : undefined}>
+                <Property key={field.key} label={`${field.label} (${field.unit})`} hint={field.range ? field.help : undefined}>
                   <input
-                    className={field.key === "threshold" ? "ui-input vc-threshold" : "ui-input"}
+                    className={field.range ? "ui-input vc-threshold" : "ui-input"}
                     type="text"
                     inputMode="decimal"
                     title={field.help}
@@ -302,15 +336,16 @@ export function VectorCompare({ name, vectors, backdrop, onBackdrop, editable, b
                     disabled={!editable || busy}
                     onChange={(event) => setDraft({ ...draft, [field.key]: event.target.value })}
                   />
-                  {field.key === "threshold" && (
+                  {field.range && (
                     <input
                       type="range"
-                      min={1}
-                      max={255}
-                      value={Number(draft.threshold) || 128}
+                      min={field.range.min}
+                      max={field.range.max}
+                      step={field.range.step}
+                      value={rangeValue(draft[field.key], field.range.fallback)}
                       disabled={!editable || busy}
-                      onChange={(event) => setDraft({ ...draft, threshold: event.target.value })}
-                      aria-label="Seuil"
+                      onChange={(event) => setDraft({ ...draft, [field.key]: sliderText(Number(event.target.value)) })}
+                      aria-label={field.label}
                     />
                   )}
                 </Property>
