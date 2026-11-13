@@ -1,6 +1,6 @@
 // Calque d'une grande image affichée par tuiles.
 
-import { Container, Rectangle, Sprite, Texture } from "pixi.js";
+import { ColorMatrixFilter, Container, Rectangle, Sprite, Texture } from "pixi.js";
 import {
   pickLevel,
   placedBounds,
@@ -50,6 +50,18 @@ export class TiledLayerNode implements SceneNode {
     this.container.alpha = spec.opacity ?? 1;
     this.container.visible = spec.visible ?? true;
     this.container.blendMode = spec.blend === "screen" ? "screen" : "normal";
+    this.container.filters = spec.invert ? [this.negativeFilter()] : [];
+  }
+
+  private negative: ColorMatrixFilter | null = null;
+
+  /** Filtre du négatif, créé au premier besoin, à la finesse de l'écran. */
+  private negativeFilter(): ColorMatrixFilter {
+    if (!this.negative) {
+      this.negative = new ColorMatrixFilter({ resolution: "inherit" });
+      this.negative.negative(false);
+    }
+    return this.negative;
   }
 
   bounds(): Rect | null {
@@ -128,6 +140,7 @@ export class TiledLayerNode implements SceneNode {
   destroy(): void {
     this.clearSlots();
     this.container.destroy({ children: true });
+    this.negative?.destroy();
   }
 
   private slot(key: string): Slot {

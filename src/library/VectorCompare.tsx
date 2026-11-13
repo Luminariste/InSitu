@@ -21,6 +21,7 @@ import {
   type SettingsDraft,
   type View,
 } from "./vectorLogic";
+import { BACKDROPS, type Backdrop } from "./backdrop";
 import { Button, IconButton, Panel, Property, Section, Segmented, ToolGroup, ToolSeparator, ToolSpacer, Toolbar } from "../ui";
 
 /** Les vecteurs, avec les adresses déjà prêtes à afficher. */
@@ -49,7 +50,9 @@ const FIELDS: { key: keyof VectorSettings; label: string; unit: string; help: st
 interface Props {
   name: string;
   vectors: ShownVectors | null;
-  backdrop: string;
+  backdrop: Backdrop;
+  /** Change le fond (le même que celui de la bibliothèque). */
+  onBackdrop: (backdrop: Backdrop) => void;
   /** Faux dans le navigateur seul : les réglages ne s'appliquent pas. */
   editable: boolean;
   busy: boolean;
@@ -58,7 +61,7 @@ interface Props {
   onClose: () => void;
 }
 
-export function VectorCompare({ name, vectors, backdrop, editable, busy, error, onApply, onClose }: Props) {
+export function VectorCompare({ name, vectors, backdrop, onBackdrop, editable, busy, error, onApply, onClose }: Props) {
   const [mode, setMode] = useState<Mode>("contour");
   const [view, setView] = useState<View | null>(null);
   const [curtain, setCurtain] = useState(0.5);
@@ -184,6 +187,10 @@ export function VectorCompare({ name, vectors, backdrop, editable, busy, error, 
         <ToolSeparator />
         <Segmented label="Affichage" value={mode} onChange={setMode} options={MODES} />
         <ToolSpacer />
+        <ToolGroup label="Fond">
+          <Segmented label="Fond derrière le dessin" value={backdrop} onChange={onBackdrop} options={BACKDROPS} />
+        </ToolGroup>
+        <ToolSeparator />
         <ToolGroup label="Zoom">
           <IconButton icon="minus" label="Zoom arrière" onClick={() => zoomBy(1 / 1.5)} />
           <span className="vc-scale">{view ? scaleLabel(view.scale) : "—"}</span>
