@@ -68,6 +68,13 @@ pour une emprise de 4 m, un pixel du plan fait 0,5 mm sur la façade, assez
 pour juger un recalage. Il faut un plan mis à l'échelle ; un projecteur
 dont l'emprise tombe hors du plan est signalé, pas exporté.
 
+**D-3.5-n. La fresque se retire.** Demande de Benjamin (13 novembre 2026) :
+une fresque importée ne pouvait qu'être remplacée. Bouton **Retirer** à côté
+de **Remplacer…** (onglet Plan, rubrique Fresque), avec confirmation ;
+`remove_fresco`, `insitu fresco <projet> --remove`. Comme pour le plan
+(D15-h), ses fichiers restent dans `fresque/` : rien n'est effacé du disque,
+on peut la réimporter. Les dessins posés et leurs calques ne changent pas.
+
 ## 2026-11-13 — Fresque et plan dans la Diapositive (demande de Benjamin)
 
 Demande de Benjamin : « fresque : si elle est masquée, elle reste affichée

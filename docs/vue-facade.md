@@ -23,7 +23,7 @@ deux projecteurs, avec leur surface.
    recouvrements).
 4. Les photos, les emprises, les recouvrements et l'**opacité des photos**
    (100, 80, 50 ou 25 %) se règlent dans le menu **Affichage** (point 6),
-   plus dans le panneau de gauche (version 0.1.63).
+   plus dans le panneau de gauche (version 0.1.66).
 5. En bas du panneau, la liste des **recouvrements** : quels projecteurs, et
    quelle surface. Sur le plan, ils sont en rouge.
 6. Menu **Affichage**, en haut à droite (à côté de « Tout voir ») : montrer

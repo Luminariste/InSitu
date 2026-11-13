@@ -12,12 +12,13 @@ import {
   chooseSheetPath,
   exportSlides,
   importFresco,
+  removeFresco,
   writeLayoutSheet,
   type ExportProgress,
   type ExportSettings,
   type Project,
 } from "../engine";
-import { Button, Progress, Property, Section, useShortcuts } from "../ui";
+import { Button, ConfirmDialog, Progress, Property, Section, useShortcuts } from "../ui";
 import { isIllustratorFile } from "../compose/IllustratorImport";
 import {
   ALL_SLIDES,
@@ -111,6 +112,16 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
       onShowFresco(true);
     }, "fresco");
 
+  // Retirer la fresque (D-3.5-n) : ses fichiers restent dans fresque/.
+  const [removing, setRemoving] = useState(false);
+  const removeOne = () =>
+    run("Retrait de la fresque…", async () => {
+      setRemoving(false);
+      if (!folder) return;
+      onProject(await removeFresco(folder));
+      setMessage("Fresque retirée du projet. Le fichier reste dans le dossier fresque/ du projet.");
+    }, "fresco");
+
   const exportAll = () =>
     run("Export des diapositives…", async () => {
       if (!folder) return;
@@ -177,6 +188,11 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
             {fresco ? "Remplacer…" : "Importer la fresque…"}
           </Button>
           {fresco && (
+            <Button icon="trash" variant="quiet" onClick={() => setRemoving(true)} disabled={!ready || illustrator.busy}>
+              Retirer
+            </Button>
+          )}
+          {fresco && (
             <label className="ui-check">
               <input type="checkbox" checked={showFresco} onChange={(e) => onShowFresco(e.target.checked)} />
               Montrer
@@ -188,6 +204,17 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
         )}
         {notes("fresco")}
         {illustrator.node}
+        {removing && fresco && (
+          <ConfirmDialog
+            title="Retirer la fresque ?"
+            confirmLabel="Retirer la fresque"
+            onConfirm={() => void removeOne()}
+            onCancel={() => setRemoving(false)}
+          >
+            <p>« {fileName(fresco.vector?.source ?? fresco.source)} » sort du projet et n'est plus exportée. Le fichier reste dans le dossier fresque/ du projet.</p>
+            <p>Les dessins posés et leurs calques ne changent pas.</p>
+          </ConfirmDialog>
+        )}
       </Section>
     ),
     export: (

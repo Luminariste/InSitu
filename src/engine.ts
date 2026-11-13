@@ -1204,6 +1204,12 @@ export async function importFresco(folder: string, path: string): Promise<Projec
   return invoke<Project>("fresco_import", { folder, path });
 }
 
+/** Retire la fresque du projet ; ses fichiers restent dans le dossier fresque/ du projet. */
+export async function removeFresco(folder: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("fresco_remove", { folder });
+}
+
 /** Écrit un PNG par projecteur recalé dans `destination`. */
 export async function exportSlides(
   folder: string,
