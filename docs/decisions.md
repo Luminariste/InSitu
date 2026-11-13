@@ -759,6 +759,43 @@ dessin. Les dessins à la racine viennent en premier, sans titre. Les
 dossiers repliés ne sont pas retenus d'une session à l'autre. Calcul pur
 dans `src/compose/drawingTree.ts`, testé.
 
+**D-4.2-p. Réglages du dessin posé dans une barre en haut ; l'onglet
+Dessins ne garde que la bibliothèque.** Demande de Benjamin (13 novembre
+2026) : « dessin posé : mets tout dans le menu en haut, et ne laisse que les
+dessins dans le menu dessins ». Une seconde barre, sous la barre d'outils de
+l'écran Façade, comme le panneau Contrôle d'Illustrator : nom (et
+« retourné »), calque, diapositive (l'explication passe en bulle d'aide,
+« à cheval » en orange), X, Y, L, H, Angle, état de la déformation,
+Retirer. Elle est là dès que l'on peut composer (plan à l'échelle, dessins
+montrés), et invite à cliquer un dessin quand rien n'est choisi : la zone
+de travail ne saute pas à chaque clic. Le miroir reste en icônes dans la
+barre d'outils : les boutons texte de D-4.2-m quittent l'onglet Dessins.
+Choisir un dessin n'ouvre plus l'onglet Dessins (règle de D15-i retirée),
+puisque ses réglages n'y sont plus. `PlacementInspector` devient
+`PlacementBar`.
+
+**D-4.2-q. Un dessin étiré garde son cadre ; ⇧ en tournant : angle rond à
+5°.** Retours de Benjamin (13 novembre 2026). (1) « Quand j'utilise les
+poignées du centre, cela passe en 4 coins et je perds le rectangle de
+sélection » : un dessin tourné, étiré par une poignée du milieu, reçoit une
+déformation (D-4.2-l), que D-4.2-n traitait comme « quatre coins ».
+Désormais, les points d'une déformation ne se montrent (et le cadre ne se
+cache) que si l'on vient de cliquer « Quatre coins » ou une grille sur cette
+sélection, ou si la déformation a déjà été tirée (elle n'est plus affine,
+`isAffine`). Une déformation née d'un étirement reste affine : le dessin
+garde son cadre, ses poignées et sa poignée ronde. (2) « Shift + rotation :
+angle remarquable à 5° » : ⇧ pendant la rotation à la souris arrête un
+dessin seul sur un multiple de 5° (son angle final, pas l'écart), et fait
+tourner plusieurs dessins par pas de 5°. ⇧ en déplaçant garde les
+directions à 45°.
+
+**D15-l. ⌘Z garde le zoom et l'endroit vus sur la façade.** Retour de
+Benjamin (13 novembre 2026) : « quand je fais pomme Z, le zoom change ».
+L'annulation relit le projet, et la relecture recadrait tout le plan. La
+vue (centre et zoom) est gardée avant la relecture (⌘Z, ⇧⌘Z, ⌘R) et remise
+ensuite, sauf si l'échelle du plan a changé (une mise à l'échelle annulée
+change la taille du plan dans la visionneuse) : on recadre alors.
+
 **Limite.** Les fichiers des dessins utilisés par une diapositive restent
 en mémoire pendant l'export (en niveaux de gris, un dessin de 4 096 px pèse
 16 Mo) ; à surveiller avec une très grande bibliothèque.

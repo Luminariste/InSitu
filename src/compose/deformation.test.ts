@@ -169,3 +169,15 @@ describe("déformation libre", () => {
     expect(nodeAt(nodes, { x: 50, y: 50 })).toBeNull();
   });
 });
+
+describe("déformation affine ou tirée (D-4.2-q)", () => {
+  it("une grille au repos ou étirée reste affine ; un coin tiré ne l'est plus", async () => {
+    const { identity, isAffine, moveNode, stretchDeformation } = await import("./deformation");
+    const rest = identity({ center: { x: 0, y: 0 }, width: 200, height: 100, rotation: 30 }, 1, 1);
+    expect(isAffine(rest)).toBe(true);
+    // Dessin tourné de 30° puis étiré en x par la poignée d'un côté (D-4.2-l).
+    expect(isAffine(stretchDeformation(rest, 1.5, 1, Math.sqrt(1.5), { x: -100, y: 0 }))).toBe(true);
+    expect(isAffine(identity(rest.frame, 4, 3))).toBe(true);
+    expect(isAffine(moveNode(rest, 2, { x: 300, y: 300 }))).toBe(false);
+  });
+});

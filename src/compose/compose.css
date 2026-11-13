@@ -245,8 +245,55 @@
   white-space: nowrap;
 }
 
-.compose-mirror {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ui-space-1);
+/* Barre des réglages du dessin posé, sous la barre d'outils (D-4.2-p). */
+.facade-toolbars {
+  display: grid;
+}
+
+.facade-toolbars > .ui-toolbar + .ui-toolbar {
+  min-height: 0;
+  padding-top: var(--ui-space-1);
+  padding-bottom: var(--ui-space-1);
+  font-size: var(--ui-text-sm);
+}
+
+.placement-name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.placement-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.placement-label,
+.placement-height,
+.placement-empty {
+  color: var(--ui-text-secondary);
+}
+
+.placement-empty {
+  margin: 0;
+}
+
+.placement-input {
+  width: 84px;
+}
+
+.placement-select {
+  width: auto;
+  max-width: 200px;
+}
+
+.placement-warning {
+  color: var(--ui-warning);
+}
+
+.placement-hint {
+  color: var(--ui-text-secondary);
 }
