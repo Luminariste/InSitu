@@ -110,6 +110,18 @@ croix sur un point de déformation, flèche à quatre pointes sur un dessin
    garde sa perspective et se déplace, tourne et s'étire d'un bloc.
    Revenir en « 4 coins » : les points sont là où on les avait laissés
    (D-4.2-s).
+9. Points aux flèches (D15-p). En « 4 coins », cliquer un point : il
+   grossit, cœur blanc. ← → ↑ ↓ le déplacent d'un point d'écran, ⇧ + flèche
+   de dix. Échap oublie le point (les flèches redéplacent le dessin), un
+   second Échap revient en Normal. Même chose ailleurs :
+   - Diapositive : cliquer un dessin, puis flèches : il se décale ; cliquer
+     un point bleu de sa grille, puis flèches : le point bouge. Cliquer dans
+     le vide : ← → changent à nouveau de projecteur.
+   - Recalage et Assemblage : cliquer un point (sur la photo ou sur la
+     façade), puis flèches : ce point-là bouge, la photo recalée suit.
+   - Redressement, « coins seuls » : cliquer une poignée, puis flèches (la
+     loupe suit).
+   - Bibliothèque, silhouette : cliquer un point, puis flèches.
 
 ## Calques (tâche 4.3)
 

@@ -17,7 +17,7 @@ import { nodeAt } from "../compose/gesture";
 import type { Placement, Point } from "../compose/placement";
 import { SelectionNode } from "../compose/SelectionNode";
 import { demoLibrary } from "../library/demo";
-import { setViewerCursor, type LayerSpec, type ViewerHandle } from "../viewer";
+import { NudgeSettle, nudged, setViewerCursor, useArrowNudge, type LayerSpec, type ViewerHandle } from "../viewer";
 import { mmToScreen, screenToMm } from "../viewer/geometry";
 import {
   adjustedCenter,
@@ -27,6 +27,7 @@ import {
   drawingAt,
   restAdjustment,
   rotateAdjustment,
+  shiftNodes,
   type AdjustGesture,
 } from "./adjust";
 
@@ -73,6 +74,9 @@ export function useSlideAdjust(options: Options): SlideAdjust {
   /** Un geste est en cours, ou son aperçu recalculé n'est pas encore là. */
   const [pending, setPending] = useState(false);
   const node = useRef<SelectionNode | null>(null);
+  /** Point cliqué : les flèches le déplacent (sans point, elles décalent le dessin). */
+  const [activeNode, setActiveNode] = useState<number | null>(null);
+  const settle = useRef(new NudgeSettle<null>());
 
   const projector = view?.projectorId ?? null;
   const drawings = useMemo(() => view?.drawings ?? [], [view]);
@@ -80,6 +84,8 @@ export function useSlideAdjust(options: Options): SlideAdjust {
   // Le projet fait foi : on oublie l'état local à chaque nouvel état du projet.
   useEffect(() => setLocal(new Map()), [placements]);
   useEffect(() => setSelectedId(null), [projector]);
+  useEffect(() => setActiveNode(null), [selectedId]);
+  useEffect(() => () => settle.current.flush(), []);
   // Un nouvel état de la diapositive (aperçu recalculé) : le bleu s'efface.
   useEffect(() => setPending(false), [view]);
 
@@ -160,10 +166,10 @@ export function useSlideAdjust(options: Options): SlideAdjust {
       outlines: selected ? [adjustedOutline(selected, adjustment)] : [],
       frame: null,
       marquee: null,
-      mesh: adjustment ? { lines: meshLines(adjustment), nodes: nodePoints(adjustment) } : null,
+      mesh: adjustment ? { lines: meshLines(adjustment), nodes: nodePoints(adjustment), active: activeNode } : null,
     });
     viewer.current?.scene()?.invalidate();
-  }, [selected, adjustment, viewer, layers]);
+  }, [selected, adjustment, viewer, layers, activeNode]);
 
   const save = (placement: string, next: Deformation | null) => {
     setLocal((m) => new Map(m).set(placement, next));
@@ -206,14 +212,38 @@ export function useSlideAdjust(options: Options): SlideAdjust {
     return { screen, mm: screenToMm(v, viewport, screen), toScreen: (p: Point) => mmToScreen(v, viewport, p) };
   };
 
+  // Flèches : le point choisi bouge d'un point d'écran (dix avec ⇧) ; sans
+  // point choisi, tout le dessin se décale dans cette diapositive.
+  useArrowNudge(selected !== null, (step) => {
+    const zoom = viewer.current?.scene()?.getView().zoom;
+    if (!selected || !zoom) return false;
+    const before = adjustment ?? restAdjustment(selected, 1, 1);
+    if (!before) return false;
+    const nodes = nodePoints(before);
+    const next =
+      adjustment && activeNode !== null && activeNode < nodes.length
+        ? applyAdjustGesture(
+            { kind: "node", start: nodes[activeNode], before, index: activeNode, origin: nodes[activeNode] },
+            nudged(nodes[activeNode], step, zoom),
+          )
+        : shiftNodes(before, step.x / zoom, step.y / zoom);
+    const id = selected.placement;
+    setLocal((m) => new Map(m).set(id, next));
+    setPending(true);
+    settle.current.push(null, () => save(id, next));
+    return true;
+  });
+
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
     const at = pointerAt(event);
     if (!at) return;
+    settle.current.flush();
     let gesture: AdjustGesture | null = null;
     if (selected && adjustment) {
       const nodes = nodePoints(adjustment);
       const index = nodeAt(nodes.map(at.toScreen), at.screen);
+      setActiveNode(index);
       if (index !== null) gesture = { kind: "node", start: at.mm, before: adjustment, index, origin: nodes[index] };
     }
     if (!gesture) {
@@ -272,8 +302,8 @@ export function useSlideAdjust(options: Options): SlideAdjust {
 
   const hint = selected
     ? adjustment
-      ? "Glisser un point bleu : retoucher · glisser le dessin : le décaler dans cette diapositive"
-      : "Glisser le dessin pour le décaler dans cette diapositive, ou choisir une grille"
+      ? "Glisser un point bleu : retoucher (ou le cliquer puis flèches) · glisser le dessin ou flèches : le décaler · ⇧ : pas plus grand"
+      : "Glisser le dessin ou flèches (⇧ : pas plus grand) pour le décaler dans cette diapositive, ou choisir une grille"
     : drawings.length > 0
       ? "Cliquer un dessin pour le retoucher dans cette diapositive"
       : "";

@@ -9,10 +9,13 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Pointer
 import type { DrawingSilhouette, SilhouettePolygon } from "../engine";
 import { Button, IconButton, Panel, Section, Segmented, ToolGroup, ToolSeparator, ToolSpacer, Toolbar } from "../ui";
 import { classifyWheel, wheelZoomFactor } from "../viewer/geometry";
+import { arrowStep } from "../viewer/nudge";
+import { isTextEntry } from "../ui/shortcuts";
 import {
   edgeAt,
   insertVertex,
   moveVertex,
+  nudgeVertex,
   polygonsPath,
   removeVertex,
   samePolygons,
@@ -85,6 +88,23 @@ export function SilhouetteEditor(props: Props) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  // Flèches : le point choisi bouge d'un point d'écran (dix avec ⇧). Écouté
+  // avant la grille de la bibliothèque, restée derrière.
+  const nudge = useRef<(event: globalThis.KeyboardEvent) => void>(() => {});
+  nudge.current = (event) => {
+    const step = arrowStep(event);
+    if (!step || !active || !view || !editable || mode !== "contour") return;
+    if (isTextEntry(event.target as HTMLElement | null)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setDraft((current) => nudgeVertex(current, active, step, view.scale, size));
+  };
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent) => nudge.current(event);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, []);
 
   /** Position du pointeur en fractions du dessin. */
   const toDrawing = (clientX: number, clientY: number): [number, number] | null => {
@@ -313,7 +333,7 @@ export function SilhouetteEditor(props: Props) {
           </Section>
           <Section>
             <p className="vc-note">
-              Tirer un point pour le déplacer. Double-clic sur un bord : un point de plus ; ailleurs : un nouveau
+              Tirer un point pour le déplacer, ou le cliquer puis flèches (⇧ : pas plus grand). Double-clic sur un bord : un point de plus ; ailleurs : un nouveau
               contour. ⌥-clic sur un point : le retirer. Molette ou pincement : zoom ; glisser le fond : déplacer.
             </p>
           </Section>

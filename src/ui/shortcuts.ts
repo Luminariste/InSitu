@@ -148,6 +148,13 @@ export const APP_SHORTCUTS: { group: string; items: { keys: ShortcutSpec; label:
     ],
   },
   {
+    group: "Point cliqué (4 coins, retouche, recalage, redressement, silhouette)",
+    items: [
+      { keys: "arrowright", label: "Déplacer le point d'un point d'écran" },
+      { keys: "shift+arrowright", label: "Déplacer le point de dix points d'écran" },
+    ],
+  },
+  {
     group: "Gomme et crayon (Bibliothèque)",
     items: [
       { keys: "e", label: "Gomme" },

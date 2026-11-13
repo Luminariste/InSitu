@@ -201,9 +201,13 @@ export function SlideScreen() {
     };
   }, [engine, folder, view, photos]);
 
-  // Flèches gauche et droite : projecteur précédent ou suivant.
+  // Flèches gauche et droite : projecteur précédent ou suivant, sauf quand
+  // un dessin est choisi (les flèches le décalent alors, D15-p).
+  const drawingChosen = useRef(false);
+  drawingChosen.current = adjust.selected !== null;
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || drawingChosen.current) return;
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
       const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
       if (step === 0) return;
@@ -501,7 +505,11 @@ export function SlideScreen() {
               : "Aucun projecteur choisi"}
           </StatusText>
           {adjust.pending && engine && <StatusText>Recalcul de la diapositive…</StatusText>}
-          <StatusText push>{adjust.hint ? `${adjust.hint} · ` : ""}← → : projecteur précédent ou suivant</StatusText>
+          <StatusText push>
+            {adjust.selected
+              ? `${adjust.hint} · cliquer dans le vide : ← → changent de projecteur`
+              : `${adjust.hint ? `${adjust.hint} · ` : ""}← → : projecteur précédent ou suivant`}
+          </StatusText>
         </StatusBar>
       }
     >
