@@ -35,6 +35,11 @@ interface LayerBase {
    * d'un dessin devient transparent, ses traits blancs restent.
    */
   blend?: LayerBlend;
+  /**
+   * Négatif : le noir devient blanc et le blanc noir (plan d'architecte en
+   * traits blancs sur fond noir). Calques tuilés seulement.
+   */
+  invert?: boolean;
 }
 
 /** Grande image affichée par tuiles. */

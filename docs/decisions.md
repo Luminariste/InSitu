@@ -4,6 +4,47 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-13 — Options d'affichage et rangement des menus (demande de Benjamin)
+
+Demande de Benjamin (13 novembre) : « retouche dessin et silhouette : garde
+option noir / damier pierre » ; « ajouter montrer/cacher le plan, la
+fresque, inverser les couleurs etc. » ; « barre menu : remplacer plan et
+assembler photo dans onglet plan ».
+
+**D15-l. Un menu Affichage dans la barre d'outils de la Façade.** Il range,
+à droite avec « Tout voir », ce qui change la façon de regarder sans changer
+le projet : montrer le plan, la fresque, les dessins posés, les photos, les
+emprises, les recouvrements (ces trois derniers sont les mêmes cases que le
+panneau Projecteurs) ; plan en négatif ; tout en négatif. Choix :
+- *« Inverser les couleurs » est lu de deux façons*, les deux sont offertes :
+  le plan seul en négatif (filtre de couleur PixiJS sur son calque, à la
+  finesse de l'écran : traits blancs sur noir, comme les dessins), et toute
+  la vue en négatif (filtre CSS sur la toile, avec rotation de teinte pour
+  garder la teinte des repères : fond blanc, traits noirs, comme dans
+  Illustrator). À confirmer par Benjamin.
+- *Des dessins cachés ne se touchent pas* : ni sélection, ni outils, ni
+  pose (message dans l'onglet Dessins), pour ne jamais modifier ce qu'on ne
+  voit pas. Leurs contours et le cadre de sélection sont cachés aussi.
+- *Rien n'est écrit dans le projet ni dans l'export* : les choix sont retenus
+  dans l'app (`localStorage`, comme l'onglet choisi, D15-i). La case
+  « Montrer sur la façade » de la fresque (onglet Plan) est le même réglage.
+- Pas de raccourci clavier pour l'instant : à ajouter si Benjamin s'en sert
+  souvent.
+
+**D15-m. Le plan et l'assemblage de photos s'ouvrent depuis l'onglet Plan.**
+« Importer un plan… » (ou « Remplacer le plan… », ⌘I inchangé) et
+« Assembler des photos… » quittent la barre d'outils pour le haut de
+l'onglet Plan du panneau de droite : la barre ne garde que les outils des
+dessins (D15-j) et l'affichage.
+
+**D15-n. Un seul fond pour la bibliothèque et ses éditeurs.** Le choix
+noir, damier ou pierre est dans la barre de la bibliothèque et dans celle
+de chaque éditeur ouvert par-dessus (gomme et crayon, silhouette,
+comparaison des vecteurs), qui la cachent ; c'est le même réglage, retenu
+d'un lancement à l'autre (`src/library/backdrop.ts`). Le « Résultat » de la
+silhouette suit le fond choisi, sauf le noir, où la silhouette noire ne se
+verrait pas : fond rayé.
+
 ## 2026-11-12 — Essai du 13 novembre : sens de la nouvelle mire
 
 **D-essai-a. Le sens de la mire version 2 se lit sur ses repères codés.**

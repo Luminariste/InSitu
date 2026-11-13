@@ -22,7 +22,8 @@ marquée laisse de petits décalages dans les recouvrements.
 
 ## Dans l'app
 
-1. Écran **Façade**, bouton **« Assembler des photos… »** dans la barre.
+1. Écran **Façade**, panneau de droite, onglet **Plan** : bouton
+   **« Assembler des photos… »**, à côté de « Importer un plan… ».
 2. **« Ajouter des photos… »** : on peut en choisir plusieurs d'un coup.
    La première est la **référence** (l'image assemblée est dans son
    repère) ; l'ordre des autres n'a pas d'importance.

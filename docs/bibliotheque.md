@@ -21,7 +21,9 @@ sur la façade à l'étape suivante (placement, tâche 4.2).
    mer » trouve `Oiseaux/Mer/goéland`).
 5. **Fond** : le noir des dessins est rendu transparent. Damier, noir ou
    pierre montrent ce qu'il y a derrière ; sur le noir, le dessin est tel que
-   dans son fichier.
+   dans son fichier. Le même choix se retrouve dans la barre de la gomme et
+   du crayon, de la retouche de silhouette et de la comparaison des
+   vecteurs ; il est retenu d'un lancement à l'autre.
 6. Les flèches du clavier passent d'un dessin à l'autre (cliquer d'abord
    dans les vignettes).
 7. **Retirer de la bibliothèque…** (en bas de l'inspecteur, ou ⌫) : après
@@ -85,8 +87,9 @@ contour en rouge :
   contour carré, à façonner ;
 - ⌥-clic sur un point : le retirer (un contour de moins de trois points
   disparaît) ;
-- **Résultat** montre la silhouette en noir sous le dessin, sur un fond
-  rayé : ce qui est rayé reste visible ;
+- **Résultat** montre la silhouette en noir sous le dessin, sur le fond
+  choisi (damier ou pierre ; sur le noir, un fond rayé) : ce qui reste
+  visible du fond n'est pas caché ;
 - **Enregistrer** écrit la silhouette dans le projet ; **Détecter à
   nouveau** oublie les retouches ; **Aucune silhouette** (puis Enregistrer)
   : le dessin ne cache plus rien.
