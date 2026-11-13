@@ -1875,6 +1875,42 @@ pose à la main) ; il a choisi **l'ajustement seul**. Étude :
 - Commande : `insitu registration adjust <projet> <projecteur>
   [paires.json]`, Tauri `registration_adjust` (part des paires affichées).
 
+**D-3.2-j. Points sûrs libres ; « Ajuster sur le plan » retiré de l'écran
+pour l'instant.** Retours de Benjamin (13 novembre 2026) : l'ajustement
+« tombe toujours à côté » avec le plan détaillé (`PlanBase-2`), et poser
+quatre coins contredit l'usage, car ses points sûrs « ne sont pas forcément
+dans un quadrilatère » (groupés, alignés…).
+
+- **Les quatre coins** posés par « Poser la photo » (paires tenues par un
+  coin de la diapositive) **ne sont qu'un guide**. Les autres paires sont
+  les **points sûrs**, posés n'importe où sur la photo. Quand un point sûr
+  est posé, glissé, poussé aux flèches ou supprimé, les coins guides sont
+  recalculés pour s'accorder avec lui, selon ce que les points sûrs
+  permettent de décider :
+  - 1 point : la photo glisse ;
+  - 2 points, ou plus mais alignés : elle glisse, tourne et change
+    d'échelle, et garde la forme du guide ;
+  - 3 points, ou plus mais peu étalés (écart type < 25 mm de diapositive
+    sur l'axe le plus mince, ≥ 15 mm) : transformation affine ;
+  - 4 points bien étalés (écart type ≥ 25 mm sur les deux axes) : la forme
+    vient des seuls points sûrs (homographie aux moindres carrés), et les
+    coins guides s'y posent.
+  Glisser un coin guide le bouge seul, comme avant. Les coins restent des
+  paires ordinaires dans `projet.json` (aucun nouveau champ), toujours
+  d'accord avec les points sûrs : ils ne les tirent plus en arrière.
+  Logique : `followPins` dans `src/registration/logic.ts`.
+- **« Ajuster sur le plan » est caché** (`ADJUST_SHOWN`). Le moteur
+  (`registration/auto.rs`) et `insitu registration adjust` restent. Trois
+  autres méthodes ont été essayées sur les photos A, C, D de Trévarez avec
+  le plan détaillé, sans succès (1 à 4 m d'écart, même en partant de la
+  bonne place) : chamfer des lignes horizontales et verticales, lignes
+  isolées (hachures retirées), contours d'une densité d'encre floutée. Les
+  hachures du toit et les rangs de briques du plan, la photo sombre (grille
+  de la mire, matériel devant le mur) brouillent la comparaison. Détails :
+  `docs/etudes/recalage-automatique.md`. Choix de Benjamin (carte de décision,
+  13 novembre 2026, parmi retirer, garder en petit coup de pouce ou
+  continuer à chercher) : **le retirer pour l'instant**.
+
 ## 2026-11-12 — Tâche 2.5
 
 Écran de redressement : `src/rectification/`, module

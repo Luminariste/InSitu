@@ -184,9 +184,10 @@ export function cornerName(pair: RegistrationPair): string | null {
   return k < 0 ? null : `Coin ${CORNER_NAMES[k]}`;
 }
 
-/** Nom d'un point dans la liste : « Coin bas-droit » ou « Point 5 ». */
+/** Nom d'un point dans la liste : « Coin bas-droit (guide) » ou « Point 5 ». */
 export function pairTitle(pairs: RegistrationPair[], index: number): string {
-  return cornerName(pairs[index]) ?? `Point ${index + 1}`;
+  const corner = cornerName(pairs[index]);
+  return corner ? `${corner} (guide)` : `Point ${index + 1}`;
 }
 
 /** Une zone rectangulaire de la façade, en mm. */
@@ -362,4 +363,246 @@ function homography(src: XYPoint[], dst: XYPoint[]): number[] | null {
     }
   }
   return a.map((row, r) => row[8] / row[r]);
+}
+
+/**
+ * Bouton « Ajuster sur le plan » montré ou non. Retiré pour l'instant
+ * (D-3.2-j) : sur les photos de Trévarez et le plan détaillé, aucun calcul
+ * essayé ne tombait juste. Le moteur et `insitu registration adjust` restent.
+ */
+export const ADJUST_SHOWN = false;
+
+// --- Points sûrs libres (D-3.2-j) ------------------------------------------
+//
+// Les quatre coins posés par « Poser la photo » (ou rendus par l'ajustement)
+// ne sont qu'un guide : ils donnent la forme de départ. Les autres paires
+// sont les points sûrs de l'utilisateur, posés n'importe où, même groupés
+// ou alignés. Quand un point sûr bouge, les coins guides suivent, avec ce
+// que les points sûrs permettent de décider :
+// - 1 point : la photo glisse ;
+// - 2 points (ou plus, mais alignés) : elle glisse, tourne et change d'échelle ;
+// - 3 points (ou plus, mais peu étalés) : elle se penche aussi ;
+// - 4 points bien étalés : la forme vient des seuls points sûrs.
+// Les coins guides restent des paires (le moteur n'en sait rien), toujours
+// d'accord avec les points sûrs : ils ne les tirent plus en arrière.
+
+/** Écart type, en mm de diapositive, en dessous duquel des points sont dits alignés. */
+export const PIN_LINE_MM = 15;
+/** Écart type, en mm de diapositive, au-delà duquel 4 points sûrs décident seuls de la forme. */
+export const PIN_SPREAD_MM = 25;
+
+/** Vrai pour un coin guide (paire tenue par un coin de la diapositive). */
+export function isGuide(pair: RegistrationPair): boolean {
+  return cornerName(pair) !== null;
+}
+
+/** Ce que les points sûrs décident, du moins au plus. */
+export type PinFit = "aucun" | "glisse" | "similitude" | "affine" | "libre";
+
+/** Étalement des points (écarts types sur les deux axes principaux, du plus grand au plus petit). */
+function spread(points: XYPoint[]): [number, number] {
+  const n = points.length;
+  const mx = points.reduce((s, p) => s + p.x, 0) / n;
+  const my = points.reduce((s, p) => s + p.y, 0) / n;
+  let sxx = 0;
+  let syy = 0;
+  let sxy = 0;
+  for (const p of points) {
+    sxx += (p.x - mx) ** 2;
+    syy += (p.y - my) ** 2;
+    sxy += (p.x - mx) * (p.y - my);
+  }
+  sxx /= n;
+  syy /= n;
+  sxy /= n;
+  const t = (sxx + syy) / 2;
+  const d = Math.sqrt(Math.max(0, ((sxx - syy) / 2) ** 2 + sxy ** 2));
+  return [Math.sqrt(Math.max(0, t + d)), Math.sqrt(Math.max(0, t - d))];
+}
+
+/** Ce que des points sûrs posés à ces endroits de la photo permettent de décider. */
+export function pinFit(slidePoints: XYPoint[]): PinFit {
+  const n = slidePoints.length;
+  if (n === 0) return "aucun";
+  const [long, thin] = spread(slidePoints);
+  if (n >= 4 && thin >= PIN_SPREAD_MM) return "libre";
+  if (n >= 3 && thin >= PIN_LINE_MM) return "affine";
+  if (n >= 2 && long >= 1) return "similitude";
+  return "glisse";
+}
+
+/**
+ * Les coins guides recalculés pour suivre les points sûrs (voir plus haut).
+ * Rien ne change s'il n'y a pas exactement quatre coins guides, ou aucun
+ * point sûr.
+ */
+export function followPins(pairs: RegistrationPair[]): RegistrationPair[] {
+  const guides = pairs.map((p, i) => (isGuide(p) ? i : -1)).filter((i) => i >= 0);
+  const pins = pairs.filter((p) => !isGuide(p));
+  if (guides.length !== 4 || pins.length === 0) return pairs;
+  const fit = pinFit(pins.map((p) => p.slide));
+  let place: ((slide: XYPoint, facade: XYPoint) => XYPoint) | null = null;
+  if (fit === "libre") {
+    const h = homographyLeastSquares(
+      pins.map((p) => p.slide),
+      pins.map((p) => p.facade),
+    );
+    if (h) place = (slide) => applyHomography(h, slide);
+  }
+  if (!place) {
+    const h0 = homography(
+      guides.map((i) => pairs[i].slide),
+      guides.map((i) => pairs[i].facade),
+    );
+    if (!h0) return pairs;
+    const from = pins.map((p) => applyHomography(h0, p.slide));
+    const to = pins.map((p) => p.facade);
+    const t = fit === "affine" || fit === "libre" ? affineFit(from, to) : fit === "similitude" ? similarityFit(from, to) : null;
+    const shift = translationFit(from, to);
+    place = (_, facade) => (t ? t(facade) : { x: facade.x + shift.x, y: facade.y + shift.y });
+  }
+  const move = place;
+  return pairs.map((p) => (isGuide(p) ? { ...p, facade: move(p.slide, p.facade) } : p));
+}
+
+function applyHomography(h: number[], p: XYPoint): XYPoint {
+  const w = h[6] * p.x + h[7] * p.y + 1;
+  return { x: (h[0] * p.x + h[1] * p.y + h[2]) / w, y: (h[3] * p.x + h[4] * p.y + h[5]) / w };
+}
+
+function translationFit(from: XYPoint[], to: XYPoint[]): XYPoint {
+  const n = from.length;
+  return {
+    x: to.reduce((s, p) => s + p.x, 0) / n - from.reduce((s, p) => s + p.x, 0) / n,
+    y: to.reduce((s, p) => s + p.y, 0) / n - from.reduce((s, p) => s + p.y, 0) / n,
+  };
+}
+
+/** Similitude (glisse, rotation, échelle) au sens des moindres carrés. */
+function similarityFit(from: XYPoint[], to: XYPoint[]): ((p: XYPoint) => XYPoint) | null {
+  const n = from.length;
+  const fx = from.reduce((s, p) => s + p.x, 0) / n;
+  const fy = from.reduce((s, p) => s + p.y, 0) / n;
+  const tx = to.reduce((s, p) => s + p.x, 0) / n;
+  const ty = to.reduce((s, p) => s + p.y, 0) / n;
+  let num_a = 0;
+  let num_b = 0;
+  let den = 0;
+  for (let k = 0; k < n; k++) {
+    const ux = from[k].x - fx;
+    const uy = from[k].y - fy;
+    const vx = to[k].x - tx;
+    const vy = to[k].y - ty;
+    num_a += ux * vx + uy * vy;
+    num_b += ux * vy - uy * vx;
+    den += ux * ux + uy * uy;
+  }
+  if (den < 1e-9) return null;
+  const a = num_a / den;
+  const b = num_b / den;
+  return (p) => ({ x: tx + a * (p.x - fx) - b * (p.y - fy), y: ty + b * (p.x - fx) + a * (p.y - fy) });
+}
+
+/** Transformation affine au sens des moindres carrés. */
+function affineFit(from: XYPoint[], to: XYPoint[]): ((p: XYPoint) => XYPoint) | null {
+  const rows = from.map((p) => [p.x, p.y, 1]);
+  const ata = [0, 1, 2].map((i) => [0, 1, 2].map((j) => rows.reduce((s, r) => s + r[i] * r[j], 0)));
+  const cx = solve(
+    ata,
+    [0, 1, 2].map((i) => rows.reduce((s, r, k) => s + r[i] * to[k].x, 0)),
+  );
+  const cy = solve(
+    ata,
+    [0, 1, 2].map((i) => rows.reduce((s, r, k) => s + r[i] * to[k].y, 0)),
+  );
+  if (!cx || !cy) return null;
+  return (p) => ({ x: cx[0] * p.x + cx[1] * p.y + cx[2], y: cy[0] * p.x + cy[1] * p.y + cy[2] });
+}
+
+/** Homographie au sens des moindres carrés (4 points ou plus), ou rien si elle est dégénérée. */
+function homographyLeastSquares(src: XYPoint[], dst: XYPoint[]): number[] | null {
+  // Coordonnées ramenées autour de 0 pour un calcul bien conditionné.
+  const norm = (pts: XYPoint[]) => {
+    const n = pts.length;
+    const mx = pts.reduce((s, p) => s + p.x, 0) / n;
+    const my = pts.reduce((s, p) => s + p.y, 0) / n;
+    const d = pts.reduce((s, p) => s + Math.hypot(p.x - mx, p.y - my), 0) / n || 1;
+    return { mx, my, k: Math.SQRT2 / d };
+  };
+  const ns = norm(src);
+  const nd = norm(dst);
+  const rows: number[][] = [];
+  const rhs: number[] = [];
+  src.forEach((p, i) => {
+    const x = (p.x - ns.mx) * ns.k;
+    const y = (p.y - ns.my) * ns.k;
+    const u = (dst[i].x - nd.mx) * nd.k;
+    const v = (dst[i].y - nd.my) * nd.k;
+    rows.push([x, y, 1, 0, 0, 0, -u * x, -u * y]);
+    rhs.push(u);
+    rows.push([0, 0, 0, x, y, 1, -v * x, -v * y]);
+    rhs.push(v);
+  });
+  const ata = [...Array(8).keys()].map((i) => [...Array(8).keys()].map((j) => rows.reduce((s, r) => s + r[i] * r[j], 0)));
+  const atb = [...Array(8).keys()].map((i) => rows.reduce((s, r, k) => s + r[i] * rhs[k], 0));
+  const g = solve(ata, atb);
+  if (!g) return null;
+  // Retour aux coordonnées d'origine : H = Td⁻¹ · G · Ts.
+  const G = [
+    [g[0], g[1], g[2]],
+    [g[3], g[4], g[5]],
+    [g[6], g[7], 1],
+  ];
+  const Ts = [
+    [ns.k, 0, -ns.k * ns.mx],
+    [0, ns.k, -ns.k * ns.my],
+    [0, 0, 1],
+  ];
+  const TdInv = [
+    [1 / nd.k, 0, nd.mx],
+    [0, 1 / nd.k, nd.my],
+    [0, 0, 1],
+  ];
+  const mul = (a: number[][], b: number[][]) => a.map((r) => [0, 1, 2].map((j) => r[0] * b[0][j] + r[1] * b[1][j] + r[2] * b[2][j]));
+  const H = mul(TdInv, mul(G, Ts));
+  if (Math.abs(H[2][2]) < 1e-12) return null;
+  const h = H.flat().map((v) => v / H[2][2]);
+  return h.every(Number.isFinite) ? h.slice(0, 8) : null;
+}
+
+/** Résout le système carré `a · x = b` (pivot de Gauss), ou rien s'il est singulier. */
+function solve(a: number[][], b: number[]): number[] | null {
+  const n = b.length;
+  const m = a.map((row, i) => [...row, b[i]]);
+  for (let c = 0; c < n; c++) {
+    let pivot = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(m[r][c]) > Math.abs(m[pivot][c])) pivot = r;
+    if (Math.abs(m[pivot][c]) < 1e-12) return null;
+    [m[c], m[pivot]] = [m[pivot], m[c]];
+    for (let r = 0; r < n; r++) {
+      if (r === c) continue;
+      const f = m[r][c] / m[c][c];
+      for (let k = c; k <= n; k++) m[r][k] -= f * m[c][k];
+    }
+  }
+  return m.map((row, r) => row[n] / row[r]);
+}
+
+/** Phrase qui dit ce que les points sûrs commandent, sous les boutons. */
+export function pinFitText(pairs: RegistrationPair[]): string {
+  const pins = pairs.filter((p) => !isGuide(p));
+  const guides = pairs.length - pins.length;
+  if (guides !== 4) return "";
+  switch (pinFit(pins.map((p) => p.slide))) {
+    case "aucun":
+      return "Aucun point sûr : la photo tient par ses coins guides.";
+    case "glisse":
+      return "1 point sûr : la photo glisse pour le suivre.";
+    case "similitude":
+      return `${pins.length} points sûrs${pins.length > 2 ? " presque alignés" : ""} : la photo glisse, tourne et change de taille ; sa forme vient des coins guides.`;
+    case "affine":
+      return `${pins.length} points sûrs : la photo se penche aussi ; il en faut 4 bien répartis pour qu'elle se déforme librement.`;
+    case "libre":
+      return `${pins.length} points sûrs bien répartis : la forme de la photo ne dépend plus que d'eux ; les coins guides suivent.`;
+  }
 }

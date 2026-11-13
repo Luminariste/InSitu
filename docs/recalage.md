@@ -17,54 +17,50 @@ de fenêtre, le pied d'une colonne, la pointe d'un arc… visibles sur les deux.
    la photo redressée apparaît au milieu de la vue de la façade, en
    transparence, avec un rond à chaque coin et une poignée au centre.
    Astuce : cadrer d'abord la vue de la façade sur la zone du projecteur,
-   la photo s'y pose. Ensuite, « Ajuster sur le plan » la cale (voir
-   plus bas).
+   la photo s'y pose.
 3. **Glisser la poignée du centre** pour amener la photo à peu près à sa
-   place, puis **glisser chaque coin** jusqu'à ce que les fenêtres, les
-   arcs, les bandeaux de la photo tombent sur ceux du plan. La photo suit
-   en direct.
-4. **Affiner** : là où la photo et le plan ne coïncident pas encore,
-   **attraper un détail de la photo** (un coin de fenêtre) sur la vue de la
-   façade, et le **lâcher sur le même détail du plan**. Chaque détail ainsi
-   posé devient un point (numéroté des deux côtés) ; la photo se plie pour
-   le suivre, sans bouger ailleurs. Mettre de préférence des points
-   répartis sur toute la photo.
+   place, et au besoin **glisser les coins**. Les coins ne sont qu'un
+   **guide** de départ.
+4. **Caler par des points sûrs** : sur la vue de la façade, **attraper un
+   détail sûr de la photo** (coin de fenêtre, pointe d'un arc…) et le
+   **lâcher sur le même détail du plan**. Il devient un point (numéroté des
+   deux côtés). Les points sûrs se posent **où l'on veut**, même groupés
+   ou alignés : les coins guides les suivent.
+   - 1 point : la photo glisse pour le suivre ;
+   - 2 points (ou des points alignés, par exemple le long d'une corniche) :
+     elle tourne et change aussi de taille, sans se déformer ;
+   - 3 points : elle se penche aussi ;
+   - 4 points bien répartis : sa forme ne dépend plus que d'eux.
+   Une phrase sous les boutons dit où l'on en est. Au-delà, chaque point
+   en plus corrige le relief (façade pas plate).
 5. Pour déplacer la vue pendant ce travail : **barre d'espace + glisser**
    (comme dans Illustrator), ou défilement à deux doigts sur le pavé
    tactile. ⌘0 recadre les deux vues.
 
-Tout est enregistré au lâcher. Un point (coin compris) se corrige en le
-glissant à nouveau, se supprime par la corbeille de sa ligne ou ⌫.
-
-## Dans l'app : ajuster sur le plan
-
-Une fois la photo posée à peu près à sa place (ci-dessus, étapes 2 et 3),
-**Ajuster sur le plan** (panneau de droite) la cale sur les lignes du plan :
-fenêtres, arcs, bord du toit. Au bout d'une ou deux secondes, la photo
-bouge et les quatre coins sont enregistrés ; un message dit de combien un
-coin a bougé au plus. Si ce n'est pas mieux : **Annuler l'ajustement**.
-
-- Ça marche quand la pose à la main est à moins d'un mètre environ de la
-  bonne place ; plus loin, une travée voisine qui se ressemble peut
-  l'emporter.
-- La photo reste un trapèze (façade supposée plate) : épingler ensuite des
-  détails là où la façade se plie.
-- Les détails déjà épinglés sont remplacés par les quatre coins ajustés.
+Tout est enregistré au lâcher, et chaque geste s'annule seul par ⌘Z. Un
+point (coin compris) se corrige en le glissant à nouveau, se supprime par
+la corbeille de sa ligne ou ⌫. ⌘Z pendant qu'on glisse un point remet ce
+point où il était, sans rien annuler d'autre.
 
 ### Essai sur le Mac (à faire par Benjamin)
 
-1. Projet Trévarez, étape Recalage, projecteur **A**. Si la photo a des
-   points, la poser à peu près (sinon « Poser la photo sur la façade » puis
-   la glisser sur la façade du haut).
-2. **Ajuster sur le plan**. Attendu : en quelques secondes, la photo se
-   cale ; le bord de l'avant-toit et le bandeau de la photo tombent sur ceux
-   du plan. Un message vert dit de combien elle a bougé.
-3. **Annuler l'ajustement** : la photo revient où elle était. Puis ajuster
-   de nouveau.
-4. Même chose avec **B** (l'arc central), en partant d'une pose décalée
-   d'un demi-mètre environ.
-5. Dire combien de temps dure l'ajustement, et s'il rate (pose à la main
-   de départ, ce qui s'est passé).
+1. Projet Trévarez, étape Recalage, projecteur **D**. Supprimer ses points
+   (ils la posent sur l'aile droite, alors qu'elle montre la façade du
+   haut), puis **Poser la photo sur la façade** et la glisser vers les
+   fenêtres de 29 à 33 m.
+2. Attraper sur la photo la clé de la fenêtre du milieu et la lâcher sur
+   celle du plan. Attendu : toute la photo glisse, sans se déformer.
+3. Attraper un deuxième détail sur la même corniche (alignée avec le
+   premier) et le lâcher sur le plan. Attendu : la photo tourne et change
+   de taille, sans se pencher ni se tordre.
+4. Poser deux autres points loin de la corniche (bas des fenêtres, coin du
+   mur). Attendu : avec 4 points bien répartis, la photo prend la forme
+   qu'ils donnent ; la phrase sous les boutons le dit.
+5. Glisser un point puis, **pendant le glisser**, ⌘Z : le point revient,
+   rien d'autre n'est annulé. Après le lâcher, ⌘Z annule ce seul geste.
+
+« Ajuster sur le plan » n'est plus montré pour l'instant (D-3.2-j) : sur
+les photos de Trévarez et le plan détaillé, il tombait à côté.
 
 ## Dans l'app : point par point
 
