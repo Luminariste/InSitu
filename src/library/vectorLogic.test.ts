@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_VECTOR_SETTINGS, type VectorSummary } from "../engine";
-import { deviationVerdict, draftOf, fitView, isDefault, parseDraft, scaleLabel, vectorLine, zoomAt } from "./vectorLogic";
+import { deviationVerdict, draftOf, fitView, isDefault, parseDraft, scaleLabel, sliderText, vectorLine, zoomAt } from "./vectorLogic";
 
 function summary(maxDeviationPx: number): VectorSummary {
   return {
@@ -43,8 +43,16 @@ describe("réglages saisis", () => {
     expect("settings" in parsed && isDefault(parsed.settings)).toBe(true);
   });
   it("accepte la virgule et le point", () => {
-    const parsed = parseDraft({ threshold: "200", tolerancePx: "1.5", cornerAngleDeg: "45", minAreaPx: "2,5" });
-    expect(parsed).toEqual({ settings: { threshold: 200, tolerancePx: 1.5, cornerAngleDeg: 45, minAreaPx: 2.5 } });
+    const parsed = parseDraft({ threshold: "200", tolerancePx: "1.5", cornerAngleDeg: "45", minAreaPx: "2,5", smoothingPx: "3,5" });
+    expect(parsed).toEqual({ settings: { threshold: 200, tolerancePx: 1.5, cornerAngleDeg: 45, minAreaPx: 2.5, smoothingPx: 3.5 } });
+  });
+  it("un lissage vide vaut 0, et 0 reste le réglage par défaut", () => {
+    const parsed = parseDraft({ ...draftOf(DEFAULT_VECTOR_SETTINGS), smoothingPx: "" });
+    expect("settings" in parsed && parsed.settings.smoothingPx).toBe(0);
+    expect("settings" in parsed && isDefault(parsed.settings)).toBe(true);
+    // Un dessin enregistré sans lissage (champ absent) est au défaut.
+    const { smoothingPx: _unused, ...withoutSmoothing } = DEFAULT_VECTOR_SETTINGS;
+    expect(isDefault(withoutSmoothing)).toBe(true);
   });
   it("refuse ce que le moteur refuserait", () => {
     const base = draftOf(DEFAULT_VECTOR_SETTINGS);
@@ -55,9 +63,22 @@ describe("réglages saisis", () => {
       { ...base, tolerancePx: "" },
       { ...base, cornerAngleDeg: "180" },
       { ...base, minAreaPx: "-1" },
+      { ...base, smoothingPx: "-1" },
+      { ...base, smoothingPx: "21" },
     ]) {
       expect("error" in parseDraft(wrong)).toBe(true);
     }
+  });
+});
+
+describe("curseurs", () => {
+  it("écrit la valeur sans zéros inutiles", () => {
+    expect(sliderText(0.35)).toBe("0,35");
+    expect(sliderText(0.3)).toBe("0,3");
+    expect(sliderText(2)).toBe("2");
+    expect(sliderText(10)).toBe("10");
+    expect(sliderText(128)).toBe("128");
+    expect(sliderText(0)).toBe("0");
   });
 });
 

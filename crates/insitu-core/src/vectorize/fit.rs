@@ -49,6 +49,53 @@ pub(crate) struct FitParams {
     pub corner_cos: f64,
 }
 
+/// Lisse un contour fermé : moyenne gaussienne des points voisins le long
+/// du contour, d'écart type `sigma` (en points, soit à peu près en pixels :
+/// les points du contour brut sont espacés d'environ un pixel), corrigée
+/// pour ne pas rétrécir les courbes (« twicing » : 2G − G∘G, qui garde
+/// les grandes formes et efface les petites ondulations). Un contour trop
+/// court pour la fenêtre est lissé sur sa propre longueur.
+pub(crate) fn smooth_closed(points: &[Point], sigma: f64) -> Vec<Point> {
+    let n = points.len();
+    if sigma <= 0.0 || n < 5 {
+        return points.to_vec();
+    }
+    let once = gaussian_closed(points, sigma);
+    let twice = gaussian_closed(&once, sigma);
+    once.iter()
+        .zip(&twice)
+        .map(|(a, b)| Point {
+            x: 2.0 * a.x - b.x,
+            y: 2.0 * a.y - b.y,
+        })
+        .collect()
+}
+
+fn gaussian_closed(points: &[Point], sigma: f64) -> Vec<Point> {
+    let n = points.len();
+    let radius = ((3.0 * sigma).ceil() as usize).min((n - 1) / 2).max(1);
+    let weights: Vec<f64> = (0..=radius)
+        .map(|k| (-((k * k) as f64) / (2.0 * sigma * sigma)).exp())
+        .collect();
+    let total: f64 = weights[0] + 2.0 * weights[1..].iter().sum::<f64>();
+    (0..n)
+        .map(|i| {
+            let mut x = weights[0] * points[i].x;
+            let mut y = weights[0] * points[i].y;
+            for (k, w) in weights.iter().enumerate().skip(1) {
+                let before = points[(i + n - k) % n];
+                let after = points[(i + k) % n];
+                x += w * (before.x + after.x);
+                y += w * (before.y + after.y);
+            }
+            Point {
+                x: x / total,
+                y: y / total,
+            }
+        })
+        .collect()
+}
+
 /// Contour lissé : point de départ, morceaux (le dernier revient au départ),
 /// et écart maximal mesuré pendant l'ajustement.
 pub(crate) fn fit_closed(points: &[Point], params: FitParams) -> (Point, Vec<Segment>, f64) {

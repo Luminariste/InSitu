@@ -4,6 +4,28 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-13 — Vectorisation : lissage et réduction des points (demande de Benjamin)
+
+Demande de Benjamin (13 novembre) : « vectorisation : ajouter paramètre
+lissage, réduction nombre de points ».
+
+**D-5.2-g. Un réglage « Lissage », et la tolérance renommée « Réduction des
+points ».** Le lissage (`smoothingPx`, 0 à 20 px, 0 par défaut, donc rien ne
+change pour les dessins existants) adoucit chaque contour brut avant
+l'ajustement des courbes : moyenne gaussienne des points voisins le long du
+contour (écart type en pixels), corrigée pour ne pas rétrécir les formes
+(« twicing » : 2G − G∘G). Il efface le tremblement du trait et le
+crénelage, et l'ajustement a alors besoin de bien moins de morceaux
+(test : disque au bord tremblé de ± 1,5 px, plus de quatre fois moins de
+morceaux avec un lissage de 6 px, rayon gardé à 0,5 px près). La
+« réduction des points » est la tolérance de 5.1, déjà faite pour ça ; seul
+son nom change dans l'écran. Les deux ont un curseur (comme le seuil). Le
+lissage est absent de `projet.json` quand il vaut 0 et n'entre dans la clé
+du cache que s'il est réglé : les vecteurs déjà calculés restent valables.
+Un lissage éloigne volontairement les courbes de l'image : l'écart mesuré
+passe au rouge, et la phrase le dit. CLI : `--smoothing PX` (`insitu
+vectorize`, `insitu library vectors`).
+
 ## 2026-11-13 — Réglages d'export depuis la Diapositive (demande de Benjamin)
 
 Demande de Benjamin : « dans diapositive > export : il y a la composition
