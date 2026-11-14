@@ -25,6 +25,30 @@ relecture exacte. `insitu projector rotate <projet> <projecteur> [-1|1|2…]`.
 Prouvé par `an_unreadable_grid_is_rectified_by_the_corners_alone`
 (rotation gardée après une nouvelle détection, avec et sans miroir).
 
+## 2026-11-14 — « À cheval » jugé sur le tracé (demande de Benjamin)
+
+Demande de Benjamin : « détections de à cheval : c'est le tracé qui doit
+poser soucis, pas le rectangle de sélection ».
+
+**D-4.5-j. Un dessin n'est « à cheval » que si son tracé dépasse.** Le
+calepinage (`assignments`) reste calculé sur le rectangle du dessin, sans
+lire d'image : c'est lui qui choisit la diapositive, et l'export, la
+fiche, les aperçus donnent tous le même projecteur. Ensuite,
+`shape_assignments` reprend les seuls dessins dont le rectangle dépasse
+(et qui tombent dans une emprise) avec leur silhouette (tâche 4.7, qui
+suit les traits ; retouchée si elle l'a été, sinon détectée et gardée dans
+le cache) : si le tracé tient dans la diapositive, le dessin n'est plus à
+cheval, et ses diapositives candidates sont celles qui contiennent tout
+le tracé. Un dessin sans silhouette compte toujours pour son rectangle.
+Utilisé par l'app (contour rouge, mention « à cheval » de l'arborescence
+et de la barre), les parts perdues en rouge (D-4.5-h, déjà sur la
+silhouette), la vue Diapositive et la simulation ; en ligne de commande,
+`insitu place slides … --cache DOSSIER`. Si le rectangle a choisi une
+diapositive qui coupe le tracé alors qu'une autre le contient en entier,
+la simulation le dit (« … contient tout son tracé : la choisir à la
+main ») ; le choix automatique n'est pas changé, pour ne pas lire les
+silhouettes à chaque export.
+
 ## 2026-11-14 — Choisir les dessins superposés (demande de Benjamin)
 
 Demande de Benjamin (14 novembre) : « j'ai plein de dessins superposés, et
@@ -343,7 +367,7 @@ haut à droite.
 Demande de Benjamin : « dans diapositive > export : il y a la composition
 qui s'affiche (il faudrait des filtres, comme dans façade export) ».
 
-**D-3.5-n. La fresque importée peut ne pas être gravée, et la Diapositive
+**D-3.5-o. La fresque importée peut ne pas être gravée, et la Diapositive
 règle son export.** Nouveau réglage `export.fresco` (oui par défaut, comme
 avant ; absent du fichier quand il vaut oui) : décoché, l'export grave les
 dessins posés seuls, sans la fresque importée en une image (ou PDF, SVG).
@@ -469,7 +493,7 @@ n'exporter que certains projecteurs (`only`, ligne de commande
 Onglet Export de la Façade : choix « Toutes » ou « A seulement » (seuls
 les projecteurs recalés sont proposés ; le bouton dit ce qu'il exporte).
 Étape Diapositive : bouton « Exporter cette diapositive… » (⌘E), avec les
-réglages d'export enregistrés dans le projet (revu par D-3.5-n : une
+réglages d'export enregistrés dans le projet (revu par D-3.5-o : une
 fenêtre les propose maintenant), relus au moment d'exporter
 (on ne règle pas l'export depuis la Diapositive, pour n'avoir qu'un seul
 endroit où le faire). Le choix « une ou toutes » n'est pas gardé dans le

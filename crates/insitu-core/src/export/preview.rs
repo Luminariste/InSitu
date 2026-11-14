@@ -24,7 +24,7 @@ use super::drawings::{slide_rect, DrawingCache, Placing};
 use super::{read_fresco, render_artwork, Artwork, ExportError};
 use crate::library::{black_to_alpha, encode_png};
 use crate::placement::adjust::{slide_drawings_in, SlideDrawing};
-use crate::placement::assign::{assignments, slide_placements_in};
+use crate::placement::assign::{shape_assignments, slide_placements_in};
 use crate::project::model::new_id;
 use crate::project::{ExportSettings, Placement, Project, ProjectDir};
 use crate::registration::slide_to_facade;
@@ -115,7 +115,7 @@ pub fn slide_views_with(
     }
     let mut fresco_image: Option<Raster> = None;
     let placements = project.visible_placements();
-    let assigned = assignments(&project);
+    let assigned = shape_assignments(dir, &project, cache_root);
     let lost = crate::placement::lost::project_lost_parts(dir, &project, &assigned, cache_root)
         .unwrap_or_default();
     let mut cache = DrawingCache::default();

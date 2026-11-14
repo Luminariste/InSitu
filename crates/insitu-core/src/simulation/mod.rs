@@ -26,7 +26,7 @@ use serde::Serialize;
 use crate::export::preview::{slide_views, SLIDE_PREVIEW_SIDE};
 use crate::export::ExportError;
 use crate::geometry::{Point, PointWarp, Transform};
-use crate::placement::assign::{assignments, Assignment};
+use crate::placement::assign::{shape_assignments, Assignment};
 use crate::project::{Placement, PointMm, Project, ProjectDir, RectMm};
 use crate::registration::{footprint, slide_to_facade};
 use crate::tiles::{self, Raster};
@@ -177,17 +177,27 @@ pub fn simulate(dir: &ProjectDir, cache_root: &Path) -> Result<Simulation, Expor
     }
     Ok(Simulation {
         slides,
-        alerts: alerts(&project, &lit),
+        alerts: alerts(
+            &project,
+            &shape_assignments(dir, &project, cache_root),
+            &lit,
+        ),
     })
 }
 
 /// Toutes les alertes : celles des dessins posés, dans l'ordre des
 /// placements, puis la lumière projetée deux fois, couple de projecteurs par
 /// couple de projecteurs.
-pub fn alerts(project: &Project, lit: &HashMap<String, LitSlide>) -> Vec<Alert> {
-    let all = assignments(project);
-    let mut out = drawing_alerts(project, &all);
-    out.extend(doubled_alerts(project, &all, lit));
+///
+/// `all` : les affectations du projet, « à cheval » jugé sur le tracé
+/// (`shape_assignments`, D-4.5-j) ou sur le rectangle (`assignments`).
+pub fn alerts(
+    project: &Project,
+    all: &[Assignment],
+    lit: &HashMap<String, LitSlide>,
+) -> Vec<Alert> {
+    let mut out = drawing_alerts(project, all);
+    out.extend(doubled_alerts(project, all, lit));
     out
 }
 
@@ -273,10 +283,18 @@ fn drawing_alerts(project: &Project, all: &[Assignment]) -> Vec<Alert> {
                         "« {name} » est coupé : aucune diapositive ne le contient en entier ; \
                          {here} n'en projette qu'une partie."
                     )
-                } else {
+                } else if a.manual {
                     format!(
                         "« {name} » dépasse de la diapositive {here}, choisie à la main ; \
                          {} le contient en entier.",
+                        names(&a.candidates)
+                    )
+                } else {
+                    // Le rectangle choisit la diapositive, le tracé juge
+                    // (D-4.5-j) : une autre peut contenir tout le tracé.
+                    format!(
+                        "« {name} » dépasse de la diapositive {here} ; {} contient tout son \
+                         tracé : la choisir à la main.",
                         names(&a.candidates)
                     )
                 };

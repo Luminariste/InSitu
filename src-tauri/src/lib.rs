@@ -795,10 +795,14 @@ fn placement_adjust(
 }
 
 /// La diapositive de chaque dessin posé : proposée par le moteur, ou
-/// choisie à la main (tâche 4.5).
+/// choisie à la main (tâche 4.5) ; « à cheval » jugé sur le tracé (D-4.5-j).
 #[tauri::command(async)]
-fn placements_assignment(folder: String) -> Result<Vec<placement::assign::Assignment>, String> {
-    placement::assign::load_assignments(&project_dir(&folder)?).map_err(|e| e.to_string())
+fn placements_assignment(
+    app: AppHandle,
+    folder: String,
+) -> Result<Vec<placement::assign::Assignment>, String> {
+    placement::assign::load_shape_assignments(&project_dir(&folder)?, &tile_cache_dir(&app)?)
+        .map_err(|e| e.to_string())
 }
 
 /// La part de chaque dessin posé que sa diapositive ne projette pas

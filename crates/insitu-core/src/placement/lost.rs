@@ -18,7 +18,7 @@ use i_overlay::core::overlay_rule::OverlayRule;
 use i_overlay::float::single::SingleFloatOverlay;
 use serde::Serialize;
 
-use super::assign::{assignments, Assignment};
+use super::assign::{shape_assignments, Assignment};
 use crate::library::silhouette::{silhouettes, DrawingSilhouette};
 use crate::library::LibraryError;
 use crate::project::{Placement, PointMm, Project, ProjectDir, SilhouettePolygon};
@@ -50,7 +50,7 @@ pub struct LostPart {
 
 /// La forme du dessin sur la façade : ses polygones de silhouette posés
 /// (ou son rectangle), à remplir « pair-impair ».
-fn shape_on_facade(p: &Placement, polygons: &[SilhouettePolygon]) -> Vec<Vec<[f64; 2]>> {
+pub(super) fn shape_on_facade(p: &Placement, polygons: &[SilhouettePolygon]) -> Vec<Vec<[f64; 2]>> {
     let at = |u: f64, v: f64| {
         let q = p.facade_point(u, v);
         [q.x, q.y]
@@ -171,7 +171,7 @@ pub fn lost_parts(
 /// bibliothèque.
 pub fn load_lost_parts(dir: &ProjectDir, cache_root: &Path) -> Result<Vec<LostPart>, LibraryError> {
     let project = dir.load()?.project;
-    let all = assignments(&project);
+    let all = shape_assignments(dir, &project, cache_root);
     project_lost_parts(dir, &project, &all, cache_root)
 }
 

@@ -838,6 +838,25 @@ fn only_the_silhouette_counts() {
     assert_eq!(lost_area(&parts, "coupe"), 0.0);
     // « ailleurs » : la silhouette entière, 500 × 500 mm.
     assert!((lost_area(&parts, "ailleurs") - 0.25).abs() < 1e-3);
+
+    // « À cheval » se juge aussi sur le tracé (D-4.5-j) : le rectangle de
+    // « coupe » dépasse de A, pas sa silhouette ; le projecteur ne change pas.
+    let by_rect = assign::assignments(&project);
+    let by_shape = assign::shape_assignments(&dir, &project, cache.path());
+    let of = |all: &[assign::Assignment], id: &str| {
+        all.iter().find(|a| a.placement == id).unwrap().clone()
+    };
+    let (rect, shape) = (of(&by_rect, "coupe"), of(&by_shape, "coupe"));
+    assert!(!rect.whole && shape.whole, "{rect:?} {shape:?}");
+    assert_eq!(rect.projector, shape.projector);
+    assert!(shape.candidates.contains(shape.projector.as_ref().unwrap()));
+    // Le dessin hors de toute emprise reste signalé.
+    assert!(!of(&by_shape, "ailleurs").whole);
+    // Sans silhouette, le rectangle compte : de nouveau à cheval.
+    project.library[0].silhouette = Some(Vec::new());
+    dir.save(&project).unwrap();
+    let again = assign::shape_assignments(&dir, &project, cache.path());
+    assert!(!of(&again, "coupe").whole);
 }
 
 /// Un dessin lâché dans la vue Diapositive est posé sur la façade, là où le

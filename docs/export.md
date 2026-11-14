@@ -62,7 +62,7 @@ projet.
 
 **Graver la fresque importée** (seulement si une fresque est importée) :
 décochée, la diapositive ne contient que les dessins posés, sans l'image
-de la fresque (D-3.5-n). Les dessins des calques masqués ne sont jamais
+de la fresque (D-3.5-o). Les dessins des calques masqués ne sont jamais
 gravés.
 
 Compter une quinzaine de secondes par diapositive à 1 400 dpi, un peu plus
