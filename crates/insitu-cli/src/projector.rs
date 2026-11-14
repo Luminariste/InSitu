@@ -46,6 +46,7 @@ fn summary(view: &RectificationView, full: bool) -> String {
         "pxPerMm": view.px_per_mm,
         "seconds": view.seconds,
         "mirror": view.mirror,
+        "rotation": view.rotation,
         "gridUnread": view.grid_unread,
     }))
 }
@@ -115,8 +116,15 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             let (_, view) = mirror_projector(&open(folder)?, key, change).map_err(failed)?;
             Ok(summary(&view, false))
         }
-        ["rotate", folder, key] => {
-            let (_, view) = rotate_projector(&open(folder)?, key).map_err(failed)?;
+        ["rotate", folder, key, rest @ ..] => {
+            let turns = match rest {
+                [] => 1,
+                [n] => n
+                    .parse::<i32>()
+                    .map_err(|_| Problem::Usage(USAGE.to_string()))?,
+                _ => return Err(Problem::Usage(USAGE.to_string())),
+            };
+            let (_, view) = rotate_projector(&open(folder)?, key, turns).map_err(failed)?;
             Ok(summary(&view, false))
         }
         ["show", folder, key, rest @ ..] => {
@@ -181,10 +189,11 @@ Le projecteur est désigné par son identifiant ou par son nom (« A »).
       export et points du recalage. Le même miroir une seconde fois revient
       au départ. Le réglage est gardé si la mire est détectée de nouveau.
 
-  rotate <projet.insitu> <projecteur>
-      Tourne la diapositive d'un quart de tour (sens des aiguilles d'une
-      montre) : pour un redressement par les coins seuls dont le sens est
-      faux. Une nouvelle détection retrouve le sens et oublie ce réglage.
+  rotate <projet.insitu> <projecteur> [quarts de tour]
+      Tourne la diapositive d'un quart de tour (1, par défaut : sens des
+      aiguilles d'une montre ; -1 : sens inverse) : photo redressée, export
+      et points du recalage. Le réglage est gardé si la mire est détectée
+      de nouveau.
 
   show <projet.insitu> <projecteur> [--nodes]
       Relit le redressement enregistré (écarts, couverture, coins dans la

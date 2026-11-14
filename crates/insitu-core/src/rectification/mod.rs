@@ -657,6 +657,7 @@ impl TargetDetection {
                 .collect(),
             residual_mm: Some(self.leave_one_out_mm.mean),
             mirror: Default::default(),
+            rotation: 0,
             extra: Default::default(),
         };
         if self.method == SeedMethod::Corners {

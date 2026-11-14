@@ -33,12 +33,14 @@
    la photo est quand même redressée, par les quatre coins seuls : le bas
    de l'écran le dit en orange, avec la raison. C'est un simple trapèze,
    dont la précision n'est pas mesurée : poser les coins avec soin (loupe)
-   et vérifier la photo redressée. Si ni les petits cercles ni les repères codés ne se voient
-   non plus, le sens peut être faux : **↻ Quart de tour** (à côté du
-   miroir) tourne la photo redressée, autant de fois qu'il faut.
+   et vérifier la photo redressée.
 6. **Miroir** : **↔ Gauche-droite** et **↕ Haut-bas** retournent la photo
    redressée (et donc l'export et les points du recalage) ; un second clic
    annule. Le réglage est gardé si la mire est détectée de nouveau.
+   **Tourner** : **↺ 90° à gauche** et **↻ 90° à droite** tournent la photo
+   redressée d'un quart de tour (export et points du recalage compris),
+   pour la mettre dans le sens de lecture voulu ; le réglage est gardé lui
+   aussi si la mire est détectée de nouveau.
 7. **Exporter…** : la photo redressée en TIFF ou en PNG, à 300, 500, 1 000
    ou 1 400 dpi. La résolution est inscrite dans le fichier : il s'ouvre à
    280 mm dans Illustrator, Photoshop ou LightBurn. L'image est recalculée
@@ -58,7 +60,7 @@ insitu projector add Essai.insitu A
 insitu projector photo Essai.insitu A IMG_1234.HEIC
 insitu projector rectify Essai.insitu A                  # détection automatique
 insitu projector rectify Essai.insitu A --corners 2500,420,2540,2600,750,2610,720,430   # coins dans n'importe quel ordre
-insitu projector rotate Essai.insitu A    # quart de tour (redressement par les coins seuls)
+insitu projector rotate Essai.insitu A    # quart de tour à droite (-1 : à gauche)
 insitu projector show Essai.insitu A                     # relit le résultat enregistré
 insitu projector export Essai.insitu A A.tif --dpi 500
 ```

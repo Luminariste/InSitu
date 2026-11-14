@@ -438,6 +438,7 @@ mod tests {
             points: Vec::new(),
             residual_mm: Some(-1.0),
             mirror: Default::default(),
+            rotation: 0,
             extra: ExtraFields::new(),
         });
         second.registration.push(RegistrationPair::new(

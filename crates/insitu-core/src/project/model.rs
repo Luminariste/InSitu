@@ -559,6 +559,12 @@ pub struct Rectification {
     /// quand la mire est détectée de nouveau. Absent : aucun miroir.
     #[serde(default, skip_serializing_if = "Mirror::is_none")]
     pub mirror: Mirror,
+    /// Quarts de tour de la diapositive dans le sens des aiguilles d'une
+    /// montre (0 à 3), appliqués après le miroir (D-2.5-m) : comme pour le
+    /// miroir, les points en tiennent déjà compte, et le réglage est
+    /// réappliqué quand la mire est détectée de nouveau. Absent : 0.
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub rotation: u8,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }

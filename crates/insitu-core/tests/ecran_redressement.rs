@@ -422,15 +422,53 @@ fn an_unreadable_grid_is_rectified_by_the_corners_alone() {
 
     // Un quart de tour : le coin bas-gauche devient le haut-gauche ; quatre
     // quarts reviennent au départ.
-    let (_, turned) = rotate_projector(&dir, &id).unwrap();
+    let (_, turned) = rotate_projector(&dir, &id, 1).unwrap();
     assert!(distance(turned.corners[0], view.corners[3]) < 0.01);
     assert!(distance(turned.corners[1], view.corners[0]) < 0.01);
     assert!(turned.grid_unread.is_some());
+    assert_eq!(turned.rotation, 1);
     for _ in 0..3 {
-        rotate_projector(&dir, &id).unwrap();
+        rotate_projector(&dir, &id, 1).unwrap();
     }
     let back = projector_view(&dir, &id).unwrap().unwrap();
+    assert_eq!(back.rotation, 0);
     for k in 0..4 {
         assert!(distance(back.corners[k], view.corners[k]) < 0.01);
+    }
+    // Un quart de tour à gauche annule un quart de tour à droite.
+    rotate_projector(&dir, &id, 1).unwrap();
+    let (_, left) = rotate_projector(&dir, &id, -1).unwrap();
+    assert_eq!(left.rotation, 0);
+    for k in 0..4 {
+        assert!(distance(left.corners[k], view.corners[k]) < 0.01);
+    }
+
+    // D-2.5-m : le quart de tour est gardé quand la mire est détectée de
+    // nouveau, seul ou combiné à un miroir posé après lui.
+    let (_, turned) = rotate_projector(&dir, &id, 1).unwrap();
+    let (_, again) = rectify_projector(&dir, &id, Some(corners)).unwrap();
+    assert_eq!(again.rotation, 1);
+    for k in 0..4 {
+        assert!(distance(again.corners[k], turned.corners[k]) < 0.01);
+    }
+    let (_, mirrored) = mirror_projector(
+        &dir,
+        &id,
+        Mirror {
+            horizontal: true,
+            vertical: false,
+        },
+    )
+    .unwrap();
+    let (_, again) = rectify_projector(&dir, &id, Some(corners)).unwrap();
+    assert_eq!(again.mirror, mirrored.mirror);
+    assert_eq!(again.rotation, mirrored.rotation);
+    for k in 0..4 {
+        assert!(
+            distance(again.corners[k], mirrored.corners[k]) < 0.01,
+            "coin {k} : {:?} au lieu de {:?}",
+            again.corners[k],
+            mirrored.corners[k]
+        );
     }
 }

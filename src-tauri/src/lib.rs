@@ -311,13 +311,16 @@ fn projector_mirror(
         .map_err(|e| e.to_string())
 }
 
-/// Tourne la diapositive d'un projecteur d'un quart de tour.
+/// Tourne la diapositive d'un projecteur de `turns` quarts de tour (1 par
+/// défaut, sens horaire ; -1 : sens inverse).
 #[tauri::command(async)]
 fn projector_rotate(
     folder: String,
     projector: String,
+    turns: Option<i32>,
 ) -> Result<(Project, RectificationView), String> {
-    projectors::rotate_projector(&project_dir(&folder)?, &projector).map_err(|e| e.to_string())
+    projectors::rotate_projector(&project_dir(&folder)?, &projector, turns.unwrap_or(1))
+        .map_err(|e| e.to_string())
 }
 
 /// Relit le redressement enregistré d'un projecteur.
