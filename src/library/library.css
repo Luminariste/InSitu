@@ -338,3 +338,18 @@
   align-items: center;
   gap: 4px;
 }
+
+/* Bibliothèque commune (D-4.1-i) : d'où vient le dessin, ou s'il a changé. */
+.library-badge {
+  align-self: center;
+  padding: 1px 6px;
+  font-size: var(--ui-text-xs);
+  color: var(--ui-canvas-text-strong);
+  background: var(--ui-canvas-raised);
+  border-radius: var(--ui-radius-md);
+}
+
+.library-badge.is-newer {
+  color: #fff;
+  background: var(--ui-accent);
+}

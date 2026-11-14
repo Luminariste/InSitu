@@ -101,6 +101,7 @@ export const APP_SHORTCUTS: { group: string; items: { keys: ShortcutSpec; label:
   {
     group: "Projet",
     items: [
+      { keys: "mod+,", label: "Réglages de l'app (bibliothèque commune, apparence)" },
       { keys: "mod+n", label: "Nouveau projet" },
       { keys: "mod+o", label: "Ouvrir un projet" },
       { keys: "mod+r", label: "Relire le projet depuis le disque" },

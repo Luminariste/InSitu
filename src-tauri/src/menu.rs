@@ -39,6 +39,9 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .about(None)
         .item(&check_updates)
         .separator()
+        // Réglages de l'app (D-4.1-j), à la place habituelle du Mac.
+        .item(&entry(app, "Réglages…", "mod+,", "CmdOrCtrl+Comma")?)
+        .separator()
         .services()
         .separator()
         .hide()

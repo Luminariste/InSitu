@@ -38,7 +38,7 @@ pub use model::{
     ExportSettings, ExtraFields, Facade, FacadeAssembly, FacadeScale, FrescoImage, FrescoVector,
     Layer, Mirror, Placement, Plan, PlanGroup, PointMm, Project, Projector, RectMm, Rectification,
     RectificationMethod, RectificationPoint, RegistrationLine, RegistrationPair, RetouchStroke,
-    RetouchTool, SilhouettePolygon, SlideAdjustment, SourcePoint, VectorSettings,
+    RetouchTool, SharedLink, SilhouettePolygon, SlideAdjustment, SourcePoint, VectorSettings,
 };
 pub use path::RelativePath;
 pub use store::{AssetKind, LoadedProject, ProjectDir, PROJECT_EXTENSION, PROJECT_FILE};
