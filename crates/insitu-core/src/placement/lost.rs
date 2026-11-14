@@ -139,12 +139,33 @@ pub fn lost_parts(
     all: &[Assignment],
     silhouettes: &[DrawingSilhouette],
 ) -> Vec<LostPart> {
+    lost_parts_for(project, all, silhouettes, None)
+}
+
+/// Le dessin de l'affectation `a` a-t-il peut-être une part perdue, à
+/// compter pour la diapositive `only` (toutes, et les dessins hors de toute
+/// emprise, si `None`) ?
+fn maybe_lost(a: &Assignment, only: Option<&str>) -> bool {
+    match only {
+        None => !(a.whole && a.projector.is_some()),
+        Some(id) => !a.whole && a.projector.as_deref() == Some(id),
+    }
+}
+
+/// Comme [`lost_parts`], pour les seuls dessins de la diapositive `only`
+/// (D-3.6-i).
+fn lost_parts_for(
+    project: &Project,
+    all: &[Assignment],
+    silhouettes: &[DrawingSilhouette],
+    only: Option<&str>,
+) -> Vec<LostPart> {
     let mut out = Vec::new();
     for p in project.facade_placements() {
         let Some(a) = all.iter().find(|a| a.placement == p.id) else {
             continue;
         };
-        if a.whole && a.projector.is_some() {
+        if !maybe_lost(a, only) {
             continue;
         }
         let polygons = silhouettes
@@ -204,22 +225,24 @@ pub fn lost_parts(
 pub fn load_lost_parts(dir: &ProjectDir, cache_root: &Path) -> Result<Vec<LostPart>, LibraryError> {
     let project = dir.load()?.project;
     let all = shape_assignments(dir, &project, cache_root);
-    project_lost_parts(dir, &project, &all, cache_root)
+    project_lost_parts(dir, &project, &all, cache_root, None)
 }
 
-/// Comme [`load_lost_parts`], pour un projet déjà lu et ses affectations.
+/// Comme [`load_lost_parts`], pour un projet déjà lu et ses affectations,
+/// et pour les seuls dessins de la diapositive `only` (tous si `None`).
 pub fn project_lost_parts(
     dir: &ProjectDir,
     project: &Project,
     all: &[Assignment],
     cache_root: &Path,
+    only: Option<&str>,
 ) -> Result<Vec<LostPart>, LibraryError> {
     let mut ids: Vec<String> = project
         .facade_placements()
         .into_iter()
         .filter(|p| {
             all.iter()
-                .any(|a| a.placement == p.id && !(a.whole && a.projector.is_some()))
+                .any(|a| a.placement == p.id && maybe_lost(a, only))
         })
         .map(|p| p.drawing.clone())
         .filter(|id| project.drawing(id).is_some())
@@ -240,5 +263,5 @@ pub fn project_lost_parts(
                 .collect()
         })
     };
-    Ok(lost_parts(project, all, &found))
+    Ok(lost_parts_for(project, all, &found, only))
 }

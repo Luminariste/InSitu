@@ -1488,3 +1488,51 @@ fn a_drawing_that_sticks_out_is_exported_cut_at_the_edge() {
         .unwrap();
     assert!(worst <= 2, "écart maximal {worst} niveaux de gris");
 }
+
+/// La vue diapositive calcule un seul aperçu à la fois (D-3.6-i) : celui
+/// demandé ; les autres attendent, sauf s'ils sont déjà dans le cache.
+#[test]
+fn slide_views_compute_only_the_chosen_slide() {
+    use super::preview::{slide_views_for, SlideContent};
+    let frame = RectMm {
+        x: 1_800.0,
+        y: 1_200.0,
+        width: 2_400.0,
+        height: 2_400.0,
+    };
+    let (temp, dir, _) = project_with_placed_drawing("vue-diapositive-une", &frame);
+    let mut project = dir.load().unwrap().project;
+    project.add_projector("B").registration = pairs();
+    dir.save(&project).unwrap();
+    let (a, b) = (
+        project.projectors[0].id.clone(),
+        project.projectors[1].id.clone(),
+    );
+    let cache = temp.path().join("cache");
+    let previews = || {
+        std::fs::read_dir(cache.join(super::preview::SLIDE_PREVIEW_DIR))
+            .map(|d| d.count())
+            .unwrap_or(0)
+    };
+    let content = SlideContent::default();
+
+    // Rien de demandé : la liste seule, aucun aperçu calculé.
+    let none = slide_views_for(&dir, &cache, 600, content, Some("")).unwrap();
+    assert_eq!(none.len(), 2);
+    assert!(none.iter().all(|v| v.pending && v.preview.is_none()));
+    assert_eq!(previews(), 0);
+
+    // A seul.
+    let first = slide_views_for(&dir, &cache, 600, content, Some(&a)).unwrap();
+    assert!(first[0].preview.is_some() && !first[0].pending);
+    assert!(first[1].preview.is_none() && first[1].pending);
+    assert_eq!(previews(), 1);
+
+    // Puis B : A vient du cache, sans calcul ; ses détails attendent qu'on
+    // la choisisse de nouveau.
+    let second = slide_views_for(&dir, &cache, 600, content, Some(&b)).unwrap();
+    assert_eq!(second[0].preview, first[0].preview);
+    assert!(second[0].pending);
+    assert!(second[1].preview.is_some() && !second[1].pending);
+    assert_eq!(previews(), 2);
+}

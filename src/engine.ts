@@ -1509,6 +1509,8 @@ export interface SlideView {
   drawings: SlideDrawing[];
   /** Dessins de cette diapositive qui en dépassent : la part perdue est en rouge sur la façade (D-4.5-h). */
   cut: { placement: string; name: string; lostM2: number }[];
+  /** Aperçu pas encore calculé : il le sera quand on choisira ce projecteur (D-3.6-i). */
+  pending?: boolean;
 }
 
 /** Un dessin posé situé dans une diapositive, avant sa retouche (tâche 4.6). */
@@ -1556,9 +1558,18 @@ export interface SlideContent {
 }
 
 /** Photo redressée et diapositive calculée de chaque projecteur ; avec ou sans fresque, avec ou sans plan. */
-export async function fetchSlideViews(folder: string, content: SlideContent = { fresco: true, plan: false }): Promise<SlideView[]> {
+/**
+ * La vue diapositive des projecteurs. `only` (identifiant) : seul l'aperçu
+ * de ce projecteur est calculé s'il manque ; les autres viennent avec leur
+ * aperçu déjà prêt, sinon `pending` (D-3.6-i).
+ */
+export async function fetchSlideViews(
+  folder: string,
+  content: SlideContent = { fresco: true, plan: false },
+  only?: string | null,
+): Promise<SlideView[]> {
   requireEngine();
-  return invoke<SlideView[]>("slide_views", { folder, fresco: content.fresco, plan: content.plan });
+  return invoke<SlideView[]>("slide_views", { folder, fresco: content.fresco, plan: content.plan, only: only ?? null });
 }
 
 // --- Simulation et alertes (tâche 6.1) ------------------------------------------

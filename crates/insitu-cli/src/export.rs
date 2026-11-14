@@ -185,16 +185,19 @@ sa diapositive calculée (PNG de N px, 2 048 par défaut, blanc à opacité
 variable), fabriqué dans DOSSIER s'il n'y est pas déjà. Résultat en JSON.
 
   --sans-fresque  l'aperçu sans la fresque, avec les seuls dessins posés
-  --plan          aussi le plan de la façade vu par chaque projecteur"#;
+  --plan          aussi le plan de la façade vu par chaque projecteur
+  --seulement ID  calcule le seul aperçu de ce projecteur (identifiant) ; les
+                  autres sont décrits, « pending » si leur aperçu manque"#;
 
 pub fn slides(args: &[&str]) -> Result<String, (bool, String)> {
-    use insitu_core::export::preview::{slide_views_with, SlideContent, SLIDE_PREVIEW_SIDE};
+    use insitu_core::export::preview::{slide_views_for, SlideContent, SLIDE_PREVIEW_SIDE};
     let usage = |m: &str| (true, format!("{m} Voir : insitu slides --help"));
     match args {
         [] | ["--help" | "-h"] => Ok(SLIDES_USAGE.to_string()),
         [folder, "--cache", cache, rest @ ..] => {
             let mut side = SLIDE_PREVIEW_SIDE;
             let mut content = SlideContent::default();
+            let mut only: Option<&str> = None;
             let mut rest = rest;
             loop {
                 rest = match rest {
@@ -211,11 +214,15 @@ pub fn slides(args: &[&str]) -> Result<String, (bool, String)> {
                         content.plan = true;
                         more
                     }
+                    ["--seulement", id, more @ ..] => {
+                        only = Some(id);
+                        more
+                    }
                     _ => return Err(usage("Option inconnue ou incomplète.")),
                 };
             }
             let dir = ProjectDir::open(folder).map_err(|e| (false, e.to_string()))?;
-            let views = slide_views_with(&dir, Path::new(cache), side, content)
+            let views = slide_views_for(&dir, Path::new(cache), side, content, only)
                 .map_err(|e| (false, e.to_string()))?;
             Ok(serde_json::to_string_pretty(&views).expect("sérialisable"))
         }

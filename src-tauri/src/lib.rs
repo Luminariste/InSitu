@@ -964,15 +964,17 @@ fn slides_export(
 // --- Vue diapositive (tâche 3.6) ----------------------------------------------------
 
 /// Chaque projecteur : sa photo redressée et l'aperçu de sa diapositive,
-/// avec ou sans la fresque, avec ou sans le plan (D-3.6-d, D-3.6-e).
+/// avec ou sans la fresque, avec ou sans le plan (D-3.6-d, D-3.6-e) ;
+/// `only` : seul ce projecteur est calculé, les autres attendent (D-3.6-i).
 #[tauri::command(async)]
 fn slide_views(
     app: AppHandle,
     folder: String,
     fresco: Option<bool>,
     plan: Option<bool>,
+    only: Option<String>,
 ) -> Result<Vec<SlideView>, String> {
-    slide_preview::slide_views_with(
+    slide_preview::slide_views_for(
         &project_dir(&folder)?,
         &tile_cache_dir(&app)?,
         slide_preview::SLIDE_PREVIEW_SIDE,
@@ -980,6 +982,7 @@ fn slide_views(
             fresco: fresco.unwrap_or(true),
             plan: plan.unwrap_or(false),
         },
+        only.as_deref(),
     )
     .map_err(|e| e.to_string())
 }

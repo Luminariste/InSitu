@@ -68,6 +68,7 @@ import {
   nextProjector,
   planLayer,
   readLook,
+  rowDetail,
   saveLook,
   viewProblem,
   withBackdrop,
@@ -170,31 +171,50 @@ export function SlideScreen() {
   /** Dans le navigateur seul : photo et dessins inventés. */
   const [demo, setDemo] = useState<{ photo: string; drawings: Record<string, string> } | null>(null);
 
-  const load = useCallback(async (path: string) => {
-    setBusy("Calcul des diapositives…");
-    setError(null);
-    try {
-      // Le projecteur regardé la dernière fois dans ce projet (D15-v), lu
-      // avant que le dossier change.
-      const kept = recall(projectKey(CURRENT_KEY, path), asString, null);
-      const opened = await openProject(path);
-      setFolder(path);
-      setProject(opened);
-      const list = await fetchSlideViews(path, contentRef.current);
-      setViews(list);
-      setCurrent((before) =>
-        list.some((v) => v.projectorId === before)
-          ? before
-          : list.some((v) => v.projectorId === kept)
-            ? kept
-            : ((list.find((v) => v.preview && v.rectifiedPhoto) ?? list[0])?.projectorId ?? null),
-      );
-    } catch (failure) {
-      setError(String(failure).replace(/^Error: /, ""));
-    } finally {
-      setBusy(null);
-    }
+  // Les aperçus se calculent un par un (D-3.6-i) : celui du projecteur
+  // choisi, puis les autres quand on les choisit. Seule la dernière réponse
+  // compte (on peut changer de projecteur pendant un calcul).
+  const asked = useRef(0);
+  const fetchViews = useCallback(async (path: string, only: string | null) => {
+    const ticket = ++asked.current;
+    const list = await fetchSlideViews(path, contentRef.current, only ?? "");
+    return ticket === asked.current ? list : null;
   }, []);
+
+  const load = useCallback(
+    async (path: string) => {
+      setBusy("Calcul de la diapositive…");
+      setError(null);
+      try {
+        // Le projecteur regardé la dernière fois dans ce projet (D15-v), lu
+        // avant que le dossier change.
+        const kept = recall(projectKey(CURRENT_KEY, path), asString, null);
+        const opened = await openProject(path);
+        setFolder(path);
+        setProject(opened);
+        const known = opened.projectors.some((p) => p.id === kept);
+        // Sans projecteur retenu : la liste d'abord (rien n'est calculé),
+        // pour choisir le premier qui a une photo redressée.
+        let list = await fetchViews(path, known ? kept : null);
+        if (!list) return;
+        const chosen = known
+          ? kept
+          : ((list.find((v) => !v.problem && v.rectifiedPhoto) ?? list.find((v) => !v.problem) ?? list[0])?.projectorId ?? null);
+        if (!known && chosen) {
+          setBusy("Calcul de la diapositive…");
+          list = await fetchViews(path, chosen);
+          if (!list) return;
+        }
+        setViews(list);
+        setCurrent(chosen);
+      } catch (failure) {
+        setError(String(failure).replace(/^Error: /, ""));
+      } finally {
+        setBusy(null);
+      }
+    },
+    [fetchViews],
+  );
 
   useEffect(() => {
     if (engine) {
@@ -212,15 +232,31 @@ export function SlideScreen() {
   useEffect(() => {
     if (folder && current) keep(projectKey(CURRENT_KEY, folder), current);
   }, [folder, current]);
+  const currentRef = useRef(current);
+  currentRef.current = current;
+
+  // Un projecteur dont l'aperçu n'est pas encore calculé : on le calcule
+  // maintenant, lui seul (D-3.6-i).
+  const pendingLabel = view?.pending ? view.label : null;
+  useEffect(() => {
+    if (!engine || !folder || !current || pendingLabel === null) return;
+    setBusy(`Calcul de la diapositive ${pendingLabel}…`);
+    fetchViews(folder, current)
+      .then((list) => list && setViews(list), (failure: unknown) => setError(String(failure).replace(/^Error: /, "")))
+      .finally(() => setBusy((b) => (b?.startsWith("Calcul de la diapositive") ? null : b)));
+  }, [engine, folder, current, pendingLabel, fetchViews]);
 
   // Le projet a changé (retouche, ordre, dessin posé…) : l'aperçu est recalculé.
   const onProject = useCallback(
     (next: Project) => {
       setProject(next);
       if (!folder) return;
-      fetchSlideViews(folder, contentRef.current).then(setViews, (failure: unknown) => setError(String(failure)));
+      fetchViews(folder, currentRef.current).then(
+        (list) => list && setViews(list),
+        (failure: unknown) => setError(String(failure)),
+      );
     },
-    [folder],
+    [folder, fetchViews],
   );
 
   // Montrer ou cacher la fresque ou le plan : retenu pour la Façade aussi ;
@@ -230,11 +266,11 @@ export function SlideScreen() {
     contentRef.current = next;
     setContentState(next);
     saveViewOptions({ ...readViewOptions(), fresco: next.fresco, plan: next.plan });
-    const missingPlan = next.plan && views.some((v) => v.preview !== null && v.plan === null);
+    const missingPlan = next.plan && view !== null && view.preview !== null && view.plan === null;
     if (!engine || !folder || (next.fresco === before.fresco && !missingPlan)) return;
-    setBusy(next.plan && !before.plan ? "Calcul du plan dans les diapositives…" : "Calcul des diapositives…");
-    fetchSlideViews(folder, next)
-      .then(setViews, (failure: unknown) => setError(String(failure).replace(/^Error: /, "")))
+    setBusy(next.plan && !before.plan ? "Calcul du plan dans la diapositive…" : "Calcul de la diapositive…");
+    fetchViews(folder, current)
+      .then((list) => list && setViews(list), (failure: unknown) => setError(String(failure).replace(/^Error: /, "")))
       .finally(() => setBusy(null));
   };
 
@@ -611,7 +647,7 @@ export function SlideScreen() {
               onSelect={() => setCurrent(v.projectorId)}
               leading={<Dot tone={v.preview ? "success" : v.problem ? "warning" : undefined} />}
               title={v.label}
-              detail={v.problem ?? "diapositive calculée"}
+              detail={rowDetail(v)}
               tone={v.problem ? "warning" : undefined}
               tooltip={v.problem ?? undefined}
             />
