@@ -1,4 +1,5 @@
 use super::*;
+use crate::placement::assign::assignments;
 use crate::project::test_support::TempDir;
 use crate::project::{Drawing, Layer, RegistrationPair, RelativePath};
 
@@ -99,7 +100,7 @@ fn each_drawing_alert_leads_to_its_drawing() {
     place(&mut project, "masque", 7_000.0, 1_400.0, 500.0);
     project.placements.last_mut().unwrap().layer = Some("cache".into());
 
-    let found = alerts(&project, &HashMap::new());
+    let found = alerts(&project, &assignments(&project), &HashMap::new());
     let kinds: Vec<(&str, AlertKind)> = found
         .iter()
         .map(|x| (x.placement.as_deref().unwrap(), x.kind))
@@ -180,7 +181,7 @@ fn light_projected_twice_in_an_overlap_is_found_where_it_is() {
         ),
         (b.clone(), slide_with_lines(&[40.0], 50.0, 150.0)),
     ]);
-    let found = alerts(&project, &lit);
+    let found = alerts(&project, &assignments(&project), &lit);
     assert_eq!(found.len(), 1, "{found:?}");
     let alert = &found[0];
     assert_eq!(alert.kind, AlertKind::Doubled);
@@ -196,7 +197,7 @@ fn light_projected_twice_in_an_overlap_is_found_where_it_is() {
 
     // Un dessin posé sur ce trait, affecté à A : l'alerte mène à lui.
     place(&mut project, "trait", 2_400.0, 1_000.0, 300.0);
-    let found = alerts(&project, &lit);
+    let found = alerts(&project, &assignments(&project), &lit);
     let doubled: Vec<_> = found
         .iter()
         .filter(|x| x.kind == AlertKind::Doubled)

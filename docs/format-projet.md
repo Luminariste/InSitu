@@ -359,7 +359,7 @@ cache de l'app (voir D-4.3-b).
 | `oneBit` | PNG en noir et blanc pur (1 bit) ; sinon en niveaux de gris (tâche 3.5) | non |
 | `threshold` | Seuil du noir et blanc, de 1 à 255 : un pixel au moins aussi clair devient blanc | 128 |
 | `svg` | Un SVG en mm à côté de chaque PNG : les courbes des dessins posés (tâche 5.3) ; absent quand il vaut non | non |
-| `fresco` | La fresque importée est gravée avec les dessins ; sinon les dessins seuls (D-3.5-n) ; absent quand il vaut oui | oui |
+| `fresco` | La fresque importée est gravée avec les dessins ; sinon les dessins seuls (D-3.5-o) ; absent quand il vaut oui | oui |
 
 Un fichier écrit avant la tâche 3.5 n'a pas ces trois champs : ils prennent
 leur valeur par défaut, sans changement de `formatVersion`.

@@ -1,6 +1,6 @@
 // Réglages d'export des diapositives, les mêmes partout : onglet Export de
 // la Façade et fenêtre « Exporter cette diapositive… » de l'écran
-// Diapositive (D-3.5-n).
+// Diapositive (D-3.5-o).
 
 import type { ExportSettings } from "../engine";
 import { Property } from "../ui";
