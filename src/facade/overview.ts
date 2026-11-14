@@ -153,3 +153,65 @@ export function overviewSummary(overview: FacadeOverview): string {
   const n = overview.overlaps.length;
   return `${head} · ${n === 0 ? "aucun recouvrement" : `${n} recouvrement${n > 1 ? "s" : ""}`}`;
 }
+
+// Réglages de la vue des projecteurs retenus (demande de Benjamin, 14 nov.) :
+// photos, emprises, recouvrements et opacité valent pour tous les projets ;
+// les projecteurs décochés à gauche sont propres à chaque projet (dossier).
+const DISPLAY_KEY = "insitu.affichageProjecteurs";
+const HIDDEN_KEY = "insitu.projecteursMasques";
+
+/** Le réglage relu ; ce qui manque ou est abîmé prend la valeur par défaut. */
+export function parseDisplay(saved: string | null, hiddenSaved: string | null, folder: string | null): OverviewDisplay {
+  const display: OverviewDisplay = { ...DEFAULT_DISPLAY, hidden: new Set() };
+  const raw = parseRecord(saved);
+  if (typeof raw.photos === "boolean") display.photos = raw.photos;
+  if (typeof raw.footprints === "boolean") display.footprints = raw.footprints;
+  if (typeof raw.overlaps === "boolean") display.overlaps = raw.overlaps;
+  if (typeof raw.photoOpacity === "number" && raw.photoOpacity > 0 && raw.photoOpacity <= 1) {
+    display.photoOpacity = nearestOpacity(raw.photoOpacity);
+  }
+  const ids = folder ? parseRecord(hiddenSaved)[folder] : undefined;
+  if (Array.isArray(ids)) display.hidden = new Set(ids.filter((id): id is string => typeof id === "string"));
+  return display;
+}
+
+/** Le texte enregistré des réglages communs (sans les projecteurs masqués). */
+export function serializeDisplay(display: OverviewDisplay): string {
+  const { photos, footprints, overlaps, photoOpacity } = display;
+  return JSON.stringify({ photos, footprints, overlaps, photoOpacity });
+}
+
+/** La table dossier → projecteurs masqués, avec celle du projet `folder` remplacée. */
+export function withHidden(hiddenSaved: string | null, folder: string, hidden: ReadonlySet<string>): string {
+  const table = parseRecord(hiddenSaved);
+  if (hidden.size > 0) table[folder] = [...hidden].sort();
+  else delete table[folder];
+  return JSON.stringify(table);
+}
+
+function parseRecord(saved: string | null): Record<string, unknown> {
+  if (!saved) return {};
+  try {
+    const parsed: unknown = JSON.parse(saved);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function readDisplay(folder: string | null): OverviewDisplay {
+  try {
+    return parseDisplay(localStorage.getItem(DISPLAY_KEY), localStorage.getItem(HIDDEN_KEY), folder);
+  } catch {
+    return { ...DEFAULT_DISPLAY, hidden: new Set() };
+  }
+}
+
+export function saveDisplay(folder: string | null, display: OverviewDisplay) {
+  try {
+    localStorage.setItem(DISPLAY_KEY, serializeDisplay(display));
+    if (folder) localStorage.setItem(HIDDEN_KEY, withHidden(localStorage.getItem(HIDDEN_KEY), folder, display.hidden));
+  } catch {
+    // Sans conséquence : réglage par défaut à la prochaine ouverture.
+  }
+}

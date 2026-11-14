@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { FacadeOverview, RegistrationReport } from "../engine";
 import {
+  DEFAULT_REGISTRATION_LOOK,
+  parseRegistrationLook,
   NO_PENDING,
   SLIDE_MM,
   click,
@@ -482,5 +484,14 @@ describe("points sûrs qui ne renversent jamais la photo (D-3.2-m)", () => {
     expect(poseIsSound(guides)).toBe(true);
     const flipped = guides.map((g, i) => (i === 1 ? { ...g, facade: guides[2].facade } : i === 2 ? { ...g, facade: guides[1].facade } : g));
     expect(poseIsSound(flipped)).toBe(false);
+  });
+});
+
+describe("photo recalée retenue", () => {
+  it("relit la case et l'opacité, et ignore un texte abîmé", () => {
+    expect(parseRegistrationLook(null)).toEqual(DEFAULT_REGISTRATION_LOOK);
+    expect(parseRegistrationLook(JSON.stringify({ showPhoto: false, photoOpacity: 0.35 }))).toEqual({ showPhoto: false, photoOpacity: 0.35 });
+    expect(parseRegistrationLook("{abîmé")).toEqual(DEFAULT_REGISTRATION_LOOK);
+    expect(parseRegistrationLook(JSON.stringify({ photoOpacity: 0 })).photoOpacity).toBe(DEFAULT_REGISTRATION_LOOK.photoOpacity);
   });
 });

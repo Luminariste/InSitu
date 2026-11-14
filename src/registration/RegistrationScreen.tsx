@@ -67,6 +67,9 @@ import {
   summary,
   type Pending,
   type Side,
+  readRegistrationLook,
+  saveRegistrationLook,
+  type RegistrationLook,
 } from "./logic";
 import { EMPTY_MARKERS, PairMarkersNode, type MarkersContent } from "./markers";
 import { ProjectMenu } from "../project/ProjectMenu";
@@ -206,8 +209,18 @@ export function RegistrationScreen() {
   const [error, setError] = useState<string | null>(null);
   /** Projecteurs posés sur la façade, pour y voir la photo recalée. */
   const [overview, setOverview] = useState<FacadeOverview | null>(null);
-  const [showPhoto, setShowPhoto] = useState(true);
-  const [photoOpacity, setPhotoOpacity] = useState(0.6);
+  // Photo recalée et son opacité : retenues au changement d'écran et d'un lancement à l'autre.
+  const [look, setLookState] = useState<RegistrationLook>(readRegistrationLook);
+  const { showPhoto, photoOpacity } = look;
+  const setLook = useCallback((update: (current: RegistrationLook) => RegistrationLook) => {
+    setLookState((current) => {
+      const next = update(current);
+      saveRegistrationLook(next);
+      return next;
+    });
+  }, []);
+  const setShowPhoto = useCallback((show: boolean) => setLook((current) => ({ ...current, showPhoto: show })), [setLook]);
+  const setPhotoOpacity = useCallback((o: number) => setLook((current) => ({ ...current, photoOpacity: o })), [setLook]);
   /** Points d'avant le dernier « Ajuster », tant qu'on peut l'annuler (D-3.2-i). */
   const [adjustUndo, setAdjustUndo] = useState<RegistrationPair[] | null>(null);
   const [notice, setNotice] = useState<string | null>(null);

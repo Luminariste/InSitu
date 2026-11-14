@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { FacadeOverview, ProjectorOverview } from "../engine";
 import {
   DEFAULT_DISPLAY,
+  parseDisplay,
+  readDisplay,
+  saveDisplay,
+  serializeDisplay,
+  withHidden,
   changedDisplay,
   nearestOpacity,
   formatArea,
@@ -86,5 +91,56 @@ describe("vue des projecteurs dans le menu Affichage", () => {
   it("compte ce qui a changé, pas les projecteurs masqués", () => {
     expect(changedDisplay(DEFAULT_DISPLAY)).toBe(0);
     expect(changedDisplay({ ...DEFAULT_DISPLAY, photos: false, photoOpacity: 0.5, hidden: new Set(["a"]) })).toBe(2);
+  });
+});
+
+describe("réglages retenus de la vue des projecteurs", () => {
+  it("relit photos, emprises, recouvrements et opacité, et les projecteurs masqués du projet", () => {
+    const changed = { ...DEFAULT_DISPLAY, photos: false, overlaps: false, photoOpacity: 0.25, hidden: new Set(["K", "A"]) };
+    const hidden = withHidden(null, "/projets/epinal", changed.hidden);
+    const back = parseDisplay(serializeDisplay(changed), hidden, "/projets/epinal");
+    expect(back.photos).toBe(false);
+    expect(back.footprints).toBe(true);
+    expect(back.overlaps).toBe(false);
+    expect(back.photoOpacity).toBe(0.25);
+    expect([...back.hidden].sort()).toEqual(["A", "K"]);
+  });
+
+  it("les projecteurs masqués d'un projet ne valent pas pour un autre", () => {
+    const table = withHidden(null, "/projets/epinal", new Set(["K"]));
+    const other = withHidden(table, "/projets/trevarez", new Set(["B"]));
+    expect([...parseDisplay(null, other, "/projets/epinal").hidden]).toEqual(["K"]);
+    expect([...parseDisplay(null, other, "/projets/trevarez").hidden]).toEqual(["B"]);
+    expect(parseDisplay(null, other, "/projets/autre").hidden.size).toBe(0);
+    // Tout recoché : le projet disparaît de la table.
+    expect(JSON.parse(withHidden(other, "/projets/epinal", new Set()))).toEqual({ "/projets/trevarez": ["B"] });
+  });
+
+  it("rien d'enregistré ou un texte abîmé : réglage d'ouverture", () => {
+    const blank = parseDisplay(null, null, null);
+    expect({ ...blank, hidden: [...blank.hidden] }).toEqual({ ...DEFAULT_DISPLAY, hidden: [] });
+    const broken = parseDisplay("{pas du json", "[1,2]", "/p");
+    expect(broken.photos).toBe(DEFAULT_DISPLAY.photos);
+    expect(broken.hidden.size).toBe(0);
+    expect(parseDisplay(JSON.stringify({ photoOpacity: 7 }), null, null).photoOpacity).toBe(DEFAULT_DISPLAY.photoOpacity);
+  });
+
+  it("survit à la fermeture de l'écran : relu tel qu'enregistré", () => {
+    const store = new Map<string, string>();
+    const fake = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+    };
+    const previous = (globalThis as { localStorage?: unknown }).localStorage;
+    (globalThis as { localStorage?: unknown }).localStorage = fake;
+    try {
+      saveDisplay("/projets/epinal", { ...DEFAULT_DISPLAY, footprints: false, photoOpacity: 0.5, hidden: new Set(["C"]) });
+      const back = readDisplay("/projets/epinal");
+      expect(back.footprints).toBe(false);
+      expect(back.photoOpacity).toBe(0.5);
+      expect([...back.hidden]).toEqual(["C"]);
+    } finally {
+      (globalThis as { localStorage?: unknown }).localStorage = previous;
+    }
   });
 });

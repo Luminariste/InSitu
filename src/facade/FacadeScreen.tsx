@@ -55,7 +55,7 @@ import { viewToRestore, type KeptView } from "./keepView";
 import { contextTab, readFacadeTab, saveFacadeTab, type FacadeTab, type TabContext } from "./inspectorTabs";
 import { frescoPlacement } from "./exportLogic";
 import { rotationLabel } from "./rotation";
-import { DEFAULT_DISPLAY, PHOTO_OPACITIES, changedDisplay, nearestOpacity, overviewLayers, type OverviewDisplay } from "./overview";
+import { DEFAULT_DISPLAY, PHOTO_OPACITIES, changedDisplay, nearestOpacity, overviewLayers, readDisplay, saveDisplay, type OverviewDisplay } from "./overview";
 import { demoOverview, demoSimulation } from "./overviewDemo";
 import { OverviewPanel } from "./OverviewPanel";
 import { SimulationSection } from "./SimulationSection";
@@ -144,7 +144,13 @@ export function FacadeScreen() {
   /** Vue façade (tâche 3.3) : les projecteurs recalés posés sur le plan. */
   const [overview, setOverview] = useState<FacadeOverview | null>(null);
   const [overviewBusy, setOverviewBusy] = useState(false);
-  const [display, setDisplay] = useState<OverviewDisplay>(DEFAULT_DISPLAY);
+  /** Photos, emprises, recouvrements, opacité, projecteurs décochés : retenus (overview.ts). */
+  const [display, setDisplayState] = useState<OverviewDisplay>(() => readDisplay(engine ? recalled() : null));
+  const displayFolder = useRef<string | null>(null);
+  const setDisplay = useCallback((next: OverviewDisplay) => {
+    setDisplayState(next);
+    saveDisplay(displayFolder.current, next);
+  }, []);
   /** Simulation de tous les projecteurs et ses alertes (tâche 6.1). */
   const [simulation, setSimulation] = useState<Simulation | null>(null);
   const [simulating, setSimulating] = useState(false);
@@ -205,6 +211,10 @@ export function FacadeScreen() {
         setFolder(path);
         setProject(next);
         remember(path);
+        if (displayFolder.current !== path) {
+          displayFolder.current = path;
+          setDisplayState(readDisplay(path));
+        }
         setPicking("off");
         setPoints(next.facade?.scale ? [next.facade.scale.pointA, next.facade.scale.pointB] : []);
         setDistanceText(next.facade?.scale ? formatLength(next.facade.scale.distanceMm) : "");

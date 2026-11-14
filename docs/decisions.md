@@ -4,6 +4,33 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-14 — Options d'affichage retenues (demande de Benjamin)
+
+Demande de Benjamin (14 novembre) : « mémorise les options d'affichage :
+quand je change d'onglet, ça revient par défaut ».
+
+**D15-t. Tous les réglages d'affichage sont retenus, au changement d'écran
+comme d'un lancement à l'autre.** Le plan, la fresque, les dessins, les
+négatifs et le chevauchement (D15-l) et les réglages de la Diapositive
+(D-3.6-a) l'étaient déjà ; ne l'étaient pas, et revenaient à l'ouverture à
+chaque retour dans la Façade : photos des projecteurs, emprises,
+recouvrements, opacité des photos (D15-q), et les projecteurs décochés à
+gauche ; dans le Recalage, la case « Photo recalée » et son opacité. Choix :
+- Rangés dans l'app (`localStorage`), jamais dans le projet ni l'export,
+  comme D15-l : une façon de regarder, sur ce Mac.
+- Photos, emprises, recouvrements et opacité valent pour tous les projets
+  (`insitu.affichageProjecteurs`). Les projecteurs décochés sont retenus
+  **par projet** (`insitu.projecteursMasques`, table dossier → identifiants) :
+  un K masqué à Épinal ne masque pas le K de Trévarez. Auparavant, ils
+  restaient décochés en ouvrant un autre projet.
+- Le Recalage peut encore montrer la photo de lui-même après « 4 coins » ou
+  « Ajuster » (pour voir le résultat) ; ce choix est alors retenu aussi.
+- Le retour d'après « Comme dans LightBurn » survit à un passage par un
+  autre écran (le temps du lancement seulement).
+- Pas retenus : le projecteur choisi dans chaque écran, l'écran ouvert au
+  lancement, le zoom : ce ne sont pas des options d'affichage (à proposer à
+  Benjamin si le retour au projecteur A le gêne).
+
 ## 2026-11-13 — Diapositive sans recalage (demande de Benjamin)
 
 Demande de Benjamin (13 novembre) : « si on n'a pas recalé un projet, on doit

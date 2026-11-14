@@ -114,6 +114,12 @@ function saveSlideTab(tab: SlideTab) {
 /** Raccourcis de la composition qui gardent leur sens dans une diapositive : ordre et groupe. */
 const SLIDE_SHORTCUTS = new Set(["mod+g", "mod+shift+g", "mod+shift+]", "mod+]", "mod+[", "mod+shift+["]);
 
+/**
+ * Le réglage d'avant « Comme dans LightBurn », pour y revenir ; gardé hors
+ * de l'écran pour survivre à un passage par un autre onglet.
+ */
+const beforeLightBurn: { look: SlideLook | null } = { look: null };
+
 export function SlideScreen() {
   const engine = hasEngine();
   const viewer = useRef<ViewerHandle>(null);
@@ -130,15 +136,13 @@ export function SlideScreen() {
     saveLook(next);
   }, []);
   const { showDrawings, opacity, tint } = look;
-  /** Le réglage d'avant « Comme dans LightBurn », pour y revenir. */
-  const beforeLightBurn = useRef<SlideLook | null>(null);
   const lightBurn = isLightBurnLook(look);
   const toggleLightBurn = () => {
     if (lightBurn) {
-      setLook(beforeLightBurn.current ?? { ...look, photo: true });
-      beforeLightBurn.current = null;
+      setLook(beforeLightBurn.look ?? { ...look, photo: true });
+      beforeLightBurn.look = null;
     } else {
-      beforeLightBurn.current = look;
+      beforeLightBurn.look = look;
       setLook(LIGHTBURN_LOOK);
     }
   };
