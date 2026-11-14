@@ -3,6 +3,7 @@ import {
   childFolder,
   countLabel,
   draggedDrawings,
+  fileStem,
   filterEntries,
   folderTree,
   formatSize,
@@ -12,6 +13,8 @@ import {
   newFolderName,
   normalize,
   parentFolder,
+  searchFolders,
+  searchSummary,
   sharedBadge,
   sharedSummary,
 } from "./logic";
@@ -37,6 +40,45 @@ describe("recherche", () => {
     expect(filterEntries(all, "", "Oiseaux").map((e) => e.name)).toEqual(["a", "b"]);
     expect(filterEntries(all, "", null).length).toBe(4);
     expect(filterEntries(all, "b", "Oiseaux").map((e) => e.name)).toEqual(["b"]);
+  });
+
+  it("retrouve un dessin renommé par le nom de son fichier", () => {
+    expect(fileStem("bibliotheque/Oiseaux/Merle noir.png")).toBe("Merle noir");
+    expect(fileStem("bibliotheque\\a\\b.v2.svg")).toBe("b.v2");
+    const renamed = { name: "Oiseau du toit", folder: "Oiseaux", source: "bibliotheque/Oiseaux/merle.png" };
+    expect(matches(renamed, "merle")).toBe(true);
+    expect(matches(renamed, "toit merle")).toBe(true);
+    expect(matches(renamed, "png")).toBe(false);
+  });
+
+  it("montre les dossiers trouvés par leur nom et ceux qui contiennent des dessins trouvés", () => {
+    const all = [
+      entry("goéland", "Oiseaux/Mer"),
+      entry("sapin", "Arbres"),
+      entry("chêne", "Arbres/Feuillus"),
+      entry("étoile de mer", "Décor"),
+    ];
+    const rows = folderTree(all, ["Vide/Mer calme"]);
+    const found = searchFolders(rows, all, "mer");
+    expect(found.map((r) => [r.path, r.hit, r.count])).toEqual([
+      ["Décor", false, 1],
+      ["Oiseaux", false, 1],
+      ["Oiseaux/Mer", true, 1],
+      ["Vide", false, 0],
+      ["Vide/Mer calme", true, 0],
+    ]);
+    // Sans recherche : l'arbre entier, rien de mis en avant.
+    expect(searchFolders(rows, all, " ").length).toBe(rows.length);
+    expect(searchFolders(rows, all, "").some((r) => r.hit)).toBe(false);
+    // Un mot qui ne répond nulle part : aucun dossier.
+    expect(searchFolders(rows, all, "baleine")).toEqual([]);
+  });
+
+  it("résume ce qui est trouvé", () => {
+    expect(searchSummary(0, 0)).toBe("aucun dessin");
+    expect(searchSummary(1, 0)).toBe("1 dessin");
+    expect(searchSummary(3, 2)).toBe("3 dessins, 2 dossiers");
+    expect(searchSummary(2, 1)).toBe("2 dessins, 1 dossier");
   });
 });
 

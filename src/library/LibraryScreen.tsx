@@ -53,6 +53,8 @@ import {
   countLabel,
   draggedDrawings,
   filterEntries,
+  searchFolders,
+  searchSummary,
   folderTree,
   formatSize,
   importSummary,
@@ -366,6 +368,10 @@ export function LibraryScreen() {
   const extraFolders = engine ? (project?.libraryFolders ?? []) : demoFolders;
   const folders = useMemo(() => folderTree(entries, extraFolders), [entries, extraFolders]);
   const visible = useMemo(() => filterEntries(entries, query, currentFolder), [entries, query, currentFolder]);
+  const searching = query.trim() !== "";
+  const shownFolders = useMemo(() => searchFolders(folders, entries, query), [folders, entries, query]);
+  /** Dessins trouvés dans toute la bibliothèque (pour « Chercher partout »). */
+  const foundAnywhere = useMemo(() => (searching ? filterEntries(entries, query, null).length : entries.length), [entries, query, searching]);
   const chosen = entries.find((e) => e.id === selected) ?? null;
 
   /** Les dessins choisis (au moins celui de l'inspecteur). */
@@ -826,10 +832,11 @@ export function LibraryScreen() {
       <input
         className="ui-input ui-input-search library-search"
         type="search"
-        placeholder="Chercher (nom ou dossier)"
+        placeholder="Chercher un dessin ou un dossier"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        aria-label="Chercher un dessin"
+        aria-label="Chercher un dessin ou un dossier"
+        title="Chaque mot est cherché dans le nom du dessin, le nom de son fichier et ses dossiers"
       />
       <ToolSpacer />
       {sharedRoot ? (
@@ -900,14 +907,19 @@ export function LibraryScreen() {
             onSelect={() => setCurrentFolder(null)}
             leading={<Icon name="image" />}
             title="Tous les dessins"
-            trailing={entries.length}
+            trailing={searching ? foundAnywhere : entries.length}
             tooltip="Lâcher des dessins ici : ils sortent de leur dossier."
           />
         </div>
-        {folders.map((row) => (
+        {searching && (
+          <p className="library-search-summary" role="status">
+            Trouvé : {searchSummary(foundAnywhere, shownFolders.filter((row) => row.hit).length)}
+          </p>
+        )}
+        {shownFolders.map((row) => (
           <div
             key={row.path}
-            className={dropTarget === row.path ? "library-folder is-over" : "library-folder"}
+            className={`library-folder${dropTarget === row.path ? " is-over" : ""}${row.hit ? " is-hit" : ""}`}
             style={{ paddingLeft: 14 * row.depth }}
             onDragOver={acceptDrop(row.path)}
             onDragLeave={() => setDropTarget(null)}
@@ -1108,8 +1120,20 @@ export function LibraryScreen() {
         ))}
       </div>
       {entries.length > 0 && visible.length === 0 && (
-        <EmptyState icon="search" title="Aucun dessin ne correspond">
-          <p>Essayer un autre mot, ou choisir « Tous les dessins ».</p>
+        <EmptyState
+          icon="search"
+          title="Aucun dessin ne correspond"
+          actions={
+            currentFolder !== null && foundAnywhere > 0 ? (
+              <Button onClick={() => setCurrentFolder(null)}>Chercher dans toute la bibliothèque</Button>
+            ) : undefined
+          }
+        >
+          <p>
+            {currentFolder !== null && foundAnywhere > 0
+              ? `Rien dans « ${currentFolder} », mais ${searchSummary(foundAnywhere, 0)} ailleurs.`
+              : "Essayer un autre mot, ou choisir « Tous les dessins »."}
+          </p>
         </EmptyState>
       )}
       {engine && !folder && !busy && (

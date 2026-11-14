@@ -12,15 +12,27 @@ export function normalize(text: string): string {
     .trim();
 }
 
+/** Nom du fichier d'un dessin, sans dossier ni extension (`bibliotheque/a/merle.png` → `merle`). */
+export function fileStem(source: string): string {
+  const base = source.split(/[\\/]/).pop() ?? "";
+  const dot = base.lastIndexOf(".");
+  return dot > 0 ? base.slice(0, dot) : base;
+}
+
+function words(query: string): string[] {
+  return normalize(query).split(/\s+/).filter(Boolean);
+}
+
 /**
- * Vrai si chaque mot de la recherche se trouve dans le nom du dessin ou dans
- * son dossier (« oiseau mer » trouve « Oiseaux/Mer/goéland »).
+ * Vrai si chaque mot de la recherche se trouve dans le nom du dessin, dans
+ * son dossier, ou dans le nom de son fichier (« oiseau mer » trouve
+ * « Oiseaux/Mer/goéland » ; un dessin renommé se retrouve par son fichier).
  */
-export function matches(entry: Pick<LibraryEntry, "name" | "folder">, query: string): boolean {
-  const words = normalize(query).split(/\s+/).filter(Boolean);
-  if (words.length === 0) return true;
-  const haystack = normalize(`${entry.folder} ${entry.name}`);
-  return words.every((word) => haystack.includes(word));
+export function matches(entry: Pick<LibraryEntry, "name" | "folder"> & { source?: string }, query: string): boolean {
+  const wanted = words(query);
+  if (wanted.length === 0) return true;
+  const haystack = normalize(`${entry.folder} ${entry.name} ${entry.source ? fileStem(entry.source) : ""}`);
+  return wanted.every((word) => haystack.includes(word));
 }
 
 /** Vrai si `folder` est `parent` ou l'un de ses sous-dossiers ; `null` : tous. */
@@ -28,7 +40,7 @@ export function inFolder(folder: string, parent: string | null): boolean {
   return parent === null || folder === parent || folder.startsWith(`${parent}/`);
 }
 
-export function filterEntries<T extends Pick<LibraryEntry, "name" | "folder">>(
+export function filterEntries<T extends Pick<LibraryEntry, "name" | "folder"> & { source?: string }>(
   entries: T[],
   query: string,
   folder: string | null,
@@ -182,4 +194,54 @@ export function sharedSummary(report: SharedCopyReport, direction: "copier" | "e
   if (parts.length === 0) return "Rien à faire.";
   const text = parts.join(", ");
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
+}
+
+/** Une ligne de l'arbre pendant une recherche. */
+export interface FoundFolder extends FolderRow {
+  /** Vrai si le nom du dossier (ou de ses parents) répond à la recherche. */
+  hit: boolean;
+}
+
+/**
+ * L'arbre des dossiers pendant une recherche : les dossiers dont le chemin
+ * répond à tous les mots, ceux qui contiennent des dessins trouvés, et leurs
+ * parents (pour garder l'arbre lisible). `count` : dessins trouvés dedans.
+ * Sans recherche, l'arbre entier, inchangé.
+ */
+export function searchFolders(
+  rows: FolderRow[],
+  entries: (Pick<LibraryEntry, "name" | "folder"> & { source?: string })[],
+  query: string,
+): FoundFolder[] {
+  const wanted = words(query);
+  if (wanted.length === 0) return rows.map((row) => ({ ...row, hit: false }));
+  const found = entries.filter((entry) => matches(entry, query));
+  const kept = new Set<string>();
+  const keepWithParents = (path: string) => {
+    const parts = path.split("/");
+    for (let i = 1; i <= parts.length; i++) kept.add(parts.slice(0, i).join("/"));
+  };
+  const hits = new Set<string>();
+  for (const row of rows) {
+    const name = normalize(row.path);
+    if (wanted.every((word) => name.includes(word))) {
+      hits.add(row.path);
+      keepWithParents(row.path);
+    }
+  }
+  for (const entry of found) if (entry.folder) keepWithParents(entry.folder);
+  return rows
+    .filter((row) => kept.has(row.path))
+    .map((row) => ({
+      ...row,
+      hit: hits.has(row.path),
+      count: found.filter((entry) => inFolder(entry.folder, row.path)).length,
+    }));
+}
+
+/** Résumé d'une recherche : « 3 dessins, 1 dossier ». */
+export function searchSummary(drawings: number, folders: number): string {
+  const d = drawings === 0 ? "aucun dessin" : drawings === 1 ? "1 dessin" : `${drawings} dessins`;
+  if (folders === 0) return d;
+  return `${d}, ${folders === 1 ? "1 dossier" : `${folders} dossiers`}`;
 }
