@@ -437,6 +437,22 @@ export function Busy({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Voile sur la toile pendant qu'on glisse des fichiers du Finder au-dessus
+ * de la fenêtre : dit ce que le lâcher va faire (D-4.1-f). Ne capte pas la
+ * souris.
+ */
+export function DropVeil({ children }: { children: ReactNode }) {
+  return (
+    <div className="ui-drop-veil" role="status" aria-live="polite">
+      <span className="ui-drop-veil-label">
+        <Icon name="import" />
+        {children}
+      </span>
+    </div>
+  );
+}
+
 const TONE_ICON: Record<Tone, IconName> = {
   neutral: "info",
   info: "info",
