@@ -495,6 +495,13 @@ fn transform_slide(
     for pair in &mut p.registration {
         pair.slide = map(pair.slide);
     }
+    // Le masque de la diapositive est tracé sur la photo : il tourne avec elle (D-3.6-h).
+    if let Some(mask) = &mut p.mask {
+        for point in mask.shapes.iter_mut().flatten() {
+            let q = map(PointMm::new(point[0], point[1]));
+            *point = [q.x, q.y];
+        }
+    }
     p.rectified_photo = Some(relative);
     p.rectification = Some(rectification);
     dir.save(&project)?;

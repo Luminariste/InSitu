@@ -58,6 +58,9 @@ redressée **avant le miroir** de la diapositive (comme le recalage) ;
   dessous. Chaque changement est enregistré tout de suite ; il n'entre pas
   dans l'historique ⌘Z de la composition (le masque est un réglage du
   projecteur, comme son recalage) : on retire une forme par la liste.
+- Le masque est tracé sur la photo : un miroir ou un quart de tour de la
+  diapositive (D-2.5-j, D-2.5-m) le fait tourner avec la photo, comme les
+  points du recalage.
 - En ligne de commande : `insitu projector mask <projet> <projecteur>
   <masque.json> | --none`.
 

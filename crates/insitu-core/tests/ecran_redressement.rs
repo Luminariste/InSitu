@@ -327,12 +327,21 @@ fn the_slide_can_be_mirrored_and_keeps_its_mirror() {
             PointMm::new(40.0, 100.0),
             PointMm::new(0.0, 0.0),
         ));
+    // Le masque de la diapositive, tracé sur la photo, la suit aussi (D-3.6-h).
+    project.projector_mut(&id).unwrap().mask = Some(insitu_core::project::SlideMask {
+        shapes: vec![vec![[40.0, 100.0], [60.0, 100.0], [60.0, 120.0]]],
+        ..Default::default()
+    });
     dir.save(&project).unwrap();
 
     let (project, mirrored) = mirror_projector(&dir, &id, h).unwrap();
     assert_eq!(mirrored.mirror, h);
     let p = project.projector(&id).unwrap();
     assert_eq!(p.registration[0].slide, PointMm::new(240.0, 100.0));
+    assert_eq!(
+        p.mask.as_ref().unwrap().shapes[0],
+        vec![[240.0, 100.0], [220.0, 100.0], [220.0, 120.0]]
+    );
     // Le coin haut-gauche de la diapositive est maintenant l'ancien haut-droit.
     for (k, from) in [(0, 1), (1, 0), (2, 3), (3, 2)] {
         let px = distance(mirrored.corners[k], plain.corners[from]);

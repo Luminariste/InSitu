@@ -524,7 +524,7 @@ pub struct Projector {
 /// D-3.6-h) : des formes tracées sur la photo redressée. Ce qui est dedans
 /// (ou dehors, `outside`) devient noir à l'export, fresque et dessins
 /// compris.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SlideMask {
     /// Formes en mm de diapositive (avant miroir, comme le recalage), de
