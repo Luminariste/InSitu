@@ -76,6 +76,10 @@ import {
   useShortcuts,
 } from "../ui";
 import "./rectification.css";
+import { asString, keep as keepSetting, projectKey, recall } from "../ui/remember";
+
+const SELECTED_KEY = "insitu.projecteurChoisi.redressement";
+const MODE_KEY = "insitu.redressement.photo";
 
 type Mode = "brute" | "redressee";
 
@@ -197,6 +201,14 @@ export function RectificationScreen() {
     if (p.rectifiedPhoto) setRectifiedSource(await openTiledImage(projectFile(dir, p.rectifiedPhoto)));
   }, []);
 
+  // Projecteur choisi et photo regardée, retenus (D15-v).
+  useEffect(() => {
+    if (folder && selected) keepSetting(projectKey(SELECTED_KEY, folder), selected);
+  }, [folder, selected]);
+  useEffect(() => {
+    if (folder) keepSetting(MODE_KEY, mode);
+  }, [folder, mode]);
+
   const load = useCallback(
     (path: string, keep?: string | null) =>
       run("Ouverture du projet…", async () => {
@@ -204,13 +216,17 @@ export function RectificationScreen() {
         setFolder(path);
         setProject(opened);
         rememberProject(path);
+        // Sinon le projecteur regardé la dernière fois dans ce projet (D15-v).
+        const kept = recall(projectKey(SELECTED_KEY, path), asString, null);
         const chosen =
           opened.projectors.find((p) => p.id === keep) ??
+          opened.projectors.find((p) => p.id === kept) ??
           opened.projectors.find((p) => p.rawPhoto) ??
           opened.projectors[0] ??
           null;
         setSelected(chosen?.id ?? null);
-        setMode("brute");
+        // Photo brute ou redressée, comme la dernière fois si elle existe.
+        setMode(chosen?.rectifiedPhoto && recall(MODE_KEY, asString, null) === "redressee" ? "redressee" : "brute");
         await showProjector(path, chosen);
       }),
     [run, showProjector],

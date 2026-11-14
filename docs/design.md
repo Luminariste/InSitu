@@ -36,6 +36,11 @@ On importe tout depuis `src/ui` (`import { Button, Panel } from "../ui"`).
    (sélection, réussite, alerte, erreur).
 5. **Le clavier partout.** Toute action fréquente a un raccourci, montré
    dans les menus et les bulles d'aide (§ 7).
+6. **L'interface se souvient.** Ce qu'on regarde et comment (écran ouvert,
+   onglets, projecteur choisi, groupes dépliés ou repliés, dossiers
+   ouverts, options d'affichage, zoom et cadrage de la façade) reste tel
+   quel au changement d'écran et d'un lancement à l'autre (D15-v), avec
+   `src/ui/remember.ts` ; jamais dans le projet.
 
 ## 2. Gabarit d'un écran
 
@@ -264,3 +269,5 @@ un champ.
 7. La feuille de style de l'écran ne contient que ce qui lui est propre,
    avec les jetons ; pas de bouton, champ ou panneau redessiné.
 8. Capture de l'écran dans les deux thèmes dans la demande de fusion.
+9. Tout état d'interface nouveau (onglet, case, groupe déplié, choix
+   d'affichage…) est retenu (`useRemembered`, `src/ui/remember.ts`, D15-v).
