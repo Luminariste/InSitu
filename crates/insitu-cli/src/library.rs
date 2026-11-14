@@ -6,6 +6,7 @@ use std::time::Instant;
 
 use insitu_core::library::organize;
 use insitu_core::library::retouch::{retouched_file, set_retouch};
+use insitu_core::library::shared;
 use insitu_core::library::silhouette::{load_silhouettes, rasterize, set_silhouette};
 use insitu_core::library::vectors::{
     drawing_vectors, set_vector_settings, vectorize_drawings, VectorSummary,
@@ -32,6 +33,10 @@ pub const USAGE: &str = r#"Usage :
   insitu library folder-create <projet.insitu> <dossier>
   insitu library folder-rename <projet.insitu> <dossier> <nouveau nom>
   insitu library folder-remove <projet.insitu> <dossier>
+  insitu library shared-create <dossier>
+  insitu library shared-status <projet.insitu> <commune.insitu>
+  insitu library shared-copy <projet.insitu> <commune.insitu> <dessin>… [--cache DOSSIER]
+  insitu library shared-send <projet.insitu> <commune.insitu> <dessin>… [--cache DOSSIER]
   insitu library thumbnail <dessin> <sortie.png> [--size PX]
   insitu library vectors <projet.insitu> [<dessin>] --cache DOSSIER
          [--threshold N] [--tolerance PX] [--corner DEG] [--min-area PX2]
@@ -66,6 +71,17 @@ PSD aplati, SVG).
   folder-rename  Renomme un dossier (même dossier parent), avec ses
              sous-dossiers et ses dessins.
   folder-remove  Retire un dossier vide.
+  shared-create  Bibliothèque commune (D-4.1-i) du dossier : le dossier
+             lui-même s'il est un projet, sinon « Bibliothèque
+             commune.insitu » dedans, créé au besoin. Affiche son chemin.
+  shared-status  État de chaque dessin du projet venu de la bibliothèque
+             commune (upToDate, newer, missing), en JSON.
+  shared-copy    Copie des dessins communs (identifiant ou nom) dans le
+             projet, sous bibliotheque/Commune/, avec retouches,
+             silhouette et vecteurs ; reprend la nouvelle version d'un
+             dessin déjà copié. Compte rendu en JSON.
+  shared-send    Envoie des dessins du projet dans la bibliothèque commune,
+             sous bibliotheque/<nom du projet>/. Compte rendu en JSON.
   thumbnail  Écrit la vignette d'un fichier de dessin : réduit de moitié en
              moitié jusqu'à tenir dans --size (320 par défaut), le noir
              rendu transparent.
@@ -282,6 +298,42 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             let dir = ProjectDir::open(folder).map_err(failed)?;
             organize::remove_folder(&dir, path).map_err(failed)?;
             Ok(format!("Dossier « {path} » retiré."))
+        }
+        ["shared-create", folder] => {
+            let root = shared::open_or_create(Path::new(folder)).map_err(failed)?;
+            Ok(root.display().to_string())
+        }
+        ["shared-status", folder, common] => {
+            let states = shared::status(
+                &ProjectDir::open(folder).map_err(failed)?,
+                &ProjectDir::open(common).map_err(failed)?,
+            )
+            .map_err(failed)?;
+            Ok(serde_json::to_string_pretty(&states).expect("sérialisable"))
+        }
+        [verb @ ("shared-copy" | "shared-send"), folder, common, ref drawings @ ..]
+            if !drawings.is_empty() =>
+        {
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let common = ProjectDir::open(common).map_err(failed)?;
+            let from = if verb == "shared-copy" { &common } else { &dir };
+            let project = from.load().map_err(failed)?.project;
+            let ids = drawings
+                .iter()
+                .map(|d| library::find(&project, d).map(|f| f.id.clone()))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(failed)?;
+            let options = ImportOptions {
+                cache_root: cache,
+                threads,
+            };
+            let (_, report) = if verb == "shared-copy" {
+                shared::copy_to_project(&common, &dir, &ids, &options, &|_| {})
+            } else {
+                shared::send_to_shared(&dir, &common, &ids, &options, &|_| {})
+            }
+            .map_err(failed)?;
+            Ok(serde_json::to_string_pretty(&report).expect("sérialisable"))
         }
         ["thumbnail", file, output] => {
             let decoded = decode(Path::new(file), size).map_err(failed)?;

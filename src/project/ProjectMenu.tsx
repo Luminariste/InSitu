@@ -22,6 +22,11 @@ interface Props {
   name: string | null;
   /** Dossier du projet ouvert, montré en bulle d'aide. */
   folder: string | null;
+  /**
+   * Projet que ⌘Z annule, s'il n'est pas `folder` : la Bibliothèque montre
+   * parfois la bibliothèque commune (D-4.1-i).
+   */
+  historyFolder?: string | null;
   /** Ouvre le projet de ce dossier dans l'écran (après création ou choix). */
   onOpen: (folder: string) => void;
   /** Relit le projet depuis le disque (changements faits ailleurs). */
@@ -48,7 +53,7 @@ export async function askNewProject(): Promise<string | null> {
   return path;
 }
 
-export function ProjectMenu({ name, folder, onOpen, onReload, ready, placeholder, onError, shortcuts = true }: Props) {
+export function ProjectMenu({ name, folder, historyFolder, onOpen, onReload, ready, placeholder, onError, shortcuts = true }: Props) {
   const engine = hasEngine();
   const attempt = (task: () => Promise<string | null>) => () => {
     task().then(
@@ -69,8 +74,9 @@ export function ProjectMenu({ name, folder, onOpen, onReload, ready, placeholder
   // Annule ou rétablit la dernière action enregistrée, quel que soit l'écran
   // qui l'a faite, puis l'écran relit le projet.
   const step = (redo: boolean) => {
-    if (!folder || !canUndo) return;
-    historyStep(folder, redo).then(
+    const target = historyFolder ?? folder;
+    if (!target || !canUndo) return;
+    historyStep(target, redo).then(
       () => onReload?.(),
       (failure: unknown) => {
         const message = String(failure).replace(/^Error: /, "");

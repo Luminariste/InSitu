@@ -15,6 +15,7 @@ use insitu_core::facade::{self, Alignment, FacadeDisplay, PlanChoice, SourceInfo
 use insitu_core::geometry::Point;
 use insitu_core::illustrator::{self, CompositionPreview, CompositionReport};
 use insitu_core::library::organize;
+use insitu_core::library::shared::{self, SharedCopyReport, SharedStatus};
 use insitu_core::library::silhouette::{self, DrawingSilhouette};
 use insitu_core::library::vectors::{self, VectorSummary, VectorizeReport};
 use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
@@ -29,6 +30,7 @@ use insitu_core::project::{
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::auto::AdjustReport;
 use insitu_core::registration::{self, RegistrationOptions, RegistrationReport};
+use insitu_core::settings::{self, AppSettings};
 use insitu_core::sheet::{self, SheetReport};
 use insitu_core::simulation::{self, Simulation};
 use insitu_core::tiles;
@@ -569,6 +571,92 @@ fn illustrator_import(
     .map_err(|e| e.to_string())
 }
 
+/// Fichier des réglages de l'app (fenêtre Réglages…, D-4.1-j).
+fn settings_file<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    Ok(dir.join(settings::SETTINGS_FILE))
+}
+
+/// Les réglages de l'app.
+#[tauri::command(async)]
+fn settings_get(app: AppHandle) -> Result<AppSettings, String> {
+    Ok(settings::load(&settings_file(&app)?))
+}
+
+/// Choisit le dossier de la bibliothèque commune (absent : aucune) ; la
+/// bibliothèque y est créée si le dossier n'en est pas déjà une.
+#[tauri::command(async)]
+fn settings_set_shared_library(
+    app: AppHandle,
+    folder: Option<String>,
+) -> Result<AppSettings, String> {
+    let file = settings_file(&app)?;
+    let mut current = settings::load(&file);
+    current.shared_library = match folder {
+        Some(folder) => {
+            Some(shared::open_or_create(Path::new(&folder)).map_err(|e| e.to_string())?)
+        }
+        None => None,
+    };
+    settings::save(&file, &current)?;
+    Ok(current)
+}
+
+/// L'état de chaque dessin du projet venu de la bibliothèque commune.
+#[tauri::command(async)]
+fn library_shared_status(folder: String, shared: String) -> Result<Vec<SharedStatus>, String> {
+    shared::status(&project_dir(&folder)?, &project_dir(&shared)?).map_err(|e| e.to_string())
+}
+
+/// Copie des dessins de la bibliothèque commune dans le projet (ou reprend
+/// leur nouvelle version).
+#[tauri::command(async)]
+fn library_shared_copy(
+    app: AppHandle,
+    folder: String,
+    shared: String,
+    drawings: Vec<String>,
+) -> Result<(Project, SharedCopyReport), String> {
+    let options = ImportOptions {
+        cache_root: Some(tile_cache_dir(&app)?),
+        threads: 0,
+    };
+    shared::copy_to_project(
+        &project_dir(&shared)?,
+        &project_dir(&folder)?,
+        &drawings,
+        &options,
+        &|progress| {
+            let _ = app.emit(LIBRARY_PROGRESS_EVENT, progress);
+        },
+    )
+    .map_err(|e| e.to_string())
+}
+
+/// Envoie des dessins du projet dans la bibliothèque commune.
+#[tauri::command(async)]
+fn library_shared_send(
+    app: AppHandle,
+    folder: String,
+    shared: String,
+    drawings: Vec<String>,
+) -> Result<(Project, SharedCopyReport), String> {
+    let options = ImportOptions {
+        cache_root: Some(tile_cache_dir(&app)?),
+        threads: 0,
+    };
+    shared::send_to_shared(
+        &project_dir(&folder)?,
+        &project_dir(&shared)?,
+        &drawings,
+        &options,
+        &|progress| {
+            let _ = app.emit(LIBRARY_PROGRESS_EVENT, progress);
+        },
+    )
+    .map_err(|e| e.to_string())
+}
+
 /// La bibliothèque du projet, avec la vignette de chaque dessin.
 #[tauri::command(async)]
 fn library_list(app: AppHandle, folder: String) -> Result<Vec<LibraryEntry>, String> {
@@ -1010,6 +1098,11 @@ pub fn run() {
             library_list,
             library_remove,
             library_rename,
+            settings_get,
+            settings_set_shared_library,
+            library_shared_status,
+            library_shared_copy,
+            library_shared_send,
             library_move,
             library_folder_create,
             library_folder_rename,

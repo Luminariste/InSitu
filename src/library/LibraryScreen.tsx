@@ -11,10 +11,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type
 import {
   cacheFileUrl,
   chooseDrawingFolder,
+  copyFromShared,
   createLibraryFolder,
   fetchDrawingPreview,
   fetchDrawingVectors,
   fetchLibrary,
+  fetchSharedStatus,
   fetchSilhouettes,
   hasEngine,
   importDrawingFolder,
@@ -30,6 +32,7 @@ import {
   saveRetouch,
   saveSilhouette,
   saveVectorSettings,
+  sendToShared,
   vectorizeDrawings,
   type DrawingSilhouette,
   type ImportProgress,
@@ -37,11 +40,14 @@ import {
   type LibraryEntry,
   type Project,
   type RetouchStroke,
+  type SharedCopyReport,
+  type SharedStatus,
   type SilhouettePolygon,
   type VectorSettings,
   type VectorSummary,
 } from "../engine";
 import { recalledProject } from "../project/current";
+import { useAppSettings } from "../settings/store";
 import {
   childFolder,
   countLabel,
@@ -54,6 +60,8 @@ import {
   newFolderName,
   parentFolder,
   progressLabel,
+  sharedBadge,
+  sharedSummary,
 } from "./logic";
 import { treeClick } from "../compose/slideTree";
 import { demoLibrary, demoSilhouette, demoVectors } from "./demo";
@@ -90,6 +98,7 @@ import {
   ToolSeparator,
   ToolSpacer,
   Toolbar,
+  runShortcut,
   useShortcuts,
   type MenuEntry,
 } from "../ui";
@@ -137,7 +146,17 @@ interface Shown extends LibraryEntry {
 
 export function LibraryScreen() {
   const engine = hasEngine();
-  const [folder, setFolder] = useState<string | null>(null);
+  // Le projet ouvert, et la bibliothèque montrée : la sienne, ou la
+  // bibliothèque commune (D-4.1-i), choisie dans les Réglages (⌘,).
+  const [projectFolder, setProjectFolder] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState<string | null>(null);
+  const [view, setView] = useState<"projet" | "commune">("projet");
+  const settings = useAppSettings();
+  const sharedRoot = engine ? (settings.sharedLibrary ?? null) : "démonstration";
+  const commune = view === "commune" && sharedRoot !== null;
+  const folder = engine ? (commune ? sharedRoot : projectFolder) : null;
+  const [sharedStates, setSharedStates] = useState<SharedStatus[]>([]);
+  const [statusRevision, setStatusRevision] = useState(0);
   const [project, setProject] = useState<Project | null>(null);
   const [entries, setEntries] = useState<Shown[]>([]);
   const [query, setQuery] = useState("");
@@ -205,12 +224,13 @@ export function LibraryScreen() {
     setEntries(list.map((e) => ({ ...e, url: e.thumbnail ? cacheFileUrl(e.thumbnail) : null })));
   }, []);
 
+  /** Lit la bibliothèque montrée (celle du projet ou la commune). */
   const load = useCallback(
-    (path: string) =>
+    (path: string, shared: boolean) =>
       run("Ouverture de la bibliothèque…", async () => {
         const opened = await openProject(path);
-        setFolder(path);
         setProject(opened);
+        if (!shared) setProjectName(opened.name);
         showEntries(await fetchLibrary(path));
       }),
     [run, showEntries],
@@ -219,11 +239,62 @@ export function LibraryScreen() {
   useEffect(() => {
     if (engine) {
       const last = recalledProject();
-      if (last) void load(last);
+      if (last) setProjectFolder(last);
+    }
+  }, [engine]);
+
+  // Changer de projet ou de bibliothèque montrée : on relit, rien n'est choisi.
+  useEffect(() => {
+    setSelected(null);
+    setMarked(new Set());
+    setCurrentFolder(null);
+    if (!engine) {
+      setEntries(commune ? demoLibrary(36).map((e) => ({ ...e, id: `commune-${e.id}` })) : demoLibrary(200));
       return;
     }
-    setEntries(demoLibrary(200));
-  }, [engine, load]);
+    if (folder) void load(folder, commune);
+    else setEntries([]);
+  }, [engine, folder, commune, load]);
+
+  // Où en sont les dessins copiés depuis la bibliothèque commune.
+  useEffect(() => {
+    if (!engine) {
+      setSharedStates([
+        { drawing: "demo-0", origin: "commune-demo-0", state: "upToDate" },
+        { drawing: "demo-1", origin: "commune-demo-1", state: "newer" },
+      ]);
+      return;
+    }
+    if (!projectFolder || !sharedRoot) {
+      setSharedStates([]);
+      return;
+    }
+    let cancelled = false;
+    fetchSharedStatus(projectFolder, sharedRoot).then(
+      (list) => !cancelled && setSharedStates(list),
+      () => !cancelled && setSharedStates([]),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [engine, projectFolder, sharedRoot, view, statusRevision]);
+
+  /** État d'un dessin montré : par son identifiant dans le projet, ou d'origine dans la commune. */
+  const sharedState = (id: string) => sharedStates.find((s) => (commune ? s.origin : s.drawing) === id)?.state ?? null;
+  const originOf = (id: string) => sharedStates.find((s) => s.drawing === id)?.origin ?? id;
+  const sharedLine = (id: string) => {
+    if (sharedRoot === null) return "Aucune bibliothèque commune choisie.";
+    const state = sharedState(id);
+    if (commune) {
+      if (state === "newer") return "Copié dans le projet, mais modifié ici depuis.";
+      if (state !== null) return "Déjà copié dans le projet.";
+      return projectFolder || !engine ? "Pas encore dans le projet." : "Ouvrir un projet pour y copier ce dessin.";
+    }
+    if (state === "upToDate") return "Copié de la bibliothèque commune, à jour.";
+    if (state === "newer") return "Une version plus récente est dans la bibliothèque commune.";
+    if (state === "missing") return "Copié d'une bibliothèque commune où il n'est plus.";
+    return "Propre à ce projet.";
+  };
 
   // Un import de la bibliothèque : dossier, fichiers choisis, ou dépôt du
   // Finder (D-4.1-f). `start` demande ce qu'il faut importer et rend
@@ -296,6 +367,9 @@ export function LibraryScreen() {
   const folders = useMemo(() => folderTree(entries, extraFolders), [entries, extraFolders]);
   const visible = useMemo(() => filterEntries(entries, query, currentFolder), [entries, query, currentFolder]);
   const chosen = entries.find((e) => e.id === selected) ?? null;
+
+  /** Les dessins choisis (au moins celui de l'inspecteur). */
+  const chosenIds = selected ? (marked.has(selected) ? [...marked] : [selected]) : [];
 
   /** Choisit un seul dessin (ou aucun). */
   const choose = useCallback((id: string | null) => {
@@ -488,6 +562,37 @@ export function LibraryScreen() {
       );
     });
 
+  // --- Bibliothèque commune (D-4.1-i) --------------------------------------------
+
+  /** Copie de la commune vers le projet, ou envoi du projet vers la commune. */
+  const shareCopy = (ids: string[], direction: "copier" | "envoyer") =>
+    run(null, async () => {
+      if (!engine) {
+        setMessage(direction === "copier" ? `${countLabel(ids.length)} copié(s) dans le projet (démonstration).` : `${countLabel(ids.length)} envoyé(s) dans la bibliothèque commune (démonstration).`);
+        return;
+      }
+      if (!projectFolder || !sharedRoot || ids.length === 0) return;
+      setMessage(null);
+      setProgress({ done: 0, total: ids.length });
+      let report: SharedCopyReport;
+      try {
+        [, report] =
+          direction === "copier"
+            ? await copyFromShared(projectFolder, sharedRoot, ids, setProgress)
+            : await sendToShared(projectFolder, sharedRoot, ids, setProgress);
+      } finally {
+        setProgress(null);
+      }
+      if (folder) {
+        setProject(await openProject(folder));
+        showEntries(await fetchLibrary(folder));
+      }
+      setStatusRevision((n) => n + 1);
+      setMessage(sharedSummary(report, direction));
+    });
+
+  const openSettings = () => runShortcut("mod+,");
+
   // --- Ranger : renommer, glisser dans un dossier (D-4.1-g) -------------------
   // Rien ne bouge sur le disque : seuls le nom et le dossier affichés
   // changent dans projet.json, et ⌘Z les remet.
@@ -641,6 +746,13 @@ export function LibraryScreen() {
           },
         },
         { label: ids.length > 1 ? `Sortir ces ${ids.length} dessins de leur dossier` : "Sortir de son dossier", icon: "folder", onSelect: () => moveTo(ids, "") },
+        ...(sharedRoot
+          ? [
+              commune
+                ? { label: "Copier dans le projet", icon: "import" as const, disabled: engine && !projectFolder, onSelect: () => void shareCopy(ids, "copier") }
+                : { label: "Envoyer dans la bibliothèque commune", icon: "export" as const, onSelect: () => void shareCopy(ids, "envoyer") },
+            ]
+          : []),
         { separator: true },
         {
           label: "Retirer de la bibliothèque…",
@@ -685,13 +797,18 @@ export function LibraryScreen() {
   const toolbar = (
     <Toolbar>
       <ProjectMenu
-        name={project?.name ?? null}
-        folder={folder}
+        name={projectName}
+        folder={projectFolder}
+        historyFolder={folder}
         ready={ready}
         placeholder="Exemple sans moteur"
         shortcuts={!overlay}
-        onOpen={(path) => void load(path)}
-        onReload={() => folder && void load(folder)}
+        onOpen={(path) => {
+          setView("projet");
+          if (path === projectFolder) void load(path, false);
+          else setProjectFolder(path);
+        }}
+        onReload={() => folder && void load(folder, commune)}
         onError={setError}
       />
       <ToolSeparator />
@@ -715,6 +832,21 @@ export function LibraryScreen() {
         aria-label="Chercher un dessin"
       />
       <ToolSpacer />
+      {sharedRoot ? (
+        <Segmented
+          label="Bibliothèque montrée"
+          value={commune ? "commune" : "projet"}
+          onChange={setView}
+          options={[
+            { value: "projet", label: "Ce projet", title: "Les dessins du projet ouvert" },
+            { value: "commune", label: "Commune", title: `Les dessins partagés par tous les projets : ${sharedRoot}` },
+          ]}
+        />
+      ) : (
+        <Button variant="quiet" onClick={openSettings} disabled={!engine} title="Choisir le dossier de la bibliothèque commune dans les Réglages (⌘,)">
+          Bibliothèque commune…
+        </Button>
+      )}
       <ToolGroup label="Fond">
         <Segmented label="Fond des vignettes" value={backdrop} onChange={setBackdrop} options={BACKDROPS} />
       </ToolGroup>
@@ -853,6 +985,32 @@ export function LibraryScreen() {
             )}
           </dl>
           {!chosen.problem && (
+            <Section title="Bibliothèque commune">
+              <p className="library-vectors">{sharedLine(chosen.id)}</p>
+              {sharedRoot === null ? (
+                <Button onClick={openSettings} disabled={!engine}>
+                  Choisir le dossier dans Réglages…
+                </Button>
+              ) : commune ? (
+                <Button icon="import" onClick={() => void shareCopy(chosenIds, "copier")} disabled={!ready || (engine && !projectFolder)}>
+                  {sharedState(chosen.id) === "newer"
+                    ? "Reprendre la nouvelle version"
+                    : chosenIds.length > 1
+                      ? `Copier ces ${chosenIds.length} dessins dans le projet`
+                      : "Copier dans le projet"}
+                </Button>
+              ) : sharedState(chosen.id) === "newer" ? (
+                <Button icon="import" onClick={() => void shareCopy([originOf(chosen.id)], "copier")} disabled={!ready}>
+                  Reprendre la nouvelle version
+                </Button>
+              ) : sharedState(chosen.id) === null ? (
+                <Button icon="export" onClick={() => void shareCopy(chosenIds, "envoyer")} disabled={!ready}>
+                  {chosenIds.length > 1 ? `Envoyer ces ${chosenIds.length} dessins` : "Envoyer dans la bibliothèque commune"}
+                </Button>
+              ) : null}
+            </Section>
+          )}
+          {!chosen.problem && (
             <Section title="Vecteurs">
               <p className={vectorError ? "library-vectors library-problem" : "library-vectors"}>
                 {vectorError ?? (vectors ? vectorLine(vectors) : "Vectorisation…")}
@@ -941,6 +1099,11 @@ export function LibraryScreen() {
               )}
             </span>
             <span className="library-name">{entry.name}</span>
+            {sharedBadge(sharedState(entry.id), commune) && (
+              <span className={`library-badge${sharedState(entry.id) === "newer" ? " is-newer" : ""}`}>
+                {sharedBadge(sharedState(entry.id), commune)}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -970,8 +1133,9 @@ export function LibraryScreen() {
           }
         >
           <p>
-            Les dessins sont copiés dans le projet (un dossier avec ses sous-dossiers). PNG, BMP, TIFF, PSD aplati, SVG. On peut
-            aussi les glisser depuis le Finder sur cette fenêtre.
+            {commune
+              ? "La bibliothèque commune est vide : importer un dossier, ou envoyer des dessins d'un projet (vue « Ce projet »)."
+              : "Les dessins sont copiés dans le projet (un dossier avec ses sous-dossiers). PNG, BMP, TIFF, PSD aplati, SVG. On peut aussi les glisser depuis le Finder sur cette fenêtre."}
           </p>
         </EmptyState>
       )}
