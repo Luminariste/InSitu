@@ -4,6 +4,30 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-14 — « À cheval » jugé sur le tracé (demande de Benjamin)
+
+Demande de Benjamin : « détections de à cheval : c'est le tracé qui doit
+poser soucis, pas le rectangle de sélection ».
+
+**D-4.5-j. Un dessin n'est « à cheval » que si son tracé dépasse.** Le
+calepinage (`assignments`) reste calculé sur le rectangle du dessin, sans
+lire d'image : c'est lui qui choisit la diapositive, et l'export, la
+fiche, les aperçus donnent tous le même projecteur. Ensuite,
+`shape_assignments` reprend les seuls dessins dont le rectangle dépasse
+(et qui tombent dans une emprise) avec leur silhouette (tâche 4.7, qui
+suit les traits ; retouchée si elle l'a été, sinon détectée et gardée dans
+le cache) : si le tracé tient dans la diapositive, le dessin n'est plus à
+cheval, et ses diapositives candidates sont celles qui contiennent tout
+le tracé. Un dessin sans silhouette compte toujours pour son rectangle.
+Utilisé par l'app (contour rouge, mention « à cheval » de l'arborescence
+et de la barre), les parts perdues en rouge (D-4.5-h, déjà sur la
+silhouette), la vue Diapositive et la simulation ; en ligne de commande,
+`insitu place slides … --cache DOSSIER`. Si le rectangle a choisi une
+diapositive qui coupe le tracé alors qu'une autre le contient en entier,
+la simulation le dit (« … contient tout son tracé : la choisir à la
+main ») ; le choix automatique n'est pas changé, pour ne pas lire les
+silhouettes à chaque export.
+
 ## 2026-11-14 — Bibliothèque : recherche par dossier et fichier (demande de Benjamin)
 
 Demande de Benjamin (14 novembre) : « bibliothèque : recherche par dossier

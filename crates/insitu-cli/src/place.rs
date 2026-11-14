@@ -16,7 +16,7 @@ pub const USAGE: &str = r#"Usage :
   insitu place remove <projet.insitu> <id>…
   insitu place set <projet.insitu> <placements.json> [--history DOSSIER]
   insitu place deform <projet.insitu> <id>… (--corners | --grid CxR | --none)
-  insitu place slides <projet.insitu>
+  insitu place slides <projet.insitu> [--cache DOSSIER]
   insitu place lost <projet.insitu> --cache DOSSIER
   insitu place assign <projet.insitu> <id>… (--to PROJECTEUR | --auto)
   insitu place adjust <projet.insitu> <id> (--corners | --grid CxR | --none)
@@ -41,7 +41,9 @@ Dessins posés sur la façade. Longueurs en mm réels de façade, origine en hau
           nœuds se déplacent ensuite par set (champ deformation.nodes).
   slides  Affiche en JSON la diapositive de chaque dessin posé (tâche 4.5) :
           projecteur, choix à la main ou non, dessin entier ou à cheval, et
-          les diapositives qui le contiennent en entier.
+          les diapositives qui le contiennent en entier. Avec --cache,
+          « à cheval » se juge sur le tracé (silhouette) et non sur le
+          rectangle, comme dans l'app (D-4.5-j).
   lost    Affiche en JSON, pour chaque dessin qui dépasse de sa
           diapositive, la part qui ne sera pas projetée, sur la façade (mm),
           d'après sa silhouette ; les silhouettes détectées sont rangées
@@ -268,7 +270,14 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
         ["slides", folder] => {
             let dir = ProjectDir::open(folder).map_err(failed)?;
             let project = dir.load().map_err(failed)?.project;
-            let all = placement::assign::assignments(&project);
+            let all = match &cache {
+                Some(cache) => placement::assign::shape_assignments(
+                    &dir,
+                    &project,
+                    std::path::Path::new(cache),
+                ),
+                None => placement::assign::assignments(&project),
+            };
             Ok(serde_json::to_string_pretty(&all).expect("sérialisable"))
         }
         ["lost", folder] => {

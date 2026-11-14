@@ -10,11 +10,21 @@
 //! contiennent tout le contour, on prend celle où le dessin est le plus loin
 //! du bord ; si aucune ne le contient en entier, celle qui en contient la
 //! plus grande part, et le dessin est signalé « à cheval ».
+//!
+//! « À cheval » se juge sur le tracé du dessin, pas sur son rectangle
+//! (D-4.5-j) : [`shape_assignments`] reprend les dessins dont le rectangle
+//! dépasse avec leur silhouette (tâche 4.7), qui suit les traits. Le choix
+//! de la diapositive, lui, reste celui du rectangle, pour que l'export et
+//! toutes les vues donnent le même projecteur sans lire les images.
+
+use std::path::Path;
 
 use serde::Serialize;
 
+use super::lost::shape_on_facade;
 use crate::geometry::{Point, PointWarp, Transform};
-use crate::project::{Placement, Project};
+use crate::library::silhouette::{silhouettes, DrawingSilhouette};
+use crate::project::{Placement, Project, ProjectDir};
 use crate::registration::slide_to_facade;
 use crate::units::SLIDE_SIZE_MM;
 
@@ -155,6 +165,94 @@ pub fn assignments(project: &Project) -> Vec<Assignment> {
         .iter()
         .map(|p| assign_one(p, &warps))
         .collect()
+}
+
+/// Reprend `all` avec le tracé des dessins (D-4.5-j) : un dessin dont le
+/// rectangle dépasse de sa diapositive mais dont la silhouette (sinon le
+/// rectangle) y tient en entier n'est plus « à cheval », et ses diapositives
+/// candidates sont celles qui contiennent sa silhouette. Le projecteur
+/// choisi ne change pas.
+pub fn refine_with_silhouettes(
+    project: &Project,
+    all: &mut [Assignment],
+    silhouettes: &[DrawingSilhouette],
+) {
+    let warps = registered(project);
+    // Hors de toute emprise, un dessin ne tient nulle part : rien à revoir.
+    for a in all.iter_mut().filter(|a| !a.whole && a.projector.is_some()) {
+        let Some(p) = project.placements.iter().find(|p| p.id == a.placement) else {
+            continue;
+        };
+        let polygons = silhouettes
+            .iter()
+            .find(|s| s.drawing == p.drawing)
+            .map_or(&[][..], |s| s.polygons.as_slice());
+        let points: Vec<Point> = shape_on_facade(p, polygons)
+            .into_iter()
+            .flatten()
+            .map(|[x, y]| Point::new(x, y))
+            .collect();
+        if p.slide.is_some() {
+            let s = SLIDE_SIZE_MM;
+            a.whole = points
+                .iter()
+                .all(|q| q.x >= 0.0 && q.y >= 0.0 && q.x <= s && q.y <= s);
+            continue;
+        }
+        let fits: Vec<(&str, Fit)> = warps.iter().map(|(id, w)| (*id, fit(&points, w))).collect();
+        a.candidates = fits
+            .iter()
+            .filter(|(_, f)| f.margin >= 0.0)
+            .map(|(id, _)| id.to_string())
+            .collect();
+        a.whole = a
+            .projector
+            .as_deref()
+            .is_some_and(|chosen| a.candidates.iter().any(|c| c == chosen));
+    }
+}
+
+/// Les affectations du projet, « à cheval » jugé sur le tracé (D-4.5-j) :
+/// les silhouettes des seuls dessins dont le rectangle dépasse sont lues
+/// (détectées et rangées dans le cache `cache_root` au besoin). Une
+/// silhouette illisible (fichier du dessin manquant…) laisse ce dessin
+/// jugé sur son rectangle.
+pub fn shape_assignments(
+    dir: &ProjectDir,
+    project: &Project,
+    cache_root: &Path,
+) -> Vec<Assignment> {
+    let mut all = assignments(project);
+    let mut ids: Vec<String> = all
+        .iter()
+        .filter(|a| !a.whole && a.projector.is_some())
+        .filter_map(|a| project.placements.iter().find(|p| p.id == a.placement))
+        .map(|p| p.drawing.clone())
+        .filter(|id| project.drawing(id).is_some())
+        .collect();
+    ids.sort_unstable();
+    ids.dedup();
+    if ids.is_empty() {
+        return all;
+    }
+    let found = silhouettes(dir, project, &ids, cache_root).unwrap_or_else(|_| {
+        ids.iter()
+            .filter_map(|id| silhouettes(dir, project, std::slice::from_ref(id), cache_root).ok())
+            .flatten()
+            .collect()
+    });
+    refine_with_silhouettes(project, &mut all, &found);
+    all
+}
+
+/// Les affectations du projet enregistré dans `dir`, « à cheval » jugé sur
+/// le tracé (D-4.5-j).
+pub fn load_shape_assignments(
+    dir: &ProjectDir,
+    cache_root: &Path,
+) -> Result<Vec<Assignment>, crate::project::ProjectError> {
+    let project = dir.load()?.project;
+    Ok(shape_assignments(dir, &project, cache_root))
 }
 
 /// Les dessins posés visibles que porte la diapositive du projecteur

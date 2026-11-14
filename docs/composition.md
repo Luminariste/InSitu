@@ -183,7 +183,9 @@ deux projecteurs. Sur la façade, son contour a la couleur de son projecteur
 (les mêmes couleurs que les emprises). Un contour **rouge** : le dessin est
 à cheval, aucune diapositive ne le contient en entier, ou bien celle
 choisie à la main le coupe. Un contour gris : il ne tombe dans aucune
-emprise.
+emprise. « À cheval » se juge sur le tracé du dessin (sa silhouette), pas
+sur son rectangle de sélection : un dessin dont seul le fond noir dépasse
+n'est pas signalé (D-4.5-j).
 
 **Vérifier le chevauchement** (menu Affichage, rubrique « Vérifier »,
 version 0.1.49) : par défaut la façade reste épurée, pour composer ; les
