@@ -22,7 +22,8 @@ Tout s'enregistre dans le projet à la fin de chaque geste.
 
 | Geste | Effet |
 | --- | --- |
-| Cliquer un dessin | Le choisir (avec tout son groupe) |
+| Cliquer un dessin | Le choisir (avec tout son groupe). Seul le dessin lui-même (sa silhouette) prend le clic : le vide de son cadre laisse passer le clic au dessin du dessous (D-4.2-t) |
+| ⌘-clic | Choisir le dessin juste en dessous de celui choisi ; répété, encore en dessous, puis retour au plus en avant (comme Illustrator) |
 | ⇧-clic | Ajouter ou retirer un dessin de la sélection |
 | Glisser dans le vide | Cadre de sélection (⇧ : ajoute) |
 | Cliquer dans le vide | Plus rien de choisi |

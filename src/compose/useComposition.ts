@@ -33,6 +33,7 @@ import { projectorColor } from "../facade/overview";
 import { demoLibrary, demoSilhouette } from "../library/demo";
 import { NUDGE_PX, NUDGE_SHIFT_PX, nudged, setViewerCursor, type LayerSpec, type ViewerHandle } from "../viewer";
 import { mmToScreen, screenToMm, visibleRect } from "../viewer/geometry";
+import { commandDown } from "../ui/shortcuts";
 import {
   applyGesture,
   frameHandles,
@@ -64,6 +65,9 @@ import {
   flip,
   group,
   hitTest,
+  hitsAt,
+  nextBehind,
+  unitKey,
   newId,
   outline,
   rectCenter,
@@ -79,6 +83,7 @@ import {
   type Placement,
   type Point,
   type Rect,
+  type Silhouette,
 } from "./placement";
 import {
   addLayer,
@@ -211,6 +216,8 @@ export interface Composition {
   assignments: Map<string, Assignment>;
   /** Consigne du geste possible, pour la barre d'état. */
   hint: string | null;
+  /** Silhouette d'un dessin de la bibliothèque (retouchée, sinon détectée), ou null tant qu'elle manque. */
+  silhouetteOf: (drawing: string) => Silhouette | null;
   /** Mode 4 coins : les points de la déformation se tirent, le cadre est caché (D-4.2-n et s). */
   deforming: boolean;
   /** Angle affiché près du pointeur pendant une rotation à la souris (pixels de la zone). */
@@ -455,8 +462,9 @@ export function useComposition(options: Options): Composition {
     // Une silhouette rendue à la détection se redemande.
     requested.current = new Set();
   }, [projectLibrary]);
+  // Demandées aussi sans affichage (vue Diapositive) : un clic ne prend que
+  // ce qu'on voit d'un dessin, sa silhouette.
   useEffect(() => {
-    if (headless) return;
     const wanted = [...new Set(placements.map((p) => p.drawing))].filter(
       (id) => !manualSilhouettes.has(id) && !detected.has(id) && !requested.current.has(id),
     );
@@ -476,7 +484,11 @@ export function useComposition(options: Options): Composition {
         }),
       (failure: unknown) => onError(String(failure)),
     );
-  }, [placements, manualSilhouettes, detected, engine, folder, onError, headless]);
+  }, [placements, manualSilhouettes, detected, engine, folder, onError]);
+  const silhouetteOf = useCallback(
+    (drawing: string) => manualSilhouettes.get(drawing) ?? detected.get(drawing) ?? null,
+    [manualSilhouettes, detected],
+  );
 
   // --- Affichage --------------------------------------------------------------------------
 
@@ -643,7 +655,12 @@ export function useComposition(options: Options): Composition {
               corner: handle.corner,
             };
     } else {
-      const hit = hitTest(picks, at.mm);
+      // Un clic ne prend que ce qu'on voit d'un dessin (sa silhouette) ;
+      // ⌘-clic : le dessin suivant en dessous, comme dans Illustrator.
+      const behind = commandDown(event);
+      const hit = behind
+        ? nextBehind(hitsAt(picks, at.mm, silhouetteOf), unitKey, (p) => selection.has(p.id))
+        : hitTest(picks, at.mm, silhouetteOf);
       if (hit) {
         const unit = expandToGroups(placements, [hit.id]);
         if (event.shiftKey) {
@@ -659,7 +676,7 @@ export function useComposition(options: Options): Composition {
           event.preventDefault();
           return true;
         }
-        const ids = selection.has(hit.id) ? selection : unit;
+        const ids = selection.has(hit.id) && !behind ? selection : unit;
         setSelection(ids);
         gesture = { kind: "move", start: at.mm, before: placements, ids };
       } else if (picks.length > 0) {
@@ -688,7 +705,7 @@ export function useComposition(options: Options): Composition {
             ? scaleCursor(handle.corner)
             : handle?.kind === "rotate"
               ? rotateCursor(handle.corner)
-              : hitTest(picks, at.mm)
+              : hitTest(picks, at.mm, silhouetteOf)
                 ? "move"
                 : picks.length > 0
                   ? "default"
@@ -973,9 +990,9 @@ export function useComposition(options: Options): Composition {
     : has
       ? editable
         ? "Mode 4 coins : glisser un point bleu, ou le cliquer puis flèches (⇧ : pas plus grand) · Échap ou « Normal » : retrouver le cadre · Espace : déplacer la vue"
-        : "Glisser : déplacer (⌥ copie, ⇧ droit) · coin : agrandir · rond au-dessus du cadre : tourner (⇧ par 5°) · Espace : déplacer la vue"
+        : "Glisser : déplacer (⌥ copie, ⇧ droit) · coin : agrandir · rond au-dessus du cadre : tourner (⇧ par 5°) · ⌘-clic : dessin du dessous · Espace : déplacer la vue"
       : picks.length > 0
-        ? "Cliquer un dessin pour le choisir, ou glisser autour de plusieurs"
+        ? "Cliquer un dessin pour le choisir (⌘-clic : celui du dessous), ou glisser autour de plusieurs"
         : drawings.length > 0
           ? "Glisser un dessin de la liste sur la façade"
           : null;
@@ -992,6 +1009,7 @@ export function useComposition(options: Options): Composition {
     layers,
     assignments,
     hint,
+    silhouetteOf,
     deforming: editable !== null,
     turn,
     actions,

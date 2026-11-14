@@ -20,7 +20,9 @@ import { SelectionNode } from "../compose/SelectionNode";
 import { demoLibrary } from "../library/demo";
 import { NudgeSettle, nudged, setViewerCursor, useArrowNudge, type LayerSpec, type ViewerHandle } from "../viewer";
 import { mmToScreen, screenToMm } from "../viewer/geometry";
-import { adjustedOutline, adjustedPoints, drawingAt, restAdjustment } from "./adjust";
+import { adjustedOutline, adjustedPoints, drawingAt, drawingsAt, restAdjustment } from "./adjust";
+import { nextBehind } from "../compose/placement";
+import { commandDown } from "../ui/shortcuts";
 import {
   alignShifts,
   applySlideGesture,
@@ -54,6 +56,8 @@ interface Options {
   viewer: RefObject<ViewerHandle | null>;
   stage: RefObject<HTMLDivElement | null>;
   onError: (message: string | null) => void;
+  /** Silhouette d'un dessin de la bibliothèque, ou null tant qu'elle manque. */
+  silhouetteOf: (drawing: string) => [number, number][][] | null;
 }
 
 export interface SlideActions {
@@ -87,7 +91,8 @@ export interface SlideAdjust {
 const sameSet = (a: Set<string>, b: Set<string>) => a.size === b.size && [...a].every((x) => b.has(x));
 
 export function useSlideAdjust(options: Options): SlideAdjust {
-  const { engine, folder, view, project, external, onSelect, selectLater, onProject, viewer, stage, onError } = options;
+  const { engine, folder, view, project, external, onSelect, selectLater, onProject, viewer, stage, onError, silhouetteOf } =
+    options;
   const [selection, setSelection] = useState<Set<string>>(new Set());
   /** Retouches tenues à jour à l'écran (le moteur fait foi après chaque enregistrement). */
   const [local, setLocal] = useState<Map<string, Deformation | null>>(new Map());
@@ -149,6 +154,15 @@ export function useSlideAdjust(options: Options): SlideAdjust {
       return drawings.filter((d) => mates.has(d.placement)).map((d) => d.placement);
     },
     [placements, drawings],
+  );
+
+  /** Un groupe compte pour un (⌘-clic : le dessin suivant en dessous). */
+  const groupKey = useCallback(
+    (id: string) => {
+      const group = placements.find((p) => p.id === id)?.group;
+      return group ? `g:${group}` : `p:${id}`;
+    },
+    [placements],
   );
 
   const outlineOf = useCallback((d: SlideDrawing) => adjustedOutline(d, adjustmentOf(d.placement)), [adjustmentOf]);
@@ -418,14 +432,23 @@ export function useSlideAdjust(options: Options): SlideAdjust {
         gesture = { kind: "scale", start: at.mm, frame, corner: handle.corner, before: befores(selected) };
     }
     if (!gesture) {
-      const hit = drawingAt(drawings, adjustmentOf, at.mm);
+      // Un clic ne prend que ce qu'on voit d'un dessin (sa silhouette) ;
+      // ⌘-clic : le dessin suivant en dessous, comme dans Illustrator.
+      const behind = commandDown(event);
+      const hit = behind
+        ? nextBehind(
+            drawingsAt(drawings, adjustmentOf, at.mm, silhouetteOf),
+            (d) => groupKey(d.placement),
+            (d) => selection.has(d.placement),
+          )
+        : drawingAt(drawings, adjustmentOf, at.mm, silhouetteOf);
       if (!hit) {
         if (!event.shiftKey) choose([]);
         return;
       }
       const ids = withGroup(hit.placement);
       let next: Set<string>;
-      if (event.shiftKey) {
+      if (event.shiftKey && !behind) {
         // ⇧-clic : ajoute ou retire le dessin (et son groupe) de la sélection.
         next = new Set(selection);
         const remove = selection.has(hit.placement);
@@ -436,7 +459,7 @@ export function useSlideAdjust(options: Options): SlideAdjust {
         choose(next);
         if (remove) return;
       } else {
-        next = selection.has(hit.placement) ? selection : new Set(ids);
+        next = selection.has(hit.placement) && !behind ? selection : new Set(ids);
         if (next !== selection) choose(next);
       }
       gesture = { kind: "move", start: at.mm, before: befores(drawings.filter((d) => next.has(d.placement))) };
@@ -461,7 +484,7 @@ export function useSlideAdjust(options: Options): SlideAdjust {
         if (handle?.kind === "rotate") cursor = rotateCursor(handle.corner === KNOB ? 0 : handle.corner);
         else if (handle?.kind === "scale") cursor = scaleCursor(handle.corner);
       }
-      if (!cursor && drawingAt(drawings, adjustmentOf, at.mm)) cursor = "move";
+      if (!cursor && drawingAt(drawings, adjustmentOf, at.mm, silhouetteOf)) cursor = "move";
       setViewerCursor(stage.current, cursor);
       return;
     }
@@ -495,9 +518,9 @@ export function useSlideAdjust(options: Options): SlideAdjust {
     selected.length > 0
       ? corners
         ? "Mode 4 coins : glisser un point bleu, ou le cliquer puis flèches (⇧ : pas plus grand) · Échap : retrouver le cadre"
-        : "Glisser : décaler dans cette diapositive (⌥ copie, ⇧ droit) · ⌘D : copier · coin : agrandir · rond au-dessus du cadre : tourner (⇧ par 5°) · ⇧-clic : ajouter"
+        : "Glisser : décaler dans cette diapositive (⌥ copie, ⇧ droit) · ⌘D : copier · coin : agrandir · rond au-dessus du cadre : tourner (⇧ par 5°) · ⇧-clic : ajouter · ⌘-clic : dessin du dessous"
       : drawings.length > 0
-        ? "Cliquer un dessin pour le retoucher dans cette diapositive"
+        ? "Cliquer un dessin pour le retoucher dans cette diapositive (⌘-clic : celui du dessous)"
         : "";
 
   return {

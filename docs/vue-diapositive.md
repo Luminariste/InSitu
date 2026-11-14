@@ -64,6 +64,9 @@ agissent partout, comme dans la Façade ; leur bulle le dit.
   est calé sur la façade.
 - Partout (façade et toutes les diapositives) : miroir, ordre (⌘[ ⌘]),
   grouper (⌘G), dégrouper.
+- Comme sur la façade, un clic ne prend que le dessin lui-même (sa
+  silhouette), et **⌘-clic** répété descend d'un dessin à chaque clic
+  (D-4.2-t).
 - ⇧-clic ajoute ou retire un dessin de la sélection ; cliquer dans le vide
   désélectionne (les flèches ← → changent alors de projecteur).
 - **⌘D** copie les dessins choisis, un peu décalés ; **⌥ + glisser** les
