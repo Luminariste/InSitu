@@ -4,6 +4,28 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-14 — Dessin qui dépasse à l'export, écran noir à la suppression (demandes de Benjamin)
+
+Questions de Benjamin : « si un dessin sort un peu de la diapo est ce
+qu'il est exporté ? » ; « quand je supprime un dessin, l'écran passe au
+noir avant d'afficher ».
+
+**D-3.5-p. Un dessin à cheval est exporté, coupé au bord.** C'était déjà
+le cas (D-4.5-a, D-4.5-h) : un dessin qui dépasse de sa diapositive part
+dans le PNG pour sa part dans le carré de 280 mm, le reste n'est pas
+gravé ; l'alerte « à cheval » ne bloque ni l'export ni la fiche. Un test
+le prouve désormais (`a_drawing_that_sticks_out_is_exported_cut_at_the_edge`).
+
+**D15-v. Une image remplacée reste affichée jusqu'à l'arrivée de la
+nouvelle.** Dans la visionneuse, une image posée sur une grille (aperçu de
+la diapositive, plan vu par le projecteur, photos) était détruite puis
+recréée quand son adresse changeait : pendant le chargement de la
+nouvelle, rien ne s'affichait, d'où l'écran noir après chaque changement
+qui refait l'aperçu (suppression d'un dessin, retouche…). Le calque garde
+maintenant l'ancienne image et ne la remplace qu'une fois la nouvelle
+prête ; une image demandée puis dépassée par une plus récente est
+abandonnée. Seul un changement de grille recrée le calque.
+
 ## 2026-11-14 — Masquer des parties des dessins (demande de Benjamin)
 
 Demande de Benjamin : « comment on pourrait faire une fonction très
