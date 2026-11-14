@@ -131,7 +131,14 @@
 /* Arborescence « Diapositives » : dessins rangés par diapositive. */
 .compose-tree {
   display: grid;
+  /* Une colonne qui ne s'élargit jamais au-delà du panneau : un nom long
+     est coupé par « … », l'œil et le cadenas restent visibles à droite. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
+}
+
+.compose-tree-group {
+  min-width: 0;
 }
 
 .compose-tree-head,
@@ -194,9 +201,23 @@
 .compose-tree-count,
 .compose-tree-note {
   flex: none;
+  white-space: nowrap;
   font-weight: normal;
   font-size: var(--ui-text-xs);
   color: var(--ui-text-tertiary);
+}
+
+/* La note (« choisie à la main, à cheval ») cède la place avant le nom. */
+.compose-tree-note {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compose-tree-head > .ui-button {
+  flex: none;
 }
 
 .compose-tree-row.is-cut .compose-tree-note {

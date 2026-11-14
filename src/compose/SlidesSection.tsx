@@ -9,6 +9,7 @@
 import { useRef, useState, type DragEvent, type MouseEvent } from "react";
 import { cssColor, projectorColor } from "../facade/overview";
 import { ContextMenu, Icon, IconButton, Section, type MenuEntry } from "../ui";
+import { asStrings, useRemembered } from "../ui/remember";
 import type { Placement } from "./placement";
 import { treeClick, type SlideGroup, type TreeDrop } from "./slideTree";
 import type { CompositionActions } from "./useComposition";
@@ -33,10 +34,14 @@ interface Props {
    */
   hiddenSlides?: ReadonlySet<string>;
   onToggleSlide?: (projector: string) => void;
+  /** Clé sous laquelle les diapositives repliées sont retenues. */
+  memory: string;
 }
 
-export function SlidesSection({ groups, selected, describe, actions, blocked, hiddenSlides, onToggleSlide }: Props) {
-  const [closed, setClosed] = useState<Set<string>>(new Set());
+export function SlidesSection({ groups, selected, describe, actions, blocked, hiddenSlides, onToggleSlide, memory }: Props) {
+  // Diapositives repliées, retenues (D15-v) ; la Façade et la Diapositive ont chacune les leurs.
+  const [closedList, setClosedList] = useRemembered<string[]>(memory, asStrings, []);
+  const closed = new Set(closedList);
   /** Cible survolée : `g:<projecteur>` ou `r:<dessin>`. */
   const [over, setOver] = useState<string | null>(null);
   /** Dernière ligne cliquée, point de départ du ⇧-clic. */
@@ -79,12 +84,7 @@ export function SlidesSection({ groups, selected, describe, actions, blocked, hi
     actions.dropInTree(id, drop);
   };
   const toggle = (key: string) =>
-    setClosed((before) => {
-      const next = new Set(before);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    setClosedList((before) => (before.includes(key) ? before.filter((k) => k !== key) : [...before, key]));
 
   return (
     <Section title="Diapositives">

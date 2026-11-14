@@ -6,6 +6,7 @@
 
 import { useMemo, useState } from "react";
 import { Icon, Section } from "../ui";
+import { asStrings, useRemembered } from "../ui/remember";
 import { endDrawingDrag, startDrawingDrag } from "./dragDrawing";
 import { drawingTree, type DrawingFolder } from "./drawingTree";
 import type { ComposeDrawing } from "./useComposition";
@@ -85,18 +86,15 @@ function Folder({
 
 export function DrawingsSection({ drawings, blocked, onPlace }: Props) {
   const [filter, setFilter] = useState("");
-  const [folded, setFolded] = useState<Set<string>>(new Set());
+  // Dossiers repliés, retenus (D15-v).
+  const [foldedList, setFoldedList] = useRemembered<string[]>("insitu.dossiersRepliesDessins", asStrings, []);
+  const folded = new Set(foldedList);
   const tree = useMemo(() => drawingTree(drawings, filter), [drawings, filter]);
   // Pendant une recherche, tout est déplié pour voir ce qui est trouvé.
   const searching = filter.trim() !== "";
   const closed = (path: string) => !searching && folded.has(path);
   const toggle = (path: string) =>
-    setFolded((current) => {
-      const next = new Set(current);
-      if (next.has(path)) next.delete(path);
-      else next.add(path);
-      return next;
-    });
+    setFoldedList((current) => (current.includes(path) ? current.filter((p) => p !== path) : [...current, path]));
   return (
     <Section title="Dessins">
       {drawings.length === 0 ? (

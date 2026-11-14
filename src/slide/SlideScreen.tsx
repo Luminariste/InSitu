@@ -42,6 +42,7 @@ import { CompositionToolbar } from "../compose/CompositionToolbar";
 import { DrawingsSection } from "../compose/DrawingsSection";
 import { LayersSection } from "../compose/LayersSection";
 import { SlidesSection } from "../compose/SlidesSection";
+import { asString, keep, projectKey, recall } from "../ui/remember";
 import { slideTree } from "../compose/slideTree";
 import { useComposition, type CompositionActions } from "../compose/useComposition";
 import { draggedDrawing, droppedDrawingId, endDrawingDrag, DRAWING_DRAG_TYPE } from "../compose/dragDrawing";
@@ -128,6 +129,8 @@ const SLIDE_SHORTCUTS = new Set(["mod+g", "mod+shift+g", "mod+shift+]", "mod+]",
  */
 const beforeLightBurn: { look: SlideLook | null } = { look: null };
 
+const CURRENT_KEY = "insitu.projecteurChoisi.diapositive";
+
 export function SlideScreen() {
   const engine = hasEngine();
   const viewer = useRef<ViewerHandle>(null);
@@ -171,6 +174,9 @@ export function SlideScreen() {
     setBusy("Calcul des diapositives…");
     setError(null);
     try {
+      // Le projecteur regardé la dernière fois dans ce projet (D15-v), lu
+      // avant que le dossier change.
+      const kept = recall(projectKey(CURRENT_KEY, path), asString, null);
       const opened = await openProject(path);
       setFolder(path);
       setProject(opened);
@@ -179,7 +185,9 @@ export function SlideScreen() {
       setCurrent((before) =>
         list.some((v) => v.projectorId === before)
           ? before
-          : ((list.find((v) => v.preview && v.rectifiedPhoto) ?? list[0])?.projectorId ?? null),
+          : list.some((v) => v.projectorId === kept)
+            ? kept
+            : ((list.find((v) => v.preview && v.rectifiedPhoto) ?? list[0])?.projectorId ?? null),
       );
     } catch (failure) {
       setError(String(failure).replace(/^Error: /, ""));
@@ -201,6 +209,9 @@ export function SlideScreen() {
   }, [engine, load]);
 
   const view = views.find((v) => v.projectorId === current) ?? null;
+  useEffect(() => {
+    if (folder && current) keep(projectKey(CURRENT_KEY, folder), current);
+  }, [folder, current]);
 
   // Le projet a changé (retouche, ordre, dessin posé…) : l'aperçu est recalculé.
   const onProject = useCallback(
@@ -665,6 +676,7 @@ export function SlideScreen() {
               describe={describePlacement}
               actions={composition.actions}
               blocked={layersBlocked}
+              memory={projectKey("insitu.diapositivesRepliees.diapositive", folder)}
             />
             {!layersBlocked && tree.length === 0 && <p className="ui-list-empty">Aucun dessin dans cette diapositive.</p>}
             <LayersSection
