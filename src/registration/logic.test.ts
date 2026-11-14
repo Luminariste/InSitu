@@ -29,6 +29,7 @@ import {
   pinFitText,
   followConstraints,
   constraintsText,
+  poseIsSound,
 } from "./logic";
 
 const p = (x: number, y: number) => ({ x, y });
@@ -430,3 +431,56 @@ describe("coins guides remis avant de caler par lignes (D-3.2-k)", () => {
   });
 });
 
+
+describe("points sûrs qui ne renversent jamais la photo (D-3.2-m)", () => {
+  const guides = cornerPairs(p(5000, 5000), 2800);
+  // Les 4 points de Benjamin sur A (Trévarez, 14 novembre), posés sans coins guides.
+  const benjaminA = [
+    { slide: p(236.99, 175.08), facade: p(34180.15, 15861.35) },
+    { slide: p(10.88, 175.27), facade: p(26289.19, 15181.95) },
+    { slide: p(222.5, 223.73), facade: p(33586.77, 17359.94) },
+    { slide: p(55.37, 203.39), facade: p(28132.61, 16368.42) },
+  ];
+
+  it("4 points groupés dans le bas, deux inversés : la forme libre croiserait, la photo se penche seulement", () => {
+    const slides = [p(40, 200), p(240, 200), p(40, 260), p(240, 260)];
+    expect(pinFit(slides)).toBe("libre");
+    // Les deux du bas sont lâchés l'un à la place de l'autre : un trapèze exact par les 4 serait croisé.
+    const facades = [p(3800, 5600), p(6200, 5600), p(6200, 6200), p(3800, 6200)];
+    const out = followPins([...guides, ...slides.map((s, k) => ({ slide: s, facade: facades[k] }))]);
+    expect(out).not.toEqual([...guides, ...slides.map((s, k) => ({ slide: s, facade: facades[k] }))]);
+    expect(poseIsSound(out)).toBe(true);
+    // Forme penchée : les côtés opposés restent parallèles.
+    const [a, b, c, d] = out.slice(0, 4).map((q) => q.facade);
+    expect(b.x - a.x).toBeCloseTo(c.x - d.x, 6);
+    expect(b.y - a.y).toBeCloseTo(c.y - d.y, 6);
+  });
+
+  it("des points posés un à un retrouvent les coins guides, sans rien croiser", () => {
+    const out = ensureGuides(benjaminA);
+    expect(out.filter(isGuide)).toHaveLength(4);
+    expect(out.filter((q) => !isGuide(q))).toEqual(benjaminA);
+    expect(poseIsSound(out)).toBe(true);
+    // Une fois les coins revenus, déplacer un point garde la photo saine.
+    const moved = benjaminA.map((q, i) => (i === 2 ? { ...q, facade: p(q.facade.x - 3000, q.facade.y + 2500) } : q));
+    expect(poseIsSound(followPins(ensureGuides(moved)))).toBe(true);
+  });
+
+  it("4 points sans coins qui donneraient un trapèze croisé : coins d'une forme penchée", () => {
+    const crossed = [
+      { slide: p(40, 200), facade: p(3800, 5600) },
+      { slide: p(240, 200), facade: p(6200, 5600) },
+      { slide: p(40, 260), facade: p(6200, 6200) },
+      { slide: p(240, 260), facade: p(3800, 6200) },
+    ];
+    const out = ensureGuides(crossed);
+    expect(out.filter(isGuide)).toHaveLength(4);
+    expect(poseIsSound(out)).toBe(true);
+  });
+
+  it("une pose ordinaire est dite saine, une pose retournée ne l'est pas", () => {
+    expect(poseIsSound(guides)).toBe(true);
+    const flipped = guides.map((g, i) => (i === 1 ? { ...g, facade: guides[2].facade } : i === 2 ? { ...g, facade: guides[1].facade } : g));
+    expect(poseIsSound(flipped)).toBe(false);
+  });
+});

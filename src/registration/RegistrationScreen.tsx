@@ -547,7 +547,10 @@ export function RegistrationScreen() {
     });
 
   /** Les coins guides recalculés d'après les points sûrs et les lignes. */
-  const follow = (next: RegistrationPair[], withLines: RegistrationLine[] = lines) => followConstraints(next, withLines);
+  // Des points posés sans les coins guides (un à un, ou guides supprimés)
+  // les retrouvent dès qu'il y en a 4 : les points restent libres (D-3.2-m).
+  const follow = (next: RegistrationPair[], withLines: RegistrationLine[] = lines) =>
+    followConstraints(ensureGuides(next), withLines);
 
   const remove = (index: number) => {
     setSelected(null);
