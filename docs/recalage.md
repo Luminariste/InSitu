@@ -34,6 +34,10 @@ de fenêtre, le pied d'une colonne, la pointe d'un arc… visibles sur les deux.
    Une phrase sous les boutons dit où l'on en est. Au-delà, la photo
    reste un trapèze (une perspective, sans courbe), ajusté au mieux sur
    tous les points (D-3.2-l).
+   Une forme qui renverserait la photo (points groupés dans un coin de la
+   photo, point lâché à côté) n'est jamais prise : la photo se contente
+   alors de se pencher, de tourner ou de glisser (D-3.2-m). Des points
+   posés un à un, sans coins, retrouvent leurs coins guides dès le 4ᵉ.
 5. Pour déplacer la vue pendant ce travail : **barre d'espace + glisser**
    (comme dans Illustrator), ou défilement à deux doigts sur le pavé
    tactile. ⌘0 recadre les deux vues.

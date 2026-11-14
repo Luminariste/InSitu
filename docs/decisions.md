@@ -2239,6 +2239,30 @@ souvent » ; « on est obligé d'avoir un point pour activer le mode ligne ? ».
   replacés sur la pose actuelle (trapèze ajusté sur tous les points), sans
   la changer ; les points sûrs restent (`ensureGuides`).
 
+**D-3.2-m. Des points sûrs ne renversent jamais la photo.** Retour de
+Benjamin sur la 0.1.69 (14 novembre 2026) : avec 4 points, « points
+inutilisables : […] le trapèze obtenu est croisé », et l'impression que
+l'app « force » les points, alors qu'ils devaient être libres.
+
+- **Cause.** Avec 4 points bien étalés, la forme de la photo venait d'eux
+  seuls : un trapèze qui passe exactement par les 4. Des points groupés dans
+  une bande de la photo (ceux de Trévarez sont tous dans le bas, entre 140
+  et 270 mm), ou un point lâché un peu à côté, et ce trapèze envoie un coin
+  de la photo « derrière l'horizon » : le moteur refuse la pose. Des points
+  posés un à un, sans coins guides (cas de A à F à Trévarez), n'avaient
+  aucune de ces précautions.
+- **Une pose qui renverserait la photo n'est pas gardée** (`poseIsSound`) :
+  coin ou point derrière l'horizon, ou perspective extrême (poids
+  perspectifs dans un rapport de plus de 4 sur la photo). On prend alors la
+  forme plus simple suivante : penchée (côtés opposés parallèles), puis
+  similitude, puis glisse. Même règle en mode Lignes.
+- **Des points posés sans coins guides les retrouvent** dès qu'il y en a 4,
+  au premier geste (`ensureGuides` dans chaque suivi) : ils deviennent des
+  points sûrs libres comme les autres (D-3.2-j). Si le trapèze ajusté sur
+  eux est croisé, les coins sont ceux de la forme penchée ajustée au mieux.
+- Le moteur garde son refus d'un trapèze croisé : il ne devrait plus être
+  atteint par les gestes de l'écran.
+
 ## 2026-11-12 — Tâche 2.5
 
 Écran de redressement : `src/rectification/`, module
