@@ -116,7 +116,7 @@ export function summarize(view: RectificationView): { text: string; quality: Nod
   if (view.gridUnread) {
     // Coins seuls (D-2.5-l) : rien n'est mesuré, on le dit.
     return {
-      text: `Redressée par les quatre coins seuls, la grille ne se lit pas (${view.gridUnread}). Précision non mesurée : vérifier la photo redressée, et la tourner d'un quart si son sens est faux.`,
+      text: `Redressée par les quatre coins seuls, la grille ne se lit pas (${view.gridUnread}). Précision non mesurée : vérifier la photo redressée, et la tourner de 90° si son sens est faux.`,
       quality: "moyen",
     };
   }

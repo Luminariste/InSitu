@@ -135,6 +135,8 @@ pub struct RectificationView {
     pub seconds: Option<f64>,
     /// Miroir appliqué à la diapositive.
     pub mirror: Mirror,
+    /// Quarts de tour appliqués après le miroir (0 à 3, sens horaire).
+    pub rotation: u8,
     /// Pourquoi la grille n'a pas été lue, quand le redressement ne tient
     /// qu'aux quatre coins posés à la main (D-2.5-l).
     pub grid_unread: Option<String>,
@@ -199,6 +201,7 @@ impl RectificationView {
             px_per_mm: detection.px_per_mm,
             seconds,
             mirror: Mirror::default(),
+            rotation: 0,
             grid_unread: detection.grid_unread.clone(),
         }
     }
@@ -336,17 +339,18 @@ pub fn rectify_projector(
             smoothing: DEFAULT_SMOOTHING,
         },
     )?;
-    // Le miroir choisi pour ce projecteur est gardé d'une détection à l'autre.
-    let mirror = project
+    // Le miroir et les quarts de tour choisis pour ce projecteur sont gardés
+    // d'une détection à l'autre (D-2.5-j, D-2.5-m).
+    let (mirror, rotation) = project
         .projector(&id)
         .and_then(|p| p.rectification.as_ref())
-        .map(|r| r.mirror)
+        .map(|r| (r.mirror, r.rotation % 4))
         .unwrap_or_default();
     let mut rectification = detection.to_project_rectification();
-    let detection = if mirror.is_none() {
+    let detection = if mirror.is_none() && rotation == 0 {
         detection
     } else {
-        mirror_rectification(&mut rectification, mirror);
+        orient_rectification(&mut rectification, mirror, rotation);
         from_rectification((image.width(), image.height()), &rectification)?
     };
     let rectified = rectify(&image, &detection, RECTIFIED_PHOTO_DPI);
@@ -360,17 +364,22 @@ pub fn rectify_projector(
     dir.save(&project)?;
     let mut view = RectificationView::new(&id, &detection, Some(start.elapsed().as_secs_f64()));
     view.mirror = mirror;
+    view.rotation = rotation;
     Ok((project, view))
 }
 
-/// Applique `change` aux points de la diapositive d'un redressement, et le
-/// note dans son réglage de miroir.
-fn mirror_rectification(rectification: &mut Rectification, change: Mirror) {
+/// Applique aux points de la diapositive d'une détection fraîche le miroir
+/// puis les `rotation` quarts de tour gardés pour le projecteur, et les note.
+fn orient_rectification(rectification: &mut Rectification, mirror: Mirror, rotation: u8) {
     for p in &mut rectification.points {
-        p.slide = change.apply(p.slide, SLIDE_SIZE_MM);
+        let mut q = mirror.apply(p.slide, SLIDE_SIZE_MM);
+        for _ in 0..rotation {
+            q = quarter_turn(q);
+        }
+        p.slide = q;
     }
-    rectification.mirror.horizontal ^= change.horizontal;
-    rectification.mirror.vertical ^= change.vertical;
+    rectification.mirror = mirror;
+    rectification.rotation = rotation;
 }
 
 /// Retourne la diapositive du projecteur (D-2.5-j) : `change` dit quels
@@ -389,21 +398,42 @@ pub fn mirror_projector(
         |r| {
             r.mirror.horizontal ^= change.horizontal;
             r.mirror.vertical ^= change.vertical;
+            // Le réglage se lit « miroir, puis quarts de tour » ; un miroir
+            // posé après k quarts de tour revient à un miroir posé avant,
+            // suivi de -k quarts de tour (un miroir inverse le sens de
+            // rotation ; les deux miroirs ensemble font un demi-tour, qui ne
+            // l'inverse pas).
+            if change.horizontal != change.vertical {
+                r.rotation = (4 - r.rotation % 4) % 4;
+            }
         },
     )
 }
 
-/// Tourne la diapositive du projecteur d'un quart de tour dans le sens des
-/// aiguilles d'une montre (D-2.5-l) : pour un redressement par les coins
-/// seuls, quand le sens de la mire n'a pas pu être lu. Comme le miroir, les
-/// points du redressement et du recalage tournent ensemble et la photo
-/// redressée est recalculée. Une nouvelle détection retrouve le sens d'elle-
-/// même et oublie ce quart de tour.
+/// Tourne la diapositive du projecteur de `quarter_turns` quarts de tour
+/// (positif : sens des aiguilles d'une montre ; négatif : sens inverse),
+/// pour la mettre dans le sens de lecture voulu (D-2.5-l, D-2.5-m). Comme
+/// le miroir, les points du redressement et du recalage tournent ensemble,
+/// la photo redressée est recalculée, et le réglage est gardé quand la mire
+/// est détectée de nouveau.
 pub fn rotate_projector(
     dir: &ProjectDir,
     projector: &str,
+    quarter_turns: i32,
 ) -> Result<(Project, RectificationView), RectifyError> {
-    transform_slide(dir, projector, quarter_turn, |_| {})
+    let turns = quarter_turns.rem_euclid(4) as u8;
+    transform_slide(
+        dir,
+        projector,
+        |p| {
+            let mut q = p;
+            for _ in 0..turns {
+                q = quarter_turn(q);
+            }
+            q
+        },
+        |r| r.rotation = (r.rotation % 4 + turns) % 4,
+    )
 }
 
 /// Un point de la diapositive, tourné d'un quart de tour (sens horaire à
@@ -440,7 +470,7 @@ fn transform_slide(
     let bytes = photo::encode_rgb(&rectified, OutputFormat::Png, RECTIFIED_PHOTO_DPI)?;
     let relative = rectified_path(dir, &project, &id, &label)?;
     write_atomic(&dir.resolve(&relative), &bytes)?;
-    let mirror = rectification.mirror;
+    let (mirror, rotation) = (rectification.mirror, rectification.rotation % 4);
     let p = project.projector_mut(&id).expect("projecteur trouvé");
     for pair in &mut p.registration {
         pair.slide = map(pair.slide);
@@ -450,6 +480,7 @@ fn transform_slide(
     dir.save(&project)?;
     let mut view = RectificationView::new(&id, &detection, Some(start.elapsed().as_secs_f64()));
     view.mirror = mirror;
+    view.rotation = rotation;
     Ok((project, view))
 }
 
@@ -469,6 +500,7 @@ pub fn projector_view(
     let detection = from_rectification(size, rectification)?;
     let mut view = RectificationView::new(&id, &detection, None);
     view.mirror = rectification.mirror;
+    view.rotation = rectification.rotation % 4;
     Ok(Some(view))
 }
 

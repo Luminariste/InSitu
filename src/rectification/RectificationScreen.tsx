@@ -393,11 +393,11 @@ export function RectificationScreen() {
       setMode("redressee");
     });
 
-  /** Quart de tour, pour un redressement par les coins seuls dont le sens est faux. */
-  const rotate = () =>
+  /** Quart de tour de la diapositive, pour la mettre dans le sens de lecture (D-2.5-m). */
+  const rotate = (turns: 1 | -1) =>
     run("Quart de tour de la photo redressée…", async () => {
       if (!folder || !selected) return;
-      const { project: next, view: turned } = await rotateProjector(folder, selected);
+      const { project: next, view: turned } = await rotateProjector(folder, selected, turns);
       setProject(next);
       setView(turned);
       const p = next.projectors.find((q) => q.id === selected);
@@ -578,15 +578,22 @@ export function RectificationScreen() {
         >
           ↕ Haut-bas
         </Button>
-        {view?.gridUnread && (
-          <Button
-            onClick={() => void rotate()}
-            disabled={!engine || !ready || editing}
-            title="Tourner la diapositive d'un quart de tour : le sens de la mire n'a pas pu être lu sur la photo"
-          >
-            ↻ Quart de tour
-          </Button>
-        )}
+      </ToolGroup>
+      <ToolGroup label="Tourner">
+        <Button
+          onClick={() => void rotate(-1)}
+          disabled={!engine || !view || !ready || editing}
+          title="Tourner la diapositive d'un quart de tour vers la gauche (photo redressée, export et points du recalage)"
+        >
+          ↺ 90° à gauche
+        </Button>
+        <Button
+          onClick={() => void rotate(1)}
+          disabled={!engine || !view || !ready || editing}
+          title="Tourner la diapositive d'un quart de tour vers la droite (photo redressée, export et points du recalage)"
+        >
+          ↻ 90° à droite
+        </Button>
       </ToolGroup>
       <ToolSeparator />
       <ToolGroup label="Export">
