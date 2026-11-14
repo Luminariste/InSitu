@@ -259,6 +259,7 @@ en millimètres réels. Le coin haut-gauche du fichier est l'origine.
 | `rectification.mirror` | Facultatif : `{ "horizontal": true, "vertical": false }` si la diapositive est retournée par rapport à la mire photographiée. Les `slide` des points (et ceux du recalage) en tiennent déjà compte ; absent, aucun miroir (D-2.5-j) |
 | `rectification.rotation` | Facultatif : quarts de tour de la diapositive dans le sens des aiguilles d'une montre (1 à 3), appliqués après le miroir. Les `slide` des points (et ceux du recalage) en tiennent déjà compte ; absent, 0 (D-2.5-m) |
 | `registration[]` | Le recalage : des paires de points communs, `slide` (mm sur la diapositive) et `facade` (mm réels sur la façade) |
+| `mask` | Masque général de la diapositive (D-3.6-h) : `shapes` (formes d'au moins trois points `[x, y]`, en mm de diapositive avant le miroir), `outside` (vrai : noir hors des formes ; absent : noir dedans), `hidden` (vrai : éteint) ; absent : aucun |
 
 ### `fresco` — la fresque en une image
 
@@ -319,6 +320,7 @@ Absent d'un fichier plus ancien : aucun changement de `formatVersion`.
 | `deformation` | Déformation libre (tâche 4.4) ; absente si le dessin est droit. Voir ci-dessous |
 | `adjustment` | Retouche dans une diapositive (tâche 4.6) : `projector` (identifiant) et `deformation` (même forme que `deformation`, cadre en mm de diapositive) ; absente : aucune |
 | `slide` | Posé dans la diapositive de ce projecteur (identifiant), sans passer par la façade (D-3.6-g) : `center`, `width`, `height`, `rotation` et `deformation` sont alors en mm de diapositive ; absent : le dessin est sur la façade |
+| `mask` | Masque du dessin posé (D-4.2-u) : des coups comme ceux de la gomme (`tool` `erase` cache, `draw` fait réapparaître ; `size`, `fill`, `points` en fractions du dessin) ; absent : rien de caché |
 | `projector` | Diapositive choisie à la main (tâche 4.5) : identifiant du projecteur ; absente, ou projecteur inconnu : celle que propose le moteur (D-4.5-b) |
 
 `deformation` contient `frame` (le cadre : `center`, `width`, `height` en mm

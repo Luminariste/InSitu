@@ -215,6 +215,10 @@ const PATHS = {
   eraser: <path d="M9.5 3l4 4-6 6H4.5l-2-2zM6.5 6l4 4M7.5 13H14" />,
   undo: <path d="M5.5 4L3 6.5 5.5 9M3 6.5h6.5a3.5 3.5 0 0 1 0 7H7" />,
   redo: <path d="M10.5 4L13 6.5 10.5 9M13 6.5H6.5a3.5 3.5 0 0 0 0 7H9" />,
+  // Masque : un cadre dont une moitié est cachée (D-4.2-u).
+  mask: <path d="M2.5 2.5h11v11h-11zM8 2.5v11M8 5l5.5-2.5M8 8.5l5.5-3.5M8 12l5.5-3.5" />,
+  brush: <path d="M13.5 2.5L8 8M8 8l-1.5-1.5M6.5 9.5a2 2 0 0 0-3 0c-.8.8-.5 2.5-1 4 1.5-.5 3.2-.2 4-1a2 2 0 0 0 0-3z" />,
+  lasso: <path d="M8 3c3.3 0 6 1.6 6 3.5S11.3 10 8 10 2 8.4 2 6.5 4.7 3 8 3zM4.5 9.3c-.6 1-.5 2.2.5 2.7s1.5 1.5 1 2.5" />,
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof PATHS;

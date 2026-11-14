@@ -203,6 +203,13 @@ pub fn check_model(project: &Project, report: &mut ValidationReport) {
                 ),
             );
         }
+        if let Some(problem) = projector
+            .mask
+            .as_ref()
+            .and_then(super::model::slide_mask_problem)
+        {
+            report.error(format!("{here}.mask"), problem);
+        }
         if let Some(rectification) = &projector.rectification {
             if rectification.points.len() < 4 {
                 report.warning(
@@ -306,6 +313,9 @@ pub(crate) fn placement_errors(project: &Project) -> Vec<(String, String)> {
                     placement.drawing
                 ),
             ));
+        }
+        if let Some(problem) = super::model::retouch_problem(&placement.mask) {
+            out.push((format!("{here}.mask"), problem));
         }
         if let Some(problem) = placement
             .deformation

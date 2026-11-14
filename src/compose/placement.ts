@@ -7,6 +7,8 @@
 // `crates/insitu-core/src/project/model.rs`) : mm réels de façade, y vers le
 // bas, rotation en degrés dans le sens des aiguilles d'une montre.
 
+import type { RetouchStroke } from "../engine";
+import { aspectOf, invertPoint, visibleAt } from "./mask";
 import {
   deformPoint,
   flipDeformation,
@@ -64,6 +66,12 @@ export interface Placement {
   hidden?: boolean;
   /** Verrouillé un à un : affiché, exporté, mais plus choisi à la souris (D-4.5-g). */
   locked?: boolean;
+  /**
+   * Masque (D-4.2-u) : coups de pinceau et zones en fractions du dessin,
+   * dans l'ordre ; `erase` cache, `draw` fait réapparaître. Absent : rien
+   * n'est caché.
+   */
+  mask?: RetouchStroke[];
 }
 
 /** Retouche d'un dessin dans la diapositive d'un projecteur : grille en mm de diapositive. */
@@ -211,8 +219,12 @@ export type Silhouette = [number, number][][];
  */
 export function touches(p: Placement, pt: Point, silhouette?: Silhouette | null): boolean {
   if (!contains(p, pt)) return false;
-  if (!silhouette || silhouette.length === 0) return true;
-  return silhouette.some((polygon) => insidePolygon(polygon.map(([u, v]) => facadePoint(p, u, v)), pt));
+  if (silhouette && silhouette.length > 0 && !silhouette.some((polygon) => insidePolygon(polygon.map(([u, v]) => facadePoint(p, u, v)), pt)))
+    return false;
+  // Ce que cache le masque (D-4.2-u) ne se voit plus : le clic passe dessous.
+  if (!p.mask?.length) return true;
+  const uv = invertPoint((u, v) => facadePoint(p, u, v), pt);
+  return !uv || visibleAt(p.mask, aspectOf(p.width, p.height), uv[0], uv[1]);
 }
 
 /** Tous les dessins sous le point, du plus en avant au plus en arrière. */

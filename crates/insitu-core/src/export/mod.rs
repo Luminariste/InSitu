@@ -24,6 +24,7 @@ pub mod fresco;
 pub mod marks;
 pub mod plan_view;
 pub mod preview;
+pub mod slide_mask;
 pub mod svg;
 #[cfg(test)]
 mod tests;
@@ -41,7 +42,7 @@ use crate::project::model::RectMm;
 use crate::project::store::write_atomic;
 use crate::project::{
     AssetKind, ExportSettings, FrescoImage, FrescoVector, Placement, Project, ProjectDir,
-    ProjectError,
+    ProjectError, SlideMask,
 };
 use crate::registration::slide_to_facade;
 use crate::resample::{warp_raster, WarpOptions};
@@ -299,6 +300,9 @@ pub struct Artwork<'a> {
     /// Le projecteur de la diapositive : ses retouches de dessins (tâche
     /// 4.6) s'appliquent.
     pub projector: Option<&'a str>,
+    /// Masque général de la diapositive (D-3.6-h), appliqué après tout le
+    /// reste ; aucun : rien n'est masqué.
+    pub mask: Option<&'a SlideMask>,
 }
 
 /// Calcule l'image d'une diapositive, en niveaux de gris : la fresque vue
@@ -318,6 +322,7 @@ pub fn render_slide(
         fresco: Some((fresco, frame)),
         drawings: Vec::new(),
         projector: None,
+        mask: None,
     };
     render_artwork(&art, Some(warp), caption, settings, threads)
 }
@@ -366,6 +371,9 @@ pub fn render_artwork(
         projector: art.projector,
     };
     drawings::draw(&mut slide, &art.drawings, &place, threads)?;
+    if let Some(mask) = art.mask {
+        slide_mask::apply(&mut slide, mask, px_mm, mirror);
+    }
     let mut image = if settings.margin {
         let n = side + 2 * margin;
         let mut plate = Raster::new(n, n, 1, vec![0; n as usize * n as usize]);
@@ -607,6 +615,7 @@ pub fn export_slides(
             },
             drawings: cache.pair(&seen),
             projector: Some(id),
+            mask: project.projector(id).and_then(|q| q.mask.as_ref()),
         };
         let rendered = render_artwork(&art, warp.as_ref(), &text, settings, threads)?;
         let bytes = encode_png(&rendered, settings)?;
@@ -620,6 +629,10 @@ pub fn export_slides(
                 projector: Some(id),
             };
             let paths = svg::slide_paths(&cache.vector_drawings(&seen), &place, threads);
+            let paths = match project.projector(id).and_then(|q| q.mask.as_ref()) {
+                Some(mask) => slide_mask::clip(paths, mask, settings.mirror),
+                None => paths,
+            };
             let document = svg::write_svg(&paths, settings.margin, &text);
             let svg_path = path.with_extension("svg");
             write_atomic(&svg_path, document.as_bytes())
@@ -713,6 +726,7 @@ pub fn export_control_plans(
                     fresco: Some((&plan, &frame)),
                     drawings: Vec::new(),
                     projector: None,
+                    mask: None,
                 };
                 let rendered = render_artwork(&art, Some(warp), &text, settings, threads)?;
                 let bytes = encode_png(&rendered, settings)?;

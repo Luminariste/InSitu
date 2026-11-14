@@ -88,6 +88,7 @@ fn project(temp: &TempDir) -> ProjectDir {
             slide: None,
             hidden: false,
             locked: false,
+            mask: Vec::new(),
             extra: Default::default(),
         });
     }

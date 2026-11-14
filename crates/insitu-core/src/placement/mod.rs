@@ -8,6 +8,7 @@
 pub mod adjust;
 pub mod assign;
 pub mod lost;
+pub mod mask;
 pub mod mesh;
 
 use std::collections::BTreeSet;
@@ -200,6 +201,7 @@ pub fn new_placement(
         slide: None,
         hidden: false,
         locked: false,
+        mask: Vec::new(),
         extra: Default::default(),
     })
 }

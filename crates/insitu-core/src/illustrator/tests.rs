@@ -200,6 +200,7 @@ fn the_pose_puts_the_drawing_corners_where_illustrator_does() {
             slide: None,
             hidden: false,
             locked: false,
+            mask: Vec::new(),
             extra: Default::default(),
         };
         assert_eq!(pose.mirrored, flip, "{degrees}°");

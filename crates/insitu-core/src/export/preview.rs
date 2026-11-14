@@ -206,6 +206,7 @@ pub fn slide_views_with(
                             .zip(project.fresco.as_ref().map(|f| &f.frame)),
                         drawings: cache.pair(&seen),
                         projector: Some(&p.id),
+                        mask: p.mask.as_ref(),
                     };
                     let gray = render_artwork(&art, warp.as_ref(), "", &settings, 0)?;
                     let rgba = Raster::new(gray.width, gray.height, 4, black_to_alpha(&gray));
@@ -260,6 +261,7 @@ fn plan_preview(
             fresco: Some((&plan, &frame)),
             drawings: Vec::new(),
             projector: None,
+            mask: None,
         };
         let gray = render_artwork(&art, Some(warp), "", &settings, 0).ok()?;
         let rgba = Raster::new(gray.width, gray.height, 4, black_to_alpha(&gray));
@@ -278,7 +280,12 @@ fn preview_request(
 ) -> Result<String, ExportError> {
     let pairs = project
         .projector(id)
-        .map(|p| serde_json::to_string(&p.registration).expect("sérialisable"))
+        .map(|p| {
+            // Le masque général de la diapositive (D-3.6-h) change l'aperçu.
+            let registration = serde_json::to_string(&p.registration).expect("sérialisable");
+            let mask = serde_json::to_string(&p.mask).expect("sérialisable");
+            format!("{registration}|{mask}")
+        })
         .unwrap_or_default();
     let mut identity = String::new();
     if let Some(fresco) = &project.fresco {

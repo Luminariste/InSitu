@@ -119,10 +119,43 @@ projecteur retire aussi ses dessins.
    cette diapositive…** : le PNG contient le dessin, à la place voulue.
    L'étape Façade ne le montre pas.
 
+## Masque de la diapositive (D-3.6-h)
+
+Un masque général : ce qu'il couvre est noir à l'export, quels que soient
+la fresque et les dessins (par exemple une fenêtre qu'il ne faut pas
+éclairer).
+
+1. Onglet **Calques** : le calque **Masque** est tout en haut, avec son œil.
+2. **Lasso** : tracer la forme à main levée sur la photo, en gardant le
+   bouton enfoncé. **Plume** : cliquer point par point ; la forme se ferme
+   en cliquant sur le premier point, par un double-clic ou par Entrée ;
+   ⌫ retire le dernier point, Échap abandonne.
+3. **Noir dedans** : l'intérieur des formes est noir. **Noir dehors** :
+   tout ce qui est hors des formes est noir.
+4. Les formes sont listées (« Forme 1 »…) : la croix, ou ⌫ sur la forme
+   choisie, la retire. **Retirer le masque** retire tout.
+5. L'œil éteint le masque : il n'est plus montré ni appliqué à l'export.
+
+À l'écran, le noir est assombri pour qu'on voie encore la photo dessous.
+Le masque n'est pas appliqué au plan de contrôle à graver.
+
+### Essai sur Mac
+
+1. Ouvrir une diapositive avec une photo redressée et des dessins.
+2. Calques → Masque → Plume : cliquer quatre points autour d'une fenêtre,
+   puis sur le premier : la fenêtre est assombrie.
+3. Exporter la diapositive : la fenêtre est noire dans le PNG et dans le
+   SVG, même là où passait un dessin.
+4. Choisir « Noir dehors » : seule la fenêtre reste éclairée, à l'écran et
+   à l'export.
+5. Éteindre l'œil, exporter : rien n'est noir.
+6. Avec une diapositive en miroir : le masque reste sur la fenêtre.
+
 ## Sans écran
 
 ```
 insitu slides Mon-projet.insitu --cache /tmp/apercus
+insitu projector mask Mon-projet.insitu A masque.json   # ou --none
 ```
 
 écrit l'aperçu de chaque diapositive dans le dossier donné et décrit le

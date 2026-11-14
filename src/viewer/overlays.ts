@@ -180,6 +180,10 @@ export class PolygonsNode implements SceneNode {
         true,
       );
       if (shape.fillAlpha && shape.fillAlpha > 0) g.fill({ color: shape.color, alpha: shape.fillAlpha });
+      if (shape.holes?.length) {
+        for (const hole of shape.holes) if (hole.length >= 3) g.poly(hole.flatMap((p) => [p.x, p.y]), true).cut();
+        continue;
+      }
       g.stroke({
         width: (shape.widthPx ?? 1.5) * px,
         color: shape.color,

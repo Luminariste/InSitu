@@ -16,6 +16,9 @@ import { PlacementBar } from "../compose/PlacementBar";
 import { SlidesSection } from "../compose/SlidesSection";
 import { slideTree } from "../compose/slideTree";
 import { useComposition } from "../compose/useComposition";
+import { MaskBar } from "../compose/MaskBar";
+import { useMaskTool } from "../compose/useMaskTool";
+import { facadePoint } from "../compose/placement";
 import "../compose/compose.css";
 import {
   chooseNewProjectPath,
@@ -410,6 +413,17 @@ export function FacadeScreen() {
     onError: setError,
   });
   const viewerLayers = useMemo(() => [...layers, ...composition.layers], [layers, composition.layers]);
+  // Outil « Masque » (D-4.2-u) : il agit sur les dessins choisis.
+  const maskTool = useMaskTool({
+    viewer,
+    stage,
+    available: composeBlocked === null && picking === "off" && planGroups.mode === "off" && busy === null && viewOptions.drawings,
+    targets: useMemo(
+      () => composition.selected.map((p) => ({ id: p.id, map: (u: number, v: number) => facadePoint(p, u, v), mask: p.mask ?? [] })),
+      [composition.selected],
+    ),
+    onCommit: composition.actions.setMasks,
+  });
 
   // Arborescence des dessins par diapositive : il faut les affectations du moteur.
   const tree = useMemo(
@@ -554,12 +568,14 @@ export function FacadeScreen() {
   // --- Clics sur le plan ------------------------------------------------------
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (maskTool.onPointerDown(event)) return;
     if (picking === "off" && planGroups.onPointerDown(event)) return;
     if (picking === "off" && planGroups.mode === "off" && composition.onPointerDown(event)) return;
     pointerDown.current = { x: event.clientX, y: event.clientY, t: event.timeStamp };
   };
 
   const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    if (maskTool.onPointerUp(event)) return;
     if (planGroups.onPointerUp(event)) return;
     if (composition.onPointerUp(event)) return;
     const down = pointerDown.current;
@@ -605,6 +621,7 @@ export function FacadeScreen() {
     { keys: "escape", run: () => setPicking("off"), enabled: picking !== "off" && !assembling },
     { keys: "escape", run: () => planGroups.setMode("off"), enabled: planGroups.mode !== "off" && !assembling },
   ]);
+  useShortcuts(maskTool.shortcuts);
   useShortcuts(composition.shortcuts);
 
   const changed = changedViewOptions(viewOptions) + changedDisplay(display);
@@ -637,6 +654,7 @@ export function FacadeScreen() {
         actions={composition.actions}
         enabled={composing}
         corners={composition.deforming}
+        mask={{ on: maskTool.on, toggle: () => maskTool.setOn(!maskTool.on) }}
       />
       <ToolSpacer />
       <MenuButton
@@ -689,7 +707,12 @@ export function FacadeScreen() {
       <IconButton icon="fit" label="Tout voir" shortcut="mod+0" variant="default" onClick={() => viewer.current?.fitAll()} disabled={!view} />
     </Toolbar>
     {/* Réglages du dessin posé, comme le panneau Contrôle d'Illustrator (D-4.2-p). */}
-    {composing && (
+    {composing && maskTool.on && (
+      <Toolbar label="Masque">
+        <MaskBar tool={maskTool} count={composition.selected.length} />
+      </Toolbar>
+    )}
+    {composing && !maskTool.on && (
       <Toolbar label="Dessin posé">
         <PlacementBar
           selected={composition.selected}
@@ -961,6 +984,10 @@ export function FacadeScreen() {
             <StatusText tone="info" push>
               Cliquer le point {picking === "a" ? "A" : "B"} sur le plan (Échap : annuler)
             </StatusText>
+          ) : maskTool.hint ? (
+            <StatusText tone="info" push>
+              {maskTool.hint}
+            </StatusText>
           ) : planGroups.hint ? (
             <StatusText tone="info" push>
               {planGroups.hint}
@@ -1013,6 +1040,7 @@ export function FacadeScreen() {
         ref={stage}
         onPointerDownCapture={onPointerDown}
         onPointerMoveCapture={(event) => {
+          if (maskTool.onPointerMove(event)) return;
           if (!planGroups.onPointerMove(event)) composition.onPointerMove(event);
         }}
         onPointerUpCapture={onPointerUp}
@@ -1020,6 +1048,7 @@ export function FacadeScreen() {
         onDrop={composition.onDrop}
       >
         <Viewer ref={viewer} layers={viewerLayers} />
+        {maskTool.overlay}
         {composition.turn && (
           <div className="compose-turn" style={{ left: composition.turn.x + 18, top: composition.turn.y + 18 }}>
             {composition.turn.text}

@@ -311,6 +311,42 @@ retouches.
 rotations, dessins retournés, calques). Les 20 liens vers « 17 - Projection
 gobo finale » doivent être retrouvés s'ils sont sur le Mac.
 
+## Masquer une partie d'un dessin (D-4.2-u)
+
+Pour cacher une partie d'un dessin posé sans toucher au fichier ni à la
+bibliothèque :
+
+1. Choisir un ou plusieurs dessins, puis appuyer sur **M** (ou l'icône
+   Masque de la barre du haut). La barre de réglages devient celle du
+   masque.
+2. **Pinceau** : peindre sur le dessin le cache. **⌥ + peindre** le fait
+   réapparaître. **[** et **]** changent l'épaisseur (le cercle sous la
+   souris la montre).
+3. **Lasso** (touche **Z**, ou le bouton de la barre) : entourer une zone la
+   cache d'un coup ; avec **⌥**, elle réapparaît. **T** revient au pinceau.
+4. **Tout réafficher** vide le masque des dessins choisis. **Échap** ou
+   **M** quitte l'outil.
+
+Chaque geste s'annule par ⌘Z. Le masque suit le dessin quand on le
+déplace, le tourne ou le déforme. Une partie cachée ne cache plus ce qui
+est derrière, n'est pas gravée (PNG et SVG), ne compte plus pour « à
+cheval » ni pour la part rouge non projetée. Le même outil existe dans la
+vue Diapositive ; le masque est le même dans les deux vues.
+
+### Essai sur Mac
+
+1. Poser un dessin par-dessus un autre, choisir celui de devant, M.
+2. Peindre sur une partie : elle disparaît et le dessin de derrière se voit
+   à travers.
+3. ⌥ + peindre sur une partie de ce qu'on vient de cacher : elle revient.
+4. Z, entourer un morceau : il disparaît d'un coup.
+5. Échap, déplacer et tourner le dessin : la partie cachée suit.
+6. ⌘Z : le dernier geste du masque est annulé.
+7. Exporter la diapositive (PNG et SVG) : la partie cachée n'y est pas, et
+   le dessin de derrière y est.
+8. Menu Affichage → Chevauchement : un dessin qui dépasse d'une emprise
+   n'est plus rouge une fois sa partie qui dépasse cachée.
+
 ## Ce qui n'est pas encore là
 
 - **Export** : fait. Les dessins posés partent dans les diapositives et dans
@@ -323,7 +359,7 @@ gobo finale » doivent être retrouvés s'ils sont sur le Mac.
 insitu place list <projet.insitu>
 insitu place add <projet.insitu> <dessin> --at X,Y --width MM [--rotation DEG] [--mirror] [--group NOM]
 insitu place remove <projet.insitu> <id>…
-insitu place set <projet.insitu> <placements.json> [--history DIR]
+insitu place set <projet.insitu> <placements.json> [--history DIR]   # aussi pour le champ mask
 insitu place deform <projet.insitu> <id>… (--corners | --grid CxR | --none)
 insitu place slides <projet.insitu>
 insitu place assign <projet.insitu> <id>… (--to PROJECTEUR | --auto)

@@ -59,6 +59,7 @@ fn place(project: &mut Project, id: &str, x: f64, y: f64, width: f64) {
         slide: None,
         hidden: false,
         locked: false,
+        mask: Vec::new(),
         extra: Default::default(),
     });
 }

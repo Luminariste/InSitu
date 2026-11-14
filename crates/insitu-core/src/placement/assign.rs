@@ -21,7 +21,7 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use super::lost::shape_on_facade;
+use super::lost::visible_on_facade;
 use crate::geometry::{Point, PointWarp, Transform};
 use crate::library::silhouette::{silhouettes, DrawingSilhouette};
 use crate::project::{Placement, Project, ProjectDir};
@@ -187,7 +187,7 @@ pub fn refine_with_silhouettes(
             .iter()
             .find(|s| s.drawing == p.drawing)
             .map_or(&[][..], |s| s.polygons.as_slice());
-        let points: Vec<Point> = shape_on_facade(p, polygons)
+        let points: Vec<Point> = visible_on_facade(project, p, polygons)
             .into_iter()
             .flatten()
             .map(|[x, y]| Point::new(x, y))

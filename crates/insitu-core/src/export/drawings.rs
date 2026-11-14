@@ -22,7 +22,7 @@ use crate::library::retouch::retouched_file;
 use crate::library::silhouette;
 use crate::library::vectors::{self, SVG_VECTOR_SIDE};
 use crate::library::{flatten_on_black, read::decode};
-use crate::placement::{from_slide, mesh, to_slide};
+use crate::placement::{from_slide, mask, mesh, to_slide};
 use crate::project::{Deformation, Placement, PointMm, Project, ProjectDir, SilhouettePolygon};
 use crate::resample::{warp_raster, WarpOptions};
 use crate::tiles::Raster;
@@ -37,14 +37,19 @@ const OUTLINE_MARGIN_PX: f64 = 3.0;
 const SVG_SIDE_RANGE: (u32, u32) = (512, 16_384);
 /// Plus grand côté du masque de silhouette d'un dessin, en pixels.
 const MASK_SIDE: u32 = 2048;
+/// Plus grand côté de l'image de visibilité du masque d'un dessin posé
+/// (D-4.2-u), en pixels.
+const VISIBILITY_SIDE: u32 = 4096;
 
-/// Un dessin posé, son image et le masque de sa silhouette (255 dedans ;
-/// aucun : le dessin ne cache rien).
+/// Un dessin posé, son image, le masque de sa silhouette (255 dedans ;
+/// aucun : le dessin ne cache rien) et la visibilité de son masque (255 :
+/// visible ; aucune : rien n'est caché, D-4.2-u).
 #[derive(Clone, Copy)]
 pub struct Posed<'a> {
     pub placement: &'a Placement,
     pub image: &'a Raster,
     pub mask: Option<&'a Raster>,
+    pub visibility: Option<&'a Raster>,
 }
 
 /// Rectangle de pixels `[x0, x1[ × [y0, y1[` de la diapositive.
@@ -183,26 +188,53 @@ pub fn draw(
         let stride = side as usize;
         let rows = || (rect.y0 as usize..rect.y1 as usize).map(|j| j * stride + rect.x0 as usize);
         // La silhouette d'abord, et seulement s'il y a quelque chose à cacher.
+        // Le masque du dessin posé (D-4.2-u) : là où il cache, ni les traits
+        // ni la silhouette ne comptent.
+        let visible = match posed.visibility {
+            Some(v) => Some(
+                warp_raster(v, w, h, in_pixels(v), &options)
+                    .map_err(|e| ExportError::BadSettings(e.to_string()))?,
+            ),
+            None => None,
+        };
+        let seen = |k: usize, v: u8| match &visible {
+            Some(vis) => ((u32::from(v) * u32::from(vis.data[k]) + 127) / 255) as u8,
+            None => v,
+        };
         let covered = rows().any(|s| slide.data[s..s + w as usize].iter().any(|&v| v > 0));
         if let (Some(mask), true) = (posed.mask, covered) {
             let part = warp_raster(mask, w, h, in_pixels(mask), &options)
                 .map_err(|e| ExportError::BadSettings(e.to_string()))?;
-            for (start, line) in rows().zip(part.data.chunks_exact(w as usize)) {
-                for (out, &m) in slide.data[start..start + w as usize].iter_mut().zip(line) {
+            for (j, (start, line)) in rows().zip(part.data.chunks_exact(w as usize)).enumerate() {
+                let row = j * w as usize;
+                for (i, (out, &m)) in slide.data[start..start + w as usize]
+                    .iter_mut()
+                    .zip(line)
+                    .enumerate()
+                {
+                    let m = seen(row + i, m);
                     *out = ((u32::from(*out) * (255 - u32::from(m)) + 127) / 255) as u8;
                 }
             }
         }
         let part = warp_raster(image, w, h, in_pixels(image), &options)
             .map_err(|e| ExportError::BadSettings(e.to_string()))?;
-        for (start, line) in rows().zip(part.data.chunks_exact(w as usize)) {
-            for (out, &v) in slide.data[start..start + w as usize].iter_mut().zip(line) {
-                *out = (*out).max(v);
+        for (j, (start, line)) in rows().zip(part.data.chunks_exact(w as usize)).enumerate() {
+            let row = j * w as usize;
+            for (i, (out, &v)) in slide.data[start..start + w as usize]
+                .iter_mut()
+                .zip(line)
+                .enumerate()
+            {
+                *out = (*out).max(seen(row + i, v));
             }
         }
     }
     Ok(())
 }
+
+/// Silhouette visible et partie cachée d'un dessin masqué (D-4.2-u).
+type Masked = (Vec<SilhouettePolygon>, Vec<mask::Shape>);
 
 /// Dessins de la bibliothèque lus en pleine résolution, en niveaux de gris,
 /// gardés le temps d'un export (un dessin posé plusieurs fois n'est lu
@@ -212,6 +244,11 @@ pub struct DrawingCache {
     images: HashMap<String, (Raster, Option<Raster>)>,
     silhouettes: HashMap<String, Vec<SilhouettePolygon>>,
     vectors: HashMap<String, Vectorization>,
+    /// Par placement masqué : l'image de visibilité de son masque.
+    visibility: HashMap<String, Raster>,
+    /// Par placement masqué : sa silhouette visible et la partie cachée,
+    /// en fractions du dessin (pour le SVG).
+    masked: HashMap<String, Masked>,
 }
 
 impl DrawingCache {
@@ -264,6 +301,17 @@ impl DrawingCache {
             });
             self.images.insert(p.drawing.clone(), (image, mask));
         }
+        for p in placements {
+            if p.mask.is_empty() || self.visibility.contains_key(&p.id) {
+                continue;
+            }
+            let Some((image, _)) = self.images.get(&p.drawing) else {
+                continue;
+            };
+            let (vw, vh) = mask::visibility_size(image.width, image.height, VISIBILITY_SIDE);
+            self.visibility
+                .insert(p.id.clone(), mask::visibility(&p.mask, vw, vh));
+        }
         Ok(())
     }
 
@@ -298,6 +346,22 @@ impl DrawingCache {
                 })?;
             self.vectors.insert(p.drawing.clone(), vector);
         }
+        for p in placements {
+            if p.mask.is_empty() || self.masked.contains_key(&p.id) {
+                continue;
+            }
+            let Some(vector) = self.vectors.get(&p.drawing) else {
+                continue;
+            };
+            let aspect = mask::aspect(f64::from(vector.width), f64::from(vector.height));
+            let base = self
+                .silhouettes
+                .get(&p.drawing)
+                .map_or(&[][..], Vec::as_slice);
+            let visible = mask::visible_shape(base, &p.mask, aspect);
+            let hidden = mask::hidden_region(&p.mask, aspect);
+            self.masked.insert(p.id.clone(), (visible, hidden));
+        }
         Ok(())
     }
 
@@ -308,14 +372,20 @@ impl DrawingCache {
             .iter()
             .filter_map(|&placement| {
                 let vector = self.vectors.get(&placement.drawing)?;
-                let silhouette = self
-                    .silhouettes
-                    .get(&placement.drawing)
-                    .map_or(&[][..], Vec::as_slice);
+                let (silhouette, hidden) = match self.masked.get(&placement.id) {
+                    Some((visible, hidden)) => (visible.as_slice(), hidden.as_slice()),
+                    None => (
+                        self.silhouettes
+                            .get(&placement.drawing)
+                            .map_or(&[][..], Vec::as_slice),
+                        &[][..],
+                    ),
+                };
                 Some(VectorDrawing {
                     placement,
                     vector,
                     silhouette,
+                    hidden,
                 })
             })
             .collect()
@@ -333,6 +403,7 @@ impl DrawingCache {
                         placement,
                         image,
                         mask: mask.as_ref(),
+                        visibility: self.visibility.get(&placement.id),
                     })
             })
             .collect()

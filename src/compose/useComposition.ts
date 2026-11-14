@@ -100,6 +100,7 @@ import {
   updateLayer,
 } from "./layers";
 import type { Layer } from "./placement";
+import { maskKey, renderMasked, type MaskStroke } from "./mask";
 import { meshLines, nodePoints } from "./deformation";
 import { SelectionNode } from "./SelectionNode";
 import { dropInTree, onFacadeOnly, setFlag, type TreeDrop } from "./slideTree";
@@ -190,6 +191,8 @@ export interface CompositionActions {
   setHidden(ids: Iterable<string>, hidden: boolean): void;
   /** Verrouille (vrai) ou déverrouille ces dessins un à un ; verrouillés, ils ne sont plus choisis. */
   setLocked(ids: Iterable<string>, locked: boolean): void;
+  /** Remplace le masque de ces dessins posés (D-4.2-u), en un seul enregistrement ; liste vide : tout réapparaît. */
+  setMasks(masks: Map<string, MaskStroke[]>): void;
 }
 
 /** Ce que la rubrique « Calques » peut faire (tâche 4.3). */
@@ -529,15 +532,52 @@ export function useComposition(options: Options): Composition {
   useEffect(() => setActiveNode(null), [meshFor, selectionKey]);
   const chosenNode = editable && activeNode !== null && activeNode < editableNodes.length ? activeNode : null;
 
+  // Aperçus des dessins masqués (D-4.2-u) : l'aperçu et la silhouette
+  // effacés là où le masque cache, refaits quand le masque change.
+  const [masked, setMasked] = useState<Map<string, { pose: string; shade: string | null }>>(new Map());
+  const maskRequests = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (headless || !visible) return;
+    for (const p of placements) {
+      if (!p.mask?.length) continue;
+      const url = previews.get(p.drawing);
+      const polygons = manualSilhouettes.get(p.drawing) ?? detected.get(p.drawing);
+      // La silhouette d'abord (sinon l'ombre serait à refaire) ; sans moteur, elle peut manquer.
+      if (!url || (engine && polygons === undefined)) continue;
+      const key = maskKey(p.drawing, p.mask) + (polygons ? "" : "|sans");
+      if (masked.has(key) || maskRequests.current.has(key)) continue;
+      maskRequests.current.add(key);
+      renderMasked(url, polygons ?? [], p.mask).then(
+        (images) => setMasked((current) => new Map(current).set(key, images)),
+        () => maskRequests.current.delete(key),
+      );
+    }
+  }, [placements, previews, manualSilhouettes, detected, masked, headless, visible, engine]);
+  const maskedOf = useCallback(
+    (p: Placement) => {
+      if (!p.mask?.length) return null;
+      const polygons = manualSilhouettes.get(p.drawing) ?? detected.get(p.drawing);
+      return masked.get(maskKey(p.drawing, p.mask) + (polygons ? "" : "|sans")) ?? null;
+    },
+    [masked, manualSilhouettes, detected],
+  );
+
   const layers = useMemo<LayerSpec[]>(
     () =>
       (visible ? onFacade(shown(placements, layerList)) : []).flatMap((p) => {
-        const url = previews.get(p.drawing);
-        if (!url) return [];
+        const preview = previews.get(p.drawing);
+        if (!preview) return [];
+        // Un dessin masqué montre son aperçu masqué dès qu'il est prêt.
+        const cut = maskedOf(p);
+        const url = cut?.pose ?? preview;
         const pose = { id: `pose:${p.id}`, kind: "mesh-image", url, ...previewMesh(p) } satisfies LayerSpec;
+        if (cut?.shade) {
+          const shade = { id: `ombre:${p.id}`, kind: "mesh-image", url: cut.shade, ...previewMesh(p) } satisfies LayerSpec;
+          return [shade, pose];
+        }
         // Juste sous le dessin, sa silhouette en noir cache ce qui est derrière.
         const polygons = manualSilhouettes.get(p.drawing) ?? detected.get(p.drawing) ?? [];
-        if (polygons.length === 0) return [pose];
+        if (polygons.length === 0 || cut) return [pose];
         const mask = {
           id: `silhouette:${p.id}`,
           kind: "polygons",
@@ -550,7 +590,7 @@ export function useComposition(options: Options): Composition {
         } satisfies LayerSpec;
         return [mask, pose];
       }),
-    [visible, onFacade, placements, layerList, previews, manualSilhouettes, detected],
+    [visible, placements, layerList, previews, manualSilhouettes, detected, maskedOf, onFacade],
   );
 
   // Le cadre de sélection, dessiné par-dessus tout.
@@ -948,6 +988,18 @@ export function useComposition(options: Options): Composition {
       const set = new Set(ids);
       const kept = value ? new Set([...selection].filter((id) => !set.has(id))) : undefined;
       apply(setFlag(placements, set, "locked", value), kept);
+    },
+    setMasks: (masks) => {
+      if (masks.size === 0) return;
+      commit(
+        placements.map((p) => {
+          const mask = masks.get(p.id);
+          if (!mask) return p;
+          if (mask.length > 0) return { ...p, mask };
+          const { mask: _gone, ...rest } = p;
+          return rest;
+        }),
+      );
     },
   };
 

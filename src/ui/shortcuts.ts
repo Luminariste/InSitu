@@ -163,6 +163,18 @@ export const APP_SHORTCUTS: { group: string; items: { keys: ShortcutSpec; label:
     ],
   },
   {
+    group: "Masque d'un dessin posé (Façade et Diapositive)",
+    items: [
+      { keys: "m", label: "Prendre ou quitter l'outil Masque" },
+      { keys: "t", label: "Pinceau : peindre pour cacher" },
+      { keys: "z", label: "Lasso : entourer une zone pour la cacher" },
+      { keys: "alt+clic", label: "⌥ + peindre ou entourer : faire réapparaître" },
+      { keys: "[", label: "Pinceau plus fin" },
+      { keys: "]", label: "Pinceau plus épais" },
+      { keys: "escape", label: "Quitter l'outil Masque" },
+    ],
+  },
+  {
     group: "Gomme et crayon (Bibliothèque)",
     items: [
       { keys: "e", label: "Gomme" },

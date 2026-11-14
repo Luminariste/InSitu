@@ -138,6 +138,19 @@ export interface Projector {
   registration?: RegistrationPair[];
   /** Recalage par lignes (D-3.2-k). */
   registrationLines?: RegistrationLine[];
+  /** Masque général de la diapositive (D-3.6-h) ; absent : aucun. */
+  mask?: SlideMask | null;
+}
+
+/**
+ * Masque général d'une diapositive (D-3.6-h) : formes en mm de diapositive
+ * (avant miroir). Dedans (ou dehors si `outside`), tout devient noir à
+ * l'export. `hidden` : l'œil fermé, ni montré ni appliqué.
+ */
+export interface SlideMask {
+  shapes: [number, number][][];
+  outside?: boolean;
+  hidden?: boolean;
 }
 
 /** Ce que l'interface lit d'un projet ; les autres champs sont ignorés ici. */
@@ -546,6 +559,12 @@ export async function addProjector(folder: string, label: string): Promise<{ pro
 export async function renameProjector(folder: string, projector: string, label: string): Promise<Project> {
   requireEngine();
   return invoke<Project>("projector_rename", { folder, projector, label });
+}
+
+/** Enregistre le masque général de la diapositive d'un projecteur (D-3.6-h) ; `null` le retire. */
+export async function saveSlideMask(folder: string, projector: string, mask: SlideMask | null): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("projector_set_mask", { folder, projector, mask });
 }
 
 /** Retire un projecteur du projet ; ses photos restent dans le dossier. */

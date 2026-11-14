@@ -865,6 +865,7 @@ pub fn import_composition(
             slide: None,
             hidden,
             locked: false,
+            mask: Vec::new(),
             extra: Default::default(),
         });
     }
