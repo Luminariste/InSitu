@@ -67,6 +67,43 @@ sur la façade à l'étape suivante (placement, tâche 4.2).
 6. ⌘Z plusieurs fois : tout revient comme avant.
 7. Fermer et rouvrir le projet : le rangement est gardé.
 
+## Bibliothèque commune
+
+Des dessins partagés par tous les projets, rangés dans Dropbox (D-4.1-i).
+
+- **La choisir** : menu InSitu → **Réglages…** (⌘,), « Choisir un
+  dossier… ». Un dossier ordinaire reçoit « Bibliothèque commune.insitu » ;
+  un dossier `.insitu` existant sert tel quel. Chaque Mac fait ce choix une
+  fois (le dossier Dropbox peut avoir un chemin différent sur l'autre Mac).
+- **La remplir** : dans la Bibliothèque, vue **Commune** (en haut à droite),
+  « Importer un dossier… » comme pour un projet ; ou, dans la vue **Ce
+  projet**, choisir des dessins puis « Envoyer dans la bibliothèque
+  commune ».
+- **S'en servir** : vue Commune, choisir des dessins, « Copier dans le
+  projet ». Ils arrivent dans le projet avec leurs retouches et leur
+  silhouette, étiquetés « Commune ».
+- **Quand un dessin commun change** (redessiné, retouché), sa copie dans un
+  projet est étiquetée « Nouvelle version » ; rien ne change tant qu'on ne
+  clique pas « Reprendre la nouvelle version ». Renommer ou ranger un
+  dessin commun ne compte pas comme un changement.
+
+### Essai sur Mac (version 0.1.74)
+
+1. ⌘, : la fenêtre Réglages s'ouvre. « Choisir un dossier… », prendre un
+   dossier de Dropbox. Le chemin affiché finit par « Bibliothèque
+   commune.insitu ».
+2. Bibliothèque, vue « Commune » : elle est vide. Importer un petit dossier
+   de dessins.
+3. Ouvrir un projet (Trévarez), vue « Commune », choisir deux dessins,
+   « Copier dans le projet ». Vue « Ce projet » : ils y sont, étiquetés
+   « Commune », dans le même dossier.
+4. Vue « Commune », retoucher un de ces dessins à la gomme. Vue « Ce
+   projet » : sa copie dit « Nouvelle version ». « Reprendre la nouvelle
+   version » : la retouche apparaît, le dessin reste posé sur la façade.
+5. Vue « Ce projet », choisir un dessin propre au projet, « Envoyer dans la
+   bibliothèque commune » : il apparaît dans la vue Commune, dans un
+   dossier au nom du projet.
+
 ## Vecteurs (tâche 5.2)
 
 Chaque dessin est vectorisé juste après l'import (une ligne montre

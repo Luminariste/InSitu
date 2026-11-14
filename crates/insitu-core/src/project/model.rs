@@ -115,6 +115,12 @@ pub struct Project {
     /// n'y en a pas.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub library_folders: Vec<String>,
+    /// Dessins copiés depuis la bibliothèque commune, ou envoyés vers elle
+    /// (demande de Benjamin, 13 novembre 2026, D-4.1-i) : de quel dessin
+    /// commun chacun vient, et dans quel état il a été copié. Absent tant
+    /// qu'il n'y en a pas.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shared_links: Vec<SharedLink>,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }
@@ -137,6 +143,7 @@ impl Project {
             facade_assembly: None,
             plan_groups: Vec::new(),
             library_folders: Vec::new(),
+            shared_links: Vec::new(),
             extra: ExtraFields::new(),
         }
     }
@@ -884,6 +891,22 @@ impl Default for VectorSettings {
             smoothing_px: 0.0,
         }
     }
+}
+
+/// Lien entre un dessin du projet et un dessin de la bibliothèque commune
+/// (D-4.1-i).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SharedLink {
+    /// Le dessin du projet.
+    pub drawing: String,
+    /// Identifiant de la bibliothèque commune (son `projet.json`).
+    pub library: String,
+    /// Le dessin dans la bibliothèque commune.
+    pub origin: String,
+    /// Empreinte du dessin commun au moment de la copie : fichier, gomme et
+    /// crayon, silhouette, réglages des vecteurs.
+    pub fingerprint: String,
 }
 
 impl Drawing {

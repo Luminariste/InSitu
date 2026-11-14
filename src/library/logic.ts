@@ -1,7 +1,7 @@
 // Logique pure de l'écran Bibliothèque (tâche 4.1) : recherche, dossiers,
 // textes affichés. Testée sans écran (`logic.test.ts`).
 
-import type { ImportReport, LibraryEntry } from "../engine";
+import type { ImportReport, LibraryEntry, SharedCopyReport, SharedStatus } from "../engine";
 
 /** Minuscules, sans accents ni espaces superflus : « Héron » → « heron ». */
 export function normalize(text: string): string {
@@ -144,4 +144,42 @@ export function moveSummary(names: string[], target: string): string {
   const where = target ? `dans « ${target} »` : "hors de tout dossier";
   if (names.length === 1) return `« ${names[0]} » rangé ${where}.`;
   return `${countLabel(names.length)} rangés ${where}.`;
+}
+
+// --- Bibliothèque commune (D-4.1-i) ----------------------------------------------
+
+/** Étiquette d'une vignette : d'où vient le dessin, ou s'il a changé. */
+export function sharedBadge(state: SharedStatus["state"] | null, commune: boolean): string | null {
+  if (state === null) return null;
+  if (commune) return state === "newer" ? "Projet à reprendre" : "Dans le projet";
+  if (state === "newer") return "Nouvelle version";
+  if (state === "missing") return "Retiré de la commune";
+  return "Commune";
+}
+
+/** Phrase de compte rendu d'une copie vers le projet ou d'un envoi vers la commune. */
+export function sharedSummary(report: SharedCopyReport, direction: "copier" | "envoyer"): string {
+  const parts: string[] = [];
+  const added = report.added.length;
+  if (direction === "copier") {
+    if (added > 0) parts.push(`${countLabel(added)} copié${added > 1 ? "s" : ""} dans le projet`);
+    if (report.updated.length > 0) {
+      const n = report.updated.length;
+      parts.push(`${countLabel(n)} repris dans ${n > 1 ? "leur" : "sa"} nouvelle version`);
+    }
+    if (report.alreadyPresent > 0) {
+      const n = report.alreadyPresent;
+      parts.push(`${countLabel(n)} déjà à jour dans le projet`);
+    }
+  } else {
+    if (added > 0) parts.push(`${countLabel(added)} envoyé${added > 1 ? "s" : ""} dans la bibliothèque commune`);
+    if (report.alreadyPresent > 0) {
+      const n = report.alreadyPresent;
+      parts.push(`${countLabel(n)} déjà dans la bibliothèque commune`);
+    }
+  }
+  if (report.failures.length > 0) parts.push(`échec : ${report.failures.join(", ")}`);
+  if (parts.length === 0) return "Rien à faire.";
+  const text = parts.join(", ");
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
 }

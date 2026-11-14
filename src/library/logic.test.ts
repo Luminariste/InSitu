@@ -12,6 +12,8 @@ import {
   newFolderName,
   normalize,
   parentFolder,
+  sharedBadge,
+  sharedSummary,
 } from "./logic";
 
 const entry = (name: string, folder: string) => ({ name, folder });
@@ -109,5 +111,27 @@ describe("ranger la bibliothèque", () => {
   it("dit où les dessins sont rangés", () => {
     expect(moveSummary(["merle"], "Oiseaux")).toBe("« merle » rangé dans « Oiseaux ».");
     expect(moveSummary(["a", "b"], "")).toBe("2 dessins rangés hors de tout dossier.");
+  });
+});
+
+describe("bibliothèque commune", () => {
+  it("étiquette les dessins selon la vue", () => {
+    expect(sharedBadge(null, false)).toBeNull();
+    expect(sharedBadge("upToDate", false)).toBe("Commune");
+    expect(sharedBadge("newer", false)).toBe("Nouvelle version");
+    expect(sharedBadge("missing", false)).toBe("Retiré de la commune");
+    expect(sharedBadge("upToDate", true)).toBe("Dans le projet");
+    expect(sharedBadge("newer", true)).toBe("Projet à reprendre");
+  });
+
+  it("résume une copie ou un envoi", () => {
+    const report = { added: ["a", "b"], alreadyPresent: 1, updated: ["c"], failures: [] };
+    expect(sharedSummary(report, "copier")).toBe(
+      "2 dessins copiés dans le projet, 1 dessin repris dans sa nouvelle version, 1 dessin déjà à jour dans le projet.",
+    );
+    expect(sharedSummary({ added: ["a"], alreadyPresent: 0, updated: [], failures: [] }, "envoyer")).toBe(
+      "1 dessin envoyé dans la bibliothèque commune.",
+    );
+    expect(sharedSummary({ added: [], alreadyPresent: 0, updated: [], failures: [] }, "copier")).toBe("Rien à faire.");
   });
 });
