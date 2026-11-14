@@ -177,9 +177,26 @@ pub fn refine_with_silhouettes(
     all: &mut [Assignment],
     silhouettes: &[DrawingSilhouette],
 ) {
+    refine_for(project, all, silhouettes, None);
+}
+
+/// L'affectation `a` est-elle à revoir pour la seule diapositive `only`
+/// (toutes si `None`) ? Hors de toute emprise, un dessin ne tient nulle
+/// part : rien à revoir.
+fn to_refine(a: &Assignment, only: Option<&str>) -> bool {
+    !a.whole && a.projector.is_some() && only.is_none_or(|id| a.projector.as_deref() == Some(id))
+}
+
+/// Comme [`refine_with_silhouettes`], pour les seuls dessins de la
+/// diapositive `only` (toutes si `None`, D-3.6-i).
+fn refine_for(
+    project: &Project,
+    all: &mut [Assignment],
+    silhouettes: &[DrawingSilhouette],
+    only: Option<&str>,
+) {
     let warps = registered(project);
-    // Hors de toute emprise, un dessin ne tient nulle part : rien à revoir.
-    for a in all.iter_mut().filter(|a| !a.whole && a.projector.is_some()) {
+    for a in all.iter_mut().filter(|a| to_refine(a, only)) {
         let Some(p) = project.placements.iter().find(|p| p.id == a.placement) else {
             continue;
         };
@@ -222,10 +239,24 @@ pub fn shape_assignments(
     project: &Project,
     cache_root: &Path,
 ) -> Vec<Assignment> {
+    shape_assignments_for(dir, project, cache_root, None)
+}
+
+/// Comme [`shape_assignments`], « à cheval » jugé sur le tracé pour les
+/// seuls dessins de la diapositive `only` (toutes si `None`) ; les autres
+/// gardent le jugement sur leur rectangle. La diapositive de chaque dessin
+/// est la même dans les deux cas (D-4.5-j) : la vue Diapositive n'en
+/// calcule ainsi qu'une (D-3.6-i).
+pub fn shape_assignments_for(
+    dir: &ProjectDir,
+    project: &Project,
+    cache_root: &Path,
+    only: Option<&str>,
+) -> Vec<Assignment> {
     let mut all = assignments(project);
     let mut ids: Vec<String> = all
         .iter()
-        .filter(|a| !a.whole && a.projector.is_some())
+        .filter(|a| to_refine(a, only))
         .filter_map(|a| project.placements.iter().find(|p| p.id == a.placement))
         .map(|p| p.drawing.clone())
         .filter(|id| project.drawing(id).is_some())
@@ -241,7 +272,7 @@ pub fn shape_assignments(
             .flatten()
             .collect()
     });
-    refine_with_silhouettes(project, &mut all, &found);
+    refine_for(project, &mut all, &found, only);
     all
 }
 

@@ -52,7 +52,36 @@ impl DeformationFrame {
 /// La grille, en fractions du cadre : (s, t) au repos → (s, t) déformé.
 pub struct Mesh<'a> {
     deformation: &'a Deformation,
-    corners: Option<Homography>,
+    /// Quatre coins : le trapèze et son inverse, calculés une fois.
+    corners: Option<(Homography, Homography)>,
+}
+
+/// Le trapèze qui envoie le carré unité sur les quatre coins `n` (haut-
+/// gauche, haut-droit, bas-gauche, bas-droit), en formule directe : une
+/// grille est relue à chaque point exporté, l'ajustement général
+/// ([`Homography::from_four_pairs`]) y coûtait des centaines de
+/// microsecondes (D-3.6-i). `None` si les coins sont alignés.
+fn square_to_corners(n: &[[f64; 2]]) -> Option<Homography> {
+    // Dans l'ordre du tour : (0,0), (1,0), (1,1), (0,1).
+    let [x0, y0] = n[0];
+    let [x1, y1] = n[1];
+    let [x2, y2] = n[3];
+    let [x3, y3] = n[2];
+    let (dx1, dx2, dx3) = (x1 - x2, x3 - x2, x0 - x1 + x2 - x3);
+    let (dy1, dy2, dy3) = (y1 - y2, y3 - y2, y0 - y1 + y2 - y3);
+    let det = dx1 * dy2 - dx2 * dy1;
+    let scale = (dx1.abs() + dx2.abs()) * (dy1.abs() + dy2.abs());
+    if !det.is_finite() || det.abs() <= 1e-12 * scale {
+        return None;
+    }
+    let g = (dx3 * dy2 - dx2 * dy3) / det;
+    let h = (dx1 * dy3 - dx3 * dy1) / det;
+    Homography::from_matrix([
+        [x1 - x0 + g * x1, x3 - x0 + h * x3, x0],
+        [y1 - y0 + g * y1, y3 - y0 + h * y3, y0],
+        [g, h, 1.0],
+    ])
+    .ok()
 }
 
 impl<'a> Mesh<'a> {
@@ -71,7 +100,12 @@ impl<'a> Mesh<'a> {
                 Point::new(1.0, 1.0),
             ];
             let target = [0, 1, 2, 3].map(|k| Point::new(n[k][0], n[k][1]));
-            Some(Homography::from_four_pairs(unit, target).ok()?)
+            let h = match square_to_corners(n) {
+                Some(h) => h,
+                None => Homography::from_four_pairs(unit, target).ok()?,
+            };
+            let inverse = h.inverse().ok()?;
+            Some((h, inverse))
         } else {
             None
         };
@@ -148,8 +182,8 @@ impl Transform for Mesh<'_> {
     }
 
     fn apply_inverse(&self, p: Point) -> Option<Point> {
-        if let Some(h) = &self.corners {
-            return h.apply_inverse(p);
+        if let Some((_, inverse)) = &self.corners {
+            return inverse.apply(p);
         }
         let forward = |q| self.apply_with_jacobian(q);
         if let Some(q) = invert_by_newton(forward, p, p) {
@@ -176,7 +210,7 @@ impl Transform for Mesh<'_> {
 
 impl Differentiable for Mesh<'_> {
     fn apply_with_jacobian(&self, p: Point) -> Option<(Point, Jacobian)> {
-        if let Some(h) = &self.corners {
+        if let Some((h, _)) = &self.corners {
             return h.apply_with_jacobian(p);
         }
         let (c, r) = (
@@ -274,4 +308,42 @@ pub fn inverse(d: &Deformation, p: PointMm) -> Option<PointMm> {
     let (s, t) = d.frame.fractions(p);
     let q = Mesh::new(d)?.apply_inverse(Point::new(s, t))?;
     Some(d.frame.facade_point(q.x, q.y))
+}
+
+#[cfg(test)]
+mod corner_tests {
+    use super::*;
+
+    #[test]
+    fn la_formule_directe_des_quatre_coins_vaut_l_ajustement() {
+        let unit = [
+            Point::new(0.0, 0.0),
+            Point::new(1.0, 0.0),
+            Point::new(0.0, 1.0),
+            Point::new(1.0, 1.0),
+        ];
+        let quads: [[[f64; 2]; 4]; 3] = [
+            [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]],
+            [[0.1, -0.05], [0.95, 0.1], [-0.1, 0.9], [1.2, 1.1]],
+            [[0.2, 0.0], [0.8, 0.0], [0.0, 1.0], [1.0, 1.0]],
+        ];
+        for n in quads {
+            let direct = square_to_corners(&n).expect("quadrilatère");
+            let target = [0, 1, 2, 3].map(|k| Point::new(n[k][0], n[k][1]));
+            let fitted = Homography::from_four_pairs(unit, target).unwrap();
+            for (u, v) in [
+                (0.0, 0.0),
+                (1.0, 0.0),
+                (0.0, 1.0),
+                (1.0, 1.0),
+                (0.3, 0.7),
+                (1.4, -0.2),
+            ] {
+                let a = direct.apply(Point::new(u, v)).unwrap();
+                let b = fitted.apply(Point::new(u, v)).unwrap();
+                assert!((a - b).norm() < 1e-9, "{n:?} en ({u}, {v}) : {a:?} ≠ {b:?}");
+            }
+        }
+        assert!(square_to_corners(&[[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [3.0, 0.0]]).is_none());
+    }
 }

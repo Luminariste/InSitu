@@ -20,6 +20,7 @@ import {
   planLayer,
   parseLook,
   viewProblem,
+  rowDetail,
   withBackdrop,
 } from "./logic";
 
@@ -69,6 +70,12 @@ describe("vue diapositive", () => {
     expect(viewProblem(view("a", true, true))).toBeNull();
     expect(viewProblem(view("a", false, true))).toContain("pas de photo redressée");
     expect(viewProblem(view("a", true, false, "aucune fresque importée"))).toBe("A : aucune fresque importée.");
+    // Pas encore calculée (D-3.6-i) : pas une erreur, le calcul part au choix.
+    const later = { ...view("a", true, false), pending: true };
+    expect(viewProblem(later)).toBeNull();
+    expect(rowDetail(later)).toBe("calculée quand on la choisit");
+    expect(rowDetail(view("a", true, true))).toBe("diapositive calculée");
+    expect(rowDetail(view("a", true, false, "recalage incomplet"))).toBe("recalage incomplet");
   });
 });
 

@@ -164,6 +164,13 @@ export function nextProjector(views: SlideView[], current: string | null, step: 
   return views[(index + step + views.length) % views.length].projectorId;
 }
 
+/** Ce que dit la ligne d'un projecteur dans la liste. */
+export function rowDetail(view: SlideView): string {
+  if (view.problem) return view.problem;
+  if (view.preview) return "diapositive calculée";
+  return view.pending ? "calculée quand on la choisit" : "diapositive non calculée";
+}
+
 /** Ce qu'on dit d'un projecteur quand rien ne peut être montré. */
 export function viewProblem(view: SlideView | null): string | null {
   if (!view) return null;
@@ -171,6 +178,8 @@ export function viewProblem(view: SlideView | null): string | null {
     return `${view.label} : pas de photo redressée${view.problem ? ` ; ${view.problem}` : ""}.`;
   }
   if (!view.rectifiedPhoto) return `${view.label} : pas de photo redressée (onglet Redressement).`;
+  // Pas encore calculée (D-3.6-i) : le calcul part dès qu'on la choisit.
+  if (!view.preview && view.pending) return null;
   if (!view.preview) return `${view.label} : ${view.problem ?? "diapositive non calculée"}.`;
   return null;
 }

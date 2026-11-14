@@ -19,6 +19,10 @@ colonnes, fenêtres.
 2. À gauche, la liste des projecteurs ; une pastille orange s'il manque
    quelque chose (la ligne et le bandeau disent quoi). Les **flèches ← →**
    (ou ↑ ↓ dans la liste) passent au projecteur précédent ou suivant.
+   Seule la diapositive choisie est calculée en ouvrant l'écran ; une
+   autre l'est quand on la choisit (« calculée quand on la choisit » dans
+   la liste), puis reste prête. L'écran rouvre sur le dernier projecteur
+   regardé dans ce projet.
 3. La photo redressée remplit le carré de 280 mm ; les dessins sont
    par-dessus, en **cyan** par défaut.
 4. Menu **Affichage** (en haut à droite) : montrer ou cacher la photo

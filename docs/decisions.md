@@ -4,6 +4,36 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-14 — Diapositive : une diapositive à la fois (demande de Benjamin)
+
+**D-3.6-i. La vue Diapositive ne calcule que la diapositive choisie.**
+Benjamin (14 novembre 2026) : « quand on va dans diapositive, charge les
+diapos une par une, pas tout ensemble, sinon c'est trop long. Garde en
+mémoire la dernière diapo sélectionnée. »
+- La commande `slide_views` reçoit le projecteur voulu (`only`). Seul son
+  aperçu est calculé s'il manque ; les autres sont décrits (nom, photo,
+  problème, dessins), avec leur aperçu s'il est déjà dans le cache, et
+  marqués `pending`. Leurs dessins coupés (D-4.5-h) et le tracé « à
+  cheval » (D-4.5-j) ne sont cherchés que pour la diapositive voulue : la
+  diapositive de chaque dessin ne change pas (elle se juge sur le
+  rectangle), seul le détail en dépend. Choisir une autre diapositive la
+  calcule à son tour ; dans la liste, une diapositive pas encore calculée
+  dit « calculée quand on la choisit ».
+- L'écran rouvre sur le dernier projecteur regardé dans ce projet (déjà
+  retenu depuis D15-v) ; sans projecteur retenu, sur le premier qui a une
+  photo redressée et aucun problème.
+- Cause principale de la lenteur, trouvée en mesurant : un dessin retouché
+  aux quatre coins (D-4.4) recalculait son trapèze par l'ajustement
+  général (normalisation, moindres carrés, affinage) **à chaque point**
+  lu, soit des centaines de microsecondes par point, et plusieurs millions
+  de points par diapositive. Le trapèze du carré unité vers les quatre
+  coins se calcule désormais par la formule directe, et son inverse une
+  seule fois par grille (`placement/mesh.rs`) ; l'ajustement général reste
+  le secours si les coins sont alignés. Les images obtenues sont
+  identiques au pixel près. L'export pleine résolution en profite aussi.
+- En ligne de commande : `insitu slides <projet> --cache DOSSIER
+  --seulement <projecteur>` (une chaîne vide : la liste seule).
+
 ## 2026-11-14 — Dessin qui dépasse à l'export, écran noir à la suppression (demandes de Benjamin)
 
 Questions de Benjamin : « si un dessin sort un peu de la diapo est ce
