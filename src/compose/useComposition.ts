@@ -102,7 +102,7 @@ import {
 import type { Layer } from "./placement";
 import { meshLines, nodePoints } from "./deformation";
 import { SelectionNode } from "./SelectionNode";
-import { dropInTree, setFlag, type TreeDrop } from "./slideTree";
+import { dropInTree, onFacadeOnly, setFlag, type TreeDrop } from "./slideTree";
 import { DRAWING_DRAG_TYPE, draggedDrawing, droppedDrawingId, endDrawingDrag } from "./dragDrawing";
 
 export { DRAWING_DRAG_TYPE };
@@ -137,6 +137,12 @@ interface Options {
    * l'affichage. Faux par défaut.
    */
   headless?: boolean;
+  /**
+   * Diapositives masquées dans l'onglet Calques : leurs dessins ne se voient
+   * ni ne se choisissent sur la façade (affichage seul). Ignoré sans
+   * visionneuse.
+   */
+  hiddenSlides?: ReadonlySet<string>;
 }
 
 /** Ce que l'inspecteur peut faire de la sélection. */
@@ -253,6 +259,8 @@ function previewMesh(p: Placement): { divisions: number; points: Point[] } {
   for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) points.push(facadePoint(p, i / n, j / n));
   return { divisions: n, points };
 }
+
+const NO_SLIDES: ReadonlySet<string> = new Set();
 
 export function useComposition(options: Options): Composition {
   const { engine, folder, project, onProject, viewer, stage, enabled, onError } = options;
@@ -402,7 +410,15 @@ export function useComposition(options: Options): Composition {
   const activeLayer = composeLayers.find((l) => l.id === activeId) ?? composeLayers[composeLayers.length - 1];
   // Sur la façade, les dessins posés dans une diapositive (D-3.6-g) ne se
   // voient ni ne se choisissent : leur position est en mm de diapositive.
-  const onFacade = useCallback((list: Placement[]) => (headless ? list : list.filter((p) => !p.slide)), [headless]);
+  // Ni ceux d'une diapositive masquée dans l'onglet Calques.
+  const hiddenSlides = options.hiddenSlides ?? NO_SLIDES;
+  const onFacade = useCallback(
+    (list: Placement[]) =>
+      headless
+        ? list
+        : onFacadeOnly(list, assignments, hiddenSlides),
+    [headless, assignments, hiddenSlides],
+  );
   const picks = useMemo(() => onFacade(pickable(placements, layerList)), [onFacade, placements, layerList]);
   const layerCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -534,7 +550,7 @@ export function useComposition(options: Options): Composition {
         } satisfies LayerSpec;
         return [mask, pose];
       }),
-    [visible, placements, layerList, previews, manualSilhouettes, detected],
+    [visible, onFacade, placements, layerList, previews, manualSilhouettes, detected],
   );
 
   // Le cadre de sélection, dessiné par-dessus tout.
@@ -573,7 +589,7 @@ export function useComposition(options: Options): Composition {
       if (!a) return [];
       return [{ outline: outline(p), color: a.projector ? (colors.get(a.projector) ?? null) : null, whole: a.whole }];
     });
-    const onScreen = new Set(shown(placements, layerList).map((p) => p.id));
+    const onScreen = new Set(onFacade(shown(placements, layerList)).map((p) => p.id));
     const lost = checkOverlap ? [...lostParts].flatMap(([id, shapes]) => (onScreen.has(id) ? shapes : [])) : [];
     selectionNode.current?.set({
       slides,
@@ -597,6 +613,7 @@ export function useComposition(options: Options): Composition {
     assignments,
     lostParts,
     checkOverlap,
+    onFacade,
     placements,
     layerList,
     project?.projectors,

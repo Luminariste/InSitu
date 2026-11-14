@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { FacadeOverview, ProjectorOverview } from "../engine";
 import {
   DEFAULT_DISPLAY,
+  parseHiddenSlides,
+  toggleHidden,
   parseDisplay,
   readDisplay,
   saveDisplay,
@@ -142,5 +144,17 @@ describe("réglages retenus de la vue des projecteurs", () => {
     } finally {
       (globalThis as { localStorage?: unknown }).localStorage = previous;
     }
+  });
+});
+
+describe("diapositives masquées dans l'onglet Calques", () => {
+  it("se masquent et se remontrent, retenues par projet", () => {
+    const hidden = toggleHidden(new Set(), "K");
+    expect([...hidden]).toEqual(["K"]);
+    expect(toggleHidden(hidden, "K").size).toBe(0);
+    const table = withHidden(null, "/projets/epinal", hidden);
+    expect([...parseHiddenSlides(table, "/projets/epinal")]).toEqual(["K"]);
+    expect(parseHiddenSlides(table, "/projets/trevarez").size).toBe(0);
+    expect(parseHiddenSlides("abîmé", "/projets/epinal").size).toBe(0);
   });
 });
