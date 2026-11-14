@@ -44,6 +44,7 @@ fn corners_follow_size_rotation_and_mirror() {
         slide: None,
         hidden: false,
         locked: false,
+        mask: Vec::new(),
         extra: Default::default(),
     };
     let c = p.corners();
@@ -191,6 +192,7 @@ fn drawing_point_undoes_facade_point() {
         slide: None,
         hidden: false,
         locked: false,
+        mask: Vec::new(),
         extra: Default::default(),
     };
     for mirrored in [false, true] {
@@ -223,6 +225,7 @@ fn hidden_layers_are_not_exported() {
         slide: None,
         hidden: false,
         locked: false,
+        mask: Vec::new(),
         extra: Default::default(),
     };
     let layer = |id: &str, visible: bool| Layer {
@@ -288,6 +291,7 @@ fn straight(rotation: f64, mirrored: bool) -> Placement {
         slide: None,
         hidden: false,
         locked: false,
+        mask: Vec::new(),
         extra: Default::default(),
     }
 }
@@ -597,6 +601,7 @@ fn assignment_test_project(label: &str) -> (TempDir, ProjectDir) {
             slide: None,
             hidden: false,
             locked: false,
+            mask: Vec::new(),
             extra: Default::default(),
         };
         if k % 5 == 0 {
@@ -771,6 +776,7 @@ fn lost_test_project(label: &str) -> (TempDir, ProjectDir) {
         slide: None,
         hidden: false,
         locked: false,
+        mask: Vec::new(),
         extra: Default::default(),
     };
     project.placements = vec![
@@ -857,6 +863,54 @@ fn only_the_silhouette_counts() {
     dir.save(&project).unwrap();
     let again = assign::shape_assignments(&dir, &project, cache.path());
     assert!(!of(&again, "coupe").whole);
+}
+
+/// Ce que cache le masque d'un dessin ne compte plus (D-4.2-u) : ni dans la
+/// part perdue, ni pour « à cheval ».
+#[test]
+fn a_masked_part_is_neither_lost_nor_straddling() {
+    use crate::project::{RetouchStroke, RetouchTool};
+    let (_temp, dir) = lost_test_project("perdu-masque");
+    let mut project = dir.load().unwrap().project;
+    project.library[0].silhouette = Some(Vec::new());
+    let hide = |points: Vec<[f64; 2]>| RetouchStroke {
+        tool: RetouchTool::Erase,
+        fill: true,
+        size: 0.0,
+        points,
+    };
+    for p in &mut project.placements {
+        match p.id.as_str() {
+            // Un peu plus que la moitié droite de « coupe » (celle qui sort de A) est cachée.
+            "coupe" => {
+                p.mask = vec![hide(vec![
+                    [0.45, -0.1],
+                    [1.1, -0.1],
+                    [1.1, 1.1],
+                    [0.45, 1.1],
+                ])]
+            }
+            // « ailleurs » est caché en entier.
+            "ailleurs" => {
+                p.mask = vec![hide(vec![
+                    [-0.1, -0.1],
+                    [1.1, -0.1],
+                    [1.1, 1.1],
+                    [-0.1, 1.1],
+                ])]
+            }
+            _ => {}
+        }
+    }
+    dir.save(&project).unwrap();
+    let cache = TempDir::new("perdu-masque-cache");
+    let parts = lost::load_lost_parts(&dir, cache.path()).unwrap();
+    assert_eq!(lost_area(&parts, "coupe"), 0.0);
+    assert_eq!(lost_area(&parts, "ailleurs"), 0.0);
+    assert!((lost_area(&parts, "dehors") - 0.5).abs() < 1e-3);
+    let by_shape = assign::shape_assignments(&dir, &project, cache.path());
+    let coupe = by_shape.iter().find(|a| a.placement == "coupe").unwrap();
+    assert!(coupe.whole, "{coupe:?}");
 }
 
 /// Un dessin lâché dans la vue Diapositive est posé sur la façade, là où le

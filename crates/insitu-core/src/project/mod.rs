@@ -32,13 +32,14 @@ pub use lock::{
     LOCK_REFRESH_INTERVAL_SECONDS, LOCK_STALE_AFTER_SECONDS,
 };
 pub use migrate::CURRENT_FORMAT_VERSION;
-pub use model::{retouch_problem, silhouette_problem};
+pub use model::{retouch_problem, silhouette_problem, slide_mask_problem};
 pub use model::{
     AssemblyOutput, AssemblyPair, AssemblyPhoto, Deformation, DeformationFrame, Drawing,
     ExportSettings, ExtraFields, Facade, FacadeAssembly, FacadeScale, FrescoImage, FrescoVector,
     Layer, Mirror, Placement, Plan, PlanGroup, PointMm, Project, Projector, RectMm, Rectification,
     RectificationMethod, RectificationPoint, RegistrationLine, RegistrationPair, RetouchStroke,
-    RetouchTool, SharedLink, SilhouettePolygon, SlideAdjustment, SourcePoint, VectorSettings,
+    RetouchTool, SharedLink, SilhouettePolygon, SlideAdjustment, SlideMask, SourcePoint,
+    VectorSettings,
 };
 pub use path::RelativePath;
 pub use store::{AssetKind, LoadedProject, ProjectDir, PROJECT_EXTENSION, PROJECT_FILE};

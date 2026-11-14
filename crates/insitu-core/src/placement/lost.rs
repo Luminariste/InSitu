@@ -19,6 +19,7 @@ use i_overlay::float::single::SingleFloatOverlay;
 use serde::Serialize;
 
 use super::assign::{shape_assignments, Assignment};
+use super::mask;
 use crate::library::silhouette::{silhouettes, DrawingSilhouette};
 use crate::library::LibraryError;
 use crate::project::{Placement, PointMm, Project, ProjectDir, SilhouettePolygon};
@@ -91,6 +92,34 @@ pub(super) fn shape_on_facade(p: &Placement, polygons: &[SilhouettePolygon]) -> 
         .collect()
 }
 
+/// La forme visible du dessin sur la façade : comme [`shape_on_facade`],
+/// moins ce que cache son masque (D-4.2-u). Un dessin entièrement caché
+/// n'a aucune forme.
+pub(super) fn visible_on_facade(
+    project: &Project,
+    p: &Placement,
+    polygons: &[SilhouettePolygon],
+) -> Vec<Vec<[f64; 2]>> {
+    if p.mask.is_empty() {
+        return shape_on_facade(p, polygons);
+    }
+    let usable: Vec<SilhouettePolygon> =
+        polygons.iter().filter(|s| s.len() >= 3).cloned().collect();
+    let base = if usable.is_empty() {
+        mask::whole_drawing()
+    } else {
+        usable
+    };
+    let aspect = project
+        .drawing(&p.drawing)
+        .map_or((1.0, 1.0), |d| mask::aspect(d.width, d.height));
+    let visible = mask::visible_shape(&base, &p.mask, aspect);
+    if visible.is_empty() {
+        return Vec::new();
+    }
+    shape_on_facade(p, &visible)
+}
+
 /// Surface d'un contour (mm², positive).
 fn area(contour: &[[f64; 2]]) -> f64 {
     let n = contour.len();
@@ -122,7 +151,10 @@ pub fn lost_parts(
             .iter()
             .find(|s| s.drawing == p.drawing)
             .map_or(&[][..], |s| s.polygons.as_slice());
-        let subject = shape_on_facade(p, polygons);
+        let subject = visible_on_facade(project, p, polygons);
+        if subject.is_empty() {
+            continue;
+        }
         let emprise: Vec<Vec<[f64; 2]>> = a
             .projector
             .as_deref()

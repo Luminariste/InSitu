@@ -290,12 +290,19 @@ fn overlaps(a: [f64; 4], b: [f64; 4]) -> bool {
 // Une diapositive
 // ---------------------------------------------------------------------------
 
-/// Un dessin à poser : son placement, ses courbes, sa silhouette.
+/// Un dessin à poser : son placement, ses courbes, sa silhouette (visible,
+/// masque déduit) et la partie que cache son masque (formes en fractions
+/// du dessin : contour extérieur puis trous ; vide sans masque, D-4.2-u).
 pub struct VectorDrawing<'a> {
     pub placement: &'a Placement,
     pub vector: &'a Vectorization,
     pub silhouette: &'a [SilhouettePolygon],
+    pub hidden: &'a [Vec<Vec<[f64; 2]>>],
 }
+
+/// Un dessin transporté : ses contours, sa silhouette, la partie cachée par
+/// son masque.
+type Transported = (Vec<PathMm>, Vec<Vec<Point>>, Vec<Vec<[f64; 2]>>);
 
 /// Les contours de chaque dessin (du fond vers l'avant) dans la
 /// diapositive, découpés par les silhouettes des dessins de devant.
@@ -306,7 +313,7 @@ pub fn slide_paths(
 ) -> Vec<SlidePaths> {
     // Courbes transportées, et silhouettes (polygones orientés dans le même
     // sens, pour que leur réunion se remplisse « non nul »).
-    let transported: Vec<(Vec<PathMm>, Vec<Vec<Point>>)> = drawings
+    let transported: Vec<Transported> = drawings
         .iter()
         .map(|d| {
             let (w, h) = (f64::from(d.vector.width), f64::from(d.vector.height));
@@ -333,17 +340,42 @@ pub fn slide_paths(
                     Some(out)
                 })
                 .collect();
-            (paths, silhouettes)
+            // La partie cachée par le masque : chaque forme transportée, son
+            // contour extérieur remis de surface positive (le miroir
+            // retourne tout), pour la retirer « non nul ».
+            let hidden = d
+                .hidden
+                .iter()
+                .filter_map(|shape| {
+                    let mut contours: Vec<Vec<Point>> = shape
+                        .iter()
+                        .map(|c| {
+                            let pts: Vec<Point> =
+                                c.iter().map(|&[u, v]| Point::new(u, v)).collect();
+                            s.polygon(&pts)
+                        })
+                        .collect::<Option<_>>()?;
+                    if contours.first().is_some_and(|c| signed_area(c) < 0.0) {
+                        for c in &mut contours {
+                            c.reverse();
+                        }
+                    }
+                    Some(contours)
+                })
+                .flatten()
+                .map(|c| c.iter().map(|p| [p.x, p.y]).collect())
+                .collect();
+            (paths, silhouettes, hidden)
         })
         .collect();
     let silhouette_bounds: Vec<Vec<[f64; 4]>> = transported
         .iter()
-        .map(|(_, s)| s.iter().filter_map(|p| bounds(p.iter().copied())).collect())
+        .map(|(_, s, _)| s.iter().filter_map(|p| bounds(p.iter().copied())).collect())
         .collect();
     transported
         .iter()
         .enumerate()
-        .map(|(i, (paths, _))| {
+        .map(|(i, (paths, _, hidden))| {
             let id = drawings[i].placement.id.clone();
             let mine =
                 bounds(paths.iter().flat_map(|p| {
@@ -363,47 +395,60 @@ pub fn slide_paths(
                     .collect(),
                 None => Vec::new(),
             };
-            if front.is_empty() {
+            if front.is_empty() && hidden.is_empty() {
                 return SlidePaths {
                     placement: id,
                     paths: paths.clone(),
                     clipped: false,
                 };
             }
-            // Courbes aplaties, puis différence avec les silhouettes.
-            let subject: Vec<Vec<[f64; 2]>> = paths
-                .iter()
-                .map(|p| {
-                    flatten(p, TOLERANCE_MM)
-                        .iter()
-                        .map(|q| [q.x, q.y])
-                        .collect()
-                })
-                .filter(|c: &Vec<[f64; 2]>| c.len() >= 3)
-                .collect();
-            let shapes = subject.overlay(&front, OverlayRule::Difference, FillRule::NonZero);
-            let paths = shapes
-                .into_iter()
-                .flatten()
-                .filter(|c| c.len() >= 3)
-                .map(|c| PathMm {
-                    start: Point::new(c[0][0], c[0][1]),
-                    segments: c[1..]
-                        .iter()
-                        .map(|q| Segment::Line {
-                            to: Point::new(q[0], q[1]),
-                        })
-                        .chain(std::iter::once(Segment::Line {
-                            to: Point::new(c[0][0], c[0][1]),
-                        }))
-                        .collect(),
-                })
-                .collect();
+            // Les silhouettes de devant, puis le masque du dessin : deux
+            // différences l'une après l'autre (leurs sens de parcours ne se
+            // mélangent pas).
+            let mut paths = paths.clone();
+            for clip in [&front, hidden] {
+                if !clip.is_empty() {
+                    paths = cut(&paths, clip);
+                }
+            }
             SlidePaths {
                 placement: id,
                 paths,
                 clipped: true,
             }
+        })
+        .collect()
+}
+
+/// Les contours aplatis, moins les polygones `clip` (remplis « non nul »).
+#[allow(clippy::ptr_arg)] // i_overlay lit un `Vec`, pas une tranche.
+fn cut(paths: &[PathMm], clip: &Vec<Vec<[f64; 2]>>) -> Vec<PathMm> {
+    let subject: Vec<Vec<[f64; 2]>> = paths
+        .iter()
+        .map(|p| {
+            flatten(p, TOLERANCE_MM)
+                .iter()
+                .map(|q| [q.x, q.y])
+                .collect()
+        })
+        .filter(|c: &Vec<[f64; 2]>| c.len() >= 3)
+        .collect();
+    let shapes = subject.overlay(clip, OverlayRule::Difference, FillRule::NonZero);
+    shapes
+        .into_iter()
+        .flatten()
+        .filter(|c| c.len() >= 3)
+        .map(|c| PathMm {
+            start: Point::new(c[0][0], c[0][1]),
+            segments: c[1..]
+                .iter()
+                .map(|q| Segment::Line {
+                    to: Point::new(q[0], q[1]),
+                })
+                .chain(std::iter::once(Segment::Line {
+                    to: Point::new(c[0][0], c[0][1]),
+                }))
+                .collect(),
         })
         .collect()
 }
@@ -620,6 +665,7 @@ mod tests {
             slide: None,
             hidden: false,
             locked: false,
+            mask: Vec::new(),
             extra: Default::default(),
         }
     }
@@ -659,6 +705,7 @@ mod tests {
                 placement: &p,
                 image: &image,
                 mask: None,
+                visibility: None,
             }];
             draw(&mut slide, &posed, &place, 1).unwrap();
             let (w, h) = (rect.x1 - rect.x0, rect.y1 - rect.y0);
@@ -678,6 +725,7 @@ mod tests {
                 placement: &p,
                 vector: &vector,
                 silhouette: &[],
+                hidden: &[],
             };
             let paths = slide_paths(&[d], &svg_place, 1);
             // Courbes du SVG en pixels du rectangle.
@@ -792,6 +840,129 @@ mod tests {
         assert!(pieces < source * 4, "{pieces} morceaux pour {source}");
     }
 
+    /// Masque d'un dessin posé (D-4.2-u) : la moitié gauche du dessin est
+    /// cachée, puis un coin rendu ; le PNG et le SVG le cachent de même, et
+    /// coïncident encore à moins de 0,02 mm.
+    #[test]
+    fn a_masked_drawing_is_hidden_alike_in_the_png_and_the_svg() {
+        use crate::placement::mask;
+        use crate::project::{RetouchStroke, RetouchTool};
+        let warp = warp();
+        let image = drawing();
+        let vector = vectorize::vectorize(&GrayImage::from_raster(&image), &options()).unwrap();
+        let px_mm = units::px_size_mm(1400.0);
+        let (side, _) = crate::export::sizes_px(1400.0);
+        let zone = |tool, x0: f64, y0: f64, x1: f64, y1: f64| RetouchStroke {
+            tool,
+            fill: true,
+            size: 0.0,
+            points: vec![[x0, y0], [x1, y0], [x1, y1], [x0, y1]],
+        };
+        let measure = |p: &Placement| {
+            let place = Placing {
+                warp: Some(&warp),
+                px_mm,
+                side,
+                mirror: true,
+                projector: None,
+            };
+            let rect = slide_rect(p, &place).unwrap();
+            let mut slide = Raster::new(side, side, 1, vec![0; side as usize * side as usize]);
+            let visibility = (!p.mask.is_empty()).then(|| mask::visibility(&p.mask, 480, 480));
+            let posed = [Posed {
+                placement: p,
+                image: &image,
+                mask: None,
+                visibility: visibility.as_ref(),
+            }];
+            draw(&mut slide, &posed, &place, 1).unwrap();
+            let (w, h) = (rect.x1 - rect.x0, rect.y1 - rect.y0);
+            let mut crop = Vec::with_capacity((w * h) as usize);
+            for y in rect.y0..rect.y1 {
+                let s = (y * side + rect.x0) as usize;
+                crop.extend_from_slice(&slide.data[s..s + w as usize]);
+            }
+            let hidden = mask::hidden_region(&p.mask, (1.0, 1.0));
+            let d = VectorDrawing {
+                placement: p,
+                vector: &vector,
+                silhouette: &[],
+                hidden: &hidden,
+            };
+            let svg_place = SvgPlacing {
+                warp: Some(&warp),
+                mirror: true,
+                projector: None,
+            };
+            let paths = slide_paths(&[d], &svg_place, 1);
+            let to_px = |q: Point| {
+                Point::new(
+                    q.x / px_mm - f64::from(rect.x0),
+                    q.y / px_mm - f64::from(rect.y0),
+                )
+            };
+            let contours = paths[0]
+                .paths
+                .iter()
+                .map(|path| Contour {
+                    start: to_px(path.start),
+                    segments: path
+                        .segments
+                        .iter()
+                        .map(|s| match *s {
+                            Segment::Line { to } => Segment::Line { to: to_px(to) },
+                            Segment::Cubic { c1, c2, to } => Segment::Cubic {
+                                c1: to_px(c1),
+                                c2: to_px(c2),
+                                to: to_px(to),
+                            },
+                        })
+                        .collect(),
+                    area: 0.0,
+                })
+                .collect::<Vec<_>>();
+            let in_px = vectorize::Vectorization {
+                width: w,
+                height: h,
+                options: options(),
+                contours,
+                stats: VectorizeStats {
+                    contours: 0,
+                    removed_contours: 0,
+                    raw_points: 0,
+                    lines: 0,
+                    cubics: 0,
+                    max_fit_error_px: 0.0,
+                },
+            };
+            let png = GrayImage {
+                width: w,
+                height: h,
+                data: crop,
+            };
+            compare(&png, &in_px)
+        };
+        let whole = placement(&warp, 60.0, 200.0);
+        let mut masked = whole.clone();
+        masked.mask = vec![
+            zone(RetouchTool::Erase, -0.1, -0.1, 0.5, 1.1),
+            zone(RetouchTool::Draw, -0.1, -0.1, 0.5, 0.3),
+        ];
+        let full = measure(&whole);
+        let part = measure(&masked);
+        let share = part.source_pixels as f64 / full.source_pixels as f64;
+        // L'anneau perd environ sa moitié gauche, moins le haut rendu ; la
+        // barre du bas à gauche disparaît, le disque en haut à droite reste.
+        assert!((0.3..0.7).contains(&share), "part visible : {share:.3}");
+        let vector_share = part.vector_pixels as f64 / part.source_pixels as f64;
+        assert!(
+            (vector_share - 1.0).abs() < 0.02,
+            "SVG / PNG : {vector_share:.3}"
+        );
+        let mm = part.max_deviation_px * px_mm;
+        assert!(mm < 0.02, "écart {mm:.4} mm ({part:?})");
+    }
+
     /// Un dessin derrière un autre est découpé par la silhouette de celui
     /// de devant.
     #[test]
@@ -818,11 +989,13 @@ mod tests {
                 placement: &back,
                 vector: &vector,
                 silhouette: &empty,
+                hidden: &[],
             },
             VectorDrawing {
                 placement: &front,
                 vector: &vector,
                 silhouette: &silhouettes,
+                hidden: &[],
             },
         ];
         let out = slide_paths(&drawings, &place, 1);

@@ -74,6 +74,8 @@ export interface PolygonShape {
   strokeAlpha?: number;
   /** Opacité du remplissage ; pas de remplissage si absente ou nulle. */
   fillAlpha?: number;
+  /** Trous découpés dans le remplissage (le trait n'est alors pas tracé). */
+  holes?: { x: number; y: number }[][];
 }
 
 /** Des polygones : emprises, zones de recouvrement (tâche 3.3). */

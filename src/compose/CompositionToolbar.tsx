@@ -32,9 +32,11 @@ interface Props {
    * dessin partout. `adjusted` : un dessin choisi est retouché ici.
    */
   slide?: { adjusted: boolean };
+  /** Outil « Masque » (D-4.2-u) : pris ou non, et de quoi le prendre ou le quitter. */
+  mask?: { on: boolean; toggle: () => void };
 }
 
-export function CompositionToolbar({ selected, actions, enabled, corners = false, slide }: Props) {
+export function CompositionToolbar({ selected, actions, enabled, corners = false, slide, mask }: Props) {
   const has = enabled && selected.length > 0;
   // Bulles : ce qui reste dans la diapositive, ce qui change le dessin partout.
   const here = (label: string) => (slide ? `${label}, dans cette diapositive seulement` : label);
@@ -69,6 +71,20 @@ export function CompositionToolbar({ selected, actions, enabled, corners = false
           items={GRIDS.map(([c, r]) => ({ label: `Grille ${c} × ${r}`, onSelect: () => actions.deform(c, r) }))}
         />
         <IconButton icon="straighten" label={slide ? "Comme sur la façade : retirer la retouche de cette diapositive" : "Redresser : le dessin redevient droit"} onClick={() => actions.deform(0, 0)} disabled={!has || !deformed} />
+        {mask && (
+          <IconButton
+            icon="mask"
+            label={
+              mask.on
+                ? "Quitter l'outil Masque (Échap)"
+                : everywhere("Masque : peindre sur le dessin choisi pour en cacher des parties, sans l'effacer")
+            }
+            shortcut="m"
+            active={mask.on}
+            onClick={mask.toggle}
+            disabled={!enabled || (!has && !mask.on)}
+          />
+        )}
       </ToolGroup>
       <ToolSeparator />
       <ToolGroup>

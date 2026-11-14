@@ -513,8 +513,58 @@ pub struct Projector {
     /// paires de points.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub registration_lines: Vec<RegistrationLine>,
+    /// Masque général de la diapositive (D-3.6-h) ; absent : aucun.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mask: Option<SlideMask>,
     #[serde(flatten)]
     pub extra: ExtraFields,
+}
+
+/// Masque général d'une diapositive (demande de Benjamin du 14 novembre,
+/// D-3.6-h) : des formes tracées sur la photo redressée. Ce qui est dedans
+/// (ou dehors, `outside`) devient noir à l'export, fresque et dessins
+/// compris.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SlideMask {
+    /// Formes en mm de diapositive (avant miroir, comme le recalage), de
+    /// trois points au moins ; chacune remplie pair-impair, réunies entre
+    /// elles.
+    pub shapes: Vec<Vec<[f64; 2]>>,
+    /// Vrai : c'est l'extérieur des formes qui devient noir.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub outside: bool,
+    /// Caché (l'œil du calque « Masque ») : ni montré ni appliqué à
+    /// l'export, comme un calque masqué.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hidden: bool,
+    #[serde(flatten)]
+    pub extra: ExtraFields,
+}
+
+impl SlideMask {
+    /// Le masque à appliquer : ni caché, ni sans forme… sauf « extérieur »
+    /// sans forme, qui ne laisse rien (on l'applique aussi).
+    pub fn active(&self) -> bool {
+        !self.hidden && (!self.shapes.is_empty() || self.outside)
+    }
+}
+
+/// Ce qui ne va pas dans un masque de diapositive, s'il y a quelque chose.
+pub fn slide_mask_problem(mask: &SlideMask) -> Option<String> {
+    for (i, shape) in mask.shapes.iter().enumerate() {
+        if shape.len() < 3 {
+            return Some(format!("la forme {} a moins de trois points", i + 1));
+        }
+        if shape
+            .iter()
+            .flatten()
+            .any(|c| !c.is_finite() || c.abs() > 10_000.0)
+        {
+            return Some(format!("la forme {} a un point invalide", i + 1));
+        }
+    }
+    None
 }
 
 impl Projector {
@@ -527,6 +577,7 @@ impl Projector {
             rectification: None,
             registration: Vec::new(),
             registration_lines: Vec::new(),
+            mask: None,
             extra: ExtraFields::new(),
         }
     }
@@ -992,6 +1043,15 @@ pub struct Placement {
     /// la façade (D-4.5-g).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub locked: bool,
+    /// Masque de ce dessin posé (demande de Benjamin du 14 novembre,
+    /// D-4.2-u) : des coups de pinceau et des zones en fractions du dessin,
+    /// dans l'ordre où ils ont été faits. `erase` cache, `draw` fait
+    /// réapparaître ce qu'un coup précédent a caché. Le dessin et la
+    /// bibliothèque ne changent pas ; le masque suit le dessin partout
+    /// (déplacé, tourné, déformé, retouché dans une diapositive). Vide :
+    /// rien n'est caché.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mask: Vec<RetouchStroke>,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }

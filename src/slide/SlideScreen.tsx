@@ -31,6 +31,11 @@ import {
   type SlideView,
 } from "../engine";
 import { useSlideAdjust } from "./useSlideAdjust";
+import { slidePoint } from "./adjust";
+import { MaskBar } from "../compose/MaskBar";
+import { SlideMaskSection } from "./SlideMaskSection";
+import { useSlideMask } from "./useSlideMask";
+import { useMaskTool } from "../compose/useMaskTool";
 import { SlideExportSection, startSettings } from "./SlideExportSection";
 import { controlPlanSummary, exportSummary, parseDpi, validDpi } from "../facade/exportLogic";
 import { CompositionToolbar } from "../compose/CompositionToolbar";
@@ -112,6 +117,9 @@ function saveSlideTab(tab: SlideTab) {
 }
 
 /** Raccourcis de la composition qui gardent leur sens dans une diapositive : ordre et groupe. */
+/** Le carré de la diapositive en contour (SLIDE_SQUARE est rangé ligne par ligne, pour un maillage). */
+const SLIDE_OUTLINE = [SLIDE_SQUARE[0], SLIDE_SQUARE[1], SLIDE_SQUARE[3], SLIDE_SQUARE[2]];
+
 const SLIDE_SHORTCUTS = new Set(["mod+g", "mod+shift+g", "mod+shift+]", "mod+]", "mod+[", "mod+shift+["]);
 
 /**
@@ -262,6 +270,39 @@ export function SlideScreen() {
     silhouetteOf: composition.silhouetteOf,
   });
 
+  // Outil « Masque » (D-4.2-u) : le masque est celui du dessin posé, le même
+  // que sur la façade ; on le peint ici sur la diapositive.
+  const composed = composition.placements;
+  const maskTargets = useMemo(
+    () =>
+      adjust.selected.flatMap((d) => {
+        const p = composed.find((q) => q.id === d.placement);
+        if (!p) return [];
+        const deformation = p.adjustment && p.adjustment.projector === view?.projectorId ? p.adjustment.deformation : null;
+        return [{ id: p.id, map: (u: number, v: number) => slidePoint(d, deformation, u, v), mask: p.mask ?? [] }];
+      }),
+    [adjust.selected, composed, view?.projectorId],
+  );
+  // Masque général de la diapositive (D-3.6-h) : calque « Masque » de l'onglet Calques.
+  const slideMask = useSlideMask({
+    engine,
+    folder,
+    projector: view?.projectorId ?? null,
+    mask: (project?.projectors ?? []).find((q) => q.id === view?.projectorId)?.mask ?? null,
+    square: SLIDE_OUTLINE,
+    viewer,
+    stage,
+    onProject,
+    onError: setError,
+  });
+  const maskTool = useMaskTool({
+    viewer,
+    stage,
+    available: engine && busy === null && view !== null,
+    targets: maskTargets,
+    onCommit: composition.actions.setMasks,
+  });
+
   // Tuiles de la photo redressée, gardées pour basculer sans attendre.
   useEffect(() => {
     if (!engine || !folder || !view?.rectifiedPhoto || photos[view.projectorId]) return;
@@ -301,6 +342,7 @@ export function SlideScreen() {
       out.push({ id: "photo-demo", kind: "mesh-image", url: demo.photo, divisions: 1, points: SLIDE_SQUARE, visible: look.photo });
       out.push(...drawingsLayer(demo.drawings[view.projectorId] ?? null, showDrawings, opacity, tint));
       out.push(...adjust.layers);
+      out.push(...slideMask.layers);
       return out;
     }
     const photo = photos[view.projectorId];
@@ -317,8 +359,9 @@ export function SlideScreen() {
     out.push(...planLayer(view.plan ? cacheFileUrl(view.plan) : null, content.plan && !lightBurn, look.photo ? "noir" : look.backdrop));
     out.push(...drawingsLayer(view.preview ? cacheFileUrl(view.preview) : null, showDrawings, opacity, tint));
     out.push(...adjust.layers);
+    out.push(...slideMask.layers);
     return out;
-  }, [view, photos, demo, showDrawings, opacity, tint, look.photo, look.backdrop, adjust.layers, content.plan, lightBurn]);
+  }, [view, photos, demo, showDrawings, opacity, tint, look.photo, look.backdrop, adjust.layers, content.plan, lightBurn, slideMask.layers]);
 
   // Cadrer la diapositive à l'ouverture.
   useEffect(() => {
@@ -428,6 +471,20 @@ export function SlideScreen() {
       enabled: exportBlocked === null && ready && validDpi(dpi),
     },
   ]);
+  // Un outil à la fois : le tracé du masque de la diapositive ou le masque d'un dessin.
+  const penOn = slideMask.pen !== null;
+  const setMaskToolOn = maskTool.setOn;
+  const setPen = slideMask.setPen;
+  useEffect(() => {
+    if (penOn) setMaskToolOn(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [penOn]);
+  useEffect(() => {
+    if (maskTool.on) setPen(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maskTool.on]);
+  useShortcuts(slideMask.shortcuts);
+  useShortcuts(maskTool.shortcuts);
   useShortcuts(composition.shortcuts.filter((s) => SLIDE_SHORTCUTS.has(s.keys)));
 
   // --- Barre d'outils -----------------------------------------------------------------------
@@ -467,7 +524,14 @@ export function SlideScreen() {
         enabled={ready && view !== null}
         corners={adjust.corners}
         slide={{ adjusted: adjust.adjusted }}
+        mask={engine ? { on: maskTool.on, toggle: () => maskTool.setOn(!maskTool.on) } : undefined}
       />
+      {maskTool.on && (
+        <>
+          <ToolSeparator />
+          <MaskBar tool={maskTool} count={maskTargets.length} />
+        </>
+      )}
       <ToolSpacer />
       <Button
         active={lightBurn}
@@ -594,6 +658,7 @@ export function SlideScreen() {
         ),
         calques: (
           <>
+            <SlideMaskSection tool={slideMask} blocked={engine ? layersBlocked : view ? null : "Aucun projecteur."} />
             <SlidesSection
               groups={tree}
               selected={compositionIds}
@@ -664,7 +729,7 @@ export function SlideScreen() {
           </StatusText>
           {adjust.pending && engine && <StatusText>Recalcul de la diapositive…</StatusText>}
           <StatusText push>
-            {adjust.selected.length > 0
+            {slideMask.hint ? slideMask.hint : maskTool.hint ? maskTool.hint : adjust.selected.length > 0
               ? `${adjust.hint} · cliquer dans le vide : ← → changent de projecteur`
               : `${adjust.hint ? `${adjust.hint} · ` : ""}← → : projecteur précédent ou suivant`}
           </StatusText>
@@ -674,14 +739,15 @@ export function SlideScreen() {
       <div
         className="slide-stage"
         ref={stage}
-        onPointerDownCapture={adjust.onPointerDown}
-        onPointerMoveCapture={adjust.onPointerMove}
-        onPointerUpCapture={adjust.onPointerUp}
+        onPointerDownCapture={(event) => slideMask.onPointerDown(event) || maskTool.onPointerDown(event) || adjust.onPointerDown(event)}
+        onPointerMoveCapture={(event) => slideMask.onPointerMove(event) || maskTool.onPointerMove(event) || adjust.onPointerMove(event)}
+        onPointerUpCapture={(event) => slideMask.onPointerUp(event) || maskTool.onPointerUp(event) || adjust.onPointerUp(event)}
         onDragOver={onDragOver}
         onDragLeave={() => setDropping(false)}
         onDrop={onDrop}
       >
         <Viewer ref={viewer} layers={layers} cursorUnit="mm" />
+        {maskTool.overlay}
         {dropping && <div className="slide-drop-veil">{placeBlocked ?? "Déposer pour poser le dessin dans cette diapositive"}</div>}
         {engine && !folder && !busy && (
           <EmptyState icon="folder" title="Aucun projet ouvert">

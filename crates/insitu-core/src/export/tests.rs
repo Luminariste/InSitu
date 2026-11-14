@@ -476,6 +476,7 @@ fn project_with_placed_drawing(label: &str, frame: &RectMm) -> (TempDir, Project
         slide: None,
         hidden: false,
         locked: false,
+        mask: Vec::new(),
         extra: Default::default(),
     });
     dir.save(&project).unwrap();

@@ -296,6 +296,7 @@ fn the_export_uses_the_retouched_drawing() {
         slide: None,
         hidden: false,
         locked: false,
+        mask: Vec::new(),
         extra: Default::default(),
     });
     dir.save(&project).unwrap();

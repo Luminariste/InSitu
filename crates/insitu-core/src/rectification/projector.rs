@@ -21,8 +21,8 @@ use crate::geometry::Point;
 use crate::photo::{self, OutputFormat, PhotoError};
 use crate::project::store::write_atomic;
 use crate::project::{
-    AssetKind, Mirror, PointMm, Project, ProjectDir, ProjectError, Projector, Rectification,
-    RectificationMethod, RelativePath,
+    slide_mask_problem, AssetKind, Mirror, PointMm, Project, ProjectDir, ProjectError, Projector,
+    Rectification, RectificationMethod, RelativePath, SlideMask,
 };
 use crate::units::{self, RECTIFIED_PHOTO_DPI, SLIDE_SIZE_MM};
 
@@ -49,6 +49,8 @@ pub enum RectifyError {
     NotRectified(String),
     /// Demande d'export incorrecte.
     BadExport(String),
+    /// Masque de diapositive incorrect (D-3.6-h).
+    BadMask(String),
 }
 
 impl fmt::Display for RectifyError {
@@ -59,6 +61,7 @@ impl fmt::Display for RectifyError {
             Self::Photo(e) => e.fmt(f),
             Self::UnknownProjector(key) => write!(f, "aucun projecteur « {key} » dans ce projet"),
             Self::BadLabel(message) | Self::BadExport(message) => f.write_str(message),
+            Self::BadMask(message) => write!(f, "masque de la diapositive : {message}"),
             Self::NoRawPhoto(label) => {
                 write!(f, "le projecteur {label} n'a pas encore de photo de mire")
             }
@@ -274,6 +277,23 @@ pub fn rename_projector(
     Ok(project)
 }
 
+/// Enregistre le masque général de la diapositive du projecteur (D-3.6-h) ;
+/// `None` le retire. Rien n'est enregistré si une forme est incorrecte.
+pub fn set_slide_mask(
+    dir: &ProjectDir,
+    projector: &str,
+    mask: Option<SlideMask>,
+) -> Result<Project, RectifyError> {
+    let mut project = dir.load()?.project;
+    let id = projector_id(&project, projector)?;
+    if let Some(problem) = mask.as_ref().and_then(slide_mask_problem) {
+        return Err(RectifyError::BadMask(problem));
+    }
+    project.projector_mut(&id).expect("projecteur trouvé").mask = mask;
+    dir.save(&project)?;
+    Ok(project)
+}
+
 /// Retire un projecteur du projet, avec son redressement, son recalage et
 /// les dessins posés dans sa diapositive.
 /// Ses photos (brute et redressée) restent dans le dossier du projet : rien
@@ -474,6 +494,13 @@ fn transform_slide(
     let p = project.projector_mut(&id).expect("projecteur trouvé");
     for pair in &mut p.registration {
         pair.slide = map(pair.slide);
+    }
+    // Le masque de la diapositive est tracé sur la photo : il tourne avec elle (D-3.6-h).
+    if let Some(mask) = &mut p.mask {
+        for point in mask.shapes.iter_mut().flatten() {
+            let q = map(PointMm::new(point[0], point[1]));
+            *point = [q.x, q.y];
+        }
     }
     p.rectified_photo = Some(relative);
     p.rectification = Some(rectification);

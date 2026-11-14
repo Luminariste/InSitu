@@ -4,6 +4,66 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-14 — Masquer des parties des dessins (demande de Benjamin)
+
+Demande de Benjamin : « comment on pourrait faire une fonction très
+intuitive pour masquer certaines partie du dessin sur facade et diapo ? Et
+dans diapo, avoir un masque général ». Il a accepté la proposition : un
+outil « Masque » par dessin, en Façade et en Diapositive, et un masque
+général de la diapositive.
+
+**D-4.2-u. Le masque d'un dessin posé s'écrit comme la gomme, dans le
+placement.** `placements[].mask` reprend les coups de la gomme de la
+bibliothèque (D-4.8-a) : coups de pinceau ronds ou zones fermées (lasso),
+en fractions du dessin, dans l'ordre ; `erase` cache, `draw` fait
+réapparaître. Le dessin et la bibliothèque ne changent pas, et le masque
+suit le dessin quand on le déplace, l'étire, le tourne ou le déforme,
+parce qu'il est en fractions du dessin. Un seul masque par dessin posé,
+le même dans toutes les diapositives (pas un masque par diapositive).
+- Outil : touche M (ou l'icône de la barre), avec un ou plusieurs dessins
+  choisis. Pinceau : on peint pour cacher, ⌥ + peindre fait réapparaître ;
+  lasso (Z ; T revient au pinceau) : la zone entourée est cachée d'un coup,
+  ⌥ la fait réapparaître ; [ et ] changent l'épaisseur. L'épaisseur est en
+  points d'écran (comme un pinceau d'Illustrator), convertie au lâcher en
+  fraction du plus grand côté du dessin, comme la gomme. Un geste est ramené
+  dans le dessin par l'inverse de la chaîne qui le pose (méthode de Newton),
+  prolongée hors du dessin pour qu'un geste puisse déborder. Chaque geste
+  est une étape d'annulation (⌘Z). « Tout réafficher » vide le masque.
+- Une partie cachée ne cache plus rien derrière : la silhouette (D-4.7) est
+  coupée par le masque, à l'écran, dans le PNG (image de visibilité
+  multipliée au dessin et à sa silhouette) et dans le SVG (partie cachée
+  retirée des tracés). Un clic dans une partie cachée passe au travers
+  (D-4.2-t).
+- La part perdue en rouge (D-4.5-h) et « à cheval » (D-4.5-j) ne comptent
+  que ce qui se voit : un dessin dont seule une partie cachée dépasse
+  n'est plus à cheval. Un dessin entièrement caché n'est ni perdu ni à
+  cheval.
+- Le choix automatique de la diapositive (sur le rectangle) ne change pas.
+
+**D-3.6-h. Le masque général d'une diapositive est noir à l'export, quels
+que soient les dessins.** `projectors[].mask` : des formes (`shapes`, au
+moins trois points chacune) en mm de diapositive, tracées sur la photo
+redressée **avant le miroir** de la diapositive (comme le recalage) ;
+`outside` : faux, l'intérieur des formes est noir, vrai, l'extérieur ;
+`hidden` : le calque est éteint (ni montré, ni appliqué à l'export).
+- Il s'applique après tout le reste (fresque et dessins), dans le PNG et
+  dans le SVG (tracés coupés), y compris pour l'aperçu de la diapositive.
+  Il ne s'applique pas au « plan de contrôle » à graver (D-3.5-m), qui sert
+  à vérifier la plaque.
+- Dans la vue Diapositive : un calque « Masque » en haut de l'onglet
+  Calques, avec son œil, deux outils (Lasso : à main levée ; Plume : point
+  par point, fermée en cliquant sur le premier point, par un double-clic
+  ou Entrée), « Noir dedans / Noir dehors », la liste des formes (⌫ retire
+  la forme choisie). À l'écran, le noir est assombri pour voir la photo
+  dessous. Chaque changement est enregistré tout de suite ; il n'entre pas
+  dans l'historique ⌘Z de la composition (le masque est un réglage du
+  projecteur, comme son recalage) : on retire une forme par la liste.
+- Le masque est tracé sur la photo : un miroir ou un quart de tour de la
+  diapositive (D-2.5-j, D-2.5-m) le fait tourner avec la photo, comme les
+  points du recalage.
+- En ligne de commande : `insitu projector mask <projet> <projecteur>
+  <masque.json> | --none`.
+
 ## 2026-11-14 — Redressement : tourner la photo redressée de 90° (demande de Benjamin)
 
 **D-2.5-m. Quart de tour toujours proposé, et gardé comme le miroir.**
@@ -24,6 +84,7 @@ change k en −k (un miroir inverse le sens de rotation), ce qui garde la
 relecture exacte. `insitu projector rotate <projet> <projecteur> [-1|1|2…]`.
 Prouvé par `an_unreadable_grid_is_rectified_by_the_corners_alone`
 (rotation gardée après une nouvelle détection, avec et sans miroir).
+
 
 ## 2026-11-14 — « À cheval » jugé sur le tracé (demande de Benjamin)
 

@@ -25,7 +25,7 @@ use insitu_core::project::history::{self, HistoryState};
 use insitu_core::project::{
     AssemblyPair, ExportSettings, Layer, Mirror, Placement, PointMm, Project, ProjectDir,
     RegistrationLine, RegistrationPair, RetouchStroke, SilhouettePolygon, SlideAdjustment,
-    SourcePoint, VectorSettings,
+    SlideMask, SourcePoint, VectorSettings,
 };
 use insitu_core::rectification::projector::{self as projectors, ExportedImage, RectificationView};
 use insitu_core::registration::auto::AdjustReport;
@@ -269,6 +269,16 @@ fn projector_add(folder: String, label: String) -> Result<(Project, String), Str
 fn projector_rename(folder: String, projector: String, label: String) -> Result<Project, String> {
     projectors::rename_projector(&project_dir(&folder)?, &projector, &label)
         .map_err(|e| e.to_string())
+}
+
+/// Masque général de la diapositive d'un projecteur (D-3.6-h) ; aucun : retiré.
+#[tauri::command(async)]
+fn projector_set_mask(
+    folder: String,
+    projector: String,
+    mask: Option<SlideMask>,
+) -> Result<Project, String> {
+    projectors::set_slide_mask(&project_dir(&folder)?, &projector, mask).map_err(|e| e.to_string())
 }
 
 /// Retire un projecteur du projet ; ses photos restent dans le dossier.
@@ -1086,6 +1096,7 @@ pub fn run() {
             plans_display,
             projector_add,
             projector_rename,
+            projector_set_mask,
             projector_remove,
             projector_import_photo,
             projector_rectify,

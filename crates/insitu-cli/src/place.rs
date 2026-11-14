@@ -34,7 +34,10 @@ Dessins posés sur la façade. Longueurs en mm réels de façade, origine en hau
           que la sortie de list), comme l'app à la fin de chaque geste.
           Rien n'est enregistré si un placement est incorrect. Le fichier
           peut aussi être {"layers": [...], "placements": [...]} : calques
-          et dessins posés remplacés ensemble.
+          et dessins posés remplacés ensemble. Le masque d'un dessin posé
+          (D-4.2-u) s'y écrit dans le champ mask : coups de pinceau et
+          zones en fractions du dessin, comme la gomme de la bibliothèque
+          (erase cache, draw fait réapparaître).
   deform  Tend une grille au repos sur les dessins donnés, ensemble (tâche
           4.4) : --corners, quatre coins en perspective ; --grid 3x2, une
           grille lisse de 3 × 2 cases ; --none retire la déformation. Les

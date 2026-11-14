@@ -4,10 +4,11 @@
 use std::path::Path;
 
 use insitu_core::geometry::Point;
-use insitu_core::project::{Mirror, ProjectDir};
+use insitu_core::project::{Mirror, ProjectDir, SlideMask};
 use insitu_core::rectification::projector::{
     self, add_projector, export_rectified, import_raw_photo, mirror_projector, projector_view,
-    rectify_projector, remove_projector, rename_projector, rotate_projector, RectificationView,
+    rectify_projector, remove_projector, rename_projector, rotate_projector, set_slide_mask,
+    RectificationView,
 };
 use insitu_core::units::RECTIFIED_PHOTO_DPI;
 use serde_json::json;
@@ -81,6 +82,19 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
         ["rename", folder, key, label] => {
             rename_projector(&open(folder)?, key, label).map_err(failed)?;
             Ok(format!("Projecteur renommé « {} ».", label.trim()))
+        }
+        ["mask", folder, key, "--none"] => {
+            set_slide_mask(&open(folder)?, key, None).map_err(failed)?;
+            Ok("Masque de la diapositive retiré.".into())
+        }
+        ["mask", folder, key, file] => {
+            let text = std::fs::read_to_string(file)
+                .map_err(|e| Problem::Failed(format!("{file} : {e}")))?;
+            let mask: SlideMask = serde_json::from_str(&text)
+                .map_err(|e| Problem::Failed(format!("{file} : {e}")))?;
+            let project = set_slide_mask(&open(folder)?, key, Some(mask)).map_err(failed)?;
+            let p = projector::find_projector(&project, key).expect("projecteur trouvé");
+            Ok(json(&p.mask))
         }
         ["remove", folder, key] => {
             remove_projector(&open(folder)?, key).map_err(failed)?;
@@ -170,6 +184,13 @@ Le projecteur est désigné par son identifiant ou par son nom (« A »).
   remove <projet.insitu> <projecteur>
       Retire le projecteur du projet, avec son redressement et son recalage.
       Ses photos restent dans le dossier du projet.
+
+  mask <projet.insitu> <projecteur> <masque.json> | --none
+      Masque général de la diapositive (D-3.6-h), comme le calque
+      « Masque » de la vue Diapositive. Le fichier JSON :
+      {"shapes": [[[x, y], …], …], "outside": false, "hidden": false},
+      formes en mm de diapositive (avant miroir). Dedans (ou dehors avec
+      "outside": true), tout devient noir à l'export. --none le retire.
 
   photo <projet.insitu> <projecteur> <photo>
       Copie la photo de mire (JPEG, PNG, TIFF ou HEIC) dans photos-brutes/

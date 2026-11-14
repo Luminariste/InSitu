@@ -40,3 +40,10 @@
 .slide-place-note {
   margin: var(--ui-space-3) var(--ui-space-3) 0;
 }
+
+/* Calque « Masque » de la diapositive (D-3.6-h). */
+.slide-mask-tools {
+  display: flex;
+  gap: var(--ui-space-2, 8px);
+  margin-bottom: var(--ui-space-2, 8px);
+}
