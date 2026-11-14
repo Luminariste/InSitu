@@ -441,28 +441,65 @@ export function followPins(pairs: RegistrationPair[]): RegistrationPair[] {
   const pins = pairs.filter((p) => !isGuide(p));
   if (guides.length !== 4 || pins.length === 0) return pairs;
   const fit = pinFit(pins.map((p) => p.slide));
-  let place: ((slide: XYPoint, facade: XYPoint) => XYPoint) | null = null;
-  if (fit === "libre") {
-    const h = homographyLeastSquares(
-      pins.map((p) => p.slide),
-      pins.map((p) => p.facade),
-    );
-    if (h) place = (slide) => applyHomography(h, slide);
+  const h0 = homography(
+    guides.map((i) => pairs[i].slide),
+    guides.map((i) => pairs[i].facade),
+  );
+  const from = h0 ? pins.map((p) => applyHomography(h0, p.slide)) : [];
+  const to = pins.map((p) => p.facade);
+  /** Les coins guides placés par la forme `model`, ou null si elle n'existe pas. */
+  const placeBy = (model: PinFit): RegistrationPair[] | null => {
+    let place: ((slide: XYPoint, facade: XYPoint) => XYPoint) | null = null;
+    if (model === "libre") {
+      const h = homographyLeastSquares(
+        pins.map((p) => p.slide),
+        to,
+      );
+      if (h) place = (slide) => applyHomography(h, slide);
+    } else if (h0) {
+      const t = model === "affine" ? affineFit(from, to) : model === "similitude" ? similarityFit(from, to) : null;
+      const shift = translationFit(from, to);
+      if (model === "glisse" || t) place = (_, facade) => (t ? t(facade) : { x: facade.x + shift.x, y: facade.y + shift.y });
+    }
+    if (!place) return null;
+    const move = place;
+    return pairs.map((p) => (isGuide(p) ? { ...p, facade: move(p.slide, p.facade) } : p));
+  };
+  // De la forme que les points permettent à la plus simple : une forme qui
+  // renverserait la photo (coin derrière l'horizon, perspective extrême,
+  // photo écrasée), venue de points groupés ou mal lâchés, n'est pas gardée :
+  // la suivante, plus simple, la remplace (D-3.2-m).
+  const ladder: PinFit[] = ["libre", "affine", "similitude", "glisse"];
+  for (const model of ladder.slice(ladder.indexOf(fit))) {
+    const out = placeBy(model);
+    if (out && poseIsSound(out)) return out;
   }
-  if (!place) {
-    const h0 = homography(
-      guides.map((i) => pairs[i].slide),
-      guides.map((i) => pairs[i].facade),
-    );
-    if (!h0) return pairs;
-    const from = pins.map((p) => applyHomography(h0, p.slide));
-    const to = pins.map((p) => p.facade);
-    const t = fit === "affine" || fit === "libre" ? affineFit(from, to) : fit === "similitude" ? similarityFit(from, to) : null;
-    const shift = translationFit(from, to);
-    place = (_, facade) => (t ? t(facade) : { x: facade.x + shift.x, y: facade.y + shift.y });
-  }
-  const move = place;
-  return pairs.map((p) => (isGuide(p) ? { ...p, facade: move(p.slide, p.facade) } : p));
+  return placeBy("glisse") ?? pairs;
+}
+
+/** Rapport maximal des poids perspectifs sur la photo au-delà duquel une pose est dite renversée. */
+export const MAX_PERSPECTIVE_RATIO = 4;
+
+/**
+ * Vrai si les quatre coins guides donnent une pose saine : tous les points
+ * (coins de la diapositive et points posés) restent du même côté de
+ * l'horizon, sans perspective extrême. Une pose sans les quatre coins est
+ * laissée au moteur.
+ */
+export function poseIsSound(pairs: RegistrationPair[]): boolean {
+  const guides = pairs.filter(isGuide);
+  if (guides.length !== 4) return true;
+  const h = homography(
+    guides.map((p) => p.slide),
+    guides.map((p) => p.facade),
+  );
+  if (!h || !h.every(Number.isFinite)) return false;
+  const ws = [...SLIDE_CORNERS, ...pairs.map((p) => p.slide), { x: SLIDE_MM / 2, y: SLIDE_MM / 2 }].map(
+    (q) => h[6] * q.x + h[7] * q.y + 1,
+  );
+  const min = Math.min(...ws);
+  const max = Math.max(...ws);
+  return min > 0 && max / min <= MAX_PERSPECTIVE_RATIO;
 }
 
 function applyHomography(h: number[], p: XYPoint): XYPoint {
@@ -633,6 +670,16 @@ export function lineDrawn(a: XYPoint, b: XYPoint): boolean {
  * guides ni contrainte.
  */
 export function followConstraints(pairs: RegistrationPair[], lines: RegistrationLine[]): RegistrationPair[] {
+  const moved = followConstraintsWith(pairs, lines, null);
+  // Forme libre qui renverserait la photo : on se rabat sur la forme penchée (D-3.2-m).
+  return moved !== pairs && !poseIsSound(moved) ? followConstraintsWith(pairs, lines, "affine") : moved;
+}
+
+function followConstraintsWith(
+  pairs: RegistrationPair[],
+  lines: RegistrationLine[],
+  cap: "affine" | null,
+): RegistrationPair[] {
   const usable = lines.filter((l) => lineDrawn(l.slide[0], l.slide[1]) && lineDrawn(l.facade[0], l.facade[1]));
   if (usable.length === 0) return followPins(pairs);
   const guides = pairs.map((p, i) => (isGuide(p) ? i : -1)).filter((i) => i >= 0);
@@ -664,7 +711,8 @@ export function followConstraints(pairs: RegistrationPair[], lines: Registration
     return l.slide.map((s) => ({ from: norm(applyHomography(h0, s)), line }));
   });
   const equations = 2 * pointsC.length + linesC.length;
-  const model = equations >= 8 ? "libre" : equations >= 6 ? "affine" : equations >= 4 ? "similitude" : "glisse";
+  const model =
+    equations >= 8 && cap === null ? "libre" : equations >= 6 ? "affine" : equations >= 4 ? "similitude" : "glisse";
 
   // T(p) = (x, y) en fonction des paramètres θ : x = ax·θ + dx, y = ay·θ + dy
   // (linéaire), sauf pour la forme libre (homographie, équations de type DLT).
@@ -750,8 +798,19 @@ export function ensureGuides(pairs: RegistrationPair[]): RegistrationPair[] {
     pairs.map((p) => p.slide),
     pairs.map((p) => p.facade),
   );
-  if (!h) return pairs;
-  const corners = SLIDE_CORNERS.map((c) => ({ slide: { x: c.x, y: c.y }, facade: applyHomography(h, c) }));
-  if (!corners.every((p) => Number.isFinite(p.facade.x) && Number.isFinite(p.facade.y))) return pairs;
-  return [...corners, ...pairs.filter((p) => !isGuide(p))];
+  const pins = pairs.filter((p) => !isGuide(p));
+  const finite = (c: RegistrationPair[]) => c.every((p) => Number.isFinite(p.facade.x) && Number.isFinite(p.facade.y));
+  if (h) {
+    const corners = SLIDE_CORNERS.map((c) => ({ slide: { x: c.x, y: c.y }, facade: applyHomography(h, c) }));
+    if (finite(corners) && poseIsSound([...corners, ...pins])) return [...corners, ...pins];
+  }
+  // Trapèze renversé (points groupés, mal cliqués) : une forme penchée,
+  // ajustée au mieux, qui ne croise jamais (D-3.2-m).
+  const t = affineFit(
+    pairs.map((p) => p.slide),
+    pairs.map((p) => p.facade),
+  );
+  if (!t) return pairs;
+  const corners = SLIDE_CORNERS.map((c) => ({ slide: { x: c.x, y: c.y }, facade: t(c) }));
+  return finite(corners) ? [...corners, ...pins] : pairs;
 }
