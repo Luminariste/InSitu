@@ -7,10 +7,13 @@
 // redressée par tuiles, la diapositive calculée (aperçu de 2 048 px fait par
 // le moteur, même calcul que l'export) colorée par-dessus.
 //
-// Un clic sur un dessin le choisit pour le retoucher dans cette diapositive
-// seulement (tâche 4.6, `useSlideAdjust.ts`).
+// Un clic sur un dessin le choisit ; les outils de la barre sont ceux de la
+// Façade, mais tourner, étirer, déformer, aligner agissent dans cette
+// diapositive seulement (tâche 4.6, D-3.6-f, `useSlideAdjust.ts`). À
+// droite, comme dans la Façade : Dessins (poser un dessin dans un
+// projecteur recalé), Calques (ceux de cette diapositive), Export.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import {
   cacheFileUrl,
   chooseExportFolder,
@@ -19,23 +22,35 @@ import {
   hasEngine,
   openProject,
   openTiledImage,
+  placeInSlide,
   projectFile,
-  type Placement,
   type ExportSettings,
+  type Placement,
   type Project,
   type SlideContent,
   type SlideView,
 } from "../engine";
 import { useSlideAdjust } from "./useSlideAdjust";
-import { SlideExportDialog } from "./SlideExportDialog";
-import { controlPlanSummary, exportSettingsOf, exportSummary } from "../facade/exportLogic";
-import { GRIDS } from "../compose/CompositionToolbar";
+import { SlideExportSection, startSettings } from "./SlideExportSection";
+import { controlPlanSummary, exportSummary, parseDpi, validDpi } from "../facade/exportLogic";
+import { CompositionToolbar } from "../compose/CompositionToolbar";
+import { DrawingsSection } from "../compose/DrawingsSection";
+import { LayersSection } from "../compose/LayersSection";
+import { SlidesSection } from "../compose/SlidesSection";
+import { slideTree } from "../compose/slideTree";
+import { useComposition, type CompositionActions } from "../compose/useComposition";
+import { draggedDrawing, droppedDrawingId, endDrawingDrag, DRAWING_DRAG_TYPE } from "../compose/dragDrawing";
+import { screenToMm, visibleRect } from "../viewer/geometry";
 import { recalledProject } from "../project/current";
 import { Viewer, placementForWidth, type LayerSpec, type TileSource, type ViewerHandle } from "../viewer";
 import { demoSlideViews, demoImages } from "./demo";
 import {
   LIGHTBURN_LOOK,
+  DRAWING_OPACITIES,
   cutNotice,
+  nearestDrawingOpacity,
+  placeHere,
+  slideBlocked,
   SLIDE_BACKDROPS,
   SLIDE_MM,
   SLIDE_SQUARE,
@@ -65,10 +80,9 @@ import {
   ListRow,
   Panel,
   Screen,
-  Segmented,
   StatusBar,
   StatusText,
-  ToolGroup,
+  TabbedPanel,
   ToolSeparator,
   ToolSpacer,
   Toolbar,
@@ -76,13 +90,35 @@ import {
 } from "../ui";
 import "./slide.css";
 
+type SlideTab = "dessins" | "calques" | "export";
+const SLIDE_TABS: SlideTab[] = ["dessins", "calques", "export"];
+const TAB_KEY = "insitu.ongletDiapositive";
+function readSlideTab(): SlideTab {
+  try {
+    const saved = localStorage.getItem(TAB_KEY);
+    if (saved && (SLIDE_TABS as string[]).includes(saved)) return saved as SlideTab;
+  } catch {
+    // Stockage indisponible : onglet par défaut.
+  }
+  return "dessins";
+}
+function saveSlideTab(tab: SlideTab) {
+  try {
+    localStorage.setItem(TAB_KEY, tab);
+  } catch {
+    // Sans conséquence.
+  }
+}
+
+/** Raccourcis de la composition qui gardent leur sens dans une diapositive : ordre et groupe. */
+const SLIDE_SHORTCUTS = new Set(["mod+g", "mod+shift+g", "mod+shift+]", "mod+]", "mod+[", "mod+shift+["]);
+
 export function SlideScreen() {
   const engine = hasEngine();
   const viewer = useRef<ViewerHandle>(null);
   const stage = useRef<HTMLDivElement>(null);
-  const [placements, setPlacements] = useState<Placement[]>([]);
+  const [project, setProject] = useState<Project | null>(null);
   const [folder, setFolder] = useState<string | null>(null);
-  const [projectName, setProjectName] = useState<string | null>(null);
   const [views, setViews] = useState<SlideView[]>([]);
   const [current, setCurrent] = useState<string | null>(null);
   const [photos, setPhotos] = useState<Record<string, TileSource>>({});
@@ -122,10 +158,9 @@ export function SlideScreen() {
     setBusy("Calcul des diapositives…");
     setError(null);
     try {
-      const project = await openProject(path);
+      const opened = await openProject(path);
       setFolder(path);
-      setProjectName(project.name);
-      setPlacements(project.placements ?? []);
+      setProject(opened);
       const list = await fetchSlideViews(path, contentRef.current);
       setViews(list);
       setCurrent((before) =>
@@ -154,10 +189,10 @@ export function SlideScreen() {
 
   const view = views.find((v) => v.projectorId === current) ?? null;
 
-  // Une retouche enregistrée : le projet change, l'aperçu est recalculé.
+  // Le projet a changé (retouche, ordre, dessin posé…) : l'aperçu est recalculé.
   const onProject = useCallback(
-    (project: Project) => {
-      setPlacements(project.placements ?? []);
+    (next: Project) => {
+      setProject(next);
       if (!folder) return;
       fetchSlideViews(folder, contentRef.current).then(setViews, (failure: unknown) => setError(String(failure)));
     },
@@ -178,11 +213,43 @@ export function SlideScreen() {
       .then(setViews, (failure: unknown) => setError(String(failure).replace(/^Error: /, "")))
       .finally(() => setBusy(null));
   };
+
+  // La composition de la façade, sans l'afficher : bibliothèque, sélection,
+  // calques, et les outils qui changent le dessin partout (miroir, ordre,
+  // groupe, masquer, verrouiller).
+  const composition = useComposition({
+    engine,
+    folder,
+    project,
+    onProject,
+    viewer,
+    stage,
+    enabled: busy === null,
+    headless: true,
+    onError: setError,
+  });
+  const compositionIds = useMemo(() => new Set(composition.selected.map((p) => p.id)), [composition.selected]);
+  const selectInComposition = composition.actions.selectInTree;
+  const onSelect = useCallback((ids: string[]) => selectInComposition(ids), [selectInComposition]);
+  // Un dessin tout juste posé ou copié : choisi dès que la composition le connaît.
+  const wanted = useRef<string[] | null>(null);
+  const selectLater = useCallback((ids: string[]) => {
+    wanted.current = ids;
+  }, []);
+  useEffect(() => {
+    const ids = wanted.current;
+    if (!ids || !ids.every((id) => composition.placements.some((p) => p.id === id))) return;
+    wanted.current = null;
+    selectInComposition(ids);
+  }, [composition.placements, selectInComposition]);
   const adjust = useSlideAdjust({
     engine,
     folder,
     view,
-    placements,
+    project,
+    external: compositionIds,
+    onSelect,
+    selectLater,
     onProject,
     viewer,
     stage,
@@ -206,12 +273,10 @@ export function SlideScreen() {
   // Flèches gauche et droite : projecteur précédent ou suivant, sauf quand
   // un dessin est choisi (les flèches le décalent alors, D15-p).
   const drawingChosen = useRef(false);
-  drawingChosen.current = adjust.selected !== null;
-  // Pas pendant la fenêtre d'export : elle exporte la diapositive affichée.
-  const dialogOpen = useRef(false);
+  drawingChosen.current = adjust.selected.length > 0;
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || drawingChosen.current || dialogOpen.current) return;
+      if (event.defaultPrevented || drawingChosen.current) return;
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
       const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
       if (step === 0) return;
@@ -257,64 +322,143 @@ export function SlideScreen() {
 
   const problem = viewProblem(view);
   const cut = cutNotice(view);
-
   const ready = busy === null;
-  // Exporter la seule diapositive affichée : une fenêtre propose les
-  // réglages de l'onglet Export de la Façade (D-3.5-n), la fresque cochée
-  // si elle se voit à l'écran.
-  const canExport = engine && folder !== null && ready && view !== null && view.preview !== null;
-  // Le plan de contrôle (D-3.5-m) : il suffit que le projecteur soit recalé.
-  const canControlPlan =
-    engine && folder !== null && ready && view !== null && !(view.problem ?? "").startsWith("recalage incomplet");
-  const [exportDialog, setExportDialog] = useState<{ initial: ExportSettings; hasFresco: boolean } | null>(null);
-  dialogOpen.current = exportDialog !== null;
-  const askExport = async () => {
-    if (!folder || !view) return;
+
+  // --- Poser un dessin (D-3.6-f) ------------------------------------------------------------
+
+  const projectorOf = project?.projectors?.find((q) => q.id === view?.projectorId) ?? null;
+  const registered = (projectorOf?.registration?.length ?? 0) >= 4;
+  const placeBlocked = slideBlocked(engine, view?.label ?? null, registered);
+  const place = async (drawing: string, at?: { x: number; y: number }) => {
+    if (placeBlocked || !folder || !view) return;
+    const scene = viewer.current?.scene();
+    const visible = scene ? visibleRect(scene.getView(), scene.getViewport()) : null;
+    const { center, width } = placeHere(visible, at);
     setError(null);
-    setNotice(null);
     try {
-      const project = await openProject(folder);
-      const hasFresco = Boolean(project.fresco);
-      const initial = { ...exportSettingsOf(project.export), fresco: hasFresco ? content.fresco : true };
-      setExportDialog({ initial, hasFresco });
+      const { project: next, id } = await placeInSlide(folder, view.projectorId, drawing, center, width, composition.activeLayer);
+      selectLater([id]);
+      onProject(next);
     } catch (failure) {
       setError(String(failure).replace(/^Error: /, ""));
     }
   };
-  const exportThis = async (controlPlan = false, chosen?: ExportSettings) => {
+  const [dropping, setDropping] = useState(false);
+  const carriesDrawing = (event: DragEvent) =>
+    draggedDrawing() !== null || event.dataTransfer.types.includes(DRAWING_DRAG_TYPE);
+  const onDragOver = (event: DragEvent<HTMLDivElement>) => {
+    if (!carriesDrawing(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = placeBlocked ? "none" : "copy";
+    if (!dropping) setDropping(true);
+  };
+  const onDrop = (event: DragEvent<HTMLDivElement>) => {
+    setDropping(false);
+    const id = droppedDrawingId(event.dataTransfer, draggedDrawing());
+    endDrawingDrag();
+    if (!id) return;
+    event.preventDefault();
+    if (placeBlocked) {
+      setError(placeBlocked);
+      return;
+    }
+    const scene = viewer.current?.scene();
+    const canvas = stage.current?.querySelector(".viewer-canvas");
+    if (!scene || !canvas) return;
+    const box = canvas.getBoundingClientRect();
+    const at = screenToMm(scene.getView(), scene.getViewport(), { x: event.clientX - box.left, y: event.clientY - box.top });
+    void place(id, at);
+  };
+
+  // --- Export de cette diapositive ------------------------------------------------------------
+
+  // Les réglages de l'onglet Export de la Façade, la fresque cochée si elle
+  // se voit à l'écran ; ils deviennent ceux du projet (D-3.5-o).
+  const [settings, setSettings] = useState<ExportSettings>(() => startSettings(null, content.fresco));
+  const [dpiText, setDpiText] = useState(String(settings.dpi));
+  useEffect(() => {
+    const next = startSettings(project, content.fresco);
+    setSettings(next);
+    setDpiText(String(next.dpi));
+    // Un autre projet, ou la fresque montrée ou cachée : on repart de là.
+  }, [project?.id, Boolean(project?.fresco), content.fresco]);
+  const exportBlocked = !engine
+    ? "Exporter demande l'application."
+    : !view
+      ? "Choisir d'abord un projecteur, à gauche."
+      : view.preview === null
+        ? `${view.label} : ${view.problem ?? "diapositive non calculée"}.`
+        : null;
+  const canControlPlan =
+    engine && folder !== null && ready && view !== null && !(view.problem ?? "").startsWith("recalage incomplet");
+  const exportThis = async (controlPlan: boolean, chosen?: ExportSettings) => {
     if (!folder || !view) return;
-    setExportDialog(null);
     setError(null);
     setNotice(null);
     try {
       const destination = await chooseExportFolder();
       if (!destination) return;
       setBusy(controlPlan ? `Export du plan de contrôle ${view.label}…` : `Export de la diapositive ${view.label}…`);
-      const settings = chosen ?? exportSettingsOf((await openProject(folder)).export);
-      const report = await exportSlides(folder, destination, settings, () => {}, [view.projectorId], controlPlan);
+      const used = chosen ?? settings;
+      const report = await exportSlides(folder, destination, used, () => {}, [view.projectorId], controlPlan);
       setNotice(controlPlan ? controlPlanSummary(report, destination) : exportSummary(report, destination));
+      if (!controlPlan) onProject(await openProject(folder));
     } catch (failure) {
       setError(String(failure).replace(/^Error: /, ""));
     } finally {
       setBusy(null);
     }
   };
+  const dpi = parseDpi(dpiText);
 
   useShortcuts([
     { keys: "mod+0", run: () => viewer.current?.fitAll(), enabled: view !== null },
-    { keys: "mod+e", run: () => void askExport(), enabled: canExport && exportDialog === null },
+    { keys: "mod+d", run: () => adjust.actions.duplicate(), enabled: ready && adjust.selected.length > 0 },
+    {
+      keys: "mod+e",
+      run: () => void exportThis(false, { ...settings, dpi }),
+      enabled: exportBlocked === null && ready && validDpi(dpi),
+    },
   ]);
+  useShortcuts(composition.shortcuts.filter((s) => SLIDE_SHORTCUTS.has(s.keys)));
+
+  // --- Barre d'outils -----------------------------------------------------------------------
+
+  // Les outils de la Façade ; ceux qui déplacent ou déforment agissent dans
+  // cette diapositive seulement (D-3.6-f).
+  const slideActions: CompositionActions = {
+    ...composition.actions,
+    rotateBy: adjust.actions.rotateBy,
+    align: adjust.actions.align,
+    distribute: adjust.actions.distribute,
+    deform: adjust.actions.deform,
+    setMode: adjust.actions.setMode,
+  };
+  // Sans moteur, la composition n'a pas les dessins de l'exemple : la barre
+  // suit la sélection de la diapositive (miroir, ordre, groupe n'y font rien).
+  const toolSelection: Placement[] = engine
+    ? composition.selected.filter((p) => adjust.selected.some((d) => d.placement === p.id))
+    : adjust.selected.map((d) => ({ id: d.placement, drawing: d.drawing }) as unknown as Placement);
+  const opacityChoice = nearestDrawingOpacity(opacity);
 
   const toolbar = (
     <Toolbar>
       <ProjectMenu
-        name={projectName}
+        name={project?.name ?? null}
         folder={folder}
         ready={ready}
         placeholder="Exemple sans moteur"
         onOpen={(path) => void load(path)}
         onReload={() => folder && void load(folder)}
         onError={setError}
+      />
+      <ToolSeparator />
+      <CompositionToolbar
+        selected={toolSelection}
+        actions={slideActions}
+        enabled={ready && view !== null}
+        corners={adjust.corners}
+        slide={{ adjusted: adjust.adjusted }}
       />
       <ToolSpacer />
       <Button
@@ -328,145 +472,48 @@ export function SlideScreen() {
       >
         Comme dans LightBurn
       </Button>
-      <ToolSeparator />
-      <ToolGroup label="Photo">
-        <label className="ui-check" title="Montrer la photo redressée sous les dessins">
-          <input type="checkbox" checked={look.photo} onChange={(e) => setLook({ ...look, photo: e.target.checked })} />
-          Montrer
-        </label>
-      </ToolGroup>
-      <ToolGroup label="Fond">
-        <Segmented
-          label="Fond de la diapositive (vu sans la photo)"
-          value={look.backdrop}
-          onChange={(backdrop) => setLook(withBackdrop(look, backdrop))}
-          options={SLIDE_BACKDROPS.map((b) => ({ value: b.value, label: b.label, title: b.title, disabled: look.photo }))}
-        />
-      </ToolGroup>
-      <ToolSeparator />
-      <ToolGroup label="Façade">
-        <label
-          className="ui-check"
-          title="La fresque dans l'aperçu (comme le menu Affichage de la Façade). L'export la grave si elle est cochée ici, réglable dans la fenêtre d'export."
-        >
-          <input type="checkbox" checked={content.fresco} disabled={!ready} onChange={(e) => setContent({ ...content, fresco: e.target.checked })} />
-          Fresque
-        </label>
-        <label
-          className="ui-check"
-          title={
-            lightBurn
-              ? "Le plan n'est pas gravé : il ne se voit pas « comme dans LightBurn »"
-              : "Le plan de la façade vu par ce projecteur, pour se repérer (comme le menu Affichage de la Façade)"
-          }
-        >
-          <input
-            type="checkbox"
-            checked={content.plan}
-            disabled={!ready || lightBurn}
-            onChange={(e) => setContent({ ...content, plan: e.target.checked })}
-          />
-          Plan
-        </label>
-      </ToolGroup>
-      <ToolGroup label="Dessins">
-        <label className="ui-check">
-          <input type="checkbox" checked={showDrawings} onChange={(e) => setLook({ ...look, showDrawings: e.target.checked })} />
-          Montrer
-        </label>
-        <select className="ui-select" value={tint} onChange={(e) => setLook({ ...look, tint: Number(e.target.value) })} aria-label="Couleur des dessins">
-          {TINTS.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-        <input
-          className="slide-opacity"
-          type="range"
-          min={0}
-          max={1}
-          step={0.05}
-          value={opacity}
-          onChange={(e) => setLook({ ...look, opacity: Number(e.target.value) })}
-          aria-label="Opacité des dessins"
-          title="Opacité des dessins"
-        />
-      </ToolGroup>
-      <ToolSeparator />
-      {adjust.selected && (
-        <>
-          {/* Mêmes outils que la barre de la façade, pour cette diapositive seulement. */}
-          <ToolGroup label="Dessin">
-            <IconButton
-              icon="rotateLeft"
-              label="Tourner d'un quart de tour vers la gauche, dans cette diapositive seulement"
-              onClick={() => adjust.rotateBy(-90)}
-            />
-            <IconButton
-              icon="rotateRight"
-              label="Tourner d'un quart de tour vers la droite, dans cette diapositive seulement"
-              onClick={() => adjust.rotateBy(90)}
-            />
-          </ToolGroup>
-          <ToolSeparator />
-          <ToolGroup>
-            <IconButton
-              icon="warpCorners"
-              label="Quatre coins à tirer, en perspective, dans cette diapositive seulement (remplace la retouche actuelle)"
-              onClick={() => adjust.setGrid(1, 1)}
-            />
-            <MenuButton
-              label="Tendre une grille de retouche, dans cette diapositive seulement"
-              icon="warpGrid"
-              iconOnly
-              variant="quiet"
-              items={GRIDS.map(([c, r]) => ({ label: `Grille ${c} × ${r}`, onSelect: () => adjust.setGrid(c, r) }))}
-            />
-          </ToolGroup>
-          <ToolSeparator />
-          <Button
-            size="sm"
-            icon="undo"
-            onClick={() => adjust.setGrid(0, 0)}
-            disabled={!adjust.adjustment}
-            title="Retirer la retouche de cette diapositive : le dessin revient tel qu'il est calé sur la façade"
-          >
-            Comme sur la façade
-          </Button>
-          <ToolSeparator />
-        </>
-      )}
-      <Button icon="fit" shortcut="mod+0" title="Voir toute la diapositive" onClick={() => viewer.current?.fitAll()} disabled={!view}>
-        Tout voir
-      </Button>
-      <ToolSeparator />
-      <Button
-        icon="export"
-        title={
-          engine
-            ? "Le plan de la façade vu par ce projecteur, à graver pour vérifier le recalage : projeté, il doit tomber sur la façade"
-            : "Dans l'app seulement"
-        }
-        onClick={() => void exportThis(true)}
-        disabled={!canControlPlan}
-      >
-        Plan de contrôle…
-      </Button>
-      <Button
-        variant="primary"
-        icon="export"
-        shortcut="mod+e"
-        title={
-          engine
-            ? "Le PNG de cette diapositive seulement : résolution, fresque ou dessins seuls, miroir, négatif… comme l'onglet Export de la Façade"
-            : "Dans l'app seulement"
-        }
-        onClick={() => void askExport()}
-        disabled={!canExport}
-      >
-        Exporter cette diapositive…
-      </Button>
+      <MenuButton
+        label="Affichage"
+        icon={look.photo && showDrawings ? "eye" : "eyeOff"}
+        align="end"
+        title="Photo redressée, fond, fresque, plan, couleur et opacité des dessins"
+        items={[
+          { heading: "Montrer" },
+          { label: "La photo redressée", checked: look.photo, onSelect: () => setLook({ ...look, photo: !look.photo }) },
+          {
+            label: "La fresque (comme dans la Façade ; gravée si cochée à l'export)",
+            checked: content.fresco,
+            onSelect: () => setContent({ ...content, fresco: !content.fresco }),
+            disabled: !ready,
+          },
+          {
+            label: "Le plan de la façade vu par ce projecteur",
+            checked: content.plan,
+            onSelect: () => setContent({ ...content, plan: !content.plan }),
+            disabled: !ready || lightBurn,
+          },
+          { label: "Les dessins", checked: showDrawings, onSelect: () => setLook({ ...look, showDrawings: !showDrawings }) },
+          { separator: true },
+          { heading: "Fond (sans la photo)" },
+          ...SLIDE_BACKDROPS.map((b) => ({
+            label: b.label,
+            checked: look.backdrop === b.value,
+            onSelect: () => setLook(withBackdrop(look, b.value)),
+            disabled: look.photo,
+          })),
+          { separator: true },
+          { heading: "Couleur des dessins" },
+          ...TINTS.map((t) => ({ label: t.label, checked: tint === t.value, onSelect: () => setLook({ ...look, tint: t.value }) })),
+          { separator: true },
+          { heading: "Opacité des dessins" },
+          ...DRAWING_OPACITIES.map((o) => ({
+            label: `${Math.round(o * 100)} %`,
+            checked: opacityChoice === o,
+            onSelect: () => setLook({ ...look, opacity: o }),
+          })),
+        ]}
+      />
+      <IconButton icon="fit" label="Tout voir" shortcut="mod+0" variant="default" onClick={() => viewer.current?.fitAll()} disabled={!view} />
     </Toolbar>
   );
 
@@ -493,6 +540,83 @@ export function SlideScreen() {
     </Panel>
   );
 
+  // --- Panneau de droite : Dessins, Calques, Export (de cette diapositive) ------------------
+
+  const [tab, setTab] = useState<SlideTab>(readSlideTab);
+  const chooseTab = (next: SlideTab) => {
+    setTab(next);
+    saveSlideTab(next);
+  };
+  const tree = useMemo(
+    () =>
+      slideTree(
+        composition.placements,
+        composition.composeLayers,
+        (project?.projectors ?? []).map((q) => ({ id: q.id, label: q.label, registered: (q.registration?.length ?? 0) >= 4 })),
+        composition.assignments,
+      ).filter((g) => g.projector !== null && g.projector === view?.projectorId),
+    [composition.placements, composition.composeLayers, composition.assignments, project?.projectors, view?.projectorId],
+  );
+  const describePlacement = useCallback(
+    (p: { drawing: string }) => {
+      const d = composition.drawings.find((x) => x.id === p.drawing);
+      return { name: d?.name ?? p.drawing, url: d?.url };
+    },
+    [composition.drawings],
+  );
+  const layersBlocked = !engine ? "Les calques demandent l'application." : !folder ? "Pas de projet ouvert." : null;
+
+  const inspector = (
+    <TabbedPanel
+      label="Propriétés de la diapositive"
+      side="right"
+      value={tab}
+      onChange={chooseTab}
+      tabs={[
+        { value: "dessins", label: "Dessins", icon: "image", title: "Bibliothèque : glisser un dessin sur la diapositive, ou double-cliquer" },
+        { value: "calques", label: "Calques", icon: "layers", title: "Les dessins de cette diapositive, et les calques" },
+        { value: "export", label: "Export", icon: "export", title: "Exporter cette diapositive, plan de contrôle" },
+      ]}
+      panes={{
+        dessins: <DrawingsSection drawings={composition.drawings} blocked={placeBlocked} onPlace={(id) => void place(id)} />,
+        calques: (
+          <>
+            <SlidesSection
+              groups={tree}
+              selected={compositionIds}
+              describe={describePlacement}
+              actions={composition.actions}
+              blocked={layersBlocked}
+            />
+            {!layersBlocked && tree.length === 0 && <p className="ui-list-empty">Aucun dessin dans cette diapositive.</p>}
+            <LayersSection
+              layers={composition.composeLayers}
+              active={composition.activeLayer}
+              counts={composition.layerCounts}
+              actions={composition.layerActions}
+              blocked={layersBlocked}
+            />
+          </>
+        ),
+        export: (
+          <SlideExportSection
+            label={view?.label ?? null}
+            project={project}
+            blocked={exportBlocked}
+            canControlPlan={canControlPlan}
+            busy={!ready}
+            settings={settings}
+            onSettings={setSettings}
+            dpiText={dpiText}
+            onDpiText={setDpiText}
+            onExport={(chosen) => void exportThis(false, chosen)}
+            onControlPlan={() => void exportThis(true)}
+          />
+        ),
+      }}
+    />
+  );
+
   return (
     <Screen
       className="slide"
@@ -513,6 +637,7 @@ export function SlideScreen() {
         ) : null
       }
       sidebar={sidebar}
+      inspector={inspector}
       status={
         <StatusBar>
           <StatusText>
@@ -526,7 +651,7 @@ export function SlideScreen() {
           </StatusText>
           {adjust.pending && engine && <StatusText>Recalcul de la diapositive…</StatusText>}
           <StatusText push>
-            {adjust.selected
+            {adjust.selected.length > 0
               ? `${adjust.hint} · cliquer dans le vide : ← → changent de projecteur`
               : `${adjust.hint ? `${adjust.hint} · ` : ""}← → : projecteur précédent ou suivant`}
           </StatusText>
@@ -539,8 +664,12 @@ export function SlideScreen() {
         onPointerDownCapture={adjust.onPointerDown}
         onPointerMoveCapture={adjust.onPointerMove}
         onPointerUpCapture={adjust.onPointerUp}
+        onDragOver={onDragOver}
+        onDragLeave={() => setDropping(false)}
+        onDrop={onDrop}
       >
         <Viewer ref={viewer} layers={layers} cursorUnit="mm" />
+        {dropping && <div className="slide-drop-veil">{placeBlocked ?? "Déposer pour poser le dessin dans cette diapositive"}</div>}
         {engine && !folder && !busy && (
           <EmptyState icon="folder" title="Aucun projet ouvert">
             <p>Ouvrir un projet (menu Fichier du Mac, ⌘O), ou en créer un (⌘N).</p>
@@ -548,15 +677,6 @@ export function SlideScreen() {
         )}
         {busy && <Busy>{busy}</Busy>}
       </div>
-      {exportDialog && view && (
-        <SlideExportDialog
-          label={view.label}
-          initial={exportDialog.initial}
-          hasFresco={exportDialog.hasFresco}
-          onCancel={() => setExportDialog(null)}
-          onExport={(settings) => void exportThis(false, settings)}
-        />
-      )}
     </Screen>
   );
 }

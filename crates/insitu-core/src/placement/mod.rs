@@ -13,6 +13,7 @@ pub mod mesh;
 use std::collections::BTreeSet;
 use std::fmt;
 
+use crate::geometry::{Point, Transform};
 use crate::project::model::new_id;
 use crate::project::validate::placement_errors;
 use crate::project::{
@@ -35,6 +36,8 @@ pub enum PlacementError {
     UnknownProjector(String),
     /// Une largeur nulle ou négative demandée.
     InvalidWidth(f64),
+    /// Le projecteur n'est pas recalé : on ne sait pas où tombe sa diapositive.
+    NotRegistered(String),
     Project(ProjectError),
 }
 
@@ -64,6 +67,10 @@ impl fmt::Display for PlacementError {
                     "Largeur impossible : {width} mm (elle doit être positive)."
                 )
             }
+            Self::NotRegistered(label) => write!(
+                f,
+                "Le projecteur {label} n'est pas recalé (4 paires de points au moins) : on ne sait pas où tombe sa diapositive sur la façade."
+            ),
             Self::Project(e) => write!(f, "{e}"),
         }
     }
@@ -190,6 +197,53 @@ pub fn add(
     check(&mut project)?;
     dir.save(&project)?;
     Ok((project, id))
+}
+
+/// Pose un dessin depuis la vue Diapositive (demande de Benjamin, D-3.6-f) :
+/// lâché en `center` (mm de diapositive du projecteur `projector`), large de
+/// `width` mm de diapositive. Le dessin est posé sur la façade, à l'endroit
+/// que ce projecteur éclaire (recalage), droit sur la façade, à la taille et
+/// dans le sens qu'a le trait horizontal du dessin dans la diapositive ; il
+/// est affecté à la main à cette diapositive. Il se voit donc aussi dans la
+/// Façade. `layer` : le calque où le poser. Rend le projet enregistré et
+/// l'identifiant du dessin posé.
+pub fn place_in_slide(
+    dir: &ProjectDir,
+    projector: &str,
+    drawing: &str,
+    center: PointMm,
+    width: f64,
+    layer: Option<String>,
+) -> Result<(Project, String), PlacementError> {
+    let project = dir.load()?.project;
+    let p = project
+        .projectors
+        .iter()
+        .find(|p| p.id == projector || p.label == projector)
+        .ok_or_else(|| PlacementError::UnknownProjector(projector.to_string()))?;
+    if !(width > 0.0 && width.is_finite()) {
+        return Err(PlacementError::InvalidWidth(width));
+    }
+    let warp = crate::registration::slide_to_facade(&p.registration)
+        .ok_or_else(|| PlacementError::NotRegistered(p.label.clone()))?;
+    let on_facade = |x: f64, y: f64| {
+        warp.apply(Point::new(x, y))
+            .map(|q| PointMm { x: q.x, y: q.y })
+            .ok_or_else(|| PlacementError::NotRegistered(p.label.clone()))
+    };
+    let c = on_facade(center.x, center.y)?;
+    let left = on_facade(center.x - width / 2.0, center.y)?;
+    let right = on_facade(center.x + width / 2.0, center.y)?;
+    let (dx, dy) = (right.x - left.x, right.y - left.y);
+    let facade_width = dx.hypot(dy);
+    let mut placement = new_placement(&project, drawing, c, facade_width)?;
+    placement.rotation = dy.atan2(dx).to_degrees();
+    if placement.rotation.abs() < 1e-9 {
+        placement.rotation = 0.0;
+    }
+    placement.projector = Some(p.id.clone());
+    placement.layer = layer;
+    add(dir, placement)
 }
 
 /// Retire des dessins posés (la bibliothèque n'est pas touchée).

@@ -4,6 +4,44 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-13 — Diapositive : les outils de la Façade, et poser des dessins (demande de Benjamin)
+
+Demandes de Benjamin (13 novembre) : « onglet diapo : remettre exactement
+les mêmes outils pour les dessins que dans façade » (choix sur la carte :
+« Diapositive seule si possible ») ; « dans diapositive, ajouter menu à
+droite comme dans façade avec dessin calque export (que de la diapo) » ;
+« pour un projecteur calé, poser des dessins dans diapositive » (« oui ») ;
+« dessin sélectionné : ⌘D pour dupliquer ou ⌥-clic ».
+
+**D-3.6-f. La Diapositive a la barre d'outils de la Façade ; ce qui déplace
+ou déforme reste dans la diapositive.** La barre est le même composant
+(`CompositionToolbar`, bulles adaptées). Déplacer, étirer (cadre et
+poignées), tourner, quart de tour, 4 coins, grille, aligner, répartir,
+flèches : ce sont des transformations des nœuds de la retouche de la
+diapositive (tâche 4.6, `src/slide/tools.ts`), la façade ne bouge pas ;
+plusieurs dessins se retouchent d'un coup, enregistrés en un seul
+`composition_set` (une étape d'annulation). Une grille nouvelle garde la
+retouche déjà faite (`regrid`). « Redresser » retire la retouche. Miroir,
+ordre, groupe, masquer, verrouiller changent le dessin partout : ils passent
+par la composition de la façade, chargée sans affichage (`useComposition`,
+option `headless`). Choix :
+- ⌘D et ⌥ + glisser copient les dessins choisis : la copie garde la place
+  de l'original sur la façade, est affectée à la main à ce projecteur et
+  porte la retouche décalée ; elle n'apparaît donc qu'ici.
+- Panneau de droite en onglets Dessins, Calques (arborescence limitée à ce
+  projecteur, et calques), Export (réglages en ligne au lieu de la fenêtre
+  de la 0.1.67, qui disparaît ; ⌘E exporte avec eux). Les réglages
+  d'affichage (photo, fond, fresque, plan, couleur, opacité) passent dans
+  un menu **Affichage**, comme dans la Façade, pour laisser la place aux
+  outils.
+- Un dessin glissé de l'onglet Dessins sur la diapositive d'un projecteur
+  recalé est posé **sur la façade** par le moteur (`placement::place_in_slide`,
+  commande `placement_in_slide`, `insitu place in-slide`) : son centre et
+  sa largeur en mm de diapositive passent par le recalage ; il est droit,
+  sur le calque actif, affecté à la main à ce projecteur. Pour un projecteur
+  non recalé, l'onglet dit pourquoi on ne peut pas (prochaine étape : poser
+  des dessins sans recalage).
+
 ## 2026-11-13 — Bibliothèque commune et fenêtre Réglages (demande de Benjamin)
 
 Demande de Benjamin (13 novembre 2026) : « penser une bibliothèque partagée
@@ -109,6 +147,7 @@ tout dossier. Le glisser porte le type `application/x-insitu-dessins`, pour
 ne pas être pris pour un dépôt depuis le Finder. Un nom vide ou avec « / »
 est refusé. Non fait : glisser un dossier dans un autre (le renommer ne
 change pas son parent).
+
 
 ## 2026-11-13 — Vectorisation : lissage et réduction des points (demande de Benjamin)
 

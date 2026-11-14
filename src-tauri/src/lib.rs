@@ -757,6 +757,28 @@ fn placements_set(folder: String, placements: Vec<Placement>) -> Result<Project,
     placement::set_placements(&project_dir(&folder)?, placements).map_err(|e| e.to_string())
 }
 
+/// Pose un dessin lâché dans la vue Diapositive (D-3.6-f) : sur la façade,
+/// là où ce projecteur l'éclaire. Rend le projet et l'identifiant du dessin posé.
+#[tauri::command(async)]
+fn placement_in_slide(
+    folder: String,
+    projector: String,
+    drawing: String,
+    center: PointMm,
+    width: f64,
+    layer: Option<String>,
+) -> Result<(Project, String), String> {
+    placement::place_in_slide(
+        &project_dir(&folder)?,
+        &projector,
+        &drawing,
+        center,
+        width,
+        layer,
+    )
+    .map_err(|e| e.to_string())
+}
+
 /// Enregistre la retouche d'un dessin dans une diapositive (tâche 4.6) ;
 /// aucune : retirée.
 #[tauri::command(async)]
@@ -1091,6 +1113,7 @@ pub fn run() {
             placements_assignment,
             placements_lost,
             placement_adjust,
+            placement_in_slide,
             composition_set,
             history_step,
             history_state,

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { SlideView } from "../engine";
 import {
+  DRAWING_OPACITIES,
+  nearestDrawingOpacity,
+  placeHere,
+  slideBlocked,
   BLACK,
   cutNotice,
   DEFAULT_LOOK,
@@ -110,5 +114,27 @@ describe("plan de la façade dans la diapositive", () => {
     const [onWhite] = planLayer("cache/plan.png", false, "blanc");
     expect(onDark).toMatchObject({ kind: "mesh-image", visible: true, tint: PLAN_ON_DARK });
     expect(onWhite).toMatchObject({ visible: false, tint: PLAN_ON_WHITE });
+  });
+});
+
+describe("poser un dessin dans la diapositive (D-3.6-f)", () => {
+  it("pose au centre de la vue, large d'un tiers, sans sortir du carré", () => {
+    expect(placeHere({ x: 0, y: 0, width: 280, height: 200 })).toEqual({ center: { x: 140, y: 100 }, width: 280 / 3 });
+    expect(placeHere({ x: 250, y: -50, width: 30, height: 30 })).toEqual({ center: { x: 265, y: 0 }, width: 20 });
+    expect(placeHere(null)).toEqual({ center: { x: 140, y: 140 }, width: 70 });
+    expect(placeHere({ x: 0, y: 0, width: 900, height: 900 }, { x: 300, y: 12 })).toEqual({ center: { x: 280, y: 12 }, width: 140 });
+  });
+
+  it("refuse un projecteur non recalé, et sans l'application", () => {
+    expect(slideBlocked(true, "A", true)).toBeNull();
+    expect(slideBlocked(true, "A", false)).toMatch(/A n'est pas encore recalé/);
+    expect(slideBlocked(false, "A", true)).toMatch(/application/);
+    expect(slideBlocked(true, null, true)).toMatch(/projecteur/);
+  });
+
+  it("ramène l'opacité à celle proposée la plus proche", () => {
+    expect(nearestDrawingOpacity(0.92)).toBe(0.9);
+    expect(nearestDrawingOpacity(0.2)).toBe(0.5);
+    expect(DRAWING_OPACITIES).toContain(1);
   });
 });

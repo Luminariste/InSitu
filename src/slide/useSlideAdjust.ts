@@ -1,35 +1,39 @@
-// Retouche d'un dessin dans la vue Diapositive (tâche 4.6) : choisir un
-// dessin d'un clic, glisser pour le décaler dans cette diapositive, tirer
-// les points d'une grille, et tout retirer d'un clic. Rien ne change sur la
-// façade ni dans les autres diapositives. À la fin de chaque geste, la
-// retouche est envoyée au moteur, qui la contrôle et l'enregistre ; l'aperçu
-// de la diapositive est alors recalculé.
+// Outils des dessins dans la vue Diapositive (tâche 4.6, puis demande de
+// Benjamin du 13 novembre, D-3.6-f) : les mêmes gestes que sur la façade
+// (choisir, ⇧-clic, glisser, cadre et poignées, rotation, mode 4 coins,
+// grilles, alignement), mais pour cette diapositive seulement. Rien ne
+// bouge sur la façade ni dans les autres diapositives : chaque geste change
+// la retouche des dessins choisis (une grille en mm de diapositive). Les
+// calculs sont dans `tools.ts` et `adjust.ts`.
 //
-// Le dessin retouché s'affiche en bleu pendant le geste et jusqu'à ce que
-// l'aperçu recalculé arrive ; ensuite seul l'aperçu le montre (retour
-// d'essai du 13 novembre : le bleu, resté par-dessus, cachait l'aperçu à
-// jour tant que le dessin était choisi).
+// À la fin de chaque geste, les retouches changées partent au moteur en un
+// seul enregistrement (une seule étape d'annulation) ; l'aperçu de la
+// diapositive est alors recalculé. Les dessins retouchés s'affichent en
+// bleu pendant le geste et jusqu'à l'arrivée de l'aperçu recalculé.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent, type RefObject } from "react";
-import { fetchDrawingPreview, saveAdjustment, type Project, type SlideDrawing, type SlideView } from "../engine";
-import { meshLines, nodePoints, type Deformation } from "../compose/deformation";
-import { nodeAt } from "../compose/gesture";
-import type { Placement, Point } from "../compose/placement";
+import { fetchDrawingPreview, saveComposition, type Project, type SlideDrawing, type SlideView } from "../engine";
+import { meshLines, moveNode, nodePoints, type Deformation } from "../compose/deformation";
+import { frameHandles, handleAt, nodeAt, rotateCursor, scaleCursor, KNOB } from "../compose/gesture";
+import type { Alignment, Point, Rect } from "../compose/placement";
 import { SelectionNode } from "../compose/SelectionNode";
 import { demoLibrary } from "../library/demo";
 import { NudgeSettle, nudged, setViewerCursor, useArrowNudge, type LayerSpec, type ViewerHandle } from "../viewer";
 import { mmToScreen, screenToMm } from "../viewer/geometry";
+import { adjustedOutline, adjustedPoints, drawingAt, restAdjustment } from "./adjust";
 import {
-  adjustedCenter,
-  adjustedOutline,
-  adjustedPoints,
-  applyAdjustGesture,
-  drawingAt,
-  restAdjustment,
-  rotateAdjustment,
-  shiftNodes,
-  type AdjustGesture,
-} from "./adjust";
+  alignShifts,
+  applySlideGesture,
+  boxOf,
+  distributeShifts,
+  regrid,
+  shiftAdjustment,
+  slideCopies,
+  SLIDE_COPY_OFFSET_MM,
+  turnAdjustment,
+  type SlideGesture,
+  type SlideUnit,
+} from "./tools";
 
 /** Couleur de la retouche en cours, sur la photo. */
 const LIVE_TINT = 0x0a84ff;
@@ -39,55 +43,87 @@ interface Options {
   engine: boolean;
   folder: string | null;
   view: SlideView | null;
-  placements: Placement[];
+  project: Project | null;
+  /** Sélection venue d'ailleurs (onglet Calques) ; suivie quand elle change. */
+  external: Set<string>;
+  /** Fait connaître la sélection d'ici (outils qui changent le dessin partout). */
+  onSelect: (ids: string[]) => void;
+  /** Choisira ces dessins dès que la composition les connaîtra (copies tout juste enregistrées). */
+  selectLater: (ids: string[]) => void;
   onProject: (project: Project) => void;
   viewer: RefObject<ViewerHandle | null>;
   stage: RefObject<HTMLDivElement | null>;
   onError: (message: string | null) => void;
 }
 
+export interface SlideActions {
+  rotateBy(deg: number): void;
+  align(how: Alignment): void;
+  distribute(axis: "horizontal" | "vertical"): void;
+  /** Grille de `columns × rows` cases (1 × 1 : quatre coins) qui garde la retouche ; 0 la retire. */
+  deform(columns: number, rows: number): void;
+  setMode(mode: "normal" | "corners"): void;
+  /** ⌘D : copie les dessins choisis dans cette diapositive, un peu décalée. */
+  duplicate(): void;
+}
+
 export interface SlideAdjust {
-  /** Le dessin choisi dans cette diapositive. */
-  selected: SlideDrawing | null;
-  /** Sa retouche dans cette diapositive, s'il en a une. */
-  adjustment: Deformation | null;
+  /** Les dessins choisis dans cette diapositive. */
+  selected: SlideDrawing[];
+  /** Au moins un dessin choisi est retouché dans cette diapositive. */
+  adjusted: boolean;
+  /** Mode 4 coins : les points de la retouche se tirent, sans cadre. */
+  corners: boolean;
+  actions: SlideActions;
   layers: LayerSpec[];
   hint: string;
   /** Vrai pendant un geste et jusqu'à l'arrivée de l'aperçu recalculé. */
   pending: boolean;
-  /** Grille au repos (1 × 1 : quatre coins) ; 0 retire la retouche. */
-  setGrid(columns: number, rows: number): void;
-  /** Tourne le dessin dans cette diapositive seulement. */
-  rotateBy(deg: number): void;
   onPointerDown(event: PointerEvent<HTMLDivElement>): void;
   onPointerMove(event: PointerEvent<HTMLDivElement>): void;
   onPointerUp(event: PointerEvent<HTMLDivElement>): void;
 }
 
+const sameSet = (a: Set<string>, b: Set<string>) => a.size === b.size && [...a].every((x) => b.has(x));
+
 export function useSlideAdjust(options: Options): SlideAdjust {
-  const { engine, folder, view, placements, onProject, viewer, stage, onError } = options;
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { engine, folder, view, project, external, onSelect, selectLater, onProject, viewer, stage, onError } = options;
+  const [selection, setSelection] = useState<Set<string>>(new Set());
   /** Retouches tenues à jour à l'écran (le moteur fait foi après chaque enregistrement). */
   const [local, setLocal] = useState<Map<string, Deformation | null>>(new Map());
   const [previews, setPreviews] = useState<Map<string, string>>(new Map());
-  const active = useRef<{ gesture: AdjustGesture; down: Point; moved: boolean } | null>(null);
-  /** Un geste est en cours, ou son aperçu recalculé n'est pas encore là. */
+  /** `copy` : ⌥ au début du glisser, les dessins déplacés sont des copies. */
+  const active = useRef<{ gesture: SlideGesture; down: Point; moved: boolean; copy: boolean } | null>(null);
   const [pending, setPending] = useState(false);
   const node = useRef<SelectionNode | null>(null);
-  /** Point cliqué : les flèches le déplacent (sans point, elles décalent le dessin). */
+  /** Point cliqué en mode 4 coins : les flèches le déplacent. */
   const [activeNode, setActiveNode] = useState<number | null>(null);
+  /** Sélection où l'on a choisi le mode 4 coins. */
+  const [cornersFor, setCornersFor] = useState<string | null>(null);
   const settle = useRef(new NudgeSettle<null>());
 
   const projector = view?.projectorId ?? null;
   const drawings = useMemo(() => view?.drawings ?? [], [view]);
+  const placements = useMemo(() => project?.placements ?? [], [project]);
 
   // Le projet fait foi : on oublie l'état local à chaque nouvel état du projet.
   useEffect(() => setLocal(new Map()), [placements]);
-  useEffect(() => setSelectedId(null), [projector]);
-  useEffect(() => setActiveNode(null), [selectedId]);
+  useEffect(() => setSelection(new Set()), [projector]);
   useEffect(() => () => settle.current.flush(), []);
-  // Un nouvel état de la diapositive (aperçu recalculé) : le bleu s'efface.
   useEffect(() => setPending(false), [view]);
+  // La sélection faite dans l'onglet Calques (sans moteur, il n'y en a pas).
+  useEffect(() => {
+    if (engine) setSelection((current) => (sameSet(current, external) ? current : new Set(external)));
+  }, [engine, external]);
+
+  const choose = useCallback(
+    (ids: Iterable<string>) => {
+      const next = new Set(ids);
+      setSelection(next);
+      onSelect([...next]);
+    },
+    [onSelect],
+  );
 
   const adjustmentOf = useCallback(
     (placement: string): Deformation | null => {
@@ -98,47 +134,75 @@ export function useSlideAdjust(options: Options): SlideAdjust {
     [local, placements, projector],
   );
 
-  const selected = drawings.find((d) => d.placement === selectedId) ?? null;
-  const adjustment = selected ? adjustmentOf(selected.placement) : null;
+  const selected = useMemo(() => drawings.filter((d) => selection.has(d.placement)), [drawings, selection]);
+  const selectionKey = useMemo(() => selected.map((d) => d.placement).sort().join(","), [selected]);
+  const corners = selected.length === 1 && cornersFor === selectionKey;
+  useEffect(() => setActiveNode(null), [selectionKey, corners]);
+  const meshOf = corners ? adjustmentOf(selected[0].placement) : null;
 
-  // Aperçu du dessin choisi, pour le montrer retouché pendant le geste.
+  /** Le dessin et ses compagnons de groupe présents dans cette diapositive. */
+  const withGroup = useCallback(
+    (id: string): string[] => {
+      const group = placements.find((p) => p.id === id)?.group;
+      if (!group) return [id];
+      const mates = new Set(placements.filter((p) => p.group === group).map((p) => p.id));
+      return drawings.filter((d) => mates.has(d.placement)).map((d) => d.placement);
+    },
+    [placements, drawings],
+  );
+
+  const outlineOf = useCallback((d: SlideDrawing) => adjustedOutline(d, adjustmentOf(d.placement)), [adjustmentOf]);
+  const frame: Rect | null = useMemo(
+    () => (corners ? null : boxOf(selected.flatMap(outlineOf))),
+    [corners, selected, outlineOf],
+  );
+
+  // Aperçus des dessins choisis, pour les montrer retouchés pendant le geste.
   useEffect(() => {
-    if (!selected || previews.has(selected.drawing)) return;
-    const id = selected.drawing;
+    const wanted = [...new Set(selected.map((d) => d.drawing))].filter((id) => !previews.has(id));
+    if (wanted.length === 0) return;
     if (!engine) {
-      const url = demoLibrary(12).find((d) => d.id === id)?.url;
-      if (url) setPreviews((m) => new Map(m).set(id, url));
+      const demo = demoLibrary(12);
+      setPreviews((m) => {
+        const next = new Map(m);
+        for (const id of wanted) next.set(id, demo.find((d) => d.id === id)?.url ?? "");
+        return next;
+      });
       return;
     }
     if (!folder) return;
     let cancelled = false;
-    fetchDrawingPreview(folder, id).then(
-      (url) => !cancelled && setPreviews((m) => new Map(m).set(id, url)),
-      (failure: unknown) => !cancelled && onError(String(failure)),
-    );
+    for (const id of wanted)
+      fetchDrawingPreview(folder, id).then(
+        (url) => !cancelled && setPreviews((m) => new Map(m).set(id, url)),
+        (failure: unknown) => !cancelled && onError(String(failure)),
+      );
     return () => {
       cancelled = true;
     };
   }, [selected, previews, engine, folder, onError]);
 
   const layers = useMemo<LayerSpec[]>(() => {
-    const url = selected ? previews.get(selected.drawing) : undefined;
     // Sans moteur, l'aperçu ne se recalcule pas : le bleu montre la retouche.
-    if (!selected || !url || (engine && !pending)) return [];
-    return [
-      {
-        id: `retouche:${selected.placement}`,
-        kind: "mesh-image",
-        url,
-        divisions: selected.divisions,
-        points: adjustedPoints(selected, adjustment),
-        tint: LIVE_TINT,
-        opacity: 0.9,
-      },
-    ];
-  }, [selected, previews, adjustment, engine, pending]);
+    if (engine && !pending) return [];
+    return selected.flatMap((d) => {
+      const url = previews.get(d.drawing);
+      if (!url) return [];
+      return [
+        {
+          id: `retouche:${d.placement}`,
+          kind: "mesh-image",
+          url,
+          divisions: d.divisions,
+          points: adjustedPoints(d, adjustmentOf(d.placement)),
+          tint: LIVE_TINT,
+          opacity: 0.9,
+        } satisfies LayerSpec,
+      ];
+    });
+  }, [selected, previews, adjustmentOf, engine, pending]);
 
-  // Contour, grille et points, par-dessus.
+  // Contours, cadre et points, par-dessus.
   useEffect(() => {
     let detach: (() => void) | null = null;
     let frameRequest = 0;
@@ -163,42 +227,121 @@ export function useSlideAdjust(options: Options): SlideAdjust {
     node.current?.set({
       slides: [],
       lost: [],
-      outlines: selected ? [adjustedOutline(selected, adjustment)] : [],
-      frame: null,
+      outlines: selected.map(outlineOf),
+      frame,
       marquee: null,
-      mesh: adjustment ? { lines: meshLines(adjustment), nodes: nodePoints(adjustment), active: activeNode } : null,
+      mesh: meshOf ? { lines: meshLines(meshOf), nodes: nodePoints(meshOf), active: activeNode } : null,
     });
     viewer.current?.scene()?.invalidate();
-  }, [selected, adjustment, viewer, layers, activeNode]);
+  }, [selected, outlineOf, frame, meshOf, viewer, layers, activeNode]);
 
-  const save = (placement: string, next: Deformation | null) => {
-    setLocal((m) => new Map(m).set(placement, next));
-    if (!engine || !folder || !projector) return;
+  /** Enregistre d'un coup les retouches changées (aucune : retirée). */
+  const save = (changes: Map<string, Deformation | null>) => {
+    if (changes.size === 0) return;
+    setLocal((m) => new Map([...m, ...changes]));
+    if (!engine || !folder || !projector || !project) return;
     setPending(true);
-    saveAdjustment(folder, placement, next ? { projector, deformation: next } : null).then(
-      onProject,
-      (failure: unknown) => {
-        onError(String(failure).replace(/^Error: /, ""));
-        setPending(false);
-        setLocal((m) => {
-          const copy = new Map(m);
-          copy.delete(placement);
-          return copy;
-        });
-      },
-    );
+    const next = placements.map((p) => {
+      if (!changes.has(p.id)) return p;
+      const deformation = changes.get(p.id) ?? null;
+      return { ...p, adjustment: deformation ? { projector, deformation } : null };
+    });
+    saveComposition(folder, project.layers ?? [], next).then(onProject, (failure: unknown) => {
+      onError(String(failure).replace(/^Error: /, ""));
+      setPending(false);
+      setLocal(new Map());
+    });
   };
 
-  const setGrid = (columns: number, rows: number) => {
-    if (!selected) return;
-    save(selected.placement, columns === 0 ? null : restAdjustment(selected, columns, rows));
+  /** Copies des dessins, avec leur retouche (⌘D, ⌥ + glisser) ; les copies sont choisies. */
+  const saveCopies = (retouches: Map<string, Deformation | null>) => {
+    const kept = new Map([...retouches].flatMap(([id, d]) => (d ? [[id, d] as const] : [])));
+    setLocal(new Map());
+    if (kept.size === 0 || !engine || !folder || !projector || !project) return;
+    const r = slideCopies(placements, kept, projector);
+    setPending(true);
+    setSelection(new Set(r.ids));
+    selectLater(r.ids);
+    saveComposition(folder, project.layers ?? [], r.placements).then(onProject, (failure: unknown) => {
+      onError(String(failure).replace(/^Error: /, ""));
+      setPending(false);
+    });
   };
 
-  const rotateBy = (deg: number) => {
-    if (!selected) return;
-    const base = adjustment ?? restAdjustment(selected, 1, 1);
-    if (!base) return;
-    save(selected.placement, rotateAdjustment(base, deg, adjustedCenter(selected, base)));
+  /** La retouche de départ d'un dessin : la sienne, sinon quatre coins au repos. */
+  const baseOf = (d: SlideDrawing): Deformation | null => adjustmentOf(d.placement) ?? restAdjustment(d, 1, 1);
+  const befores = (list: SlideDrawing[]) => {
+    const out = new Map<string, Deformation>();
+    for (const d of list) {
+      const b = baseOf(d);
+      if (b) out.set(d.placement, b);
+    }
+    return out;
+  };
+  const shifted = (shifts: Map<string, Point>) => {
+    const out = new Map<string, Deformation | null>();
+    for (const d of selected) {
+      const s = shifts.get(d.placement);
+      const b = baseOf(d);
+      if (s && b && (s.x !== 0 || s.y !== 0)) out.set(d.placement, shiftAdjustment(b, s.x, s.y));
+    }
+    return out;
+  };
+  /** Les blocs à aligner : un groupe compte pour un. */
+  const units = (): SlideUnit[] => {
+    const byKey = new Map<string, SlideDrawing[]>();
+    for (const d of selected) {
+      const key = placements.find((p) => p.id === d.placement)?.group ?? `seul:${d.placement}`;
+      byKey.set(key, [...(byKey.get(key) ?? []), d]);
+    }
+    return [...byKey.values()].flatMap((list) => {
+      const box = boxOf(list.flatMap(outlineOf));
+      return box ? [{ ids: list.map((d) => d.placement), box }] : [];
+    });
+  };
+
+  const actions: SlideActions = {
+    rotateBy: (deg) => {
+      if (!frame && selected.length === 0) return;
+      const box = frame ?? boxOf(selected.flatMap(outlineOf));
+      if (!box) return;
+      const pivot = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+      const out = new Map<string, Deformation | null>();
+      for (const [id, b] of befores(selected)) out.set(id, turnAdjustment(b, deg, pivot));
+      save(out);
+    },
+    align: (how) => save(shifted(alignShifts(units(), how))),
+    distribute: (axis) => save(shifted(distributeShifts(units(), axis))),
+    deform: (columns, rows) => {
+      const out = new Map<string, Deformation | null>();
+      for (const d of selected) {
+        if (columns === 0) {
+          if (adjustmentOf(d.placement)) out.set(d.placement, null);
+          continue;
+        }
+        const b = baseOf(d);
+        if (b) out.set(d.placement, regrid(b, columns, rows));
+      }
+      save(out);
+      if (columns === 0) setCornersFor(null);
+      else if (selected.length === 1) setCornersFor(selectionKey);
+    },
+    duplicate: () => {
+      const out = new Map<string, Deformation | null>();
+      for (const [id, b] of befores(selected)) out.set(id, shiftAdjustment(b, SLIDE_COPY_OFFSET_MM, SLIDE_COPY_OFFSET_MM));
+      saveCopies(out);
+    },
+    setMode: (mode) => {
+      if (mode === "normal" || selected.length !== 1) {
+        setCornersFor(null);
+        return;
+      }
+      if (!adjustmentOf(selected[0].placement)) {
+        const b = restAdjustment(selected[0], 1, 1);
+        if (b) save(new Map([[selected[0].placement, b]]));
+      }
+      setCornersFor(selectionKey);
+    },
   };
 
   const pointerAt = (event: { clientX: number; clientY: number }) => {
@@ -212,25 +355,33 @@ export function useSlideAdjust(options: Options): SlideAdjust {
     return { screen, mm: screenToMm(v, viewport, screen), toScreen: (p: Point) => mmToScreen(v, viewport, p) };
   };
 
+  // Échap : quitter le mode 4 coins.
+  useEffect(() => {
+    if (!corners) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      event.preventDefault();
+      setCornersFor(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [corners]);
+
   // Flèches : le point choisi bouge d'un point d'écran (dix avec ⇧) ; sans
-  // point choisi, tout le dessin se décale dans cette diapositive.
-  useArrowNudge(selected !== null, (step) => {
+  // point choisi, les dessins choisis se décalent dans cette diapositive.
+  useArrowNudge(selected.length > 0, (step) => {
     const zoom = viewer.current?.scene()?.getView().zoom;
-    if (!selected || !zoom) return false;
-    const before = adjustment ?? restAdjustment(selected, 1, 1);
-    if (!before) return false;
-    const nodes = nodePoints(before);
-    const next =
-      adjustment && activeNode !== null && activeNode < nodes.length
-        ? applyAdjustGesture(
-            { kind: "node", start: nodes[activeNode], before, index: activeNode, origin: nodes[activeNode] },
-            nudged(nodes[activeNode], step, zoom),
-          )
-        : shiftNodes(before, step.x / zoom, step.y / zoom);
-    const id = selected.placement;
-    setLocal((m) => new Map(m).set(id, next));
+    if (selected.length === 0 || !zoom) return false;
+    const out = new Map<string, Deformation | null>();
+    if (meshOf && activeNode !== null && activeNode < nodePoints(meshOf).length) {
+      const at = nodePoints(meshOf)[activeNode];
+      out.set(selected[0].placement, moveNode(meshOf, activeNode, nudged(at, step, zoom)));
+    } else {
+      for (const [id, b] of befores(selected)) out.set(id, shiftAdjustment(b, step.x / zoom, step.y / zoom));
+    }
+    setLocal((m) => new Map([...m, ...out]));
     setPending(true);
-    settle.current.push(null, () => save(id, next));
+    settle.current.push(null, () => save(out));
     return true;
   });
 
@@ -239,26 +390,63 @@ export function useSlideAdjust(options: Options): SlideAdjust {
     const at = pointerAt(event);
     if (!at) return;
     settle.current.flush();
-    let gesture: AdjustGesture | null = null;
-    if (selected && adjustment) {
-      const nodes = nodePoints(adjustment);
+    let gesture: SlideGesture | null = null;
+    if (meshOf) {
+      const nodes = nodePoints(meshOf);
       const index = nodeAt(nodes.map(at.toScreen), at.screen);
       setActiveNode(index);
-      if (index !== null) gesture = { kind: "node", start: at.mm, before: adjustment, index, origin: nodes[index] };
+      if (index !== null)
+        gesture = {
+          kind: "node",
+          start: at.mm,
+          id: selected[0].placement,
+          index,
+          origin: nodes[index],
+          before: new Map([[selected[0].placement, meshOf]]),
+        };
+    }
+    if (!gesture && frame) {
+      const handle = handleAt(frameHandles(frame).map(at.toScreen), at.screen);
+      if (handle?.kind === "rotate")
+        gesture = {
+          kind: "rotate",
+          start: at.mm,
+          pivot: { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 },
+          before: befores(selected),
+        };
+      else if (handle?.kind === "scale")
+        gesture = { kind: "scale", start: at.mm, frame, corner: handle.corner, before: befores(selected) };
     }
     if (!gesture) {
       const hit = drawingAt(drawings, adjustmentOf, at.mm);
-      setSelectedId(hit?.placement ?? null);
-      if (!hit) return;
-      // Glisser le dessin le décale dans cette diapositive (quatre coins au repos s'il n'a pas de retouche).
-      const before = adjustmentOf(hit.placement) ?? restAdjustment(hit, 1, 1);
-      if (before) gesture = { kind: "move", start: at.mm, before };
+      if (!hit) {
+        if (!event.shiftKey) choose([]);
+        return;
+      }
+      const ids = withGroup(hit.placement);
+      let next: Set<string>;
+      if (event.shiftKey) {
+        // ⇧-clic : ajoute ou retire le dessin (et son groupe) de la sélection.
+        next = new Set(selection);
+        const remove = selection.has(hit.placement);
+        for (const id of ids) {
+          if (remove) next.delete(id);
+          else next.add(id);
+        }
+        choose(next);
+        if (remove) return;
+      } else {
+        next = selection.has(hit.placement) ? selection : new Set(ids);
+        if (next !== selection) choose(next);
+      }
+      gesture = { kind: "move", start: at.mm, before: befores(drawings.filter((d) => next.has(d.placement))) };
     }
-    if (!gesture) return;
     event.stopPropagation();
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    active.current = { gesture, down: { x: event.clientX, y: event.clientY }, moved: false };
+    // ⌥ en glissant les dessins : on en glisse des copies (comme sur la façade).
+    const copy = gesture.kind === "move" && event.altKey;
+    active.current = { gesture, down: { x: event.clientX, y: event.clientY }, moved: false, copy };
   };
 
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
@@ -266,19 +454,22 @@ export function useSlideAdjust(options: Options): SlideAdjust {
     if (!at) return;
     const current = active.current;
     if (!current) {
-      const overNode =
-        adjustment && nodeAt(nodePoints(adjustment).map(at.toScreen), at.screen) !== null ? "crosshair" : null;
-      const overDrawing = drawingAt(drawings, adjustmentOf, at.mm) ? "move" : "";
-      setViewerCursor(stage.current, overNode ?? overDrawing);
+      let cursor = "";
+      if (meshOf && nodeAt(nodePoints(meshOf).map(at.toScreen), at.screen) !== null) cursor = "crosshair";
+      else if (frame) {
+        const handle = handleAt(frameHandles(frame).map(at.toScreen), at.screen);
+        if (handle?.kind === "rotate") cursor = rotateCursor(handle.corner === KNOB ? 0 : handle.corner);
+        else if (handle?.kind === "scale") cursor = scaleCursor(handle.corner);
+      }
+      if (!cursor && drawingAt(drawings, adjustmentOf, at.mm)) cursor = "move";
+      setViewerCursor(stage.current, cursor);
       return;
     }
     if (!current.moved && Math.hypot(event.clientX - current.down.x, event.clientY - current.down.y) < CLICK_PX) return;
     if (!current.moved) setPending(true);
     current.moved = true;
-    const id = selectedId ?? drawingAt(drawings, adjustmentOf, current.gesture.start)?.placement;
-    if (!id) return;
-    const next = applyAdjustGesture(current.gesture, at.mm);
-    setLocal((m) => new Map(m).set(id, next));
+    const next = applySlideGesture(current.gesture, at.mm, { shift: event.shiftKey, alt: event.altKey });
+    setLocal((m) => new Map([...m, ...next]));
   };
 
   const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
@@ -288,25 +479,37 @@ export function useSlideAdjust(options: Options): SlideAdjust {
     if (event.currentTarget.hasPointerCapture(event.pointerId))
       event.currentTarget.releasePointerCapture(event.pointerId);
     if (!current.moved) return;
-    if (!selectedId) {
-      setPending(false);
-      return;
-    }
     const at = pointerAt(event);
     if (!at) {
       setPending(false);
+      setLocal(new Map());
       return;
     }
-    save(selectedId, applyAdjustGesture(current.gesture, at.mm));
+    const result = applySlideGesture(current.gesture, at.mm, { shift: event.shiftKey, alt: event.altKey });
+    if (current.copy) saveCopies(result);
+    else save(result);
   };
 
-  const hint = selected
-    ? adjustment
-      ? "Glisser un point bleu : retoucher (ou le cliquer puis flèches) · glisser le dessin ou flèches : le décaler · ⇧ : pas plus grand"
-      : "Glisser le dessin ou flèches (⇧ : pas plus grand) pour le décaler dans cette diapositive, ou choisir une grille"
-    : drawings.length > 0
-      ? "Cliquer un dessin pour le retoucher dans cette diapositive"
-      : "";
+  const adjusted = selected.some((d) => adjustmentOf(d.placement) !== null);
+  const hint =
+    selected.length > 0
+      ? corners
+        ? "Mode 4 coins : glisser un point bleu, ou le cliquer puis flèches (⇧ : pas plus grand) · Échap : retrouver le cadre"
+        : "Glisser : décaler dans cette diapositive (⌥ copie, ⇧ droit) · ⌘D : copier · coin : agrandir · rond au-dessus du cadre : tourner (⇧ par 5°) · ⇧-clic : ajouter"
+      : drawings.length > 0
+        ? "Cliquer un dessin pour le retoucher dans cette diapositive"
+        : "";
 
-  return { selected, adjustment, layers, hint, pending, setGrid, rotateBy, onPointerDown, onPointerMove, onPointerUp };
+  return {
+    selected,
+    adjusted,
+    corners,
+    actions,
+    layers,
+    hint,
+    pending,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+  };
 }

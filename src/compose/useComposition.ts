@@ -125,6 +125,13 @@ interface Options {
    */
   checkOverlap?: boolean;
   onError: (message: string | null) => void;
+  /**
+   * Sans visionneuse de façade (vue Diapositive, D-3.6-f) : seuls la
+   * bibliothèque, la sélection, les calques, les diapositives et les
+   * actions sur le projet servent ; rien n'est dessiné ni chargé pour
+   * l'affichage. Faux par défaut.
+   */
+  headless?: boolean;
 }
 
 /** Ce que l'inspecteur peut faire de la sélection. */
@@ -244,6 +251,7 @@ export function useComposition(options: Options): Composition {
   const { engine, folder, project, onProject, viewer, stage, enabled, onError } = options;
   const visible = options.visible ?? true;
   const checkOverlap = options.checkOverlap ?? false;
+  const headless = options.headless ?? false;
   const [drawings, setDrawings] = useState<ComposeDrawing[]>([]);
   const [placements, setPlacements] = useState<Placement[]>([]);
   const [layerList, setLayerList] = useState<Layer[]>([]);
@@ -332,6 +340,7 @@ export function useComposition(options: Options): Composition {
 
   // Aperçus (1 024 px, fond transparent) des dessins posés.
   useEffect(() => {
+    if (headless) return;
     const wanted = [...new Set(placements.map((p) => p.drawing))].filter((id) => !previews.has(id));
     if (wanted.length === 0) return;
     if (!engine) {
@@ -359,7 +368,7 @@ export function useComposition(options: Options): Composition {
     return () => {
       cancelled = true;
     };
-  }, [placements, previews, drawings, engine, folder, onError]);
+  }, [placements, previews, drawings, engine, folder, onError, headless]);
 
   /** Enregistre calques et dessins (rangés par calque) ; en cas de refus, revient au projet. */
   const commit = useCallback(
@@ -444,6 +453,7 @@ export function useComposition(options: Options): Composition {
     requested.current = new Set();
   }, [projectLibrary]);
   useEffect(() => {
+    if (headless) return;
     const wanted = [...new Set(placements.map((p) => p.drawing))].filter(
       (id) => !manualSilhouettes.has(id) && !detected.has(id) && !requested.current.has(id),
     );
@@ -463,7 +473,7 @@ export function useComposition(options: Options): Composition {
         }),
       (failure: unknown) => onError(String(failure)),
     );
-  }, [placements, manualSilhouettes, detected, engine, folder, onError]);
+  }, [placements, manualSilhouettes, detected, engine, folder, onError, headless]);
 
   // --- Affichage --------------------------------------------------------------------------
 
@@ -511,6 +521,7 @@ export function useComposition(options: Options): Composition {
 
   // Le cadre de sélection, dessiné par-dessus tout.
   useEffect(() => {
+    if (headless) return;
     let detach: (() => void) | null = null;
     let frameRequest = 0;
     const attach = () => {
@@ -529,7 +540,7 @@ export function useComposition(options: Options): Composition {
       selectionNode.current = null;
       detach?.();
     };
-  }, [viewer]);
+  }, [viewer, headless]);
   useEffect(() => {
     const colors = new Map((project?.projectors ?? []).map((q, index) => [q.id, projectorColor(index)]));
     if (!visible) {

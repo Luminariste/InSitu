@@ -1495,6 +1495,24 @@ export interface SlideDrawing {
   points: { x: number; y: number }[];
 }
 
+/**
+ * Pose un dessin lâché dans la vue Diapositive (D-3.6-f) : `center` et
+ * `width` en mm de diapositive. Le moteur le pose sur la façade, là où ce
+ * projecteur l'éclaire, affecté à sa diapositive.
+ */
+export async function placeInSlide(
+  folder: string,
+  projector: string,
+  drawing: string,
+  center: { x: number; y: number },
+  width: number,
+  layer: string | null,
+): Promise<{ project: Project; id: string }> {
+  requireEngine();
+  const [project, id] = await invoke<[Project, string]>("placement_in_slide", { folder, projector, drawing, center, width, layer });
+  return { project, id };
+}
+
 /** Enregistre la retouche d'un dessin dans une diapositive (tâche 4.6) ; `null` la retire. */
 export async function saveAdjustment(
   folder: string,
