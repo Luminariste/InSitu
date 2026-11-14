@@ -4,7 +4,27 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
-<<<<<<< HEAD
+## 2026-11-14 — Redressement : tourner la photo redressée de 90° (demande de Benjamin)
+
+**D-2.5-m. Quart de tour toujours proposé, et gardé comme le miroir.**
+Benjamin (14 novembre 2026) : la photo redressée sort couchée d'un quart de
+tour par rapport au sens de lecture voulu, et le bouton « ↻ Quart de tour »
+n'apparaissait que pour un redressement par les coins seuls (D-2.5-l).
+Désormais l'écran Redressement a toujours deux boutons, **↺ 90° à gauche**
+et **↻ 90° à droite**, quelle que soit la façon dont la mire a été trouvée.
+Comme le miroir (D-2.5-j), le quart de tour s'applique aux points `slide`
+du redressement et du recalage, et il est noté dans
+`rectification.rotation` (0 à 3 quarts de tour dans le sens des aiguilles
+d'une montre, absent = 0) pour être réappliqué quand la mire est détectée
+de nouveau. Cela revient sur la phrase de D-2.5-l « n'est pas gardé : une
+nouvelle détection retrouve le sens d'elle-même » : le sens voulu par
+Benjamin n'est pas forcément celui de la mire. Le réglage se lit « miroir,
+puis quarts de tour » ; un miroir d'un seul axe posé après k quarts de tour
+change k en −k (un miroir inverse le sens de rotation), ce qui garde la
+relecture exacte. `insitu projector rotate <projet> <projecteur> [-1|1|2…]`.
+Prouvé par `an_unreadable_grid_is_rectified_by_the_corners_alone`
+(rotation gardée après une nouvelle détection, avec et sans miroir).
+
 ## 2026-11-14 — Choisir les dessins superposés (demande de Benjamin)
 
 Demande de Benjamin (14 novembre) : « j'ai plein de dessins superposés, et
@@ -79,28 +99,6 @@ gauche ; dans le Recalage, la case « Photo recalée » et son opacité. Choix :
 - Pas retenus : le projecteur choisi dans chaque écran, l'écran ouvert au
   lancement, le zoom : ce ne sont pas des options d'affichage (à proposer à
   Benjamin si le retour au projecteur A le gêne).
-=======
-## 2026-11-14 — Redressement : tourner la photo redressée de 90° (demande de Benjamin)
-
-**D-2.5-m. Quart de tour toujours proposé, et gardé comme le miroir.**
-Benjamin (14 novembre 2026) : la photo redressée sort couchée d'un quart de
-tour par rapport au sens de lecture voulu, et le bouton « ↻ Quart de tour »
-n'apparaissait que pour un redressement par les coins seuls (D-2.5-l).
-Désormais l'écran Redressement a toujours deux boutons, **↺ 90° à gauche**
-et **↻ 90° à droite**, quelle que soit la façon dont la mire a été trouvée.
-Comme le miroir (D-2.5-j), le quart de tour s'applique aux points `slide`
-du redressement et du recalage, et il est noté dans
-`rectification.rotation` (0 à 3 quarts de tour dans le sens des aiguilles
-d'une montre, absent = 0) pour être réappliqué quand la mire est détectée
-de nouveau. Cela revient sur la phrase de D-2.5-l « n'est pas gardé : une
-nouvelle détection retrouve le sens d'elle-même » : le sens voulu par
-Benjamin n'est pas forcément celui de la mire. Le réglage se lit « miroir,
-puis quarts de tour » ; un miroir d'un seul axe posé après k quarts de tour
-change k en −k (un miroir inverse le sens de rotation), ce qui garde la
-relecture exacte. `insitu projector rotate <projet> <projecteur> [-1|1|2…]`.
-Prouvé par `an_unreadable_grid_is_rectified_by_the_corners_alone`
-(rotation gardée après une nouvelle détection, avec et sans miroir).
->>>>>>> df633b7 (Redressement : tourner la photo redressée de 90°, à gauche ou à droite, réglage gardé)
 
 ## 2026-11-13 — Diapositive sans recalage (demande de Benjamin)
 
