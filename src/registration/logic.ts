@@ -814,3 +814,45 @@ export function ensureGuides(pairs: RegistrationPair[]): RegistrationPair[] {
   const corners = SLIDE_CORNERS.map((c) => ({ slide: { x: c.x, y: c.y }, facade: t(c) }));
   return finite(corners) ? [...corners, ...pins] : pairs;
 }
+
+/** Photo recalée posée sur la façade : montrée ou non, et son opacité. */
+export interface RegistrationLook {
+  showPhoto: boolean;
+  photoOpacity: number;
+}
+
+export const DEFAULT_REGISTRATION_LOOK: RegistrationLook = { showPhoto: true, photoOpacity: 0.6 };
+
+/** Le réglage relu ; ce qui manque ou est abîmé prend la valeur par défaut. */
+export function parseRegistrationLook(saved: string | null): RegistrationLook {
+  const look = { ...DEFAULT_REGISTRATION_LOOK };
+  try {
+    const raw: unknown = saved ? JSON.parse(saved) : null;
+    if (!raw || typeof raw !== "object") return look;
+    const record = raw as Record<string, unknown>;
+    if (typeof record.showPhoto === "boolean") look.showPhoto = record.showPhoto;
+    const o = record.photoOpacity;
+    if (typeof o === "number" && o >= 0.1 && o <= 1) look.photoOpacity = o;
+  } catch {
+    // Texte abîmé : réglage par défaut.
+  }
+  return look;
+}
+
+const LOOK_KEY = "insitu.affichageRecalage";
+
+export function readRegistrationLook(): RegistrationLook {
+  try {
+    return parseRegistrationLook(localStorage.getItem(LOOK_KEY));
+  } catch {
+    return DEFAULT_REGISTRATION_LOOK;
+  }
+}
+
+export function saveRegistrationLook(look: RegistrationLook) {
+  try {
+    localStorage.setItem(LOOK_KEY, JSON.stringify(look));
+  } catch {
+    // Sans conséquence : réglage par défaut au prochain lancement.
+  }
+}
