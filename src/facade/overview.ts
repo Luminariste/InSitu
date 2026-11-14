@@ -215,3 +215,39 @@ export function saveDisplay(folder: string | null, display: OverviewDisplay) {
     // Sans conséquence : réglage par défaut à la prochaine ouverture.
   }
 }
+
+// Diapositives masquées dans l'onglet Calques (demande de Benjamin, 14 nov.) :
+// leurs dessins ne se voient plus sur la façade. Affichage seul, retenu par
+// projet comme les projecteurs décochés ; l'export n'en tient pas compte.
+const HIDDEN_SLIDES_KEY = "insitu.diapositivesMasquees";
+
+/** Les diapositives masquées du projet `folder`, d'après la table enregistrée. */
+export function parseHiddenSlides(saved: string | null, folder: string | null): Set<string> {
+  const ids = folder ? parseRecord(saved)[folder] : undefined;
+  return Array.isArray(ids) ? new Set(ids.filter((id): id is string => typeof id === "string")) : new Set();
+}
+
+export function readHiddenSlides(folder: string | null): Set<string> {
+  try {
+    return parseHiddenSlides(localStorage.getItem(HIDDEN_SLIDES_KEY), folder);
+  } catch {
+    return new Set();
+  }
+}
+
+export function saveHiddenSlides(folder: string | null, hidden: ReadonlySet<string>) {
+  if (!folder) return;
+  try {
+    localStorage.setItem(HIDDEN_SLIDES_KEY, withHidden(localStorage.getItem(HIDDEN_SLIDES_KEY), folder, hidden));
+  } catch {
+    // Sans conséquence : tout sera montré à la prochaine ouverture.
+  }
+}
+
+/** Masque la diapositive si elle est montrée, la remontre sinon. */
+export function toggleHidden(hidden: ReadonlySet<string>, id: string): Set<string> {
+  const next = new Set(hidden);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
+}

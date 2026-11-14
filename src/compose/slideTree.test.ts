@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Assignment } from "../engine";
 import type { Placement } from "./placement";
-import { dropInTree, setFlag, slideTree, treeClick } from "./slideTree";
+import { dropInTree, onFacadeOnly, setFlag, slideTree, treeClick } from "./slideTree";
 
 const placed = (id: string, layer?: string): Placement => ({
   id,
@@ -109,5 +109,20 @@ describe("arborescence, comme le panneau Calques d'Illustrator", () => {
     expect("hidden" in back[1]).toBe(false);
     expect(setFlag(list, new Set(["p1"]), "locked", false)).toBe(list);
     expect(setFlag(list, new Set(["p1"]), "locked", true)[0].locked).toBe(true);
+  });
+});
+
+describe("diapositive masquée dans l'onglet Calques", () => {
+  it("cache sur la façade les dessins de cette diapositive seulement", () => {
+    const list = [placed("p1"), placed("p2"), placed("p3"), { ...placed("p4"), slide: "a" }];
+    const a = assigned([
+      ["p1", "a"],
+      ["p2", "b"],
+      ["p3", null],
+      ["p4", "a", true],
+    ]);
+    expect(onFacadeOnly(list, a, new Set()).map((p) => p.id)).toEqual(["p1", "p2", "p3"]);
+    expect(onFacadeOnly(list, a, new Set(["a"])).map((p) => p.id)).toEqual(["p2", "p3"]);
+    expect(onFacadeOnly(list, a, new Set(["a", "b"])).map((p) => p.id)).toEqual(["p3"]);
   });
 });
