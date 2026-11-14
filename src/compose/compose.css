@@ -231,6 +231,13 @@
   opacity: 0.4;
 }
 
+/* Diapositive masquée (œil de sa ligne) : ses dessins sont estompés. */
+.compose-tree-group.is-slide-hidden .compose-tree-head .compose-tree-label,
+.compose-tree-group.is-slide-hidden .compose-tree-row .compose-tree-label,
+.compose-tree-group.is-slide-hidden .compose-tree-row img {
+  opacity: 0.4;
+}
+
 .compose-tree-row.is-locked .compose-tree-label {
   font-style: italic;
 }

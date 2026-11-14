@@ -26,9 +26,16 @@ interface Props {
   actions: CompositionActions;
   /** Pourquoi l'arborescence n'est pas disponible ; `null` si elle l'est. */
   blocked: string | null;
+  /**
+   * Diapositives masquées (Façade seulement) : un œil sur la ligne de la
+   * diapositive cache ses dessins à l'écran, sans toucher au projet ni à
+   * l'export. Absent : pas d'œil.
+   */
+  hiddenSlides?: ReadonlySet<string>;
+  onToggleSlide?: (projector: string) => void;
 }
 
-export function SlidesSection({ groups, selected, describe, actions, blocked }: Props) {
+export function SlidesSection({ groups, selected, describe, actions, blocked, hiddenSlides, onToggleSlide }: Props) {
   const [closed, setClosed] = useState<Set<string>>(new Set());
   /** Cible survolée : `g:<projecteur>` ou `r:<dessin>`. */
   const [over, setOver] = useState<string | null>(null);
@@ -92,8 +99,14 @@ export function SlidesSection({ groups, selected, describe, actions, blocked }: 
           const open = !closed.has(key);
           const droppable = g.projector !== null;
           const color = g.colorIndex === null ? null : cssColor(projectorColor(g.colorIndex));
+          const slideHidden = g.projector !== null && (hiddenSlides?.has(g.projector) ?? false);
           return (
-            <div key={key} role="treeitem" aria-expanded={open} className="compose-tree-group">
+            <div
+              key={key}
+              role="treeitem"
+              aria-expanded={open}
+              className={`compose-tree-group${slideHidden ? " is-slide-hidden" : ""}`}
+            >
               <div
                 className={`compose-tree-head${over === `g:${key}` ? " is-over" : ""}`}
                 onClick={() => toggle(key)}
@@ -109,6 +122,21 @@ export function SlidesSection({ groups, selected, describe, actions, blocked }: 
                 <span className="ui-swatch" style={{ background: color ?? "transparent" }} />
                 <span className="compose-tree-label">{g.label}</span>
                 <span className="compose-tree-count">{g.rows.length}</span>
+                {onToggleSlide && g.projector !== null && (
+                  <IconButton
+                    icon={slideHidden ? "eyeOff" : "eye"}
+                    label={
+                      slideHidden
+                        ? "Afficher les dessins de cette diapositive"
+                        : "Masquer les dessins de cette diapositive (à l'écran seulement, l'export les garde)"
+                    }
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleSlide(g.projector!);
+                    }}
+                  />
+                )}
               </div>
               {open && (
                 <div role="group">

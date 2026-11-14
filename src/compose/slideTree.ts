@@ -142,3 +142,20 @@ export function treeClick(
   }
   return new Set([id]);
 }
+
+/**
+ * Les dessins qui se montrent sur la façade : ni posés dans une diapositive
+ * (D-3.6-g, leur position est en mm de diapositive), ni affectés à une
+ * diapositive masquée dans l'onglet Calques (affichage seul, D15-u).
+ */
+export function onFacadeOnly(
+  list: Placement[],
+  assignments: Map<string, Assignment>,
+  hiddenSlides: ReadonlySet<string>,
+): Placement[] {
+  return list.filter((p) => {
+    if (p.slide) return false;
+    const projector = assignments.get(p.id)?.projector;
+    return !projector || !hiddenSlides.has(projector);
+  });
+}
