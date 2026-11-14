@@ -56,17 +56,25 @@ export class MeshImageNode implements SceneNode {
   private spec: MeshImageLayerSpec;
   private mesh: MeshSimple | null = null;
   private texture: Texture | null = null;
-  private readonly abort = new AbortController();
+  /** L'image demandée en dernier, et son chargement en cours. */
+  private requested = "";
+  private loading: AbortController | null = null;
+  private readonly onLoaded: () => void;
 
   constructor(spec: MeshImageLayerSpec, onLoaded: () => void) {
     this.spec = spec;
+    this.onLoaded = onLoaded;
     this.container.label = `mesh:${spec.id}`;
     this.apply(spec);
-    void this.load(onLoaded);
   }
 
+  /**
+   * Une autre image sur la même grille est acceptée : l'ancienne reste
+   * affichée jusqu'à ce que la nouvelle soit prête, sans image noire entre
+   * les deux (aperçu de diapositive refait après une suppression…).
+   */
   accepts(spec: MeshImageLayerSpec): boolean {
-    return spec.url === this.spec.url && spec.divisions === this.spec.divisions;
+    return spec.divisions === this.spec.divisions && spec.points.length === this.spec.points.length;
   }
 
   apply(spec: MeshImageLayerSpec): void {
@@ -77,6 +85,10 @@ export class MeshImageNode implements SceneNode {
     if (this.mesh) {
       this.mesh.tint = spec.tint ?? 0xffffff;
       this.setVertices(this.mesh);
+    }
+    if (spec.url !== this.requested) {
+      this.requested = spec.url;
+      void this.load(spec.url);
     }
   }
 
@@ -89,33 +101,49 @@ export class MeshImageNode implements SceneNode {
     mesh.vertices = vertices;
   }
 
-  private async load(onLoaded: () => void): Promise<void> {
+  private async load(url: string): Promise<void> {
+    // Une image demandée avant celle-ci n'est plus utile.
+    this.loading?.abort();
+    const abort = new AbortController();
+    this.loading = abort;
     try {
-      const response = await fetch(this.spec.url, {
-        signal: this.abort.signal,
-      });
+      const response = await fetch(url, { signal: abort.signal });
       if (!response.ok) return;
       const bitmap = await createImageBitmap(await response.blob());
-      if (this.abort.signal.aborted) {
+      if (abort.signal.aborted) {
         bitmap.close();
         return;
       }
-      this.texture = new Texture({
+      const texture = new Texture({
         source: new ImageSource({ resource: bitmap, scaleMode: "linear" }),
       });
-      const vertices = new Float32Array(this.spec.points.length * 2);
-      this.mesh = new MeshSimple({
-        texture: this.texture,
-        vertices,
-        uvs: gridUvs(this.spec.divisions),
-        indices: gridTriangles(this.spec.divisions),
-      });
-      this.mesh.tint = this.spec.tint ?? 0xffffff;
-      this.setVertices(this.mesh);
-      this.container.addChild(this.mesh);
-      onLoaded();
+      const previous = this.texture;
+      this.texture = texture;
+      if (this.mesh) {
+        // Même grille : on change seulement l'image.
+        this.mesh.texture = texture;
+      } else {
+        const vertices = new Float32Array(this.spec.points.length * 2);
+        this.mesh = new MeshSimple({
+          texture,
+          vertices,
+          uvs: gridUvs(this.spec.divisions),
+          indices: gridTriangles(this.spec.divisions),
+        });
+        this.mesh.tint = this.spec.tint ?? 0xffffff;
+        this.setVertices(this.mesh);
+        this.container.addChild(this.mesh);
+      }
+      if (previous) {
+        const resource = previous.source.resource as ImageBitmap | undefined;
+        previous.destroy(true);
+        resource?.close?.();
+      }
+      this.onLoaded();
     } catch {
-      // Image absente ou chargement annulé : le calque reste vide.
+      // Image absente ou chargement annulé : le calque garde ce qu'il montrait.
+    } finally {
+      if (this.loading === abort) this.loading = null;
     }
   }
 
@@ -130,7 +158,7 @@ export class MeshImageNode implements SceneNode {
   update(): void {}
 
   destroy(): void {
-    this.abort.abort();
+    this.loading?.abort();
     this.container.destroy({ children: true });
     const resource = this.texture?.source.resource as ImageBitmap | undefined;
     this.texture?.destroy(true);

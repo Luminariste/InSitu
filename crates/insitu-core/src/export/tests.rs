@@ -1444,3 +1444,47 @@ fn a_drawing_placed_in_an_unregistered_slide_is_exported_there() {
     assert!(view_b.preview.is_some());
     assert_eq!(view_b.drawings.len(), 1);
 }
+
+/// Un dessin qui dépasse de sa diapositive (« à cheval ») est exporté quand
+/// même : la part dans la diapositive est gravée, le reste simplement coupé
+/// au bord (demande de Benjamin, 14 novembre 2026). L'alerte ne bloque rien.
+#[test]
+fn a_drawing_that_sticks_out_is_exported_cut_at_the_edge() {
+    // L'emprise s'arrête vers x = 5 100 à 5 300 mm : le dessin la déborde.
+    let frame = RectMm {
+        x: 4_000.0,
+        y: 1_200.0,
+        width: 2_400.0,
+        height: 2_400.0 * 0.9,
+    };
+    let (temp, dir, verre) = project_with_placed_drawing("export-depasse", &frame);
+    let frame = RectMm {
+        height: 2_400.0 * f64::from(verre.height) / f64::from(verre.width),
+        ..frame
+    };
+    let mut project = dir.load().unwrap().project;
+    project.placements[0].height = frame.height;
+    project.placements[0].center.y = frame.y + frame.height / 2.0;
+    dir.save(&project).unwrap();
+    let all = crate::placement::assign::assignments(&project);
+    assert!(all[0].projector.is_some() && !all[0].whole, "{all:?}");
+
+    let out = temp.path().join("export");
+    let s = settings(100.0);
+    let report = export_slides(&dir, &out, &s, None, 0, &|_| {}).unwrap();
+    assert_eq!(report.slides.len(), 1);
+    let exported = to_gray(tiles::read_raster(&report.slides[0].path).unwrap());
+    let warp = slide_to_facade(&pairs()).unwrap();
+    // La même image posée en fresque, coupée par le bord de la diapositive.
+    let reference = render_slide(&verre, &frame, &warp, "", &s, 0).unwrap();
+    let lit = exported.data.iter().filter(|&&v| v >= 128).count();
+    assert!(lit > 500, "la part dans la diapositive est gravée : {lit}");
+    let worst = exported
+        .data
+        .iter()
+        .zip(&reference.data)
+        .map(|(&a, &b)| a.abs_diff(b))
+        .max()
+        .unwrap();
+    assert!(worst <= 2, "écart maximal {worst} niveaux de gris");
+}
