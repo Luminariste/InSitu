@@ -199,10 +199,72 @@ export function contains(p: Placement, pt: Point): boolean {
   return Math.abs(x) <= p.width / 2 && Math.abs(y) <= p.height / 2;
 }
 
+/** Contours de silhouette d'un dessin : points `[u, v]` en fractions du dessin. */
+export type Silhouette = [number, number][][];
+
+/**
+ * Le point tombe-t-il sur ce qu'on voit du dessin ? Sur sa silhouette
+ * (contour extérieur du trait, tâche 4.7) quand elle est connue : le vide
+ * autour du trait laisse passer le clic vers le dessin du dessous (demande
+ * de Benjamin du 14 novembre). Sans silhouette (pas encore détectée, ou
+ * vide) : son rectangle, comme avant.
+ */
+export function touches(p: Placement, pt: Point, silhouette?: Silhouette | null): boolean {
+  if (!contains(p, pt)) return false;
+  if (!silhouette || silhouette.length === 0) return true;
+  return silhouette.some((polygon) => insidePolygon(polygon.map(([u, v]) => facadePoint(p, u, v)), pt));
+}
+
+/** Tous les dessins sous le point, du plus en avant au plus en arrière. */
+export function hitsAt(
+  placements: Placement[],
+  pt: Point,
+  silhouetteOf: (drawing: string) => Silhouette | null = () => null,
+): Placement[] {
+  const out: Placement[] = [];
+  for (let i = placements.length - 1; i >= 0; i--)
+    if (touches(placements[i], pt, silhouetteOf(placements[i].drawing))) out.push(placements[i]);
+  return out;
+}
+
 /** Le dessin le plus en avant sous le point, ou null. */
-export function hitTest(placements: Placement[], pt: Point): Placement | null {
-  for (let i = placements.length - 1; i >= 0; i--) if (contains(placements[i], pt)) return placements[i];
-  return null;
+export function hitTest(
+  placements: Placement[],
+  pt: Point,
+  silhouetteOf?: (drawing: string) => Silhouette | null,
+): Placement | null {
+  return hitsAt(placements, pt, silhouetteOf)[0] ?? null;
+}
+
+/**
+ * ⌘-clic : le dessin juste en dessous du dessin choisi, parmi ceux sous le
+ * point (`hits`, du plus en avant au plus en arrière), comme dans
+ * Illustrator. Un groupe compte pour un. Après le plus en arrière, on
+ * revient au plus en avant ; si rien de choisi n'est sous le point, c'est le
+ * plus en avant.
+ */
+export function nextBehind<T>(hits: T[], keyOf: (hit: T) => string, chosen: (hit: T) => boolean): T | null {
+  const units: { first: T; chosen: boolean }[] = [];
+  const index = new Map<string, number>();
+  for (const hit of hits) {
+    const key = keyOf(hit);
+    const at = index.get(key);
+    if (at === undefined) {
+      index.set(key, units.length);
+      units.push({ first: hit, chosen: chosen(hit) });
+    } else if (chosen(hit)) units[at].chosen = true;
+  }
+  if (units.length === 0) return null;
+  let deepest = -1;
+  units.forEach((u, k) => {
+    if (u.chosen) deepest = k;
+  });
+  return units[(deepest + 1) % units.length].first;
+}
+
+/** Clé d'unité de sélection : un groupe compte pour un. */
+export function unitKey(p: Placement): string {
+  return p.group ? `g:${p.group}` : `p:${p.id}`;
 }
 
 /** La sélection, étendue aux groupes de ses dessins. */
