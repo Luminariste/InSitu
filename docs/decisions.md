@@ -4,6 +4,35 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-13 — Diapositive sans recalage (demande de Benjamin)
+
+Demande de Benjamin (13 novembre) : « si on n'a pas recalé un projet, on doit
+pouvoir ajouter des dessins et exporter depuis une diapositive. Si par
+exemple on n'a qu'un seul projecteur, on n'a pas forcément besoin d'utiliser
+Façade. »
+
+**D-3.6-g. Un dessin peut être posé dans une diapositive, sans façade.**
+Nouveau champ `placements[].slide` (identifiant du projecteur) : le dessin
+est alors posé en mm de diapositive (`center`, `width`, `height`,
+`rotation`, `deformation`), et la chaîne de calcul passe la diapositive
+telle quelle là où elle passerait par le recalage (`placement::to_slide`,
+`from_slide`). Dans la vue Diapositive, un dessin glissé dans un projecteur
+non recalé est posé ainsi (`place_in_slide`) ; dans un projecteur recalé,
+il est toujours posé sur la façade (D-3.6-f). Choix :
+- Il appartient à cette diapositive seulement (affectation « à la main »,
+  jamais coupé ni proposé ailleurs) ; il n'est ni affiché ni choisi dans la
+  Façade ; les calculs de façade l'ignorent (`Project::facade_placements` :
+  part non projetée, simulation, fiche de calepinage, quart de tour du plan).
+- L'export (et l'aperçu) d'un projecteur non recalé qui porte de tels
+  dessins se fait avec eux seuls : ni fresque, ni dessins de la façade, ni
+  plan de contrôle. Recalé plus tard, il garde ces dessins à leur place dans
+  la diapositive, et reçoit en plus ceux de la façade.
+- Les outils de la Diapositive s'y appliquent par la retouche, comme pour un
+  dessin de la façade (une seule façon de faire) ; miroir, ordre, groupe
+  changent le placement lui-même.
+- Retirer le projecteur retire ses dessins (sinon le projet serait
+  incohérent) ; un `slide` qui ne désigne aucun projecteur est refusé.
+
 ## 2026-11-13 — Diapositive : les outils de la Façade, et poser des dessins (demande de Benjamin)
 
 Demandes de Benjamin (13 novembre) : « onglet diapo : remettre exactement

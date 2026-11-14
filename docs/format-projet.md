@@ -317,6 +317,7 @@ Absent d'un fichier plus ancien : aucun changement de `formatVersion`.
 | `layer` | Identifiant du calque (tâche 4.3) ; absent ou inconnu : le premier calque |
 | `deformation` | Déformation libre (tâche 4.4) ; absente si le dessin est droit. Voir ci-dessous |
 | `adjustment` | Retouche dans une diapositive (tâche 4.6) : `projector` (identifiant) et `deformation` (même forme que `deformation`, cadre en mm de diapositive) ; absente : aucune |
+| `slide` | Posé dans la diapositive de ce projecteur (identifiant), sans passer par la façade (D-3.6-g) : `center`, `width`, `height`, `rotation` et `deformation` sont alors en mm de diapositive ; absent : le dessin est sur la façade |
 | `projector` | Diapositive choisie à la main (tâche 4.5) : identifiant du projecteur ; absente, ou projecteur inconnu : celle que propose le moteur (D-4.5-b) |
 
 `deformation` contient `frame` (le cadre : `center`, `width`, `height` en mm

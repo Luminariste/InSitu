@@ -57,7 +57,9 @@ Dessins posés sur la façade. Longueurs en mm réels de façade, origine en hau
           Pose un dessin comme lâché dans la vue Diapositive : --at et
           --width en mm de diapositive du projecteur. Le dessin est posé sur
           la façade, là où ce projecteur l'éclaire (recalage), et affecté à
-          sa diapositive. Affiche l'identifiant du placement.
+          sa diapositive. Projecteur non recalé : le dessin est posé dans sa
+          diapositive seulement, en mm de diapositive (D-3.6-g). Affiche
+          l'identifiant du placement.
 
   --history DOSSIER  Note l'enregistrement dans l'historique d'annulation
                      rangé là (voir insitu project undo)."#;

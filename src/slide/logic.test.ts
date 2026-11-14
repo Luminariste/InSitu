@@ -5,6 +5,7 @@ import {
   nearestDrawingOpacity,
   placeHere,
   slideBlocked,
+  placeNote,
   BLACK,
   cutNotice,
   DEFAULT_LOOK,
@@ -125,11 +126,12 @@ describe("poser un dessin dans la diapositive (D-3.6-f)", () => {
     expect(placeHere({ x: 0, y: 0, width: 900, height: 900 }, { x: 300, y: 12 })).toEqual({ center: { x: 280, y: 12 }, width: 140 });
   });
 
-  it("refuse un projecteur non recalé, et sans l'application", () => {
-    expect(slideBlocked(true, "A", true)).toBeNull();
-    expect(slideBlocked(true, "A", false)).toMatch(/A n'est pas encore recalé/);
-    expect(slideBlocked(false, "A", true)).toMatch(/application/);
-    expect(slideBlocked(true, null, true)).toMatch(/projecteur/);
+  it("pose dans tout projecteur, recalé ou non (D-3.6-g), mais pas sans l'application", () => {
+    expect(slideBlocked(true, "A")).toBeNull();
+    expect(slideBlocked(false, "A")).toMatch(/application/);
+    expect(slideBlocked(true, null)).toMatch(/projecteur/);
+    expect(placeNote("A", true)).toMatch(/sur la façade/);
+    expect(placeNote("C", false)).toMatch(/C n'est pas recalé.*cette diapositive seulement/);
   });
 
   it("ramène l'opacité à celle proposée la plus proche", () => {

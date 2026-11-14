@@ -972,6 +972,12 @@ pub struct Placement {
     /// la façade ; absente : aucune retouche.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub adjustment: Option<SlideAdjustment>,
+    /// Posé dans la diapositive de ce projecteur, sans passer par la façade
+    /// (D-3.6-g) : centre, taille, rotation et déformation sont alors en mm
+    /// de diapositive. Le dessin n'est pas sur la façade ; il est gravé dans
+    /// cette diapositive, recalée ou non.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slide: Option<String>,
     /// Masqué dans l'arborescence des diapositives : ni affiché, ni exporté,
     /// comme un dessin d'un calque masqué (D-4.5-g).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -1082,6 +1088,16 @@ impl Project {
         self.stacked_placements()
             .into_iter()
             .filter(|p| shown(p))
+            .collect()
+    }
+
+    /// Les dessins posés visibles qui sont sur la façade : sans ceux posés
+    /// directement dans une diapositive (D-3.6-g), dont la position est en
+    /// mm de diapositive.
+    pub fn facade_placements(&self) -> Vec<&Placement> {
+        self.visible_placements()
+            .into_iter()
+            .filter(|p| p.slide.is_none())
             .collect()
     }
 }

@@ -158,22 +158,29 @@ pub fn slide_views_with(
             view.plan = plan_preview(dir, cache_root, facade, warp, &p.registration, side);
         }
         let nothing = !has_fresco && placements.is_empty();
+        // Des dessins posés dans sa diapositive (D-3.6-g) : l'aperçu se fait
+        // même sans recalage, avec eux seuls.
+        let own = placements
+            .iter()
+            .any(|q| q.slide.as_deref() == Some(p.id.as_str()));
         match warp {
             _ if nothing => {
                 view.problem = Some("ni fresque importée, ni dessin posé sur la façade".into())
             }
-            None => {
+            None if !own => {
                 view.problem = Some(format!(
                     "recalage incomplet : {} paire(s) de points sur 4 au moins",
                     p.registration.len()
                 ))
             }
-            Some(warp) => {
+            warp => {
                 let mine = slide_placements_in(&project, &assigned, &p.id);
                 view.drawings = slide_drawings_in(&project, &assigned, &p.id);
                 let request = preview_request(dir, &project, &p.id, side, &mine)?;
                 if !cache_root.join(&request).is_file() {
-                    if let (None, Some(fresco)) = (&fresco_image, &project.fresco) {
+                    if let (None, Some(fresco), true) =
+                        (&fresco_image, &project.fresco, warp.is_some())
+                    {
                         fresco_image = Some(read_fresco(&dir.resolve(&fresco.source))?);
                     }
                     let (n, _) = super::sizes_px(settings.dpi);
@@ -183,7 +190,7 @@ pub fn slide_views_with(
                         .copied()
                         .filter(|q| {
                             let place = Placing {
-                                warp: &warp,
+                                warp: warp.as_ref(),
                                 px_mm,
                                 side: n,
                                 mirror: false,
@@ -200,7 +207,7 @@ pub fn slide_views_with(
                         drawings: cache.pair(&seen),
                         projector: Some(&p.id),
                     };
-                    let gray = render_artwork(&art, &warp, "", &settings, 0)?;
+                    let gray = render_artwork(&art, warp.as_ref(), "", &settings, 0)?;
                     let rgba = Raster::new(gray.width, gray.height, 4, black_to_alpha(&gray));
                     store(cache_root, &request, &rgba)?;
                 }
@@ -254,7 +261,7 @@ fn plan_preview(
             drawings: Vec::new(),
             projector: None,
         };
-        let gray = render_artwork(&art, warp, "", &settings, 0).ok()?;
+        let gray = render_artwork(&art, Some(warp), "", &settings, 0).ok()?;
         let rgba = Raster::new(gray.width, gray.height, 4, black_to_alpha(&gray));
         store(cache_root, &request, &rgba).ok()?;
     }

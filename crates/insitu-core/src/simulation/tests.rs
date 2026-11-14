@@ -55,6 +55,7 @@ fn place(project: &mut Project, id: &str, x: f64, y: f64, width: f64) {
         deformation: None,
         projector: None,
         adjustment: None,
+        slide: None,
         hidden: false,
         locked: false,
         extra: Default::default(),

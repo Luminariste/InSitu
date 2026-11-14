@@ -197,6 +197,7 @@ fn the_pose_puts_the_drawing_corners_where_illustrator_does() {
             deformation: None,
             projector: None,
             adjustment: None,
+            slide: None,
             hidden: false,
             locked: false,
             extra: Default::default(),

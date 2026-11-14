@@ -319,14 +319,16 @@ pub fn render_slide(
         drawings: Vec::new(),
         projector: None,
     };
-    render_artwork(&art, warp, caption, settings, threads)
+    render_artwork(&art, Some(warp), caption, settings, threads)
 }
 
 /// Comme [`render_slide`], avec la fresque (s'il y en a une) et les dessins
-/// posés.
+/// posés. Sans recalage (`warp` absent), ni la fresque ni les dessins de la
+/// façade ne sont dessinés : seulement les dessins posés dans la
+/// diapositive (D-3.6-g).
 pub fn render_artwork(
     art: &Artwork,
-    warp: &PointWarp,
+    warp: Option<&PointWarp>,
     caption: &str,
     settings: &ExportSettings,
     threads: usize,
@@ -334,8 +336,8 @@ pub fn render_artwork(
     let px_mm = check_settings(settings)?;
     let (side, margin) = sizes_px(settings.dpi);
     let mirror = settings.mirror;
-    let mut slide = match art.fresco {
-        Some((fresco, frame)) => {
+    let mut slide = match art.fresco.zip(warp) {
+        Some(((fresco, frame), warp)) => {
             assert_eq!(fresco.channels, 1, "fresque en niveaux de gris");
             let to_fresco_x = f64::from(fresco.width) / frame.width;
             let to_fresco_y = f64::from(fresco.height) / frame.height;
@@ -545,7 +547,7 @@ pub fn export_slides(
         }
         return Err(ExportError::NoFresco);
     }
-    let (todo, skipped) = recaled_projectors(&project, only)?;
+    let (todo, skipped) = recaled_projectors(&project, only, true)?;
     std::fs::create_dir_all(destination)
         .map_err(|e| ExportError::Destination(format!("{} : {e}", destination.display())))?;
 
@@ -582,7 +584,7 @@ pub fn export_slides(
             .into_iter()
             .filter(|p| {
                 let place = drawings::Placing {
-                    warp,
+                    warp: warp.as_ref(),
                     px_mm,
                     side,
                     mirror: settings.mirror,
@@ -593,7 +595,9 @@ pub fn export_slides(
             .collect();
         cache.load(dir, &project, &seen, px_mm)?;
         let crop = match (&vector, &fresco) {
-            (Some(v), Some(f)) => v.crop_for_slide(&f.frame, warp, px_mm, threads),
+            (Some(v), Some(f)) => warp
+                .as_ref()
+                .and_then(|w| v.crop_for_slide(&f.frame, w, px_mm, threads)),
             _ => None,
         };
         let art = Artwork {
@@ -604,14 +608,14 @@ pub fn export_slides(
             drawings: cache.pair(&seen),
             projector: Some(id),
         };
-        let rendered = render_artwork(&art, warp, &text, settings, threads)?;
+        let rendered = render_artwork(&art, warp.as_ref(), &text, settings, threads)?;
         let bytes = encode_png(&rendered, settings)?;
         let path = destination.join(slide_file_name(&project.name, label));
         write_atomic(&path, &bytes).map_err(|e| ExportError::Destination(e.to_string()))?;
         let svg = if settings.svg {
             cache.load_vectors(dir, &project, &seen, threads)?;
             let place = svg::SvgPlacing {
-                warp,
+                warp: warp.as_ref(),
                 mirror: settings.mirror,
                 projector: Some(id),
             };
@@ -680,7 +684,7 @@ pub fn export_control_plans(
         .as_ref()
         .filter(|f| f.size_mm().is_some())
         .ok_or(ExportError::NoFacadeScale)?;
-    let (todo, mut skipped) = recaled_projectors(&project, only)?;
+    let (todo, mut skipped) = recaled_projectors(&project, only, false)?;
     std::fs::create_dir_all(destination)
         .map_err(|e| ExportError::Destination(format!("{} : {e}", destination.display())))?;
     let total = todo.len();
@@ -692,6 +696,7 @@ pub fn export_control_plans(
     let mut slides = Vec::new();
     for (k, (id, label, warp)) in todo.iter().enumerate() {
         let start = Instant::now();
+        let Some(warp) = warp else { continue };
         match plan_view::plan_under_footprint(dir, facade, warp, plan_view::CONTROL_PLAN_WINDOW_PX)
         {
             None => skipped.push(SkippedSlide {
@@ -709,7 +714,7 @@ pub fn export_control_plans(
                     drawings: Vec::new(),
                     projector: None,
                 };
-                let rendered = render_artwork(&art, warp, &text, settings, threads)?;
+                let rendered = render_artwork(&art, Some(warp), &text, settings, threads)?;
                 let bytes = encode_png(&rendered, settings)?;
                 let path = destination.join(control_plan_file_name(&project.name, label));
                 write_atomic(&path, &bytes).map_err(|e| ExportError::Destination(e.to_string()))?;
@@ -738,14 +743,18 @@ pub fn export_control_plans(
     })
 }
 
-/// Un projecteur à exporter : identifiant, nom, recalage.
-type Recaled = (String, String, PointWarp);
+/// Un projecteur à exporter : identifiant, nom, recalage (aucun : seuls
+/// les dessins posés dans sa diapositive, D-3.6-g).
+type Recaled = (String, String, Option<PointWarp>);
 
 /// Les projecteurs recalés à exporter (tous, ou ceux de `only`, par nom ou
-/// identifiant), et ceux laissés de côté faute de recalage.
+/// identifiant), et ceux laissés de côté faute de recalage. Avec
+/// `in_slide`, un projecteur non recalé qui porte des dessins posés dans
+/// sa diapositive (D-3.6-g) est exporté aussi, avec ces seuls dessins.
 fn recaled_projectors(
     project: &Project,
     only: Option<&[String]>,
+    in_slide: bool,
 ) -> Result<(Vec<Recaled>, Vec<SkippedSlide>), ExportError> {
     if let Some(keys) = only {
         for key in keys {
@@ -766,8 +775,14 @@ fn recaled_projectors(
                 continue;
             }
         }
+        let own = in_slide
+            && project
+                .visible_placements()
+                .iter()
+                .any(|q| q.slide.as_deref() == Some(p.id.as_str()));
         match slide_to_facade(&p.registration) {
-            Some(warp) => todo.push((p.id.clone(), p.label.clone(), warp)),
+            Some(warp) => todo.push((p.id.clone(), p.label.clone(), Some(warp))),
+            None if own => todo.push((p.id.clone(), p.label.clone(), None)),
             None => skipped.push(SkippedSlide {
                 projector_id: p.id.clone(),
                 label: p.label.clone(),

@@ -10,7 +10,7 @@ use serde::Serialize;
 
 use super::assign::{assignments, Assignment};
 use super::{check, mesh, PlacementError};
-use crate::geometry::{Point, Transform};
+use crate::geometry::Point;
 use crate::project::{
     Deformation, DeformationFrame, Placement, PointMm, Project, ProjectDir, SlideAdjustment,
 };
@@ -36,14 +36,16 @@ pub struct SlideDrawing {
 }
 
 /// Points du dessin dans la diapositive : la maille d'affichage, avant
-/// retouche. `None` si un point n'a pas d'antécédent par le recalage.
-fn slide_mesh(p: &Placement, warp: &crate::geometry::PointWarp) -> Option<Vec<PointMm>> {
+/// retouche. `None` si un point n'a pas d'antécédent par le recalage (ou
+/// s'il n'y a pas de recalage, pour un dessin de la façade). Un dessin posé
+/// dans la diapositive (D-3.6-g) y est déjà.
+fn slide_mesh(p: &Placement, warp: Option<&crate::geometry::PointWarp>) -> Option<Vec<PointMm>> {
     let n = SLIDE_MESH_DIVISIONS;
     let mut points = Vec::with_capacity((n + 1) * (n + 1));
     for j in 0..=n {
         for i in 0..=n {
             let f = p.facade_point(i as f64 / n as f64, j as f64 / n as f64);
-            let s = warp.apply_inverse(Point::new(f.x, f.y))?;
+            let s = super::to_slide(p, warp, Point::new(f.x, f.y))?;
             points.push(PointMm::new(s.x, s.y));
         }
     }
@@ -62,12 +64,9 @@ pub fn slide_drawings_in(
     all: &[Assignment],
     projector: &str,
 ) -> Vec<SlideDrawing> {
-    let Some(warp) = project
+    let warp = project
         .projector(projector)
-        .and_then(|p| slide_to_facade(&p.registration))
-    else {
-        return Vec::new();
-    };
+        .and_then(|p| slide_to_facade(&p.registration));
     super::assign::slide_placements_in(project, all, projector)
         .into_iter()
         .filter_map(|p| {
@@ -75,7 +74,7 @@ pub fn slide_drawings_in(
                 placement: p.id.clone(),
                 drawing: p.drawing.clone(),
                 divisions: SLIDE_MESH_DIVISIONS,
-                points: slide_mesh(p, &warp)?,
+                points: slide_mesh(p, warp.as_ref())?,
             })
         })
         .collect()
@@ -88,8 +87,8 @@ pub fn adjustment_frame(
     placement: &Placement,
     projector: &str,
 ) -> Option<DeformationFrame> {
-    let warp = slide_to_facade(&project.projector(projector)?.registration)?;
-    let points = slide_mesh(placement, &warp)?;
+    let warp = slide_to_facade(&project.projector(projector)?.registration);
+    let points = slide_mesh(placement, warp.as_ref())?;
     let (mut x0, mut y0) = (f64::INFINITY, f64::INFINITY);
     let (mut x1, mut y1) = (f64::NEG_INFINITY, f64::NEG_INFINITY);
     for q in &points {

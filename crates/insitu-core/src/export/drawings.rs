@@ -17,12 +17,12 @@ use std::collections::HashMap;
 
 use super::svg::VectorDrawing;
 use super::{to_gray, ExportError};
-use crate::geometry::{Point, PointWarp, Transform};
+use crate::geometry::{Point, PointWarp};
 use crate::library::retouch::retouched_file;
 use crate::library::silhouette;
 use crate::library::vectors::{self, SVG_VECTOR_SIDE};
 use crate::library::{flatten_on_black, read::decode};
-use crate::placement::mesh;
+use crate::placement::{from_slide, mesh, to_slide};
 use crate::project::{Deformation, Placement, PointMm, Project, ProjectDir, SilhouettePolygon};
 use crate::resample::{warp_raster, WarpOptions};
 use crate::tiles::Raster;
@@ -57,10 +57,11 @@ pub struct PixelRect {
 }
 
 /// Où l'on pose les dessins : la diapositive (`side` pixels de `px_mm` mm,
-/// retournée si `mirror`), son recalage, et son projecteur, dont les
+/// retournée si `mirror`), son recalage (aucun : seuls les dessins posés
+/// dans la diapositive se dessinent, D-3.6-g), et son projecteur, dont les
 /// retouches de dessins s'appliquent (tâche 4.6).
 pub struct Placing<'a> {
-    pub warp: &'a PointWarp,
+    pub warp: Option<&'a PointWarp>,
     pub px_mm: f64,
     pub side: u32,
     pub mirror: bool,
@@ -93,9 +94,13 @@ pub fn slide_rect(placement: &Placement, place: &Placing) -> Option<PixelRect> {
         for step in 0..n {
             let t = step as f64 / n as f64;
             let facade = placement.facade_point(a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t);
+            // Un dessin de la façade sans recalage ne tombe nulle part.
+            if placement.slide.is_none() && warp.is_none() {
+                return None;
+            }
             // Un point sans antécédent : on ne sait pas borner, toute la
             // diapositive est calculée pour ce dessin.
-            let Some(s) = warp.apply_inverse(Point::new(facade.x, facade.y)) else {
+            let Some(s) = to_slide(placement, warp, Point::new(facade.x, facade.y)) else {
                 return Some(PixelRect {
                     x0: 0,
                     y0: 0,
@@ -168,7 +173,7 @@ pub fn draw(
                 Some(d) => mesh::inverse(d, PointMm::new(x * px_mm, y * px_mm))?,
                 None => PointMm::new(x * px_mm, y * px_mm),
             };
-            let facade = warp.apply(Point::new(s.x, s.y))?;
+            let facade = from_slide(placement, warp, Point::new(s.x, s.y))?;
             placement.drawing_point(PointMm::new(facade.x, facade.y))
         };
         let in_pixels = |source: &Raster| {

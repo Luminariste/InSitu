@@ -249,7 +249,7 @@ fn intersects(a: &RectMm, b: &RectMm) -> bool {
 /// partent pas à l'export : pas d'alerte pour eux.
 fn drawing_alerts(project: &Project, all: &[Assignment]) -> Vec<Alert> {
     let mut out = Vec::new();
-    for p in project.visible_placements() {
+    for p in project.facade_placements() {
         let Some(a) = all.iter().find(|a| a.placement == p.id) else {
             continue;
         };
@@ -315,7 +315,7 @@ fn doubled_alerts(
             Some((p.id.as_str(), warp, area))
         })
         .collect();
-    let placements = project.visible_placements();
+    let placements = project.facade_placements();
     let mut out = Vec::new();
     for (i, (a, warp_a, area_a)) in registered.iter().enumerate() {
         for (b, warp_b, area_b) in &registered[i + 1..] {

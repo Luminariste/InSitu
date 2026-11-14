@@ -28,7 +28,7 @@ use i_overlay::core::fill_rule::FillRule;
 use i_overlay::core::overlay_rule::OverlayRule;
 use i_overlay::float::single::SingleFloatOverlay;
 
-use crate::geometry::{Point, PointWarp, Transform};
+use crate::geometry::{Point, PointWarp};
 use crate::placement::mesh;
 use crate::project::{Placement, PointMm, SilhouettePolygon};
 use crate::units::{PLATE_MARGIN_MM, SLIDE_SIZE_MM};
@@ -61,7 +61,8 @@ pub struct SlidePaths {
 /// Où l'on pose les courbes : le recalage du projecteur, le miroir, et le
 /// projecteur (pour ses retouches).
 pub struct SvgPlacing<'a> {
-    pub warp: &'a PointWarp,
+    /// Aucun : seuls les dessins posés dans la diapositive (D-3.6-g).
+    pub warp: Option<&'a PointWarp>,
     pub mirror: bool,
     pub projector: Option<&'a str>,
 }
@@ -70,7 +71,7 @@ pub struct SvgPlacing<'a> {
 /// en mm.
 pub fn slide_point(placement: &Placement, place: &SvgPlacing, u: f64, v: f64) -> Option<Point> {
     let f = placement.facade_point(u, v);
-    let s = place.warp.apply_inverse(Point::new(f.x, f.y))?;
+    let s = crate::placement::to_slide(placement, place.warp, Point::new(f.x, f.y))?;
     let s = match place.projector.and_then(|id| placement.adjustment_for(id)) {
         Some(d) => {
             let q = mesh::forward(d, PointMm::new(s.x, s.y));
@@ -530,6 +531,7 @@ fn escape(text: &str) -> String {
 mod tests {
     use super::*;
     use crate::export::drawings::{draw, slide_rect, Placing, Posed};
+    use crate::geometry::Transform;
     use crate::project::{Deformation, DeformationFrame, RegistrationPair};
     use crate::registration::slide_to_facade;
     use crate::tiles::Raster;
@@ -615,6 +617,7 @@ mod tests {
             }),
             projector: None,
             adjustment: None,
+            slide: None,
             hidden: false,
             locked: false,
             extra: Default::default(),
@@ -642,7 +645,7 @@ mod tests {
             let px_mm = units::px_size_mm(1400.0);
             let (side, _) = crate::export::sizes_px(1400.0);
             let place = Placing {
-                warp: &warp,
+                warp: Some(&warp),
                 px_mm,
                 side,
                 mirror,
@@ -667,7 +670,7 @@ mod tests {
             drop(slide);
 
             let svg_place = SvgPlacing {
-                warp: &warp,
+                warp: Some(&warp),
                 mirror,
                 projector: None,
             };
@@ -740,7 +743,7 @@ mod tests {
         let vector = vectorize::vectorize(&GrayImage::from_raster(&image), &options()).unwrap();
         let p = placement(&warp, 200.0, 80.0);
         let place = SvgPlacing {
-            warp: &warp,
+            warp: Some(&warp),
             mirror: true,
             projector: None,
         };
@@ -804,7 +807,7 @@ mod tests {
         let square: SilhouettePolygon =
             vec![[0.25, 0.25], [0.75, 0.25], [0.75, 0.75], [0.25, 0.75]];
         let place = SvgPlacing {
-            warp: &warp,
+            warp: Some(&warp),
             mirror: false,
             projector: None,
         };

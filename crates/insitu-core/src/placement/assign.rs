@@ -96,6 +96,20 @@ fn registered(project: &Project) -> Vec<(&str, PointWarp)> {
 
 fn assign_one(p: &Placement, warps: &[(&str, PointWarp)]) -> Assignment {
     let points = outline(p);
+    // Posé dans une diapositive (D-3.6-g) : il y reste, recalée ou non.
+    if let Some(slide) = &p.slide {
+        let s = SLIDE_SIZE_MM;
+        let whole = points
+            .iter()
+            .all(|q| q.x >= 0.0 && q.y >= 0.0 && q.x <= s && q.y <= s);
+        return Assignment {
+            placement: p.id.clone(),
+            projector: Some(slide.clone()),
+            manual: true,
+            whole,
+            candidates: vec![slide.clone()],
+        };
+    }
     let fits: Vec<(&str, Fit)> = warps.iter().map(|(id, w)| (*id, fit(&points, w))).collect();
     let candidates: Vec<String> = fits
         .iter()
