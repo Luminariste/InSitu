@@ -55,7 +55,7 @@ import { viewToRestore, type KeptView } from "./keepView";
 import { contextTab, readFacadeTab, saveFacadeTab, type FacadeTab, type TabContext } from "./inspectorTabs";
 import { frescoPlacement } from "./exportLogic";
 import { rotationLabel } from "./rotation";
-import { DEFAULT_DISPLAY, PHOTO_OPACITIES, changedDisplay, nearestOpacity, overviewLayers, readDisplay, saveDisplay, type OverviewDisplay } from "./overview";
+import { DEFAULT_DISPLAY, PHOTO_OPACITIES, changedDisplay, nearestOpacity, overviewLayers, readDisplay, readHiddenSlides, saveDisplay, saveHiddenSlides, toggleHidden, type OverviewDisplay } from "./overview";
 import { demoOverview, demoSimulation } from "./overviewDemo";
 import { OverviewPanel } from "./OverviewPanel";
 import { SimulationSection } from "./SimulationSection";
@@ -151,6 +151,15 @@ export function FacadeScreen() {
     setDisplayState(next);
     saveDisplay(displayFolder.current, next);
   }, []);
+  /** Diapositives masquées dans l'onglet Calques : affichage seul, retenu par projet. */
+  const [hiddenSlides, setHiddenSlidesState] = useState<Set<string>>(() => readHiddenSlides(engine ? recalled() : null));
+  const toggleSlide = useCallback((projector: string) => {
+    setHiddenSlidesState((current) => {
+      const next = toggleHidden(current, projector);
+      saveHiddenSlides(displayFolder.current, next);
+      return next;
+    });
+  }, []);
   /** Simulation de tous les projecteurs et ses alertes (tâche 6.1). */
   const [simulation, setSimulation] = useState<Simulation | null>(null);
   const [simulating, setSimulating] = useState(false);
@@ -214,6 +223,7 @@ export function FacadeScreen() {
         if (displayFolder.current !== path) {
           displayFolder.current = path;
           setDisplayState(readDisplay(path));
+          setHiddenSlidesState(readHiddenSlides(path));
         }
         setPicking("off");
         setPoints(next.facade?.scale ? [next.facade.scale.pointA, next.facade.scale.pointB] : []);
@@ -396,6 +406,7 @@ export function FacadeScreen() {
     enabled: composeBlocked === null && picking === "off" && planGroups.mode === "off" && busy === null && viewOptions.drawings,
     visible: viewOptions.drawings,
     checkOverlap: viewOptions.overlap,
+    hiddenSlides,
     onError: setError,
   });
   const viewerLayers = useMemo(() => [...layers, ...composition.layers], [layers, composition.layers]);
@@ -896,6 +907,8 @@ export function FacadeScreen() {
               describe={describePlacement}
               actions={composition.actions}
               blocked={composeBlocked}
+              hiddenSlides={hiddenSlides}
+              onToggleSlide={toggleSlide}
             />
             <LayersSection
               layers={composition.composeLayers}

@@ -73,6 +73,25 @@ bibliothèque » repasse sur « Tous les dessins ». Tout reste dans
 « Ce projet » et « Commune ».
 
 
+## 2026-11-14 — Masquer une diapositive dans l'onglet Calques (demande de Benjamin)
+
+Demande de Benjamin (14 novembre) : « il faut pouvoir masquer une diapo dans
+calque ».
+
+**D15-u. Un œil sur la ligne de chaque diapositive de l'arborescence
+(Façade).** Il cache sur la façade tous les dessins affectés à cette
+diapositive : ils ne se voient ni ne se choisissent plus (ni clic, ni
+sélection dans la liste, ni ⌘A), et sortent de la sélection, comme des
+dessins masqués (D15-l). Choix :
+- *Affichage seul* : rien n'est écrit dans le projet, l'export et
+  l'aperçu de la Diapositive gardent ces dessins. L'œil d'un dessin, lui,
+  reste ce qu'il était (masqué = pas exporté) : les deux ne se mélangent pas.
+- Retenu par projet sur ce Mac (`insitu.diapositivesMasquees`), comme les
+  projecteurs décochés (D15-t). « Tout montrer » du menu Affichage n'y
+  touche pas, comme pour les projecteurs.
+- Le groupe « Hors de toute diapositive » n'a pas d'œil ; la Diapositive
+  non plus (elle ne montre qu'une diapositive).
+
 ## 2026-11-14 — Options d'affichage retenues (demande de Benjamin)
 
 Demande de Benjamin (14 novembre) : « mémorise les options d'affichage :
