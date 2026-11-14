@@ -4,6 +4,25 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-14 — Bibliothèque : recherche par dossier et fichier (demande de Benjamin)
+
+Demande de Benjamin (14 novembre) : « bibliothèque : recherche par dossier
+et fichier ». La recherche existait déjà (D-4.1-f), mais elle ne montrait
+que des dessins, et oubliait le nom du fichier d'un dessin renommé.
+
+**D-4.1-k. La recherche trouve aussi les dossiers et les noms de fichier.**
+Chaque mot est cherché dans le nom du dessin, ses dossiers et le nom de son
+fichier (sans extension), pour qu'un dessin renommé (D-4.1-g) se retrouve
+par son fichier. Pendant une recherche, la colonne Dossiers ne garde que
+les dossiers dont le nom répond (mis en avant en couleur), ceux qui
+contiennent des dessins trouvés, et leurs parents ; chaque compte devient
+le nombre de dessins trouvés, et une ligne « Trouvé : … » résume. La
+recherche reste limitée au dossier choisi ; si rien n'y répond mais que
+d'autres dossiers ont des résultats, un bouton « Chercher dans toute la
+bibliothèque » repasse sur « Tous les dessins ». Tout reste dans
+`src/library/logic.ts` (`searchFolders`), testé ; même chose dans les vues
+« Ce projet » et « Commune ».
+
 ## 2026-11-14 — Options d'affichage retenues (demande de Benjamin)
 
 Demande de Benjamin (14 novembre) : « mémorise les options d'affichage :

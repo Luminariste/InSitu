@@ -52,6 +52,12 @@ sur la façade à l'étape suivante (placement, tâche 4.2).
   un sous-dossier ou retirer un dossier vide.
 - ⌘Z annule chaque rangement. Rien ne bouge sur le disque : dans le Finder,
   `bibliotheque/` garde le rangement de l'import (D-4.1-g).
+- **Chercher** : le champ de la barre du haut cherche chaque mot dans le
+  nom du dessin, ses dossiers et le nom de son fichier (accents et
+  majuscules ignorés). La colonne Dossiers ne garde alors que les dossiers
+  trouvés (en couleur) ou qui contiennent des dessins trouvés, avec leur
+  nombre. Si le dossier choisi n'a rien, « Chercher dans toute la
+  bibliothèque » (D-4.1-k).
 
 ### Essai sur Mac (version 0.1.72)
 
@@ -66,6 +72,16 @@ sur la façade à l'étape suivante (placement, tâche 4.2).
 5. Double-clic sur « Essai », le renommer : les dessins suivent.
 6. ⌘Z plusieurs fois : tout revient comme avant.
 7. Fermer et rouvrir le projet : le rangement est gardé.
+
+### Essai sur Mac de la recherche (version 0.1.79)
+
+1. Bibliothèque de Trévarez, taper le nom d'un dossier : il reste seul dans
+   la colonne (avec ses parents), en couleur, et ses dessins s'affichent.
+2. Renommer un dessin (double-clic), puis taper l'ancien nom de son
+   fichier : il est trouvé.
+3. Choisir un dossier, taper le nom d'un dessin rangé ailleurs : « Chercher
+   dans toute la bibliothèque » le montre.
+4. Même essai dans la vue « Commune ».
 
 ## Bibliothèque commune
 
