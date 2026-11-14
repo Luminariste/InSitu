@@ -109,6 +109,12 @@ pub struct Project {
     /// 13 novembre 2026, D-PL-a). Absent tant qu'il n'y en a pas.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plan_groups: Vec<PlanGroup>,
+    /// Dossiers de la bibliothèque créés à la main (`Oiseaux/Mer`), gardés
+    /// même vides ; les autres dossiers viennent des dessins eux-mêmes
+    /// (demande de Benjamin, 13 novembre 2026, D-4.1-g). Absent tant qu'il
+    /// n'y en a pas.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub library_folders: Vec<String>,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }
@@ -130,6 +136,7 @@ impl Project {
             layers: Vec::new(),
             facade_assembly: None,
             plan_groups: Vec::new(),
+            library_folders: Vec::new(),
             extra: ExtraFields::new(),
         }
     }
@@ -694,6 +701,11 @@ pub struct Drawing {
     /// l'ordre où elles ont été faites. Vide : le dessin tel qu'importé.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub retouch: Vec<RetouchStroke>,
+    /// Dossier choisi dans la bibliothèque (`Oiseaux/Mer`, vide : à la
+    /// racine), quand le dessin a été rangé à la main (D-4.1-g). Absent : le
+    /// dossier où le fichier a été copié. Le fichier, lui, ne bouge pas.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub folder: Option<String>,
     #[serde(flatten)]
     pub extra: ExtraFields,
 }
@@ -876,8 +888,17 @@ impl Default for VectorSettings {
 
 impl Drawing {
     /// Dossier du dessin dans la bibliothèque, sans `bibliotheque/` ni le
-    /// nom du fichier : `Oiseaux/Grands`, ou vide.
+    /// nom du fichier : `Oiseaux/Grands`, ou vide. Celui choisi à la main
+    /// s'il y en a un, sinon celui du fichier.
     pub fn folder(&self) -> &str {
+        match &self.folder {
+            Some(folder) => folder,
+            None => self.file_folder(),
+        }
+    }
+
+    /// Dossier où le fichier du dessin a été copié, sous `bibliotheque/`.
+    pub fn file_folder(&self) -> &str {
         let path = self.source.as_str();
         let inside = path.split_once('/').map_or("", |(_, rest)| rest);
         inside.rsplit_once('/').map_or("", |(folder, _)| folder)

@@ -14,6 +14,7 @@ use insitu_core::export::{self, ExportReport};
 use insitu_core::facade::{self, Alignment, FacadeDisplay, PlanChoice, SourceInfo};
 use insitu_core::geometry::Point;
 use insitu_core::illustrator::{self, CompositionPreview, CompositionReport};
+use insitu_core::library::organize;
 use insitu_core::library::silhouette::{self, DrawingSilhouette};
 use insitu_core::library::vectors::{self, VectorSummary, VectorizeReport};
 use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
@@ -466,6 +467,74 @@ fn library_import(
     .map_err(|e| e.to_string())
 }
 
+/// Importe des dessins choisis un à un, ou déposés depuis le Finder
+/// (D-4.1-f) : `files` donne pour chacun le fichier et son chemin dans la
+/// bibliothèque. `staging` : dossier de dépôt à effacer ensuite.
+#[tauri::command(async)]
+fn library_import_files(
+    app: AppHandle,
+    folder: String,
+    files: Vec<(String, String)>,
+    staging: Option<String>,
+) -> Result<(Project, ImportReport, Vec<String>), String> {
+    let options = ImportOptions {
+        cache_root: Some(tile_cache_dir(&app)?),
+        threads: 0,
+    };
+    let files: Vec<(PathBuf, String)> = files
+        .into_iter()
+        .map(|(path, inner)| (PathBuf::from(path), inner))
+        .collect();
+    let result = library::import_loose(&project_dir(&folder)?, &files, &options, &|progress| {
+        let _ = app.emit(LIBRARY_PROGRESS_EVENT, progress);
+    })
+    .map_err(|e| e.to_string());
+    if let Some(staging) = staging {
+        let _ = std::fs::remove_dir_all(staging);
+    }
+    result
+}
+
+/// Reçoit en octets un fichier déposé depuis le Finder (la vue web ne donne
+/// pas son chemin, D-4.1-f) et le range dans un dossier de dépôt du cache.
+/// En-tête `x-depot` : JSON `{ "depot": "...", "chemin": "Oiseaux/merle.png" }`.
+/// Rend `[fichier, chemin]`, ou rien si le fichier est ignoré (caché).
+#[tauri::command(async)]
+fn library_stage_dropped(
+    app: AppHandle,
+    request: tauri::ipc::Request<'_>,
+) -> Result<Option<(String, String, String)>, String> {
+    #[derive(serde::Deserialize)]
+    struct Header {
+        depot: String,
+        chemin: String,
+    }
+    let header = request
+        .headers()
+        .get("x-depot")
+        .and_then(|v| v.to_str().ok())
+        .ok_or("fichier déposé sans en-tête")?;
+    let header: Header = serde_json::from_str(header).map_err(|e| e.to_string())?;
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err("fichier déposé sans contenu".into());
+    };
+    let staging = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| e.to_string())?
+        .join("depot")
+        .join(library::clean_staging_id(&header.depot));
+    let staged =
+        library::stage_dropped_file(&staging, &header.chemin, bytes).map_err(|e| e.to_string())?;
+    Ok(staged.map(|(path, inner)| {
+        (
+            path.to_string_lossy().into_owned(),
+            inner,
+            staging.to_string_lossy().into_owned(),
+        )
+    }))
+}
+
 /// Recrée la composition d'un fichier Illustrator (tâche 6.3) : liens dans la
 /// bibliothèque, images placées en dessins posés.
 /// Ce que l'import d'un fichier Illustrator ferait, sans rien écrire.
@@ -512,6 +581,36 @@ fn library_list(app: AppHandle, folder: String) -> Result<Vec<LibraryEntry>, Str
 #[tauri::command(async)]
 fn library_remove(folder: String, drawing: String) -> Result<(Project, usize), String> {
     library::remove_drawing(&project_dir(&folder)?, &drawing).map_err(|e| e.to_string())
+}
+
+/// Renomme un dessin de la bibliothèque ; le fichier garde son nom.
+#[tauri::command(async)]
+fn library_rename(folder: String, drawing: String, name: String) -> Result<Project, String> {
+    organize::rename_drawing(&project_dir(&folder)?, &drawing, &name).map_err(|e| e.to_string())
+}
+
+/// Range des dessins dans un dossier de la bibliothèque (vide : la racine).
+#[tauri::command(async)]
+fn library_move(folder: String, drawings: Vec<String>, target: String) -> Result<Project, String> {
+    organize::move_drawings(&project_dir(&folder)?, &drawings, &target).map_err(|e| e.to_string())
+}
+
+/// Crée un dossier vide dans la bibliothèque.
+#[tauri::command(async)]
+fn library_folder_create(folder: String, path: String) -> Result<Project, String> {
+    organize::create_folder(&project_dir(&folder)?, &path).map_err(|e| e.to_string())
+}
+
+/// Renomme un dossier de la bibliothèque, avec ses sous-dossiers et ses dessins.
+#[tauri::command(async)]
+fn library_folder_rename(folder: String, path: String, name: String) -> Result<Project, String> {
+    organize::rename_folder(&project_dir(&folder)?, &path, &name).map_err(|e| e.to_string())
+}
+
+/// Retire un dossier vide de la bibliothèque.
+#[tauri::command(async)]
+fn library_folder_remove(folder: String, path: String) -> Result<Project, String> {
+    organize::remove_folder(&project_dir(&folder)?, &path).map_err(|e| e.to_string())
 }
 
 /// L'aperçu (1 024 px, fond transparent) d'un dessin ; `original` : sans
@@ -904,10 +1003,17 @@ pub fn run() {
             registration_preview,
             registration_adjust,
             library_import,
+            library_import_files,
+            library_stage_dropped,
             illustrator_import,
             illustrator_preview,
             library_list,
             library_remove,
+            library_rename,
+            library_move,
+            library_folder_create,
+            library_folder_rename,
+            library_folder_remove,
             library_preview,
             library_set_retouch,
             placements_set,

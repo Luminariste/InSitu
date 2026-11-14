@@ -15,6 +15,7 @@ fn project_with_drawing(label: &str) -> (TempDir, ProjectDir) {
         vector: None,
         silhouette: None,
         retouch: Vec::new(),
+        folder: None,
         extra: Default::default(),
     });
     dir.save(&project).expect("enregistrement");

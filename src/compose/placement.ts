@@ -544,6 +544,31 @@ export function dropped(
   };
 }
 
+/**
+ * Plusieurs dessins déposés ensemble (depuis le Finder, D-4.1-f) : chacun à
+ * la taille d'un dessin lâché seul, en rang de gauche à droite, le premier
+ * centré sur `at`, avec un écart d'un dixième de largeur.
+ */
+export function sideBySide(
+  drawings: { id: string; width: number; height: number }[],
+  at: Point,
+  visibleWidthMm: number,
+  makeId: () => string = newId,
+): Placement[] {
+  const out: Placement[] = [];
+  let x = at.x;
+  for (const [i, d] of drawings.entries()) {
+    const p = dropped(d, { x, y: at.y }, visibleWidthMm, makeId);
+    if (i > 0) {
+      const previous = out[i - 1];
+      p.center = { x: previous.center.x + previous.width / 2 + previous.width / 10 + p.width / 2, y: at.y };
+    }
+    x = p.center.x;
+    out.push(p);
+  }
+  return out;
+}
+
 // --- Déformation libre (tâche 4.4) --------------------------------------------
 
 /**
