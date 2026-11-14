@@ -4,13 +4,14 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+use insitu_core::library::organize;
 use insitu_core::library::retouch::{retouched_file, set_retouch};
 use insitu_core::library::silhouette::{load_silhouettes, rasterize, set_silhouette};
 use insitu_core::library::vectors::{
     drawing_vectors, set_vector_settings, vectorize_drawings, VectorSummary,
 };
 use insitu_core::library::{
-    self, decode, encode_png, import_folder, rendition, ImportOptions, THUMBNAIL_SIDE,
+    self, decode, encode_png, import_folder, import_loose, rendition, ImportOptions, THUMBNAIL_SIDE,
 };
 use insitu_core::project::{ProjectDir, RetouchStroke, SilhouettePolygon, VectorSettings};
 
@@ -22,8 +23,15 @@ pub enum Problem {
 
 pub const USAGE: &str = r#"Usage :
   insitu library import <projet.insitu> <dossier> [--cache DOSSIER] [--threads N]
+  insitu library import-files <projet.insitu> <fichier>... [--cache DOSSIER]
   insitu library list <projet.insitu> [--cache DOSSIER]
   insitu library remove <projet.insitu> <dessin>
+  insitu library rename <projet.insitu> <dessin> <nouveau nom>
+  insitu library move <projet.insitu> <dossier> <dessin>…
+  insitu library folders <projet.insitu>
+  insitu library folder-create <projet.insitu> <dossier>
+  insitu library folder-rename <projet.insitu> <dossier> <nouveau nom>
+  insitu library folder-remove <projet.insitu> <dossier>
   insitu library thumbnail <dessin> <sortie.png> [--size PX]
   insitu library vectors <projet.insitu> [<dessin>] --cache DOSSIER
          [--threshold N] [--tolerance PX] [--corner DEG] [--min-area PX2]
@@ -42,9 +50,22 @@ PSD aplati, SVG).
              nouveaux dessins. Affiche le compte rendu en JSON (dessins
              ajoutés, déjà présents, fichiers illisibles) ; la durée est
              écrite sur la sortie d'erreur.
+  import-files
+             Copie des dessins choisis un à un sous bibliotheque/ (comme un
+             dépôt depuis le Finder dans l'app) ; les fichiers qui ne sont
+             pas des dessins sont ignorés. Compte rendu en JSON.
   list       Affiche la bibliothèque en JSON.
   remove     Retire un dessin (identifiant ou nom) de la bibliothèque, et ses
              placements sur la façade. Le fichier reste dans bibliotheque/.
+  rename     Donne un autre nom au dessin (identifiant ou nom) ; le fichier
+             garde le sien.
+  move       Range les dessins dans le dossier (« Oiseaux/Mer » ; « / » :
+             à la racine), créé au besoin. Les fichiers ne bougent pas.
+  folders    Affiche tous les dossiers de la bibliothèque en JSON.
+  folder-create  Crée un dossier vide.
+  folder-rename  Renomme un dossier (même dossier parent), avec ses
+             sous-dossiers et ses dessins.
+  folder-remove  Retire un dossier vide.
   thumbnail  Écrit la vignette d'un fichier de dessin : réduit de moitié en
              moitié jusqu'à tenir dans --size (320 par défaut), le noir
              rendu transparent.
@@ -182,6 +203,26 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             }
             Ok(serde_json::to_string_pretty(&report).expect("sérialisable"))
         }
+        ["import-files", folder, ref sources @ ..] if !sources.is_empty() => {
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let options = ImportOptions {
+                cache_root: cache,
+                threads,
+            };
+            let files: Vec<(PathBuf, String)> = sources
+                .iter()
+                .map(|source| {
+                    let path = PathBuf::from(source);
+                    let name = path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().into_owned())
+                        .unwrap_or_default();
+                    (path, name)
+                })
+                .collect();
+            let (_, report, _) = import_loose(&dir, &files, &options, &|_| {}).map_err(failed)?;
+            Ok(serde_json::to_string_pretty(&report).expect("sérialisable"))
+        }
         ["list", folder] => {
             let dir = ProjectDir::open(folder).map_err(failed)?;
             let entries = library::list(&dir, cache.as_deref(), threads).map_err(failed)?;
@@ -196,6 +237,51 @@ pub fn run(args: &[&str]) -> Result<String, Problem> {
             Ok(format!(
                 "« {name} » retiré de la bibliothèque ({placed} placement(s) retiré(s)) ; le fichier reste dans le projet."
             ))
+        }
+        ["rename", folder, drawing, name] => {
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let project = dir.load().map_err(failed)?.project;
+            let found = library::find(&project, drawing).map_err(failed)?;
+            let (id, before) = (found.id.clone(), found.name.clone());
+            let project = organize::rename_drawing(&dir, &id, name).map_err(failed)?;
+            let after = &project.drawing(&id).expect("dessin renommé").name;
+            Ok(format!("« {before} » s'appelle désormais « {after} »."))
+        }
+        ["move", folder, target, ref drawings @ ..] if !drawings.is_empty() => {
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let project = dir.load().map_err(failed)?.project;
+            let ids = drawings
+                .iter()
+                .map(|d| library::find(&project, d).map(|f| f.id.clone()))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(failed)?;
+            let project = organize::move_drawings(&dir, &ids, target).map_err(failed)?;
+            let place = project.drawing(&ids[0]).expect("dessin rangé").folder();
+            let place = if place.is_empty() { "la racine" } else { place };
+            Ok(format!(
+                "{} dessin(s) rangé(s) dans « {place} ».",
+                ids.len()
+            ))
+        }
+        ["folders", folder] => {
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            let project = dir.load().map_err(failed)?.project;
+            Ok(serde_json::to_string_pretty(&organize::folders(&project)).expect("sérialisable"))
+        }
+        ["folder-create", folder, path] => {
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            organize::create_folder(&dir, path).map_err(failed)?;
+            Ok(format!("Dossier « {path} » créé."))
+        }
+        ["folder-rename", folder, path, name] => {
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            organize::rename_folder(&dir, path, name).map_err(failed)?;
+            Ok(format!("Dossier « {path} » renommé en « {name} »."))
+        }
+        ["folder-remove", folder, path] => {
+            let dir = ProjectDir::open(folder).map_err(failed)?;
+            organize::remove_folder(&dir, path).map_err(failed)?;
+            Ok(format!("Dossier « {path} » retiré."))
         }
         ["thumbnail", file, output] => {
             let decoded = decode(Path::new(file), size).map_err(failed)?;

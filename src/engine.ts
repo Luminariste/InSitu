@@ -3,6 +3,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { Pyramid, TileSource } from "./viewer";
 import type { Layer, Placement, SlideAdjustment } from "./compose/placement";
+import { asciiJson, DRAWING_EXTENSIONS, type DroppedFile } from "./library/drop";
 export type { Layer, Placement, SlideAdjustment };
 
 export interface EngineInfo {
@@ -160,6 +161,8 @@ export interface Project {
   library?: ProjectDrawing[];
   /** Plans ajoutés par-dessus le plan de référence, du fond vers l'avant (D-PL-a). */
   planGroups?: PlanGroup[];
+  /** Dossiers de la bibliothèque créés à la main, gardés même vides (D-4.1-g). */
+  libraryFolders?: string[];
 }
 
 /**
@@ -202,6 +205,9 @@ export interface PlanChoice {
 /** Un dessin de la bibliothèque, tel qu'enregistré dans `projet.json`. */
 export interface ProjectDrawing {
   id: string;
+  /** Taille du fichier, en pixels (ou pixels CSS pour un SVG). */
+  width: number;
+  height: number;
   /** Silhouette retouchée à la main (tâche 4.7) ; absente : détectée. */
   silhouette?: SilhouettePolygon[] | null;
   /** Gomme et crayon (tâche 4.8), dans l'ordre ; absent : dessin d'origine. */
@@ -1057,6 +1063,36 @@ export async function removeDrawing(folder: string, drawing: string): Promise<[P
   return invoke<[Project, number]>("library_remove", { folder, drawing });
 }
 
+/** Renomme un dessin de la bibliothèque (le fichier garde son nom) ; rend le projet. */
+export async function renameDrawing(folder: string, drawing: string, name: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("library_rename", { folder, drawing, name });
+}
+
+/** Range des dessins dans un dossier de la bibliothèque (`""` : la racine) ; les fichiers ne bougent pas. */
+export async function moveDrawings(folder: string, drawings: string[], target: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("library_move", { folder, drawings, target });
+}
+
+/** Crée un dossier vide dans la bibliothèque (`Oiseaux/Mer`). */
+export async function createLibraryFolder(folder: string, path: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("library_folder_create", { folder, path });
+}
+
+/** Renomme un dossier de la bibliothèque, avec ses sous-dossiers et ses dessins. */
+export async function renameLibraryFolder(folder: string, path: string, name: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("library_folder_rename", { folder, path, name });
+}
+
+/** Retire un dossier vide de la bibliothèque. */
+export async function removeLibraryFolder(folder: string, path: string): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("library_folder_remove", { folder, path });
+}
+
 /** Adresse de l'aperçu (1 024 px, fond transparent) d'un dessin ; `original` : sans ses retouches. */
 export async function fetchDrawingPreview(folder: string, drawing: string, original = false): Promise<string> {
   requireEngine();
@@ -1136,6 +1172,88 @@ export async function saveSilhouette(
     polygons,
   });
   return { project, silhouette };
+}
+
+/** Demande des dessins à importer, un ou plusieurs fichiers ; vide si l'utilisateur renonce (D-4.1-f). */
+export async function chooseDrawingFiles(): Promise<string[]> {
+  requireEngine();
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const chosen = await open({
+    directory: false,
+    multiple: true,
+    title: "Importer des dessins",
+    filters: [{ name: "Dessins", extensions: DRAWING_EXTENSIONS }],
+  });
+  return Array.isArray(chosen) ? chosen : typeof chosen === "string" ? [chosen] : [];
+}
+
+/** Importe des fichiers de dessin choisis un à un, sous `bibliotheque/` (D-4.1-f). */
+export async function importDrawingFiles(
+  folder: string,
+  paths: string[],
+  onProgress: (progress: ImportProgress) => void,
+): Promise<LooseImport> {
+  const files = paths.map((path) => [path, path.split(/[\\/]/).pop() ?? path] as [string, string]);
+  return importFiles(folder, files, null, onProgress);
+}
+
+/** Compte rendu d'un import de fichiers : et les dessins de tous les fichiers lus, ajoutés ou déjà là. */
+export interface LooseImport {
+  project: Project;
+  report: ImportReport;
+  drawings: string[];
+}
+
+async function importFiles(
+  folder: string,
+  files: [string, string][],
+  staging: string | null,
+  onProgress: (progress: ImportProgress) => void,
+): Promise<LooseImport> {
+  requireEngine();
+  const { listen } = await import("@tauri-apps/api/event");
+  const stop = await listen<ImportProgress>("bibliotheque-progression", (event) => onProgress(event.payload));
+  try {
+    const [project, report, drawings] = await invoke<[Project, ImportReport, string[]]>("library_import_files", {
+      folder,
+      files,
+      staging,
+    });
+    return { project, report, drawings };
+  } finally {
+    stop();
+  }
+}
+
+/**
+ * Importe des dessins déposés depuis le Finder (D-4.1-f) : la vue web ne
+ * donne pas leur chemin, leurs octets sont donc envoyés un à un au moteur,
+ * qui les range dans un dossier de dépôt du cache, puis tous importés sous
+ * `bibliotheque/` (un dossier déposé garde son nom).
+ */
+export async function importDroppedDrawings(
+  folder: string,
+  dropped: DroppedFile[],
+  onProgress: (progress: ImportProgress) => void,
+): Promise<LooseImport> {
+  requireEngine();
+  const depot = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const files: [string, string][] = [];
+  let staging: string | null = null;
+  for (const [i, d] of dropped.entries()) {
+    onProgress({ done: i, total: dropped.length * 2 });
+    const bytes = new Uint8Array(await d.file.arrayBuffer());
+    const staged = await invoke<[string, string, string] | null>("library_stage_dropped", bytes, {
+      headers: { "x-depot": asciiJson({ depot, chemin: d.path }) },
+    });
+    if (staged) {
+      files.push([staged[0], staged[1]]);
+      staging = staged[2];
+    }
+  }
+  return importFiles(folder, files, staging, ({ done, total }) =>
+    onProgress({ done: dropped.length + Math.round((done / Math.max(total, 1)) * dropped.length), total: dropped.length * 2 }),
+  );
 }
 
 /** Demande un dossier de dessins à importer ; `null` si l'utilisateur renonce. */

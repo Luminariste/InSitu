@@ -57,6 +57,7 @@ import {
   deform,
   distribute,
   dropped,
+  sideBySide,
   expandToGroups,
   moveSharedNode,
   facadePoint,
@@ -151,6 +152,12 @@ export interface CompositionActions {
   setRotation(deg: number): void;
   /** Pose un dessin au centre de la vue. */
   place(drawing: string): void;
+  /**
+   * Pose des dessins qui viennent d'entrer dans la bibliothèque (déposés
+   * depuis le Finder, D-4.1-f), côte à côte à partir du point d'écran
+   * `client`, ou au centre de la vue. Faux si la composition est indisponible.
+   */
+  placeNew(drawings: { id: string; width: number; height: number }[], client?: { clientX: number; clientY: number }): boolean;
   /** Range la sélection sur un calque. */
   moveToLayer(layer: string): void;
   /** Choisit à la main la diapositive de la sélection ; `null` : la proposition du moteur (tâche 4.5). */
@@ -773,6 +780,25 @@ export function useComposition(options: Options): Composition {
     commit([...placements, p], new Set([p.id]));
   };
 
+  const placeNewDrawings = (
+    entries: { id: string; width: number; height: number }[],
+    client?: { clientX: number; clientY: number },
+  ): boolean => {
+    const view = viewCenterAndWidth();
+    if (!enabled || !view || entries.length === 0) return false;
+    if (!isShown(activeLayer) || isLocked(activeLayer)) {
+      onError(
+        `Le calque « ${activeLayer.name} » est ${isShown(activeLayer) ? "verrouillé" : "masqué"} : choisir un autre calque pour poser les dessins.`,
+      );
+      return false;
+    }
+    const at = (client && pointerAt(client)?.mm) || view.center;
+    const added = sideBySide(entries, at, view.width);
+    if (layerList.length > 0) for (const p of added) p.layer = activeLayer.id;
+    commit([...placements, ...added], new Set(added.map((p) => p.id)));
+    return true;
+  };
+
   const onDragOver = (event: DragEvent<HTMLDivElement>) => {
     if (!enabled) return;
     if (!event.dataTransfer.types.includes(DRAWING_DRAG_TYPE) && draggedDrawing() === null) return;
@@ -849,6 +875,7 @@ export function useComposition(options: Options): Composition {
       apply(rotate(placements, selection, deg - p.rotation, p.center));
     },
     place: (id) => placeDrawing(id),
+    placeNew: placeNewDrawings,
     moveToLayer: (id) => {
       const r = moveToLayer(current, selection, id);
       if (r !== current) commit(r.placements, undefined, r.layers);
