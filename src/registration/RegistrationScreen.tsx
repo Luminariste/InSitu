@@ -94,6 +94,9 @@ import {
   type Tone,
 } from "../ui";
 import "./registration.css";
+import { asString, keep as keepSetting, projectKey, recall } from "../ui/remember";
+
+const SELECTED_KEY = "insitu.projecteurChoisi.recalage";
 
 /** Échelle supposée de la façade de l'exemple du navigateur (mm par pixel). */
 const DEMO_FACADE_MM_PER_PIXEL = 4;
@@ -184,6 +187,9 @@ export function RegistrationScreen() {
   const [folder, setFolder] = useState<string | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [selectedProjector, setSelectedProjector] = useState<string | null>(null);
+  useEffect(() => {
+    if (folder && selectedProjector) keepSetting(projectKey(SELECTED_KEY, folder), selectedProjector);
+  }, [folder, selectedProjector]);
   const [photo, setPhoto] = useState<TileSource | null>(null);
   const [facade, setFacade] = useState<{ source: TileSource; placement: Placement } | null>(null);
   const [pairs, setPairs] = useState<RegistrationPair[]>([]);
@@ -277,6 +283,7 @@ export function RegistrationScreen() {
   const load = useCallback(
     (path: string) =>
       run("Ouverture du projet…", async () => {
+        const kept = recall(projectKey(SELECTED_KEY, path), asString, null);
         const opened = await openProject(path);
         setFolder(path);
         setProject(opened);
@@ -288,7 +295,9 @@ export function RegistrationScreen() {
           const view = await openFacadeView(path);
           setFacade({ source: view.source, placement: facadePlacement(view.sourceUnitsPerPixel, k) });
         }
+        // Le projecteur regardé la dernière fois dans ce projet (D15-v), sinon un recalé.
         const chosen =
+          opened.projectors.find((p) => p.id === kept && p.rectifiedPhoto) ??
           opened.projectors.find((p) => p.rectifiedPhoto && (p.registration?.length ?? 0) > 0) ??
           opened.projectors.find((p) => p.rectifiedPhoto) ??
           null;

@@ -158,6 +158,43 @@ bibliothèque » repasse sur « Tous les dessins ». Tout reste dans
 « Ce projet » et « Commune ».
 
 
+## 2026-11-14 — L'interface se souvient (demande de Benjamin)
+
+Demandes de Benjamin (14 novembre) : « mémorise aussi dans façade si les
+diapositives sont dépliées ou non. Et d'une manière générale, on mémorise
+l'interface » ; « onglet calque : il y a un ascenseur horizontal, pas
+pratique, qui masque les afficher/verrouiller ».
+
+**D15-v. Règle générale : l'état de l'interface est retenu**, au changement
+d'écran comme d'un lancement à l'autre, sur ce Mac (`localStorage`), jamais
+dans le projet ni l'export. Un seul outil : `src/ui/remember.ts` (`recall`,
+`keep`, `useRemembered`, `projectKey` pour ce qui dépend du projet). Tour de
+l'app fait à cette occasion ; s'ajoutent à ce qui l'était déjà (onglets des
+panneaux de droite, options d'affichage D15-t, diapositives masquées D15-u,
+fond de la bibliothèque, apparence, dernier projet) :
+- l'écran ouvert (Façade, Redressement… ; pas la démonstration) ;
+- les diapositives repliées de l'arborescence, par projet, en Façade et en
+  Diapositive séparément ; les dossiers repliés de l'onglet Dessins ;
+- le projecteur choisi, par projet et par écran (Redressement, Recalage,
+  Diapositive), et la photo brute ou redressée du Redressement ;
+- dans la Bibliothèque, la bibliothèque montrée (projet ou commune) et le
+  dossier ouvert de chacune ;
+- le zoom et le cadrage de la Façade, par projet (une échelle changée
+  depuis fait tout recadrer, comme D15-l).
+Pas retenus, volontairement : la sélection, une recherche tapée, les
+fenêtres ouvertes, ce qui est en cours (pose de points, geste), le zoom
+des écrans à une seule image (Redressement, Recalage, Diapositive, éditeurs
+de la bibliothèque), recadrés à chaque photo. Une valeur relue qui ne
+correspond plus à rien (projecteur ou dossier disparu) est ignorée.
+Ce que D15-t disait « pas retenu » (projecteur choisi, écran au lancement,
+zoom) l'est donc désormais.
+
+**D15-w. L'arborescence des diapositives ne déborde jamais du panneau.**
+Une colonne de grille `minmax(0, 1fr)` : un nom long est coupé par « … »,
+la note (« choisie à la main, à cheval ») prend au plus 40 % de la ligne,
+l'œil et le cadenas restent collés à droite (visibles au survol ou quand
+ils sont actifs, D-4.5-g). Plus de défilement horizontal.
+
 ## 2026-11-14 — Masquer une diapositive dans l'onglet Calques (demande de Benjamin)
 
 Demande de Benjamin (14 novembre) : « il faut pouvoir masquer une diapo dans

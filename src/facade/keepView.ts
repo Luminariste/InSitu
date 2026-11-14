@@ -18,3 +18,15 @@ export function viewToRestore(kept: KeptView | null, k: number | null): ViewStat
   if (kept.k !== k) return null;
   return kept.view;
 }
+
+/** Une vue enregistrée (D15-v), relue ; `undefined` si elle est abîmée. */
+export function parseKeptView(raw: unknown): KeptView | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const { view, k } = raw as { view?: Record<string, unknown>; k?: unknown };
+  if (!view || typeof view !== "object") return undefined;
+  const { centerX, centerY, zoom } = view;
+  const finite = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
+  if (!finite(centerX) || !finite(centerY) || !finite(zoom) || zoom <= 0) return undefined;
+  if (k !== null && !finite(k)) return undefined;
+  return { view: { centerX, centerY, zoom }, k: k as number | null };
+}

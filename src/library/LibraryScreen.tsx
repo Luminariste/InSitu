@@ -105,6 +105,7 @@ import {
   type MenuEntry,
 } from "../ui";
 import "./library.css";
+import { asString, keep, oneOf, projectKey, recall, useRemembered } from "../ui/remember";
 
 /** Type des données d'un glisser de vignettes vers un dossier (D-4.1-g). */
 const DRAG_TYPE = "application/x-insitu-dessins";
@@ -146,13 +147,16 @@ interface Shown extends LibraryEntry {
   url: string | null;
 }
 
+const FOLDER_KEY = "insitu.bibliotheque.dossier";
+
 export function LibraryScreen() {
   const engine = hasEngine();
   // Le projet ouvert, et la bibliothèque montrée : la sienne, ou la
   // bibliothèque commune (D-4.1-i), choisie dans les Réglages (⌘,).
   const [projectFolder, setProjectFolder] = useState<string | null>(null);
   const [projectName, setProjectName] = useState<string | null>(null);
-  const [view, setView] = useState<"projet" | "commune">("projet");
+  // Bibliothèque montrée (projet ou commune), retenue (D15-v).
+  const [view, setView] = useRemembered<"projet" | "commune">("insitu.bibliotheque.vue", oneOf(["projet", "commune"] as const), "projet");
   const settings = useAppSettings();
   const sharedRoot = engine ? (settings.sharedLibrary ?? null) : "démonstration";
   const commune = view === "commune" && sharedRoot !== null;
@@ -245,11 +249,20 @@ export function LibraryScreen() {
     }
   }, [engine]);
 
+  // `currentFolder` appartient à la bibliothèque `shownFolder` : on ne
+  // l'enregistre pas sous une autre pendant un changement de bibliothèque.
+  const shownFolder = useRef<string | null>(null);
+  useEffect(() => {
+    if (folder && shownFolder.current === folder) keep(projectKey(FOLDER_KEY, folder), currentFolder);
+  }, [folder, currentFolder]);
+
   // Changer de projet ou de bibliothèque montrée : on relit, rien n'est choisi.
   useEffect(() => {
     setSelected(null);
     setMarked(new Set());
-    setCurrentFolder(null);
+    // Le dossier ouvert la dernière fois dans cette bibliothèque (D15-v).
+    shownFolder.current = folder;
+    setCurrentFolder(folder ? recall(projectKey(FOLDER_KEY, folder), asString, null) : null);
     if (!engine) {
       setEntries(commune ? demoLibrary(36).map((e) => ({ ...e, id: `commune-${e.id}` })) : demoLibrary(200));
       return;

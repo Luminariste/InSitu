@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { keep, oneOf, recall } from "./ui/remember";
 import { FacadeScreen } from "./facade/FacadeScreen";
 import { LibraryScreen } from "./library/LibraryScreen";
 import { RectificationScreen } from "./rectification/RectificationScreen";
@@ -44,8 +45,17 @@ export const APP_MENU = { appearance: "apparence:", demo: "demonstration" } as c
 // démonstration de la visionneuse (provisoire, D13) sont dans le menu
 // Présentation du Mac ; dans le navigateur seul, sans barre de menus, un
 // menu Présentation les garde à droite de la barre (D15-s).
+const SCREEN_KEY = "insitu.ecran";
+
 export function App() {
-  const [screen, setScreen] = useState<Screen>("facade");
+  // L'écran ouvert, retenu d'un lancement à l'autre (D15-v) ; la démonstration ne l'est pas.
+  const [screen, setScreenState] = useState<Screen>(() =>
+    recall(SCREEN_KEY, oneOf(STEPS.map((s) => s.value)), "facade" as Screen),
+  );
+  const setScreen = (next: Screen) => {
+    setScreenState(next);
+    if (next !== "demo") keep(SCREEN_KEY, next);
+  };
   const [appearance, setAppearance] = useState<Appearance>(readAppearance);
   const [help, setHelp] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);

@@ -14,6 +14,7 @@ import { useIllustratorImport } from "../compose/IllustratorImport";
 import { LayersSection } from "../compose/LayersSection";
 import { PlacementBar } from "../compose/PlacementBar";
 import { SlidesSection } from "../compose/SlidesSection";
+import { keep, projectKey, recall } from "../ui/remember";
 import { slideTree } from "../compose/slideTree";
 import { useComposition } from "../compose/useComposition";
 import { MaskBar } from "../compose/MaskBar";
@@ -54,7 +55,7 @@ import {
 } from "../engine";
 import type { TileSource } from "../viewer";
 import { useExportPanel } from "./ExportPanel";
-import { viewToRestore, type KeptView } from "./keepView";
+import { parseKeptView, viewToRestore, type KeptView } from "./keepView";
 import { contextTab, readFacadeTab, saveFacadeTab, type FacadeTab, type TabContext } from "./inspectorTabs";
 import { frescoPlacement } from "./exportLogic";
 import { rotationLabel } from "./rotation";
@@ -125,6 +126,8 @@ interface PendingPlan {
 /** Étape de la pose des points de mise à l'échelle. */
 type Picking = "off" | "a" | "b";
 
+const VIEW_KEY = "insitu.vue.facade";
+
 export function FacadeScreen() {
   const engine = hasEngine();
   const viewer = useRef<ViewerHandle>(null);
@@ -189,6 +192,8 @@ export function FacadeScreen() {
   const facade = project?.facade ?? null;
   const scale = engine ? (facade?.scale ?? null) : browserScale;
   const k = mmPerSourceUnit(scale);
+  const kRef = useRef<number | null>(null);
+  kRef.current = k;
 
   const run = useCallback(async (label: string, task: () => Promise<void>) => {
     setBusy(label);
@@ -215,11 +220,27 @@ export function FacadeScreen() {
     }
   }, []);
 
+  // Zoom et cadrage : gardés à la relecture (D15-l), et retenus par projet
+  // au changement d'écran comme d'un lancement à l'autre (D15-v).
+  const keptView = useRef<KeptView | null>(null);
+  const lastView = useRef<{ folder: string; kept: KeptView } | null>(null);
+  const saveLastView = useCallback(() => {
+    const last = lastView.current;
+    if (last) keep(projectKey(VIEW_KEY, last.folder), last.kept);
+  }, []);
+  useEffect(() => saveLastView, [saveLastView]);
+
   // Ouvre un projet et prépare l'affichage de sa façade.
   const load = useCallback(
     (path: string, opened?: Project) =>
       run("Ouverture du projet…", async () => {
         const next = opened ?? (await openProject(path));
+        if (lastView.current?.folder !== path) {
+          // Autre projet : on garde la vue de celui qu'on quitte, on reprend la sienne.
+          saveLastView();
+          lastView.current = null;
+          keptView.current ??= recall(projectKey(VIEW_KEY, path), parseKeptView, null);
+        }
         setFolder(path);
         setProject(next);
         remember(path);
@@ -241,11 +262,10 @@ export function FacadeScreen() {
         setChosenAlert(null);
         void loadOverview(path);
       }),
-    [run, loadOverview],
+    [run, loadOverview, saveLastView],
   );
 
   // Relit le projet (après ⌘Z, ⇧⌘Z, ⌘R) en gardant le zoom et l'endroit vus (D15-l).
-  const keptView = useRef<KeptView | null>(null);
   const reload = () => {
     if (!folder) return;
     const scene = viewer.current?.scene();
@@ -932,6 +952,7 @@ export function FacadeScreen() {
               blocked={composeBlocked}
               hiddenSlides={hiddenSlides}
               onToggleSlide={toggleSlide}
+              memory={projectKey("insitu.diapositivesRepliees.facade", folder)}
             />
             <LayersSection
               layers={composition.composeLayers}
@@ -1047,7 +1068,13 @@ export function FacadeScreen() {
         onDragOver={composition.onDragOver}
         onDrop={composition.onDrop}
       >
-        <Viewer ref={viewer} layers={viewerLayers} />
+        <Viewer
+          ref={viewer}
+          layers={viewerLayers}
+          onStatus={(status) => {
+            if (folder && view) lastView.current = { folder, kept: { view: status.view, k: kRef.current } };
+          }}
+        />
         {maskTool.overlay}
         {composition.turn && (
           <div className="compose-turn" style={{ left: composition.turn.x + 18, top: composition.turn.y + 18 }}>
