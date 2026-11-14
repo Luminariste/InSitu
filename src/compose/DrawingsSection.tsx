@@ -100,7 +100,7 @@ export function DrawingsSection({ drawings, blocked, onPlace }: Props) {
   return (
     <Section title="Dessins">
       {drawings.length === 0 ? (
-        <p className="ui-list-empty">Importer des dessins dans l'étape Bibliothèque (⌘5).</p>
+        <p className="ui-list-empty">Glisser des dessins depuis le Finder sur la fenêtre, ou les importer dans l'étape Bibliothèque (⌘5).</p>
       ) : blocked ? (
         <p className="ui-list-empty">{blocked}</p>
       ) : (

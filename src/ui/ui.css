@@ -788,6 +788,30 @@ input[type="range"] {
   margin-top: var(--ui-space-2);
 }
 
+.ui-drop-veil {
+  position: absolute;
+  inset: var(--ui-space-3);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--ui-accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ui-accent) 12%, transparent);
+  pointer-events: none;
+}
+
+.ui-drop-veil-label {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+  padding: 8px 14px;
+  color: var(--ui-text);
+  font-weight: 500;
+  background: var(--ui-surface-raised);
+  border-radius: 10px;
+}
+
 .ui-busy {
   position: absolute;
   top: var(--ui-space-4);
