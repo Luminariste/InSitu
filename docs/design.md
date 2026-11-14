@@ -222,6 +222,7 @@ Un raccourci ajouté à la barre de menus doit donc exister dans un
 | Échap | Annuler le geste en cours, fermer un menu ou un dialogue |
 | ↩ | Valider un dialogue |
 | ⌘A / ⇧⌘A | Façade : choisir tous les dessins posés / aucun |
+| ⌘-clic (répété) | Façade et Diapositive : choisir le dessin du dessous, puis encore en dessous (comme Illustrator) |
 | ⌘C ⌘X ⌘V | Façade : copier, couper, coller au centre de la vue |
 | ⌘F / ⌘B | Façade : coller devant / derrière, à la même place |
 | ⌘D | Façade : répéter le dernier geste (dupliquer, avec ⌥-glisser) |

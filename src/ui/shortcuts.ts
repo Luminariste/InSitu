@@ -27,6 +27,7 @@ const KEY_NAMES: Record<string, string> = {
   arrowright: "→",
   space: "Espace",
   tab: "⇥",
+  clic: "-clic",
 };
 
 export function parseShortcut(spec: ShortcutSpec): Parsed {
@@ -46,7 +47,7 @@ export function formatShortcut(spec: ShortcutSpec, mac = true): string {
   const p = parseShortcut(spec);
   const key = KEY_NAMES[p.key] ?? p.key.toUpperCase();
   if (!mac) {
-    return [p.ctrl || p.mod ? "Ctrl" : "", p.alt ? "Alt" : "", p.shift ? "Maj" : "", key].filter(Boolean).join("+");
+    return [p.ctrl || p.mod ? "Ctrl" : "", p.alt ? "Alt" : "", p.shift ? "Maj" : "", key].filter(Boolean).join("+").replace("+-", "-");
   }
   return `${p.ctrl ? "⌃" : ""}${p.alt ? "⌥" : ""}${p.shift ? "⇧" : ""}${p.mod ? "⌘" : ""}${key}`;
 }
@@ -96,6 +97,11 @@ export function isMac(): boolean {
   return typeof navigator === "undefined" || /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 }
 
+/** ⌘ enfoncée pendant un clic (⌃ hors Mac, pour l'interface seule dans un navigateur). */
+export function commandDown(event: { metaKey: boolean; ctrlKey: boolean }, mac = isMac()): boolean {
+  return mac ? event.metaKey : event.ctrlKey;
+}
+
 /** Les raccourcis de l'app, par rubrique, tels qu'affichés dans l'aide. */
 export const APP_SHORTCUTS: { group: string; items: { keys: ShortcutSpec; label: string }[] }[] = [
   {
@@ -131,6 +137,7 @@ export const APP_SHORTCUTS: { group: string; items: { keys: ShortcutSpec; label:
   {
     group: "Dessins posés (Façade)",
     items: [
+      { keys: "mod+clic", label: "Choisir le dessin du dessous (clic répété : encore en dessous ; aussi en Diapositive)" },
       { keys: "mod+a", label: "Choisir tous les dessins posés" },
       { keys: "mod+shift+a", label: "Ne rien choisir" },
       { keys: "mod+c", label: "Copier" },

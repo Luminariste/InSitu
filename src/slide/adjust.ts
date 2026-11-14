@@ -71,12 +71,58 @@ export function drawingAt(
   drawings: SlideDrawing[],
   adjustmentOf: (placement: string) => Deformation | null,
   pt: Point,
+  silhouetteOf?: (drawing: string) => [number, number][][] | null,
 ): SlideDrawing | null {
+  return drawingsAt(drawings, adjustmentOf, pt, silhouetteOf)[0] ?? null;
+}
+
+/** Point `(u, v)` du dessin (fractions) dans la diapositive : interpolé dans sa maille, retouche comprise. */
+export function slidePoint(d: SlideDrawing, adjustment: Deformation | null, u: number, v: number): Point {
+  const n = d.divisions;
+  const clamp = (x: number) => Math.min(Math.max(x, 0), 1);
+  const fx = clamp(u) * n;
+  const fy = clamp(v) * n;
+  const i = Math.min(Math.floor(fx), n - 1);
+  const j = Math.min(Math.floor(fy), n - 1);
+  const s = fx - i;
+  const t = fy - j;
+  const at = (a: number, b: number) => d.points[b * (n + 1) + a];
+  const p00 = at(i, j);
+  const p10 = at(i + 1, j);
+  const p01 = at(i, j + 1);
+  const p11 = at(i + 1, j + 1);
+  const p = {
+    x: (1 - s) * (1 - t) * p00.x + s * (1 - t) * p10.x + (1 - s) * t * p01.x + s * t * p11.x,
+    y: (1 - s) * (1 - t) * p00.y + s * (1 - t) * p10.y + (1 - s) * t * p01.y + s * t * p11.y,
+  };
+  return adjustment ? deformPoint(adjustment, p) : p;
+}
+
+/**
+ * Tous les dessins sous le point (mm de diapositive), du plus en avant au
+ * plus en arrière. Comme sur la façade, seul ce qu'on voit d'un dessin (sa
+ * silhouette, quand elle est connue) prend le clic ; sinon, son contour.
+ */
+export function drawingsAt(
+  drawings: SlideDrawing[],
+  adjustmentOf: (placement: string) => Deformation | null,
+  pt: Point,
+  silhouetteOf: (drawing: string) => [number, number][][] | null = () => null,
+): SlideDrawing[] {
+  const out: SlideDrawing[] = [];
   for (let k = drawings.length - 1; k >= 0; k--) {
     const d = drawings[k];
-    if (inside(adjustedOutline(d, adjustmentOf(d.placement)), pt)) return d;
+    const adjustment = adjustmentOf(d.placement);
+    if (!inside(adjustedOutline(d, adjustment), pt)) continue;
+    const silhouette = silhouetteOf(d.drawing);
+    if (
+      !silhouette ||
+      silhouette.length === 0 ||
+      silhouette.some((polygon) => inside(polygon.map(([u, v]) => slidePoint(d, adjustment, u, v)), pt))
+    )
+      out.push(d);
   }
-  return null;
+  return out;
 }
 
 /** Une retouche en cours de geste. */

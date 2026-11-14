@@ -259,6 +259,7 @@ export function SlideScreen() {
     viewer,
     stage,
     onError: setError,
+    silhouetteOf: composition.silhouetteOf,
   });
 
   // Tuiles de la photo redressée, gardées pour basculer sans attendre.

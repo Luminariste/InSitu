@@ -4,6 +4,34 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-14 — Choisir les dessins superposés (demande de Benjamin)
+
+Demande de Benjamin (14 novembre) : « j'ai plein de dessins superposés, et
+c'est pas facile de sélectionner les dessins d'en dessous ». Il a retenu deux
+pistes : le clic sur le trait seulement, et ⌘-clic répété.
+
+**D-4.2-t. Un clic ne prend que ce qu'on voit d'un dessin ; ⌘-clic prend le
+dessin du dessous.** En Façade comme en Diapositive :
+- « Ce qu'on voit » est la **silhouette** du dessin (D-4.7, retouchée sinon
+  détectée), et non ses pixels blancs : un trait fin serait trop dur à
+  attraper, et la silhouette est exactement ce qui cache le dessous à
+  l'écran et à la gravure. Le vide autour de la silhouette laisse passer le
+  clic. Tant que la silhouette n'est pas arrivée du moteur, ou si elle est
+  vide, c'est le cadre entier, comme avant.
+- **⌘-clic** : le dessin juste en dessous du dessin choisi parmi ceux sous
+  la souris ; répété, il descend encore, puis revient au plus en avant. Si
+  rien de choisi n'est sous la souris, il prend le plus en avant. Un groupe
+  compte pour un. ⌘-clic était libre sur la toile (⇧-clic ajoute à la
+  sélection ; ⌘ ne servait qu'à la molette pour zoomer, qui ne change pas) ;
+  dans les listes (Bibliothèque, Calques), ⌘-clic ajoute toujours à la
+  sélection, comme dans le Finder. Hors Mac (interface seule dans un
+  navigateur), c'est Ctrl-clic.
+- La vue Diapositive demande maintenant les silhouettes au moteur (elles
+  n'y étaient pas chargées) ; le point `(u, v)` d'une silhouette y est placé
+  par la maille du dessin, retouche comprise (`slidePoint`).
+- Le cadre de sélection tracé à la souris prend toujours les dessins par leur
+  rectangle : le changer n'était pas demandé.
+
 ## 2026-11-14 — Bibliothèque : recherche par dossier et fichier (demande de Benjamin)
 
 Demande de Benjamin (14 novembre) : « bibliothèque : recherche par dossier
@@ -22,6 +50,7 @@ d'autres dossiers ont des résultats, un bouton « Chercher dans toute la
 bibliothèque » repasse sur « Tous les dessins ». Tout reste dans
 `src/library/logic.ts` (`searchFolders`), testé ; même chose dans les vues
 « Ce projet » et « Commune ».
+
 
 ## 2026-11-14 — Options d'affichage retenues (demande de Benjamin)
 
