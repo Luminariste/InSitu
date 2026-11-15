@@ -19,6 +19,7 @@ Le code qui lit et écrit ce format est dans
   fresque/             La fresque importée (image, ou PDF / .ai / SVG et son aperçu)
   bibliotheque/        Les dessins, rangés comme dans les dossiers importés
   projet.v<N>.json     Copie de l'ancien fichier après une mise à niveau
+  copies-en-conflit/   Copies en conflit de Dropbox déjà réunies au projet
 ```
 
 Quand on importe un fichier, l'app en met une **copie** dans le bon
@@ -458,9 +459,32 @@ quelques secondes de retard, et bien plus si un Mac est hors ligne. Deux
 personnes qui ouvrent le projet au même moment, ou sans réseau, peuvent
 l'avoir toutes les deux. Dans ce cas Dropbox garde les deux versions de
 `projet.json` (l'une sous le nom « copie en conflit de… ») : rien n'est
-perdu, mais il faut choisir à la main laquelle garder. La règle des 15
+perdu, et l'app propose de réunir les deux (voir ci-dessous). La règle des 15
 minutes suppose aussi que les deux Mac sont à l'heure, ce qui est le cas avec
 le réglage automatique de macOS.
+
+## Copies en conflit de Dropbox
+
+Quand les deux Mac ont modifié `projet.json` avant que Dropbox ait fait
+passer la version de l'autre, Dropbox garde l'une sous le nom `projet.json` et
+renomme l'autre à côté : `projet (Copie en conflit de Benjamin Nesme
+2026-11-15).json`. L'app cherche ces copies à l'ouverture du projet, toutes
+les deux minutes et au retour dans l'app, et ouvre la fenêtre « Deux versions
+du projet » :
+
+- les projecteurs, dessins de la bibliothèque, dessins posés, calques et
+  groupes de plans sont comparés un par un, par leur identifiant ; les autres
+  rubriques (façade, fresque, réglages d'export…) en bloc ;
+- ce qui n'existe que d'un côté est **gardé d'office** (un élément effacé
+  d'un seul côté revient donc) ; un dessin importé des deux côtés depuis le
+  même fichier ne compte qu'une fois ;
+- pour ce qui a changé des deux côtés, on choisit la version à garder ;
+  l'historique d'annulation du Mac suggère la plus récente ;
+- le résultat est enregistré (⌘Z l'annule) et la copie est rangée dans
+  `copies-en-conflit/`.
+
+Les autres fichiers en double (une photo redressée refaite des deux côtés,
+par exemple) sont seulement signalés : à regarder dans le Finder.
 
 ## En ligne de commande
 
@@ -468,6 +492,8 @@ le réglage automatique de macOS.
 insitu project new Épinal.insitu [--name "Épinal"]   # crée un projet vide
 insitu project info Épinal.insitu                    # résumé en JSON, verrou compris
 insitu project validate Épinal.insitu                # contrôle le projet
+insitu project conflicts Épinal.insitu               # copies en conflit, et ce qui diffère
+insitu project merge Épinal.insitu "projet (Copie en conflit de …).json" [--copy <clé>]… [--current <clé>]…
 ```
 
 `validate` vérifie que `projet.json` est lisible, que le modèle est cohérent

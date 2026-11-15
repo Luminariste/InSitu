@@ -1818,3 +1818,90 @@ export async function installUpdate(onProgress: (progress: UpdateProgress) => vo
     stop();
   }
 }
+
+// --- Travail à deux : verrou et copies en conflit de Dropbox ------------------------
+
+/** Contenu de `verrou.json` : qui a le projet ouvert. */
+export interface LockInfo {
+  sessionId: string;
+  machine: string;
+  user: string;
+  openedAt: string;
+  refreshedAt: string;
+  appVersion: string;
+}
+
+export type LockAttempt =
+  | { state: "taken"; sessionId: string; replaced: LockInfo | null }
+  | { state: "busy"; holder: LockInfo };
+
+export type LockCheck = { state: "held" } | { state: "lost"; holder: LockInfo };
+
+/** Prend le verrou du projet ; `force` écarte celui de quelqu'un d'autre. */
+export async function takeLock(folder: string, force: boolean): Promise<LockAttempt> {
+  requireEngine();
+  return invoke<LockAttempt>("lock_take", { folder, force });
+}
+
+/** Signe de vie du verrou (toutes les deux minutes). */
+export async function keepLock(folder: string, session: string): Promise<LockCheck> {
+  requireEngine();
+  return invoke<LockCheck>("lock_keep", { folder, session });
+}
+
+/** Rend le verrou. */
+export async function giveBackLock(folder: string, session: string): Promise<void> {
+  requireEngine();
+  return invoke<void>("lock_give_back", { folder, session });
+}
+
+export interface ConflictCopy {
+  file: string;
+  modified: string | null;
+}
+
+export interface ConflictScan {
+  projects: ConflictCopy[];
+  others: string[];
+}
+
+export type ConflictSide = "current" | "copy";
+
+export interface ConflictDifference {
+  key: string;
+  section: string;
+  label: string;
+  detail: string;
+  suggested: ConflictSide | null;
+}
+
+export interface SectionCount {
+  section: string;
+  count: number;
+}
+
+export interface ConflictReport {
+  copy: ConflictCopy;
+  currentModified: string | null;
+  onlyCurrent: SectionCount[];
+  onlyCopy: SectionCount[];
+  differences: ConflictDifference[];
+}
+
+/** Copies en conflit laissées par Dropbox dans le projet. */
+export async function findConflicts(folder: string): Promise<ConflictScan> {
+  requireEngine();
+  return invoke<ConflictScan>("conflicts_find", { folder });
+}
+
+/** Compare la version ouverte et une copie en conflit. */
+export async function compareConflict(folder: string, copy: string): Promise<ConflictReport> {
+  requireEngine();
+  return invoke<ConflictReport>("conflict_compare", { folder, copy });
+}
+
+/** Réunit une copie en conflit au projet ; `choices` : clé → version gardée. */
+export async function resolveConflict(folder: string, copy: string, choices: Record<string, ConflictSide>): Promise<Project> {
+  requireEngine();
+  return invoke<Project>("conflict_resolve", { folder, copy, choices });
+}

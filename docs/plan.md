@@ -16,7 +16,7 @@ tableau à jour.
 | 1.1 Squelette du dépôt | Faite, validée par l'essai de Benjamin sur Mac |
 | 1.2 Fabrication automatique | Faite, validée : les versions 0.1.0 et 0.1.1 s'installent et s'ouvrent |
 | 1.3 Jeu d'essai | Faite |
-| 1.4 Modèle de projet | Faite ; le verrou n'a pas encore été essayé entre deux Mac par Dropbox |
+| 1.4 Modèle de projet | Faite ; verrou branché dans l'app et copies en conflit de Dropbox réunies en 0.1.90 (D-1.4-j, D-1.4-k), **non validé** : essai à deux Mac à faire |
 | 1.5 Visionneuse haute résolution | Fusionnée, **non validée** : voir ci-dessous |
 | 2.1 Étude de détection | Faite ; ses propositions sont intégrées à ce plan |
 | 2.2 Nouvelle mire | Fusionnée ; PDF dans `docs/mire/`. **Non validée** : il reste à l'imprimer, la mesurer à 280 mm et relire les 16 repères sur une photo |

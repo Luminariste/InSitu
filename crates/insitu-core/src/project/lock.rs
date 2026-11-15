@@ -239,6 +239,136 @@ impl Drop for ProjectLock {
     }
 }
 
+// --- Verrou tenu par l'app, sans valeur gardée en mémoire -------------------
+//
+// L'interface relit le projet à chaque commande : elle ne garde pas de
+// [`ProjectLock`] entre deux appels. Elle garde seulement l'identifiant de
+// son ouverture (`sessionId`) et appelle ces trois fonctions : prendre à
+// l'ouverture, donner signe de vie toutes les deux minutes, rendre à la
+// fermeture.
+
+/// Ce que l'interface apprend en demandant le verrou.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase", tag = "state")]
+pub enum LockAttempt {
+    /// Verrou pris. `session_id` est à rappeler pour le rafraîchir ou le
+    /// rendre ; `replaced` est la personne dont le verrou a été repris
+    /// (périmé, ou écarté de force), s'il y en avait une autre.
+    #[serde(rename_all = "camelCase")]
+    Taken {
+        session_id: String,
+        replaced: Option<LockInfo>,
+    },
+    /// Quelqu'un d'autre a le projet ouvert (verrou récent) ; rien n'est
+    /// écrit.
+    Busy { holder: LockInfo },
+}
+
+/// Où en est le verrou d'une ouverture, à chaque signe de vie.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase", tag = "state")]
+pub enum LockCheck {
+    /// Toujours le nôtre ; il vient d'être rafraîchi.
+    Held,
+    /// Quelqu'un d'autre l'a pris entre-temps.
+    Lost { holder: LockInfo },
+}
+
+/// Prend le verrou et le laisse en place pour la durée de l'ouverture. Si
+/// quelqu'un d'autre tient un verrou récent et que `force` est faux, rend
+/// [`LockAttempt::Busy`].
+pub fn take_lock(
+    dir: &ProjectDir,
+    identity: &LockIdentity,
+    now: Timestamp,
+    force: bool,
+) -> Result<LockAttempt, ProjectError> {
+    remove_lock_conflict_copies(dir);
+    let mode = if force {
+        LockMode::Force
+    } else {
+        LockMode::Normal
+    };
+    match ProjectLock::acquire_at(dir, identity, now, mode) {
+        Ok((mut lock, outcome)) => {
+            lock.released = true; // rendu plus tard par `give_back_lock`
+            let replaced = match outcome {
+                LockOutcome::ReclaimedStale(holder) | LockOutcome::Forced(holder) => Some(holder),
+                LockOutcome::Acquired | LockOutcome::ReclaimedOwn(_) => None,
+            };
+            Ok(LockAttempt::Taken {
+                session_id: lock.info.session_id.clone(),
+                replaced,
+            })
+        }
+        Err(ProjectError::Locked { holder }) => Ok(LockAttempt::Busy { holder }),
+        Err(e) => Err(e),
+    }
+}
+
+/// Signe de vie de l'ouverture `session_id`. Si le fichier a disparu (effacé
+/// par Dropbox, ou par l'autre Mac après une prise de force puis sa
+/// fermeture), le verrou est réécrit à notre nom.
+pub fn keep_lock(
+    dir: &ProjectDir,
+    identity: &LockIdentity,
+    session_id: &str,
+    now: Timestamp,
+) -> Result<LockCheck, ProjectError> {
+    remove_lock_conflict_copies(dir);
+    let file = lock_file(dir);
+    let opened_at = match read_lock_file(&file)? {
+        Some(holder) if holder.session_id != session_id => {
+            return Ok(LockCheck::Lost { holder });
+        }
+        Some(holder) => holder.opened_at,
+        None => now,
+    };
+    let lock = ProjectLock {
+        file,
+        info: LockInfo {
+            session_id: session_id.to_string(),
+            machine: identity.machine.clone(),
+            user: identity.user.clone(),
+            opened_at,
+            refreshed_at: now,
+            app_version: env!("CARGO_PKG_VERSION").to_string(),
+        },
+        released: true,
+    };
+    lock.write()?;
+    Ok(LockCheck::Held)
+}
+
+/// Rend le verrou de l'ouverture `session_id`, s'il est toujours le nôtre.
+pub fn give_back_lock(dir: &ProjectDir, session_id: &str) -> Result<(), ProjectError> {
+    let file = lock_file(dir);
+    if let Some(holder) = read_lock_file(&file)? {
+        if holder.session_id == session_id {
+            match fs::remove_file(&file) {
+                Ok(()) => {}
+                Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+                Err(e) => return Err(ProjectError::io("d'effacer", &file)(e)),
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Dropbox peut aussi garder deux versions du verrou (« verrou (Copie en
+/// conflit…).json ») : elles ne disent rien d'utile, on les efface.
+fn remove_lock_conflict_copies(dir: &ProjectDir) {
+    let Ok(entries) = fs::read_dir(dir.root()) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name.starts_with("verrou (") && super::conflict::is_conflict_copy_name(&name) {
+            let _ = fs::remove_file(entry.path());
+        }
+    }
+}
+
 fn lock_file(dir: &ProjectDir) -> PathBuf {
     dir.root().join(LOCK_FILE)
 }
@@ -478,6 +608,73 @@ mod tests {
         let (_, outcome) =
             ProjectLock::acquire_at(&dir, &marc(), later, LockMode::Normal).expect("repris");
         assert!(matches!(outcome, LockOutcome::ReclaimedStale(_)));
+    }
+
+    fn taken(attempt: Result<LockAttempt, ProjectError>) -> (String, Option<LockInfo>) {
+        match attempt.expect("lecture") {
+            LockAttempt::Taken {
+                session_id,
+                replaced,
+            } => (session_id, replaced),
+            LockAttempt::Busy { holder } => panic!("verrou tenu par {}", holder.user),
+        }
+    }
+
+    #[test]
+    fn the_app_takes_keeps_and_gives_back_its_lock_between_calls() {
+        let temp = TempDir::new("verrou-app");
+        let dir = new_project(&temp);
+        let (session, replaced) = taken(take_lock(&dir, &benjamin(), at(0), false));
+        assert_eq!(replaced, None);
+        // Le verrou reste en place : Marc est averti.
+        let busy = take_lock(&dir, &marc(), at(60), false).expect("lecture");
+        assert!(matches!(busy, LockAttempt::Busy { ref holder } if holder.user == "benjamin"));
+        // Signe de vie : toujours le nôtre, l'heure avance.
+        assert_eq!(
+            keep_lock(&dir, &benjamin(), &session, at(120)).expect("signe"),
+            LockCheck::Held
+        );
+        let info = read_lock(&dir).expect("lecture").expect("verrou");
+        assert_eq!(info.refreshed_at, at(120));
+        assert_eq!(info.opened_at, at(0));
+        // Rendu : le projet est libre.
+        give_back_lock(&dir, &session).expect("rendu");
+        assert_eq!(read_lock(&dir).expect("lecture"), None);
+    }
+
+    #[test]
+    fn a_lock_taken_by_force_is_reported_as_lost_to_the_first_holder() {
+        let temp = TempDir::new("verrou-app-force");
+        let dir = new_project(&temp);
+        let (first, _) = taken(take_lock(&dir, &marc(), at(0), false));
+        let (second, replaced) = taken(take_lock(&dir, &benjamin(), at(30), true));
+        assert_eq!(replaced.as_ref().map(|h| h.user.as_str()), Some("marc"));
+        let check = keep_lock(&dir, &marc(), &first, at(120)).expect("signe");
+        assert!(matches!(check, LockCheck::Lost { ref holder } if holder.user == "benjamin"));
+        // Marc rend « son » verrou en fermant : celui de Benjamin reste.
+        give_back_lock(&dir, &first).expect("rendu");
+        assert_eq!(
+            read_lock(&dir).expect("l").map(|h| h.session_id),
+            Some(second)
+        );
+    }
+
+    #[test]
+    fn a_vanished_lock_is_written_again_and_lock_conflict_copies_are_removed() {
+        let temp = TempDir::new("verrou-app-disparu");
+        let dir = new_project(&temp);
+        let (session, _) = taken(take_lock(&dir, &benjamin(), at(0), false));
+        fs::remove_file(dir.root().join(LOCK_FILE)).expect("effacé");
+        let copy = dir
+            .root()
+            .join("verrou (Copie en conflit de Marc 2026-11-15).json");
+        fs::write(&copy, "{}").expect("copie");
+        assert_eq!(
+            keep_lock(&dir, &benjamin(), &session, at(120)).expect("signe"),
+            LockCheck::Held
+        );
+        assert!(dir.root().join(LOCK_FILE).is_file());
+        assert!(!copy.exists());
     }
 
     #[test]

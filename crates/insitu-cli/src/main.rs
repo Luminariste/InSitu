@@ -9,6 +9,9 @@
 //!   (format du fichier : `insitu geometry --help`) ;
 //! - `insitu project new <dossier.insitu> [--name <nom>]` : crée un projet ;
 //! - `insitu project info <dossier.insitu>` : résumé d'un projet, en JSON ;
+//! - `insitu project conflicts <dossier.insitu>` : copies en conflit de
+//!   Dropbox et ce qui les sépare du projet ; `insitu project merge
+//!   <dossier.insitu> <copie>` les réunit ;
 //! - `insitu project validate <dossier.insitu>` : contrôle le JSON et la
 //!   présence des fichiers référencés ;
 //! - `insitu library import|list|thumbnail …` : bibliothèque de dessins
@@ -329,6 +332,11 @@ fn run_project(args: &[&str]) -> Result<ExitCode, Failure> {
         }
         ["info", folder] => project_info(folder),
         ["validate", folder] => project_validate(folder),
+        ["conflicts", folder, rest @ ..] => project_conflicts(folder, rest),
+        ["merge", folder, copy, rest @ ..] => project_merge(folder, copy, rest),
+        ["conflicts" | "merge", ..] => Err(Failure::Usage(
+            "Usage : insitu project conflicts <dossier.insitu> [--history <dossier>]\n        insitu project merge <dossier.insitu> <copie en conflit> [--history <dossier>] [--copy <clé>]… [--current <clé>]…".to_string(),
+        )),
         [verb @ ("undo" | "redo" | "history"), folder, "--history", root] => {
             project_history(verb, folder, root)
         }
@@ -370,6 +378,72 @@ fn project_history(verb: &str, folder: &str, root: &str) -> Result<ExitCode, Fai
         }
     };
     println!("{text}");
+    Ok(ExitCode::SUCCESS)
+}
+
+/// Ouvre le projet, avec l'historique d'annulation si `--history` est donné.
+fn open_with_history(folder: &str, rest: &[&str]) -> Result<(ProjectDir, Vec<String>), Failure> {
+    let mut dir = ProjectDir::open(folder)?;
+    let mut others = Vec::new();
+    let mut args = rest.iter();
+    while let Some(arg) = args.next() {
+        if *arg == "--history" {
+            let root = args
+                .next()
+                .ok_or_else(|| Failure::Usage("--history demande un dossier".to_string()))?;
+            dir = dir.with_history(root);
+        } else {
+            others.push(arg.to_string());
+        }
+    }
+    Ok((dir, others))
+}
+
+/// Copies en conflit de Dropbox : la liste, et pour chaque copie de
+/// `projet.json` ce qui la sépare de la version actuelle.
+fn project_conflicts(folder: &str, rest: &[&str]) -> Result<ExitCode, Failure> {
+    use insitu_core::project::conflict;
+    let (dir, extra) = open_with_history(folder, rest)?;
+    if let Some(arg) = extra.first() {
+        return Err(Failure::Usage(format!("Option inconnue : {arg}")));
+    }
+    let scan = conflict::find_conflicts(&dir)?;
+    let reports = scan
+        .projects
+        .iter()
+        .map(|copy| conflict::compare(&dir, &copy.file))
+        .collect::<Result<Vec<_>, _>>()?;
+    print_json(&json!({ "scan": scan, "reports": reports }))?;
+    Ok(ExitCode::SUCCESS)
+}
+
+/// Réunit une copie en conflit au projet. `--copy <clé>` ou `--current <clé>`
+/// choisit la version d'un élément changé des deux côtés (clés données par
+/// `insitu project conflicts`).
+fn project_merge(folder: &str, copy: &str, rest: &[&str]) -> Result<ExitCode, Failure> {
+    use insitu_core::project::conflict::{self, Side};
+    let (dir, extra) = open_with_history(folder, rest)?;
+    let mut choices = std::collections::BTreeMap::new();
+    let mut args = extra.iter();
+    while let Some(arg) = args.next() {
+        let side = match arg.as_str() {
+            "--copy" => Side::Copy,
+            "--current" => Side::Current,
+            other => return Err(Failure::Usage(format!("Option inconnue : {other}"))),
+        };
+        let key = args
+            .next()
+            .ok_or_else(|| Failure::Usage(format!("{arg} demande une clé")))?;
+        choices.insert(key.clone(), side);
+    }
+    let project = conflict::resolve(&dir, copy, &choices)?;
+    println!(
+        "Réuni : {} dessins posés, {} dessins dans la bibliothèque, {} projecteurs. Copie rangée dans {}/.",
+        project.placements.len(),
+        project.library.len(),
+        project.projectors.len(),
+        conflict::RESOLVED_DIR
+    );
     Ok(ExitCode::SUCCESS)
 }
 

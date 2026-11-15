@@ -156,6 +156,27 @@ pub(crate) fn describe(before: &str, after: &str) -> String {
     }
 }
 
+/// Les versions passées du projet `project_id` gardées par l'historique de
+/// ce Mac, de la plus ancienne à la plus récente (pour réunir une copie en
+/// conflit, voir [`super::conflict`]). Au plus les 200 plus anciennes.
+pub(crate) fn snapshots(root: &Path, project_id: &str) -> impl Iterator<Item = Value> {
+    let safe: String = project_id
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .collect();
+    let dir = (!safe.is_empty()).then(|| root.join(safe));
+    let entries = dir
+        .as_deref()
+        .map(read_stacks)
+        .map(|s| s.undo)
+        .unwrap_or_default();
+    entries.into_iter().take(200).filter_map(move |entry| {
+        let path = dir.as_ref()?.join(&entry.snapshot);
+        let text = fs::read_to_string(path).ok()?;
+        serde_json::from_str(&text).ok()
+    })
+}
+
 /// Note un enregistrement : `before` est le `projet.json` qu'il remplace.
 /// Une nouvelle action efface ce qu'on pouvait rétablir.
 pub(crate) fn record(root: &Path, before: &str, after: &str) -> Result<(), ProjectError> {

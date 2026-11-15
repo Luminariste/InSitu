@@ -10,6 +10,7 @@ import { SettingsDialog } from "./settings/SettingsDialog";
 import { CHECK_UPDATES_MENU, UpdateCheck } from "./update/UpdateDialog";
 import { hasEngine, listenMenu } from "./engine";
 import { listenProject, type OpenProject } from "./project/current";
+import { ProjectPresence } from "./project/ProjectPresence";
 import {
   APPEARANCES,
   APP_SHORTCUTS,
@@ -160,6 +161,7 @@ export function App() {
         <SettingsDialog appearance={appearance} onAppearance={setAppearance} onClose={() => setSettingsOpen(false)} />
       )}
       <UpdateCheck request={updateRequest} />
+      <ProjectPresence folder={openProject.folder} />
     </div>
   );
 }
