@@ -116,6 +116,36 @@ redressée **avant le miroir** de la diapositive (comme le recalage) ;
 - En ligne de commande : `insitu projector mask <projet> <projecteur>
   <masque.json> | --none`.
 
+## 2026-11-15 — Mire version 2 : détection sans aide, dans le bon sens (demande de Benjamin)
+
+**D-2.4b-a. La mire version 2 passe par la même amorce que l'ancienne,
+avec deux corrections.** Benjamin (14 et 15 novembre 2026) : la nouvelle
+mire imprimée n'est jamais détectée seule (il doit poser les quatre coins),
+et la photo redressée sort tournée d'un quart de tour. Sur sa photo K
+(`jeu-essai/trevarez/references/photos-brutes/k-brut.jpg`), deux causes :
+1. La croix centrale était cherchée en sommant le relief sombre entre 66 et
+   126 mm du centre, dans toutes les directions : les huit repères codés
+   les plus proches du centre sont justement sur les diagonales, à 85 mm.
+   La « croix » trouvée était donc à 45°, et aucun croisement de la grille
+   ne se mesurait. Désormais chaque point d'un bras est noté par le
+   contraste du trait avec ses deux côtés (à 2 mm), et chaque direction par
+   la médiane de ces notes : un trait fin et continu l'emporte sur de
+   grandes taches.
+2. Le sens était lu d'abord sur les six petits cercles de l'ancienne mire.
+   La version 2 n'en a pas, mais l'image projetée à travers la mire leur
+   donnait par hasard un sens « sûr » (écart 0,046 pour un seuil de 0,04),
+   faux d'un quart de tour. Les repères codés passent maintenant en premier
+   quand ils sont nettement reconnus (au moins 80 % des modules justes dans
+   le meilleur sens, écart 0,15) ; sur K : 100 % contre 57 % au mieux pour
+   les autres sens. Sur l'ancienne mire, sans repères, aucun sens n'atteint
+   80 % : ses petits cercles décident comme avant.
+Ce n'est pas encore la tâche 2.4b du plan (amorce par les 16 repères, sans
+le cercle rouge ni la croix) : la mire version 2 garde le cercle rouge et la
+croix, et cela suffit sur K. Prouvé par
+`la_photo_k_de_la_mire_v2_se_redresse_sans_aide_et_dans_le_bon_sens`
+(392 croisements, coins à moins de 15 px de ceux relevés sur la photo) ; les
+photos d'Épinal et de Trévarez (ancienne mire) passent toujours.
+
 ## 2026-11-14 — Redressement : tourner la photo redressée de 90° (demande de Benjamin)
 
 **D-2.5-m. Quart de tour toujours proposé, et gardé comme le miroir.**

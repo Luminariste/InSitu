@@ -294,18 +294,29 @@ pub(crate) fn seed_from_circle_and_cross(
     let read = |q: Point| f64::from(relief.sample(q.x - origin.x, q.y - origin.y, Border::Zero));
     let direction = |t: f64| Point::new(t.cos(), t.sin());
 
-    // Angle de la croix, à un quart de tour près.
+    // Angle de la croix, à un quart de tour près. Chaque point d'un bras est
+    // noté par le contraste du trait avec ses deux côtés (à 2 mm), et le bras
+    // par la médiane de ces notes : un trait fin et continu l'emporte sur les
+    // grandes taches sombres, comme les repères codés de la mire version 2,
+    // posés sur les diagonales entre 66 et 126 mm du centre.
     let mut best_angle = 0.0;
     let mut best_note = f64::MIN;
+    let mut notes = Vec::with_capacity(240);
     for step in 0..180 {
         let t = (step as f64 * 0.5).to_radians();
-        let mut total = 0.0;
+        notes.clear();
         for arm in 0..4 {
             let u = direction(t + arm as f64 * std::f64::consts::FRAC_PI_2);
+            let side = Point::new(-u.y, u.x) * 2.0;
             for r in 66..126 {
-                total += read(to_px(u * r as f64));
+                let q = u * r as f64;
+                let line = read(to_px(q));
+                let sides = 0.5 * (read(to_px(q + side)) + read(to_px(q - side)));
+                notes.push(line - sides);
             }
         }
+        notes.sort_unstable_by(f64::total_cmp);
+        let total = notes[notes.len() / 2];
         if total > best_note {
             best_note = total;
             best_angle = t;
@@ -402,6 +413,8 @@ pub(crate) struct Orientation {
     pub quarters: u8,
     /// Écart entre la meilleure note et la suivante.
     pub margin: f64,
+    /// Meilleure note.
+    pub best: f64,
 }
 
 /// En dessous de cet écart de notes, le sens de la mire est jugé incertain.
@@ -456,6 +469,7 @@ pub(crate) fn find_orientation(gray: &Plane, nodes: &[Measured]) -> Option<Orien
     Some(Orientation {
         quarters: order[0] as u8,
         margin: notes[order[0]] - notes[order[1]],
+        best: notes[order[0]],
     })
 }
 
@@ -542,18 +556,34 @@ pub(crate) fn find_orientation_by_markers(gray: &Plane, nodes: &[Measured]) -> O
     Some(Orientation {
         quarters: order[0] as u8,
         margin: notes[order[0]] - notes[order[1]],
+        best: notes[order[0]],
     })
 }
 
-/// Sens de la mire : par les six petits cercles (ancienne mire), sinon par
-/// les repères codés (mire version 2). `None` si aucun des deux n'est sûr.
+/// Part minimale de modules justes, dans le meilleur sens, pour reconnaître
+/// à coup sûr la mire version 2 : l'ancienne mire, sans repères, reste vers
+/// une moitié dans les quatre sens.
+pub(crate) const MARKERS_RECOGNISED: f64 = 0.8;
+
+/// Sens de la mire. Les repères codés (mire version 2) passent d'abord quand
+/// ils sont nettement reconnus : sur la mire version 2, les six petits
+/// cercles n'existent pas et le fond (photo projetée à travers la mire) peut
+/// leur donner par hasard un sens qui paraît sûr (D-2.4b-a). Sinon, les six
+/// petits cercles (ancienne mire), puis les repères avec un écart suffisant.
+/// `None` si rien n'est sûr.
 pub(crate) fn find_orientation_any(gray: &Plane, nodes: &[Measured]) -> Option<Orientation> {
+    let markers = find_orientation_by_markers(gray, nodes);
+    if let Some(o) = &markers {
+        if o.best >= MARKERS_RECOGNISED && o.margin >= MIN_MARKER_MARGIN {
+            return markers;
+        }
+    }
     if let Some(o) = find_orientation(gray, nodes) {
         if o.margin >= MIN_ORIENTATION_MARGIN {
             return Some(o);
         }
     }
-    find_orientation_by_markers(gray, nodes).filter(|o| o.margin >= MIN_MARKER_MARGIN)
+    markers.filter(|o| o.margin >= MIN_MARKER_MARGIN)
 }
 
 #[cfg(test)]

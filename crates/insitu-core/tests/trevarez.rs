@@ -213,6 +213,51 @@ fn la_photo_b_se_redresse_sans_aide() {
     );
 }
 
+/// La photo K, première vraie photo de la mire version 2 (14 novembre 2026,
+/// une image projetée à travers la mire) : elle se détecte sans aide et
+/// dans le bon sens (D-2.4b-a). Avant, les repères codés posés sur les
+/// diagonales passaient pour la croix centrale (aucun croisement mesuré), et
+/// le sens était lu sur les six petits cercles de l'ancienne mire, absents
+/// ici : la diapositive sortait tournée d'un quart de tour.
+#[test]
+fn la_photo_k_de_la_mire_v2_se_redresse_sans_aide_et_dans_le_bon_sens() {
+    let photo = rectification::read_photo(&trevarez().join("references/photos-brutes/k-brut.jpg"))
+        .expect("photo lisible");
+    let detection =
+        rectification::detect(&photo, &DetectOptions::default()).unwrap_or_else(|e| panic!("{e}"));
+    let rectified = rectification::rectify(&photo, &detection, 250.0);
+    let check = rectification::check_rectified(&rectified).expect("grille relue");
+    eprintln!(
+        "K : {} croisements détectés, {} relus, p95 {:.3} mm, couverture {:.0} %",
+        detection.nodes.len(),
+        check.nodes.len(),
+        check.deviation_mm.p95,
+        100.0 * detection.coverage
+    );
+    assert!(detection.nodes.len() >= 300);
+    assert!(
+        check.deviation_mm.p95 < 0.3,
+        "p95 {:.3}",
+        check.deviation_mm.p95
+    );
+    // Le sens : la feuille est photographiée tête en bas (la ligne de texte
+    // du bas de la page est en haut de la photo). Coins de la diapositive
+    // relevés sur la photo, à 15 px près (environ 4 mm).
+    let expected = [
+        (Point::new(0.0, 0.0), Point::new(1252.0, 1291.0)),
+        (Point::new(280.0, 0.0), Point::new(139.0, 1274.0)),
+        (Point::new(280.0, 280.0), Point::new(258.0, 338.0)),
+        (Point::new(0.0, 280.0), Point::new(1190.0, 358.0)),
+    ];
+    for (slide, px) in expected {
+        let got = detection.slide_to_photo(slide).expect("coin dans la photo");
+        assert!(
+            got.distance(px) < 15.0,
+            "coin {slide:?} : {got:?} au lieu de {px:?}"
+        );
+    }
+}
+
 /// La photo A : la grille ne se lit presque pas. La détection sans aide le
 /// dit, au lieu de donner un faux redressement.
 #[test]
@@ -255,7 +300,7 @@ fn le_jeu_d_essai_correspond_a_son_manifeste() {
             checked += 1;
         }
     }
-    assert_eq!(checked, 9, "fichiers vérifiés");
+    assert_eq!(checked, 10, "fichiers vérifiés");
 }
 
 /// Photo redressée réduite (côté `side` px), tirée de la photo brute par le

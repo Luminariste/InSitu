@@ -19,7 +19,8 @@ des fichiers et de leur rôle, et produit pour chacun :
 
 Aucune rotation EXIF n'est appliquée : une coordonnée de l'original se
 retrouve dans le réduit en la divisant par `echelle`. Les images produites
-n'ont plus d'EXIF (donc plus de position GPS). Dépendance : Pillow.
+n'ont plus d'EXIF (donc plus de position GPS). Dépendance : Pillow, et
+pillow-heif pour les originaux HEIC (photos d'iPhone).
 """
 import hashlib
 import json
@@ -31,7 +32,14 @@ from pathlib import Path
 from PIL import Image
 
 Image.MAX_IMAGE_PIXELS = None
-IMAGE_SUFFIXES = (".jpg", ".png", ".tiff")
+IMAGE_SUFFIXES = (".jpg", ".png", ".tiff", ".heic")
+
+try:
+    import pillow_heif
+
+    pillow_heif.register_heif_opener()
+except ImportError:  # seulement nécessaire pour les originaux HEIC
+    pass
 
 
 def sha256(path: Path) -> str:
