@@ -11,8 +11,10 @@
 //! - [`migrate`] : numéro de version du format et mises à niveau ;
 //! - [`lock`] : le verrou qui avertit quand l'autre personne a le projet
 //!   ouvert ;
+//! - [`conflict`] : les copies en conflit de Dropbox, et leur réunion ;
 //! - [`validate`] : contrôle d'un projet et des fichiers qu'il référence.
 
+pub mod conflict;
 pub mod error;
 pub mod history;
 pub mod lock;
@@ -28,8 +30,9 @@ pub(crate) mod test_support;
 
 pub use error::ProjectError;
 pub use lock::{
-    read_lock, LockIdentity, LockInfo, LockMode, LockOutcome, ProjectLock, LOCK_FILE,
-    LOCK_REFRESH_INTERVAL_SECONDS, LOCK_STALE_AFTER_SECONDS,
+    give_back_lock, keep_lock, read_lock, take_lock, LockAttempt, LockCheck, LockIdentity,
+    LockInfo, LockMode, LockOutcome, ProjectLock, LOCK_FILE, LOCK_REFRESH_INTERVAL_SECONDS,
+    LOCK_STALE_AFTER_SECONDS,
 };
 pub use migrate::CURRENT_FORMAT_VERSION;
 pub use model::{retouch_problem, silhouette_problem, slide_mask_problem};

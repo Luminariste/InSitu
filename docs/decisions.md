@@ -4,6 +4,49 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-15 — Travail à deux : verrou branché, copies en conflit réunies (demande de Benjamin)
+
+Benjamin (15 novembre 2026) : Marc et lui ont modifié Trévarez en même temps ;
+à la réouverture, l'app a montré la version de Marc, et celles de Benjamin
+semblaient perdues. Constat : le verrou de D-1.4-e existait dans le moteur
+mais la coque ne l'appelait jamais (« à faire avec l'enregistrement
+automatique », oublié à la tâche 4.3) ; Dropbox avait gardé la version de
+Benjamin dans une copie en conflit, que l'app ignorait.
+
+**D-1.4-j. Le verrou est tenu par l'app, sans valeur gardée entre deux appels.**
+L'interface relit le projet à chaque commande : elle garde seulement
+l'identifiant de son ouverture. `take_lock` à l'ouverture (refus avec le nom
+de l'autre, ou prise forcée sur « Ouvrir quand même »), `keep_lock` toutes
+les deux minutes (si l'autre a pris le verrou : fenêtre « Projet ouvert sur
+l'autre Mac », Reprendre la main ou Fermer le projet), `give_back_lock` au
+changement de projet et à la fermeture de l'app (la coque garde le dernier
+verrou pris pour le rendre en quittant). Un verrou disparu est réécrit au
+signe de vie ; les copies en conflit de `verrou.json` sont effacées. Toujours
+un avertissement, pas une garantie (règles de D-1.4-e inchangées). « Fermer
+le projet » oublie le dernier projet et recharge la fenêtre.
+
+**D-1.4-k. Réunion des copies en conflit élément par élément.**
+Choix recommandé, à confirmer par Benjamin (carte posée le 15 novembre).
+Module `project::conflict`, commandes `insitu project conflicts` et
+`insitu project merge`. Comparaison sur la forme écrite des deux versions
+(après mise à niveau) : projecteurs, bibliothèque, dessins posés, calques,
+groupes de plans par identifiant ; listes sans identifiant (dossiers de la
+bibliothèque, liens avec la bibliothèque commune) par union ; le reste en
+bloc. Ce qui n'existe que d'un côté est gardé (pas de version commune
+d'avant le conflit dans le dossier : on ne peut pas distinguer « ajouté ici »
+de « effacé là-bas » ; garder est le choix qui ne perd rien). Un dessin de la
+copie dont le fichier (`source`) est celui d'un dessin propre à la version
+actuelle prend son identifiant, et ses dessins posés suivent (cas réel :
+Disamare importé des deux côtés). Un élément changé des deux côtés prend la
+version choisie ; sans choix, la suggestion, sinon la version ouverte.
+Suggestion : dans l'historique d'annulation de ce Mac, la première valeur
+connue de l'élément est l'ancienne, on propose l'autre (200 états au plus).
+Une copie d'un autre projet (identifiant différent) est refusée. Après
+réunion : enregistrement par le chemin habituel (⌘Z l'annule), copie rangée
+dans `copies-en-conflit/` (jamais effacée). Les autres fichiers en double
+(photos, dessins) sont seulement signalés. Interdit : ouvrir une copie en
+conflit sans la signaler.
+
 ## 2026-11-14 — Diapositive : une diapositive à la fois (demande de Benjamin)
 
 **D-3.6-i. La vue Diapositive ne calcule que la diapositive choisie.**

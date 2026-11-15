@@ -21,7 +21,11 @@ use insitu_core::library::vectors::{self, VectorSummary, VectorizeReport};
 use insitu_core::library::{self, ImportOptions, ImportReport, LibraryEntry};
 use insitu_core::overview::{self, FacadeOverview, RegistrationPreview};
 use insitu_core::placement;
+use insitu_core::project::conflict::{self, ConflictReport, ConflictScan, Side};
 use insitu_core::project::history::{self, HistoryState};
+use insitu_core::project::{
+    give_back_lock, keep_lock, take_lock, LockAttempt, LockCheck, LockIdentity, Timestamp,
+};
 use insitu_core::project::{
     AssemblyPair, ExportSettings, Layer, Mirror, Placement, PointMm, Project, ProjectDir,
     RegistrationLine, RegistrationPair, RetouchStroke, SilhouettePolygon, SlideAdjustment,
@@ -82,6 +86,85 @@ fn project_open(folder: String) -> Result<Project, String> {
         .and_then(|dir| dir.load())
         .map(|loaded| loaded.project)
         .map_err(|e| e.to_string())
+}
+
+// --- Travail à deux : verrou et copies en conflit de Dropbox ---------------------
+
+/// Le verrou tenu par cette fenêtre (dossier du projet, ouverture), rendu à
+/// la fermeture de l'app.
+static HELD_LOCK: std::sync::Mutex<Option<(String, String)>> = std::sync::Mutex::new(None);
+
+fn hold(folder: &str, session: Option<&str>) {
+    if let Ok(mut held) = HELD_LOCK.lock() {
+        *held = session.map(|s| (folder.to_string(), s.to_string()));
+    }
+}
+
+/// Prend le verrou du projet à l'ouverture ; `force` écarte celui d'un autre.
+#[tauri::command(async)]
+fn lock_take(folder: String, force: bool) -> Result<LockAttempt, String> {
+    let attempt = take_lock(
+        &project_dir(&folder)?,
+        &LockIdentity::current(),
+        Timestamp::now(),
+        force,
+    )
+    .map_err(|e| e.to_string())?;
+    if let LockAttempt::Taken { session_id, .. } = &attempt {
+        hold(&folder, Some(session_id));
+    }
+    Ok(attempt)
+}
+
+/// Signe de vie du verrou, toutes les deux minutes.
+#[tauri::command(async)]
+fn lock_keep(folder: String, session: String) -> Result<LockCheck, String> {
+    keep_lock(
+        &project_dir(&folder)?,
+        &LockIdentity::current(),
+        &session,
+        Timestamp::now(),
+    )
+    .map_err(|e| e.to_string())
+}
+
+/// Rend le verrou (projet fermé ou changé).
+#[tauri::command(async)]
+fn lock_give_back(folder: String, session: String) -> Result<(), String> {
+    hold(&folder, None);
+    give_back_lock(&project_dir(&folder)?, &session).map_err(|e| e.to_string())
+}
+
+/// Rend le verrou encore tenu quand l'app se ferme.
+fn give_back_held_lock() {
+    let held = HELD_LOCK.lock().ok().and_then(|mut h| h.take());
+    if let Some((folder, session)) = held {
+        if let Ok(dir) = ProjectDir::open(&folder) {
+            let _ = give_back_lock(&dir, &session);
+        }
+    }
+}
+
+/// Copies en conflit laissées par Dropbox dans le projet.
+#[tauri::command(async)]
+fn conflicts_find(folder: String) -> Result<ConflictScan, String> {
+    conflict::find_conflicts(&project_dir(&folder)?).map_err(|e| e.to_string())
+}
+
+/// Compare `projet.json` et une copie en conflit.
+#[tauri::command(async)]
+fn conflict_compare(folder: String, copy: String) -> Result<ConflictReport, String> {
+    conflict::compare(&project_dir(&folder)?, &copy).map_err(|e| e.to_string())
+}
+
+/// Réunit une copie en conflit au projet, avec les choix faits.
+#[tauri::command(async)]
+fn conflict_resolve(
+    folder: String,
+    copy: String,
+    choices: std::collections::BTreeMap<String, Side>,
+) -> Result<Project, String> {
+    conflict::resolve(&project_dir(&folder)?, &copy, &choices).map_err(|e| e.to_string())
 }
 
 /// Nature, dimensions et pages d'un fichier de plan, avant import.
@@ -1081,6 +1164,12 @@ pub fn run() {
             test_set_dir,
             project_create,
             project_open,
+            lock_take,
+            lock_keep,
+            lock_give_back,
+            conflicts_find,
+            conflict_compare,
+            conflict_resolve,
             facade_inspect,
             facade_import,
             facade_remove,
@@ -1157,6 +1246,11 @@ pub fn run() {
             assembly_auto,
             assembly_render
         ])
-        .run(tauri::generate_context!())
-        .expect("erreur au lancement d'InSitu");
+        .build(tauri::generate_context!())
+        .expect("erreur au lancement d'InSitu")
+        .run(|_, event| {
+            if let tauri::RunEvent::Exit = event {
+                give_back_held_lock();
+            }
+        });
 }
