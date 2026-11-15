@@ -204,3 +204,12 @@ export function loupeTiles(pyramid: Pyramid, center: Point, zoom: number, size: 
 export function loupePosition(point: Point, center: Point, zoom: number, size: number): Point {
   return { x: (point.x - center.x) * zoom + size / 2, y: (point.y - center.y) * zoom + size / 2 };
 }
+
+/**
+ * La photo à montrer en arrivant sur un projecteur : la redressée si on l'a
+ * choisie la dernière fois (`saved`) et qu'il en a une, la brute sinon
+ * (demande de Benjamin, 15 nov., D15-v).
+ */
+export function shownPhoto(hasRectified: boolean, saved: string | null): "brute" | "redressee" {
+  return hasRectified && saved === "redressee" ? "redressee" : "brute";
+}
