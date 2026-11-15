@@ -96,6 +96,7 @@ PROJET / 04 - Eccuries / Ecuries - Fresque »).
 | `dessins/algue-h02.png`, `algues-horizontales.png` | Les deux dessins posés (sur B et sur C) | copie exacte | — |
 | `photos-brutes/a-brut.jpg` | Photo de mire A : grille presque illisible | copie exacte | ÷ 4 |
 | `photos-brutes/b-brut.jpg` | Photo de mire B : redressée sans aide | copie exacte | ÷ 4 |
+| `photos-brutes/k-brut.jpg` | Photo de mire K, première photo de la mire version 2 (HEIC d'origine) | JPEG qualité 92 | — |
 | `verres/trevarez-c.png` | Diapositive C exportée par l'app à 1 400 dpi | — | ÷ 14 (1 102 px) |
 
 Ce qu'il faut savoir :
@@ -110,8 +111,15 @@ Ce qu'il faut savoir :
   245 images liées) n'est pas dans le dépôt. Ses liens sont des chemins
   absolus pris sur le Mac de Marc ; 20 des 100 liens pointent vers un autre
   dossier du projet (« 17 - Projection gobo finale »).
-- **Ce qui manque encore** : aucune photo de la nouvelle mire (2.4b), et le
-  projecteur A, qui éclaire à la fois un plafond en bois et un mur de brique,
+- **La photo K** (14 novembre 2026) est la première de la mire version 2
+  imprimée, avec une image projetée à travers. Elle a été retouchée sur
+  l'iPhone (recadrée, un K dessiné en vert) : 1 576 × 2 100 px seulement,
+  HEIC en couleurs 4:4:4 sur 10 bits, que notre décodeur ne lit pas (le Mac
+  passe par `sips`). La référence est donc un JPEG qualité 92 de mêmes
+  dimensions, fait avec `pillow-heif` ; pas de réduit, la grille fine ne
+  s'y lirait plus.
+- **Ce qui manque encore** : une photo de la mire version 2 non retouchée,
+  en pleine résolution, et le projecteur A, qui éclaire à la fois un plafond en bois et un mur de brique,
   n'est ni redressé ni recalé.
 
 Tests : `crates/insitu-core/tests/trevarez.rs`.

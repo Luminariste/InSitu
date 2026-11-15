@@ -69,6 +69,15 @@
       "reduction": 4
     },
     {
+      "id": "photo-brute-k",
+      "role": "raw_photo",
+      "projecteur": "K",
+      "fichier": "photos-brutes/k-brut.heic",
+      "nomDorigine": "_PROJECTION/01 - Rétroprojecteur BRUT/K BRUT.heic",
+      "note": "Première photo de la mire version 2 imprimée (14 novembre 2026), une image projetée à travers la mire. Photo retouchée sur l'iPhone (recadrée, un K dessiné en vert) : 1 576 × 2 100 px seulement, couleurs 4:4:4 sur 10 bits (lue par sips sur Mac). Ni détectée seule ni dans le bon sens jusqu'à la 0.1.83 (D-2.4b-a).",
+      "reference": "jpeg-92"
+    },
+    {
       "id": "verre-c",
       "role": "engraving_export",
       "projecteur": "C",
