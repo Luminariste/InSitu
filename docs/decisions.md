@@ -268,6 +268,13 @@ fenêtres ouvertes, ce qui est en cours (pose de points, geste), le zoom
 des écrans à une seule image (Redressement, Recalage, Diapositive, éditeurs
 de la bibliothèque), recadrés à chaque photo. Une valeur relue qui ne
 correspond plus à rien (projecteur ou dossier disparu) est ignorée.
+Précision (15 novembre, demande de Benjamin : « mémorise réglage photo
+redressée, pour pouvoir passer d'un projecteur à l'autre sans avoir à
+recliquer dessus ») : dans le Redressement, le choix « Photo brute / Photo
+redressée » n'est retenu que quand on clique dessus, et vaut en changeant
+de projecteur ; un projecteur sans photo redressée montre sa photo brute
+sans effacer ce choix (`shownPhoto`). Dans la Diapositive et le Recalage,
+les réglages de photo étaient déjà gardés d'un projecteur à l'autre.
 Ce que D15-t disait « pas retenu » (projecteur choisi, écran au lancement,
 zoom) l'est donc désormais.
 

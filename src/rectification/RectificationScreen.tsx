@@ -50,6 +50,7 @@ import {
   summarize,
   toXY,
   type Corners,
+  shownPhoto,
 } from "./logic";
 import { Loupe } from "./Loupe";
 import { RectificationOverlay, type OverlayContent } from "./overlay";
@@ -136,6 +137,13 @@ function useOverlay(viewer: RefObject<ViewerHandle | null>) {
   );
 }
 
+// La photo affichée suit le choix fait au bouton « Photo brute / Photo
+// redressée », gardé d'un projecteur à l'autre (demande de Benjamin,
+// 15 nov., D15-v) ; un projecteur sans photo redressée montre sa photo brute.
+function modeFor(p: { rectifiedPhoto?: string | null } | null | undefined): Mode {
+  return shownPhoto(Boolean(p?.rectifiedPhoto), recall(MODE_KEY, asString, null));
+}
+
 export function RectificationScreen() {
   const engine = hasEngine();
   const viewer = useRef<ViewerHandle>(null);
@@ -205,9 +213,6 @@ export function RectificationScreen() {
   useEffect(() => {
     if (folder && selected) keepSetting(projectKey(SELECTED_KEY, folder), selected);
   }, [folder, selected]);
-  useEffect(() => {
-    if (folder) keepSetting(MODE_KEY, mode);
-  }, [folder, mode]);
 
   const load = useCallback(
     (path: string, keep?: string | null) =>
@@ -226,7 +231,7 @@ export function RectificationScreen() {
           null;
         setSelected(chosen?.id ?? null);
         // Photo brute ou redressée, comme la dernière fois si elle existe.
-        setMode(chosen?.rectifiedPhoto && recall(MODE_KEY, asString, null) === "redressee" ? "redressee" : "brute");
+        setMode(modeFor(chosen));
         await showProjector(path, chosen);
       }),
     [run, showProjector],
@@ -300,8 +305,9 @@ export function RectificationScreen() {
     run("Ouverture du projecteur…", async () => {
       if (!folder || !project) return;
       setSelected(id);
-      setMode("brute");
-      await showProjector(folder, project.projectors.find((p) => p.id === id) ?? null);
+      const p = project.projectors.find((q) => q.id === id) ?? null;
+      setMode(modeFor(p));
+      await showProjector(folder, p);
     });
 
   const newProjector = () =>
@@ -567,6 +573,7 @@ export function RectificationScreen() {
         onChange={(next) => {
           if (next === "redressee") cancelCorners();
           setMode(next);
+          keepSetting(MODE_KEY, next);
         }}
         options={[
           { value: "brute", label: "Photo brute" },
@@ -656,7 +663,7 @@ export function RectificationScreen() {
       if (id === selected) {
         const other = next.projectors[0] ?? null;
         setSelected(other?.id ?? null);
-        setMode("brute");
+        setMode(modeFor(other));
         await showProjector(folder, other);
       }
     });

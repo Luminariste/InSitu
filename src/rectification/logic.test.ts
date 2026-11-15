@@ -13,6 +13,7 @@ import {
   shortestSide,
   slidePixels,
   summarize,
+  shownPhoto,
 } from "./logic";
 
 describe("coins posés à la main", () => {
@@ -159,5 +160,14 @@ describe("loupe", () => {
   it("place un point de la photo dans la loupe", () => {
     expect(loupePosition({ x: 10, y: 20 }, { x: 10, y: 20 }, 4, 240)).toEqual({ x: 120, y: 120 });
     expect(loupePosition({ x: 12, y: 19 }, { x: 10, y: 20 }, 4, 240)).toEqual({ x: 128, y: 116 });
+  });
+});
+
+describe("photo montrée d'un projecteur à l'autre", () => {
+  it("garde la photo redressée choisie, sauf sans photo redressée", () => {
+    expect(shownPhoto(true, "redressee")).toBe("redressee");
+    expect(shownPhoto(false, "redressee")).toBe("brute");
+    expect(shownPhoto(true, "brute")).toBe("brute");
+    expect(shownPhoto(true, null)).toBe("brute");
   });
 });
