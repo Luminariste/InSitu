@@ -11,6 +11,11 @@ import {
   validDpi, parseDpi, ALL_SLIDES, exportButtonLabel, exportTargets, keptTarget,
   controlPlanButtonLabel,
   controlPlanSummary,
+  keptDrawingsChoice,
+  chosenDrawingsOption,
+  chosenExportButtonLabel,
+  chosenIds,
+  chosenSummary,
 } from "./exportLogic";
 
 describe("export des diapositives", () => {
@@ -109,5 +114,31 @@ describe("plan de contrôle", () => {
       "/Users/b/Gravure",
     );
     expect(partial).toBe("2 plans de contrôle écrits dans « Gravure ». Sans plan : C (recalage incomplet).");
+  });
+});
+
+describe("exporter seulement les dessins choisis (D-3.5-q)", () => {
+  it("revient à « Tous » sans dessin choisi", () => {
+    expect(keptDrawingsChoice("chosen", 2)).toBe("chosen");
+    expect(keptDrawingsChoice("chosen", 0)).toBe("all");
+    expect(keptDrawingsChoice("all", 3)).toBe("all");
+  });
+  it("dit combien de dessins partent", () => {
+    expect(chosenDrawingsOption(0)).toBe("Les dessins choisis seulement (aucun choisi)");
+    expect(chosenDrawingsOption(1)).toBe("Le dessin choisi seulement");
+    expect(chosenDrawingsOption(3)).toBe("Les 3 dessins choisis seulement");
+    expect(chosenExportButtonLabel(1)).toBe("Exporter le dessin choisi…");
+    expect(chosenExportButtonLabel(2)).toBe("Exporter les 2 dessins choisis…");
+    expect(chosenIds(["a", "b", "a"])).toEqual(["a", "b"]);
+  });
+  it("résume l'export et nomme le fichier", () => {
+    const slide = { projectorId: "p", label: "B", path: "/x/Essai-B - DESSINS CHOISIS.png", sizePx: 1, sizeMm: 280, bytes: 1, svg: null, seconds: 3 };
+    const report = { slides: [slide], skipped: [], settings: DEFAULT_EXPORT } as ExportReport;
+    const text = chosenSummary(report, "/Users/b/Export", 1);
+    expect(text).toContain("Diapositive B écrite avec le dessin choisi seulement");
+    expect(text).toContain("« Export »");
+    expect(text).toContain("DESSINS CHOISIS");
+    const two = { ...report, slides: [slide, { ...slide, label: "C" }] } as ExportReport;
+    expect(chosenSummary(two, "/e", 3)).toContain("2 diapositives (B, C) écrites avec les 3 dessins choisis seulement");
   });
 });

@@ -1016,7 +1016,8 @@ fn fresco_remove(folder: String) -> Result<Project, String> {
 }
 
 /// Écrit un PNG par projecteur recalé dans `destination` : sa diapositive,
-/// ou son plan de contrôle (D-3.5-m).
+/// ou son plan de contrôle (D-3.5-m) ; `drawings` : ces dessins posés
+/// seulement (D-3.5-q).
 #[tauri::command(async)]
 fn slides_export(
     app: AppHandle,
@@ -1025,22 +1026,25 @@ fn slides_export(
     settings: ExportSettings,
     only: Option<Vec<String>>,
     control_plan: Option<bool>,
+    drawings: Option<Vec<String>>,
 ) -> Result<ExportReport, String> {
-    let run = if control_plan.unwrap_or(false) {
-        export::export_control_plans
-    } else {
-        export::export_slides
+    let progress = |progress: export::ExportProgress| {
+        let _ = app.emit(EXPORT_PROGRESS_EVENT, progress);
     };
-    run(
-        &project_dir(&folder)?,
-        Path::new(&destination),
-        &settings,
-        only.as_deref(),
-        0,
-        &|progress| {
-            let _ = app.emit(EXPORT_PROGRESS_EVENT, progress);
-        },
-    )
+    let (dir, destination) = (project_dir(&folder)?, Path::new(&destination));
+    if control_plan.unwrap_or(false) {
+        export::export_control_plans(&dir, destination, &settings, only.as_deref(), 0, &progress)
+    } else {
+        export::export_slides_with(
+            &dir,
+            destination,
+            &settings,
+            only.as_deref(),
+            drawings.as_deref(),
+            0,
+            &progress,
+        )
+    }
     .map_err(|e| e.to_string())
 }
 

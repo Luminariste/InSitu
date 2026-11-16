@@ -706,6 +706,7 @@ mod tests {
                 image: &image,
                 mask: None,
                 visibility: None,
+                ghost: false,
             }];
             draw(&mut slide, &posed, &place, 1).unwrap();
             let (w, h) = (rect.x1 - rect.x0, rect.y1 - rect.y0);
@@ -874,6 +875,7 @@ mod tests {
                 image: &image,
                 mask: None,
                 visibility: visibility.as_ref(),
+                ghost: false,
             }];
             draw(&mut slide, &posed, &place, 1).unwrap();
             let (w, h) = (rect.x1 - rect.x0, rect.y1 - rect.y0);

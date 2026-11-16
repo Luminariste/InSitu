@@ -881,8 +881,10 @@ fn a_slide_adjustment_shows_in_the_export_and_resets() {
 
 /// Tâche 4.7 : de deux dessins superposés, celui de devant cache l'autre
 /// sous sa silhouette, et cache aussi la fresque.
-#[test]
-fn the_front_drawing_hides_the_one_behind_under_its_silhouette() {
+/// Projet d'essai à deux dessins posés sur le même carré de façade
+/// (`frame`) : des rayures derrière (`p1`), un anneau ouvert d'un petit trou
+/// devant (`p2`), dont la silhouette cache les rayures.
+fn stripes_and_ring(label: &str) -> (TempDir, ProjectDir, RectMm) {
     use crate::project::{Drawing, RelativePath};
     let frame = RectMm {
         x: 2_000.0,
@@ -890,7 +892,7 @@ fn the_front_drawing_hides_the_one_behind_under_its_silhouette() {
         width: 2_000.0,
         height: 2_000.0,
     };
-    let (temp, dir, _) = project_with_placed_drawing("export-silhouettes", &frame);
+    let (temp, dir, _) = project_with_placed_drawing(label, &frame);
     // Derrière : des rayures sur tout le carré. Devant : un anneau ouvert
     // d'un petit trou (le trait d'un vrai dessin n'est pas toujours fermé).
     let side = 600u32;
@@ -941,6 +943,12 @@ fn the_front_drawing_hides_the_one_behind_under_its_silhouette() {
     project.placements.push(front);
     dir.save(&project).unwrap();
 
+    (temp, dir, frame)
+}
+
+#[test]
+fn the_front_drawing_hides_the_one_behind_under_its_silhouette() {
+    let (temp, dir, frame) = stripes_and_ring("export-silhouettes");
     let s = settings(100.0);
     let px_mm = units::px_size_mm(s.dpi);
     let warp = slide_to_facade(&pairs()).unwrap();
@@ -1535,4 +1543,173 @@ fn slide_views_compute_only_the_chosen_slide() {
     assert!(second[0].pending);
     assert!(second[1].preview.is_some() && !second[1].pending);
     assert_eq!(previews(), 2);
+}
+
+/// D-3.5-q : n'exporter que certains dessins, pour compléter une plaque
+/// déjà gravée. Le PNG des dessins choisis est ce que l'export complet
+/// aurait gravé de ces dessins : un dessin non choisi posé devant cache
+/// toujours ce qui est sous sa silhouette, sans être gravé. Les deux
+/// exports partiels réunis redonnent l'export complet.
+#[test]
+fn only_the_chosen_drawings_are_exported() {
+    let (temp, dir, frame) = stripes_and_ring("export-choisis");
+    // Une fresque importée : jamais gravée avec des dessins choisis.
+    let fresco_file = temp.path().join("fresque.png");
+    let white = vec![255u8; 64 * 64];
+    image::save_buffer(&fresco_file, &white, 64, 64, image::ExtendedColorType::L8).unwrap();
+    import_fresco(&dir, &fresco_file, Some(FRAME)).unwrap();
+    let s = ExportSettings {
+        fresco: false,
+        ..settings(100.0)
+    };
+    let ids = |list: &[&str]| list.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    let out = temp.path().join("export");
+    let run = |chosen: Option<&[String]>, settings: &ExportSettings| {
+        let report = export_slides_with(&dir, &out, settings, None, chosen, 0, &|_| {}).unwrap();
+        assert_eq!(report.slides.len(), 1);
+        let path = report.slides[0].path.clone();
+        (to_gray(tiles::read_raster(&path).unwrap()), path)
+    };
+    let (full, full_path) = run(None, &s);
+    let (behind, behind_path) = run(Some(&ids(&["p1"])), &s);
+    // La fresque cochée ne change rien avec des dessins choisis.
+    let with_fresco = ExportSettings {
+        fresco: true,
+        ..s.clone()
+    };
+    let (front, front_path) = run(Some(&ids(&["p2"])), &with_fresco);
+    let (both, _) = run(Some(&ids(&["p1", "p2", "p2"])), &s);
+
+    // Noms : le PNG complet n'est pas écrasé.
+    assert_eq!(full_path.file_name().unwrap(), "Essai-A.png");
+    assert_eq!(
+        behind_path.file_name().unwrap(),
+        "Essai-A - DESSINS CHOISIS.png"
+    );
+    assert_eq!(front_path, behind_path);
+    assert!(full_path.exists());
+
+    let warp = slide_to_facade(&pairs()).unwrap();
+    let px_mm = units::px_size_mm(s.dpi);
+    let mean = |r: &Raster, u: f64, v: f64| -> f64 {
+        let facade = Point::new(frame.x + u * frame.width, frame.y + v * frame.height);
+        let p = warp.apply_inverse(facade).unwrap();
+        let (cx, cy) = ((p.x / px_mm) as i64, (p.y / px_mm) as i64);
+        let mut sum = 0.0;
+        for y in cy - 8..=cy + 8 {
+            for x in cx - 8..=cx + 8 {
+                sum += f64::from(r.data[(y * i64::from(r.width) + x) as usize]);
+            }
+        }
+        sum / 289.0
+    };
+    // Les rayures seules : là hors de l'anneau, cachées dedans (l'anneau
+    // non choisi cache toujours), et pas de trait d'anneau.
+    assert!(mean(&behind, 0.08, 0.5) > 30.0);
+    assert!(mean(&behind, 0.5, 0.5) < 2.0);
+    assert!(mean(&behind, 0.5, 0.2) < mean(&full, 0.5, 0.2) - 15.0);
+    // L'anneau seul : son trait, aucune rayure, aucune fresque.
+    assert!(mean(&front, 0.5, 0.2) > 20.0);
+    assert!(mean(&front, 0.08, 0.5) < 1.0);
+    let far = front.data[(5 * front.width + 5) as usize];
+    assert_eq!(far, 0, "la fresque n'est pas gravée");
+
+    // Rien de plus que l'export complet, et les deux réunis le redonnent.
+    let worst = |a: &[u8], b: &[u8]| a.iter().zip(b).map(|(&x, &y)| x.abs_diff(y)).max().unwrap();
+    let union: Vec<u8> = behind
+        .data
+        .iter()
+        .zip(&front.data)
+        .map(|(&a, &b)| a.max(b))
+        .collect();
+    assert!(worst(&union, &full.data) <= 2, "réunion ≠ export complet");
+    assert!(
+        worst(&both.data, &full.data) <= 2,
+        "tous choisis ≠ export complet"
+    );
+    assert!(behind
+        .data
+        .iter()
+        .zip(&full.data)
+        .all(|(&a, &b)| a <= b.saturating_add(2)));
+
+    // Le SVG ne porte que les dessins choisis.
+    let svg_settings = ExportSettings {
+        svg: true,
+        ..s.clone()
+    };
+    let report = export_slides_with(
+        &dir,
+        &out,
+        &svg_settings,
+        None,
+        Some(&ids(&["p2"])),
+        0,
+        &|_| {},
+    )
+    .unwrap();
+    let svg = std::fs::read_to_string(report.slides[0].svg.as_ref().unwrap()).unwrap();
+    assert!(svg.contains("id=\"p2\"") && !svg.contains("id=\"p1\""));
+    assert!(report.slides[0]
+        .svg
+        .as_ref()
+        .unwrap()
+        .ends_with("Essai-A - DESSINS CHOISIS.svg"));
+
+    // La case de la fresque du projet ne bouge pas ; les autres réglages
+    // deviennent ceux du projet.
+    let saved = dir.load().unwrap().project.export;
+    assert!(!saved.fresco && saved.svg);
+
+    // Dessin inconnu, liste vide, dessins dans un calque masqué : refusé.
+    let refused = |chosen: &[String]| {
+        export_slides_with(&dir, &out, &s, None, Some(chosen), 0, &|_| {}).unwrap_err()
+    };
+    assert!(refused(&ids(&["zz"])).to_string().contains("zz"));
+    assert!(matches!(refused(&[]), ExportError::Nothing(_)));
+    let mut project = dir.load().unwrap().project;
+    project
+        .placements
+        .iter_mut()
+        .find(|p| p.id == "p2")
+        .unwrap()
+        .hidden = true;
+    dir.save(&project).unwrap();
+    assert!(refused(&ids(&["p2"])).to_string().contains("masqu"));
+}
+
+/// Avec des dessins choisis, seules les diapositives qui les portent sont
+/// écrites ; une diapositive demandée sans dessin choisi est signalée.
+#[test]
+fn chosen_drawings_write_only_their_slides() {
+    let frame = RectMm {
+        x: 2_000.0,
+        y: 1_500.0,
+        width: 1_000.0,
+        height: 1_000.0,
+    };
+    let (temp, dir, _) = project_with_placed_drawing("export-choisis-diapos", &frame);
+    let mut project = dir.load().unwrap().project;
+    project.add_projector("B").registration = pairs();
+    // B porte un second dessin, posé à part dans sa diapositive.
+    let b = project.projectors[1].id.clone();
+    let mut other = project.placements[0].clone();
+    other.id = "p2".into();
+    other.slide = Some(b.clone());
+    other.center = PointMm::new(140.0, 140.0);
+    other.width = 100.0;
+    other.height = 100.0;
+    project.placements.push(other);
+    project.placements[0].projector = Some(project.projectors[0].id.clone());
+    dir.save(&project).unwrap();
+    let out = temp.path().join("export");
+    let s = settings(50.0);
+    let chosen = vec!["p2".to_string()];
+    let report = export_slides_with(&dir, &out, &s, None, Some(&chosen), 0, &|_| {}).unwrap();
+    let labels: Vec<&str> = report.slides.iter().map(|s| s.label.as_str()).collect();
+    assert_eq!(labels, ["B"]);
+    assert!(report.skipped.is_empty());
+    let only_a = vec!["A".to_string()];
+    let none = export_slides_with(&dir, &out, &s, Some(&only_a), Some(&chosen), 0, &|_| {});
+    assert!(matches!(none, Err(ExportError::Nothing(_))));
 }

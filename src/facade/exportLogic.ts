@@ -121,3 +121,48 @@ export function exportButtonLabel(choice: string, targets: ExportTarget[]): stri
   const one = targets.find((t) => t.id === choice);
   return one ? `Exporter la diapositive ${one.label}…` : "Exporter les diapositives…";
 }
+
+/**
+ * Dessins à graver (D-3.5-q) : tous (par défaut, comme avant), ou seulement
+ * les dessins choisis, pour compléter une plaque déjà gravée.
+ */
+export type DrawingsChoice = "all" | "chosen";
+
+/** Le choix gardé tant qu'il y a des dessins choisis, sinon tous. */
+export function keptDrawingsChoice(choice: DrawingsChoice, chosen: number): DrawingsChoice {
+  return choice === "chosen" && chosen > 0 ? "chosen" : "all";
+}
+
+/** « le dessin choisi » ou « les 3 dessins choisis ». */
+export function chosenDrawingsLabel(n: number): string {
+  return n === 1 ? "le dessin choisi" : `les ${n} dessins choisis`;
+}
+
+/** Libellé de l'option « dessins choisis » du menu. */
+export function chosenDrawingsOption(n: number): string {
+  if (n === 0) return "Les dessins choisis seulement (aucun choisi)";
+  const text = chosenDrawingsLabel(n);
+  return `${text[0].toUpperCase()}${text.slice(1)} seulement`;
+}
+
+/** Libellé du bouton d'export quand seuls des dessins choisis partent. */
+export function chosenExportButtonLabel(n: number): string {
+  return `Exporter ${chosenDrawingsLabel(n)}…`;
+}
+
+/** Les identifiants des dessins choisis, sans doublon, dans l'ordre. */
+export function chosenIds(ids: string[]): string[] {
+  return [...new Set(ids)];
+}
+
+/** Ce qu'on dit après l'export des seuls dessins choisis. */
+export function chosenSummary(report: ExportReport, destination: string, n: number): string {
+  const count = report.slides.length;
+  const labels = report.slides.map((s) => s.label).join(", ");
+  const formats = report.slides.some((s) => s.svg) ? " (PNG et SVG)" : "";
+  const written =
+    count === 1
+      ? `Diapositive ${labels} écrite${formats} avec ${chosenDrawingsLabel(n)} seulement`
+      : `${count} diapositives (${labels}) écrites${formats} avec ${chosenDrawingsLabel(n)} seulement`;
+  return `${written}, dans « ${fileName(destination)} », sous le nom « … - DESSINS CHOISIS ». Même cadrage que la diapositive complète : à poser au même endroit dans LightBurn.`;
+}

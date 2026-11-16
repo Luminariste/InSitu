@@ -457,6 +457,7 @@ export function FacadeScreen() {
     [composition.placements, composition.composeLayers, project?.projectors, composition.assignments],
   );
   const selectedIds = useMemo(() => new Set(composition.selected.map((p) => p.id)), [composition.selected]);
+  const selectedPlacementIds = useMemo(() => composition.selected.map((p) => p.id), [composition.selected]);
   const describePlacement = useCallback(
     (p: { drawing: string }) => {
       const d = composition.drawings.find((x) => x.id === p.drawing);
@@ -762,6 +763,7 @@ export function FacadeScreen() {
     showFresco,
     onShowFresco: setShowFresco,
     illustrator,
+    selection: selectedPlacementIds,
   });
   const [tab, setTab] = useState<FacadeTab>(readFacadeTab);
   const chooseTab = (next: FacadeTab) => {

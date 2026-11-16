@@ -44,12 +44,17 @@ const VISIBILITY_SIDE: u32 = 4096;
 /// Un dessin posé, son image, le masque de sa silhouette (255 dedans ;
 /// aucun : le dessin ne cache rien) et la visibilité de son masque (255 :
 /// visible ; aucune : rien n'est caché, D-4.2-u).
+///
+/// Un dessin « fantôme » (`ghost`) cache sous sa silhouette sans graver ses
+/// traits : c'est un dessin déjà gravé, devant un dessin choisi, quand on
+/// n'exporte que certains dessins (D-3.5-q).
 #[derive(Clone, Copy)]
 pub struct Posed<'a> {
     pub placement: &'a Placement,
     pub image: &'a Raster,
     pub mask: Option<&'a Raster>,
     pub visibility: Option<&'a Raster>,
+    pub ghost: bool,
 }
 
 /// Rectangle de pixels `[x0, x1[ × [y0, y1[` de la diapositive.
@@ -216,6 +221,9 @@ pub fn draw(
                     *out = ((u32::from(*out) * (255 - u32::from(m)) + 127) / 255) as u8;
                 }
             }
+        }
+        if posed.ghost {
+            continue;
         }
         let part = warp_raster(image, w, h, in_pixels(image), &options)
             .map_err(|e| ExportError::BadSettings(e.to_string()))?;
@@ -404,6 +412,7 @@ impl DrawingCache {
                         image,
                         mask: mask.as_ref(),
                         visibility: self.visibility.get(&placement.id),
+                        ghost: false,
                     })
             })
             .collect()

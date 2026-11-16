@@ -542,10 +542,58 @@ pub fn export_slides(
     threads: usize,
     progress: &dyn Fn(ExportProgress),
 ) -> Result<ExportReport, ExportError> {
+    export_slides_with(dir, destination, settings, only, None, threads, progress)
+}
+
+/// Suffixe du nom de fichier quand seuls certains dessins sont exportés
+/// (D-3.5-q) : le PNG complet de la diapositive n'est pas écrasé.
+pub const CHOSEN_SUFFIX: &str = " - DESSINS CHOISIS";
+
+/// Comme [`export_slides`] ; avec `chosen` (identifiants de dessins posés),
+/// seuls ces dessins sont gravés (D-3.5-q), pour compléter une plaque déjà
+/// gravée : même cadrage, même déformation, mêmes réglages. La fresque
+/// importée n'est pas gravée. Un dessin non choisi posé devant un dessin
+/// choisi cache toujours ce qui est sous sa silhouette, comme dans l'export
+/// complet : on ne grave que ce que l'export complet aurait gravé de ces
+/// dessins. Seules les diapositives qui portent un dessin choisi sont
+/// écrites, sous le nom `<projet>-<diapositive> - DESSINS CHOISIS.png`.
+/// Les réglages deviennent ceux du projet, sauf la case de la fresque.
+pub fn export_slides_with(
+    dir: &ProjectDir,
+    destination: &Path,
+    settings: &ExportSettings,
+    only: Option<&[String]>,
+    chosen: Option<&[String]>,
+    threads: usize,
+    progress: &dyn Fn(ExportProgress),
+) -> Result<ExportReport, ExportError> {
     check_settings(settings)?;
     let mut project = dir.load()?.project;
-    // La fresque n'est gravée que si les réglages le demandent (D-3.5-o).
-    let fresco = project.fresco.clone().filter(|_| settings.fresco);
+    if let Some(ids) = chosen {
+        if ids.is_empty() {
+            return Err(ExportError::Nothing("aucun dessin n'est choisi".into()));
+        }
+        if let Some(id) = ids
+            .iter()
+            .find(|id| !project.placements.iter().any(|p| &p.id == *id))
+        {
+            return Err(ExportError::Nothing(format!(
+                "le dessin choisi « {id} » n'est plus posé dans le projet"
+            )));
+        }
+    }
+    let is_chosen = |p: &Placement| chosen.is_none_or(|ids| ids.contains(&p.id));
+    // La fresque n'est gravée que si les réglages le demandent (D-3.5-o), et
+    // jamais avec des dessins choisis (D-3.5-q).
+    let fresco = project
+        .fresco
+        .clone()
+        .filter(|_| settings.fresco && chosen.is_none());
+    if chosen.is_some() && !project.visible_placements().into_iter().any(is_chosen) {
+        return Err(ExportError::Nothing(
+            "les dessins choisis sont tous masqués (calque ou dessin masqué)".into(),
+        ));
+    }
     if fresco.is_none() && project.visible_placements().is_empty() {
         if project.fresco.is_some() {
             return Err(ExportError::Nothing(
@@ -555,7 +603,53 @@ pub fn export_slides(
         }
         return Err(ExportError::NoFresco);
     }
-    let (todo, skipped) = recaled_projectors(&project, only, true)?;
+    let (mut todo, mut skipped) = recaled_projectors(&project, only, true)?;
+    let px_mm = units::px_size_mm(settings.dpi);
+    let (side, _) = sizes_px(settings.dpi);
+    let assigned = assignments(&project);
+    // Les dessins de chaque diapositive, du fond vers l'avant : seuls ceux
+    // affectés à cette diapositive (tâche 4.5), et qui y tombent. Avec des
+    // dessins choisis, ceux de derrière le premier choisi ne comptent pas.
+    let seen_in = |id: &str, warp: Option<&PointWarp>| -> Vec<&Placement> {
+        let seen: Vec<&Placement> = slide_placements_in(&project, &assigned, id)
+            .into_iter()
+            .filter(|p| {
+                let place = drawings::Placing {
+                    warp,
+                    px_mm,
+                    side,
+                    mirror: settings.mirror,
+                    projector: Some(id),
+                };
+                drawings::slide_rect(p, &place).is_some()
+            })
+            .collect();
+        match seen.iter().position(|p| is_chosen(p)) {
+            Some(first) => seen[first..].to_vec(),
+            None if chosen.is_some() => Vec::new(),
+            None => seen,
+        }
+    };
+    if chosen.is_some() {
+        let (keep, without): (Vec<Recaled>, Vec<Recaled>) = todo
+            .into_iter()
+            .partition(|(id, _, warp)| !seen_in(id, warp.as_ref()).is_empty());
+        todo = keep;
+        if todo.is_empty() {
+            return Err(ExportError::Nothing(
+                "aucun des dessins choisis ne tombe dans une diapositive exportée".into(),
+            ));
+        }
+        // Les diapositives sans dessin choisi ne sont pas écrites ; ce n'est
+        // pas un oubli, donc on ne les signale que si elles étaient demandées.
+        if only.is_some() {
+            skipped.extend(without.into_iter().map(|(id, label, _)| SkippedSlide {
+                projector_id: id,
+                label,
+                reason: "aucun des dessins choisis dans cette diapositive".into(),
+            }));
+        }
+    }
     std::fs::create_dir_all(destination)
         .map_err(|e| ExportError::Destination(format!("{} : {e}", destination.display())))?;
 
@@ -578,29 +672,12 @@ pub fn export_slides(
         (Some(f), None) => Some(read_fresco(&dir.resolve(&f.source))?),
         _ => None,
     };
-    let px_mm = units::px_size_mm(settings.dpi);
-    let (side, _) = sizes_px(settings.dpi);
-    let assigned = assignments(&project);
     let mut cache = drawings::DrawingCache::default();
     let mut slides = Vec::new();
     for (k, (id, label, warp)) in todo.iter().enumerate() {
         let start = Instant::now();
         let text = caption(&project.name, label, settings);
-        // Seuls les dessins affectés à cette diapositive (tâche 4.5), et
-        // qui y tombent, sont lus.
-        let seen: Vec<&Placement> = slide_placements_in(&project, &assigned, id)
-            .into_iter()
-            .filter(|p| {
-                let place = drawings::Placing {
-                    warp: warp.as_ref(),
-                    px_mm,
-                    side,
-                    mirror: settings.mirror,
-                    projector: Some(id),
-                };
-                drawings::slide_rect(p, &place).is_some()
-            })
-            .collect();
+        let seen = seen_in(id, warp.as_ref());
         cache.load(dir, &project, &seen, px_mm)?;
         let crop = match (&vector, &fresco) {
             (Some(v), Some(f)) => warp
@@ -613,13 +690,25 @@ pub fn export_slides(
                 Some((raster, frame)) => Some((raster, frame)),
                 None => image.as_ref().zip(fresco.as_ref().map(|f| &f.frame)),
             },
-            drawings: cache.pair(&seen),
+            drawings: cache
+                .pair(&seen)
+                .into_iter()
+                .map(|posed| drawings::Posed {
+                    ghost: !is_chosen(posed.placement),
+                    ..posed
+                })
+                .collect(),
             projector: Some(id),
             mask: project.projector(id).and_then(|q| q.mask.as_ref()),
         };
         let rendered = render_artwork(&art, warp.as_ref(), &text, settings, threads)?;
         let bytes = encode_png(&rendered, settings)?;
-        let path = destination.join(slide_file_name(&project.name, label));
+        let name = slide_file_name(&project.name, label);
+        let name = match chosen {
+            Some(_) => chosen_file_name(&name),
+            None => name,
+        };
+        let path = destination.join(name);
         write_atomic(&path, &bytes).map_err(|e| ExportError::Destination(e.to_string()))?;
         let svg = if settings.svg {
             cache.load_vectors(dir, &project, &seen, threads)?;
@@ -628,7 +717,9 @@ pub fn export_slides(
                 mirror: settings.mirror,
                 projector: Some(id),
             };
-            let paths = svg::slide_paths(&cache.vector_drawings(&seen), &place, threads);
+            let mut paths = svg::slide_paths(&cache.vector_drawings(&seen), &place, threads);
+            // Les dessins non choisis ont seulement caché ceux de derrière.
+            paths.retain(|p| chosen.is_none_or(|ids| ids.contains(&p.placement)));
             let paths = match project.projector(id).and_then(|q| q.mask.as_ref()) {
                 Some(mask) => slide_mask::clip(paths, mask, settings.mirror),
                 None => paths,
@@ -657,8 +748,17 @@ pub fn export_slides(
             current: todo.get(k + 1).map(|t| t.1.clone()),
         });
     }
-    if project.export != *settings {
-        project.export = settings.clone();
+    // La case de la fresque n'est pas changée par un export de dessins choisis.
+    let kept = ExportSettings {
+        fresco: if chosen.is_some() {
+            project.export.fresco
+        } else {
+            settings.fresco
+        },
+        ..settings.clone()
+    };
+    if project.export != kept {
+        project.export = kept;
         dir.save(&project)?;
     }
     Ok(ExportReport {
@@ -666,6 +766,13 @@ pub fn export_slides(
         skipped,
         settings: settings.clone(),
     })
+}
+
+/// `<projet>-<diapositive>.png` devient
+/// `<projet>-<diapositive> - DESSINS CHOISIS.png` (D-3.5-q).
+pub fn chosen_file_name(name: &str) -> String {
+    let stem = name.strip_suffix(".png").unwrap_or(name);
+    format!("{stem}{CHOSEN_SUFFIX}.png")
 }
 
 /// Nom du fichier du plan de contrôle d'une diapositive (D-3.5-m) :

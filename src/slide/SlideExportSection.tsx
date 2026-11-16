@@ -5,8 +5,8 @@
 
 import type { ExportSettings, Project } from "../engine";
 import { Button, Section } from "../ui";
-import { ExportOptions } from "../facade/ExportOptions";
-import { exportSettingsOf, parseDpi, validDpi } from "../facade/exportLogic";
+import { ExportDrawingsChoice, ExportOptions } from "../facade/ExportOptions";
+import { chosenExportButtonLabel, exportSettingsOf, keptDrawingsChoice, parseDpi, validDpi, type DrawingsChoice } from "../facade/exportLogic";
 
 interface Props {
   /** Nom de la diapositive (« A ») ; `null` : aucune. */
@@ -23,6 +23,11 @@ interface Props {
   onDpiText: (text: string) => void;
   onExport: (settings: ExportSettings) => void;
   onControlPlan: () => void;
+  /** Tous les dessins, ou les seuls dessins choisis (D-3.5-q). */
+  drawingsChoice: DrawingsChoice;
+  onDrawingsChoice: (choice: DrawingsChoice) => void;
+  /** Nombre de dessins choisis dans la diapositive. */
+  chosen: number;
 }
 
 /** Réglages de départ : ceux du projet, la fresque comme à l'écran. */
@@ -32,6 +37,7 @@ export function startSettings(project: Project | null, frescoShown: boolean): Ex
 
 export function SlideExportSection(props: Props) {
   const { label, project, blocked, canControlPlan, busy, settings, onSettings, dpiText, onDpiText, onExport, onControlPlan } = props;
+  const onlyChosen = keptDrawingsChoice(props.drawingsChoice, props.chosen) === "chosen";
   const dpi = parseDpi(dpiText);
   const ok = validDpi(dpi);
   return (
@@ -41,9 +47,10 @@ export function SlideExportSection(props: Props) {
         onChange={onSettings}
         dpiText={dpiText}
         onDpiText={onDpiText}
-        hasFresco={Boolean(project?.fresco)}
+        hasFresco={Boolean(project?.fresco) && !onlyChosen}
         disabled={busy}
       />
+      <ExportDrawingsChoice choice={props.drawingsChoice} onChoice={props.onDrawingsChoice} chosen={props.chosen} disabled={busy} />
       {blocked && <p className="ui-note">{blocked}</p>}
       <div className="slide-export-actions">
         <Button
@@ -51,10 +58,14 @@ export function SlideExportSection(props: Props) {
           icon="export"
           shortcut="mod+e"
           disabled={blocked !== null || !ok || busy}
-          title="Le PNG de cette diapositive seulement, avec ces réglages"
+          title={
+            onlyChosen
+              ? "Le PNG de cette diapositive avec les seuls dessins choisis, pour compléter une plaque déjà gravée"
+              : "Le PNG de cette diapositive seulement, avec ces réglages"
+          }
           onClick={() => onExport({ ...settings, dpi })}
         >
-          Exporter cette diapositive…
+          {onlyChosen ? chosenExportButtonLabel(props.chosen) : "Exporter cette diapositive…"}
         </Button>
         <Button
           icon="export"

@@ -37,7 +37,16 @@ import { SlideMaskSection } from "./SlideMaskSection";
 import { useSlideMask } from "./useSlideMask";
 import { useMaskTool } from "../compose/useMaskTool";
 import { SlideExportSection, startSettings } from "./SlideExportSection";
-import { controlPlanSummary, exportSummary, parseDpi, validDpi } from "../facade/exportLogic";
+import {
+  chosenIds,
+  chosenSummary,
+  controlPlanSummary,
+  exportSummary,
+  keptDrawingsChoice,
+  parseDpi,
+  validDpi,
+  type DrawingsChoice,
+} from "../facade/exportLogic";
 import { CompositionToolbar } from "../compose/CompositionToolbar";
 import { DrawingsSection } from "../compose/DrawingsSection";
 import { LayersSection } from "../compose/LayersSection";
@@ -487,6 +496,11 @@ export function SlideScreen() {
           ? `${view.label} : ${view.problem ?? "diapositive non calculée"}.`
           : `${view.label} n'est pas recalé : seuls les dessins posés dans cette diapositive s'exportent. En poser d'abord (onglet Dessins).`
         : null;
+  // Tous les dessins (par défaut), ou les seuls dessins choisis dans cette
+  // diapositive (D-3.5-q) ; le choix revient à « Tous » au lancement.
+  const chosenDrawings = chosenIds(adjust.selected.map((d) => d.placement));
+  const [drawingsChoice, setDrawingsChoice] = useState<DrawingsChoice>("all");
+  const onlyChosen = keptDrawingsChoice(drawingsChoice, chosenDrawings.length) === "chosen";
   const canControlPlan =
     engine && folder !== null && ready && view !== null && !(view.problem ?? "").startsWith("recalage incomplet");
   const exportThis = async (controlPlan: boolean, chosen?: ExportSettings) => {
@@ -498,8 +512,16 @@ export function SlideScreen() {
       if (!destination) return;
       setBusy(controlPlan ? `Export du plan de contrôle ${view.label}…` : `Export de la diapositive ${view.label}…`);
       const used = chosen ?? settings;
-      const report = await exportSlides(folder, destination, used, () => {}, [view.projectorId], controlPlan);
-      setNotice(controlPlan ? controlPlanSummary(report, destination) : exportSummary(report, destination));
+      // Les seuls dessins choisis (D-3.5-q), jamais pour le plan de contrôle.
+      const drawings = !controlPlan && onlyChosen ? chosenDrawings : undefined;
+      const report = await exportSlides(folder, destination, used, () => {}, [view.projectorId], controlPlan, drawings);
+      setNotice(
+        controlPlan
+          ? controlPlanSummary(report, destination)
+          : drawings
+            ? chosenSummary(report, destination, drawings.length)
+            : exportSummary(report, destination),
+      );
       if (!controlPlan) onProject(await openProject(folder));
     } catch (failure) {
       setError(String(failure).replace(/^Error: /, ""));
@@ -737,6 +759,9 @@ export function SlideScreen() {
             onDpiText={setDpiText}
             onExport={(chosen) => void exportThis(false, chosen)}
             onControlPlan={() => void exportThis(true)}
+            drawingsChoice={drawingsChoice}
+            onDrawingsChoice={setDrawingsChoice}
+            chosen={chosenDrawings.length}
           />
         ),
       }}
