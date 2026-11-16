@@ -1460,12 +1460,21 @@ export async function exportSlides(
   only?: string[],
   /** Le plan de contrôle à la place de la diapositive (D-3.5-m). */
   controlPlan = false,
+  /** Ces dessins posés seulement (identifiants), sans la fresque (D-3.5-q) ; tous si absent. */
+  drawings?: string[],
 ): Promise<ExportReport> {
   requireEngine();
   const { listen } = await import("@tauri-apps/api/event");
   const stop = await listen<ExportProgress>("export-progression", (event) => onProgress(event.payload));
   try {
-    return await invoke<ExportReport>("slides_export", { folder, destination, settings, only: only ?? null, controlPlan });
+    return await invoke<ExportReport>("slides_export", {
+      folder,
+      destination,
+      settings,
+      only: only ?? null,
+      controlPlan,
+      drawings: drawings ?? null,
+    });
   } finally {
     stop();
   }

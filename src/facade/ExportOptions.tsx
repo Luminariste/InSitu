@@ -4,7 +4,15 @@
 
 import type { ExportSettings } from "../engine";
 import { Property } from "../ui";
-import { exportSizeLabel, parseDpi, validDpi } from "./exportLogic";
+import {
+  chosenDrawingsLabel,
+  chosenDrawingsOption,
+  exportSizeLabel,
+  keptDrawingsChoice,
+  parseDpi,
+  validDpi,
+  type DrawingsChoice,
+} from "./exportLogic";
 
 interface Props {
   settings: ExportSettings;
@@ -72,5 +80,49 @@ export function ExportOptions({ settings, onChange, dpiText, onDpiText, disabled
         </label>
       )}
     </fieldset>
+  );
+}
+
+interface DrawingsProps {
+  choice: DrawingsChoice;
+  onChoice: (choice: DrawingsChoice) => void;
+  /** Nombre de dessins choisis sur l'écran. */
+  chosen: number;
+  disabled?: boolean;
+}
+
+/**
+ * Dessins à graver (D-3.5-q) : tous, ou seulement les dessins choisis, pour
+ * compléter une plaque déjà gravée. Même composant dans la Façade et dans
+ * la Diapositive.
+ */
+export function ExportDrawingsChoice({ choice, onChoice, chosen, disabled }: DrawingsProps) {
+  const kept = keptDrawingsChoice(choice, chosen);
+  return (
+    <>
+      <Property
+        label="Dessins"
+        hint={kept === "chosen" ? "Sans la fresque importée" : chosen === 0 ? "Choisir des dessins pour n'exporter qu'eux" : undefined}
+      >
+        <select
+          className="ui-select"
+          value={kept}
+          onChange={(e) => onChoice(e.target.value as DrawingsChoice)}
+          disabled={disabled}
+          aria-label="Dessins à exporter"
+        >
+          <option value="all">Tous</option>
+          <option value="chosen" disabled={chosen === 0}>
+            {chosenDrawingsOption(chosen)}
+          </option>
+        </select>
+      </Property>
+      {kept === "chosen" && (
+        <p className="ui-note">
+          Pour compléter une plaque déjà gravée : seuls {chosenDrawingsLabel(chosen)} sont gravés, au même endroit que
+          dans la diapositive complète. Fichier « … - DESSINS CHOISIS.png ».
+        </p>
+      )}
+    </>
   );
 }

@@ -19,11 +19,16 @@ import {
   type Project,
 } from "../engine";
 import { Button, ConfirmDialog, Progress, Property, Section, useShortcuts } from "../ui";
-import { ExportOptions } from "./ExportOptions";
+import { ExportDrawingsChoice, ExportOptions } from "./ExportOptions";
 import { isIllustratorFile } from "../compose/IllustratorImport";
 import {
   ALL_SLIDES,
+  chosenExportButtonLabel,
+  chosenIds,
+  chosenSummary,
   exportButtonLabel,
+  keptDrawingsChoice,
+  type DrawingsChoice,
   controlPlanButtonLabel,
   controlPlanSummary,
   exportSettingsOf,
@@ -50,9 +55,11 @@ interface Props {
    * qu'il faut montrer sous le bouton.
    */
   illustrator: { start: (path: string) => Promise<void>; busy: boolean; node: ReactNode };
+  /** Les dessins posés choisis sur la façade (identifiants). */
+  selection: string[];
 }
 
-export function useExportPanel({ engine, folder, project, onProject, showFresco, onShowFresco, illustrator }: Props): {
+export function useExportPanel({ engine, folder, project, onProject, showFresco, onShowFresco, illustrator, selection }: Props): {
   fresco: ReactNode;
   export: ReactNode;
 } {
@@ -83,6 +90,11 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
   const targets = exportTargets(project?.projectors ?? []);
   const [targetChoice, setTargetChoice] = useState<string>(ALL_SLIDES);
   const target = keptTarget(targetChoice, targets);
+  // Tous les dessins (par défaut), ou les seuls dessins choisis (D-3.5-q).
+  // Le choix n'est pas retenu : il revient à « Tous » au lancement.
+  const chosen = chosenIds(selection);
+  const [drawingsChoice, setDrawingsChoice] = useState<DrawingsChoice>("all");
+  const onlyChosen = keptDrawingsChoice(drawingsChoice, chosen.length) === "chosen";
 
   const run = async (label: string, task: () => Promise<void>, from: "fresco" | "export" = "export") => {
     setOrigin(from);
@@ -127,12 +139,13 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
       if (!folder) return;
       const dpi = parseDpi(dpiText);
       if (!validDpi(dpi)) throw new Error("la résolution doit être comprise entre 50 et 3 000 dpi");
-      const chosen = { ...settings, dpi };
+      const used = { ...settings, dpi };
       const destination = await chooseExportFolder();
       if (!destination) return;
-      const report = await exportSlides(folder, destination, chosen, setProgress, target === ALL_SLIDES ? undefined : [target]);
-      setSettings(chosen);
-      setMessage(exportSummary(report, destination));
+      const drawings = onlyChosen ? chosen : undefined;
+      const report = await exportSlides(folder, destination, used, setProgress, target === ALL_SLIDES ? undefined : [target], false, drawings);
+      setSettings(used);
+      setMessage(drawings ? chosenSummary(report, destination, drawings.length) : exportSummary(report, destination));
     });
 
   // Plan de contrôle (D-3.5-m) : le plan vu par chaque projecteur, à graver
@@ -224,8 +237,9 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
           dpiText={dpiText}
           onDpiText={setDpiText}
           disabled={busy !== null}
-          hasFresco={fresco !== null}
+          hasFresco={fresco !== null && !onlyChosen}
         />
+        <ExportDrawingsChoice choice={drawingsChoice} onChoice={setDrawingsChoice} chosen={chosen.length} disabled={busy !== null} />
         <Property label="Diapositives" hint={target === ALL_SLIDES ? `${targets.length} projecteur${targets.length > 1 ? "s" : ""} recalé${targets.length > 1 ? "s" : ""}` : "Un seul PNG"}>
           <select
             className="ui-select"
@@ -247,11 +261,17 @@ export function useExportPanel({ engine, folder, project, onProject, showFresco,
             variant="primary"
             icon="export"
             shortcut="mod+e"
-            title={target === ALL_SLIDES ? "Un PNG par projecteur recalé : la fresque et les dessins posés" : "Le PNG de ce projecteur seulement"}
+            title={
+              onlyChosen
+                ? "Un PNG par diapositive qui porte un dessin choisi, avec ces seuls dessins, pour compléter une plaque déjà gravée"
+                : target === ALL_SLIDES
+                  ? "Un PNG par projecteur recalé : la fresque et les dessins posés"
+                  : "Le PNG de ce projecteur seulement"
+            }
             onClick={() => void exportAll()}
             disabled={!ready || !artwork}
           >
-            {exportButtonLabel(target, targets)}
+            {onlyChosen ? chosenExportButtonLabel(chosen.length) : exportButtonLabel(target, targets)}
           </Button>
           <Button
             icon="export"

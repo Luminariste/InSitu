@@ -4,6 +4,43 @@ Chaque choix technique qui n'est pas écrit dans `docs/plan.md` est noté ici,
 du plus récent au plus ancien : la décision, la raison, et ce qu'elle interdit.
 Une session ne revient pas sur une décision sans l'accord de Benjamin.
 
+## 2026-11-16 — Exporter seulement certains dessins (demande de Benjamin)
+
+Demande de Benjamin (16 novembre 2026) : « j'ai gravé une plaque de verre,
+mais j'ai besoin de rajouter un nouveau dessin. Je voudrais donc une
+possibilité de ne sélectionner que certains dessins pour exporter vers
+LightBurn. Par défaut on exporte tout comme actuellement. »
+
+**D-3.5-q. On peut n'exporter que les dessins choisis.** Menu **Dessins**
+(« Tous », par défaut, ou « Les N dessins choisis seulement ») dans
+l'onglet Export de la Façade et dans l'onglet Export de la Diapositive.
+« Choisis » veut dire la sélection à l'écran (clic, ⇧-clic, cadre), sans
+liste à cocher de plus. Le choix n'est pas retenu : il revient à « Tous »
+au lancement, comme « une diapositive ou toutes » (D-3.5-l), pour ne
+jamais graver par erreur une plaque incomplète. Moteur :
+`export::export_slides_with(…, chosen, …)`, coque `slides_export` avec
+`drawings`, ligne de commande `insitu export --dessin ID` (répétable).
+
+- **Ce qui est gravé** : exactement ce que l'export complet aurait gravé
+  de ces dessins, même cadrage, même déformation, mêmes réglages, pour que
+  le fichier se pose au même endroit que la gravure d'origine dans
+  LightBurn. Un dessin non choisi posé **devant** un dessin choisi cache
+  toujours ce qui est sous sa silhouette (tâche 4.7) sans être gravé : on
+  ne regrave pas sous un dessin déjà gravé. Prouvé par test : les exports
+  partiels réunis redonnent l'export complet au niveau de gris près.
+  Limite : un nouveau dessin posé devant un dessin déjà gravé ne peut pas
+  effacer ce qui est déjà sur le verre.
+- **La fresque importée en une image n'est jamais gravée** avec des
+  dessins choisis (elle est une seule image, elle n'est pas « un dessin »).
+  La case de la fresque est cachée tant que « dessins choisis » est
+  sélectionné ; elle n'est pas modifiée dans le projet.
+- **Seules les diapositives qui portent un dessin choisi** sont écrites ;
+  les autres ne sont pas signalées, sauf si on avait demandé une
+  diapositive précise qui n'en porte aucun.
+- **Nom du fichier** : `<projet>-<diapositive> - DESSINS CHOISIS.png`
+  (et `.svg`), pour ne pas écraser le PNG complet de la diapositive.
+- Le plan de contrôle et la fiche de calepinage ne sont pas concernés.
+
 ## 2026-11-15 — Travail à deux : verrou branché, copies en conflit réunies (demande de Benjamin)
 
 Benjamin (15 novembre 2026) : Marc et lui ont modifié Trévarez en même temps ;

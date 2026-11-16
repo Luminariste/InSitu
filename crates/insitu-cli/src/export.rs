@@ -3,7 +3,9 @@
 
 use std::path::Path;
 
-use insitu_core::export::{export_control_plans, export_slides, import_fresco_page, remove_fresco};
+use insitu_core::export::{
+    export_control_plans, export_slides_with, import_fresco_page, remove_fresco,
+};
 use insitu_core::project::{ProjectDir, RectMm};
 use serde_json::json;
 
@@ -44,6 +46,10 @@ projet, et ceux utilisés y sont enregistrés.
   --sans-fresque    Les dessins posés seuls, sans la fresque importée en
                     une image (--avec-fresque, par défaut)
   --only NOM        Ce projecteur seulement (répétable)
+  --dessin ID       Ce dessin posé seulement (identifiant, répétable), pour
+                    compléter une plaque déjà gravée : sans la fresque, les
+                    seules diapositives qui le portent, écrites sous
+                    <projet>-<diapositive> - DESSINS CHOISIS.png
   --plan-de-controle
                     À la place des diapositives : le plan de la façade vu
                     par chaque projecteur, pour graver une plaque qui
@@ -115,6 +121,7 @@ pub fn export(args: &[&str]) -> Result<String, (bool, String)> {
                 .project
                 .export;
             let mut only = Vec::new();
+            let mut chosen = Vec::new();
             let mut control_plan = false;
             let mut rest = rest.iter();
             while let Some(&option) = rest.next() {
@@ -132,7 +139,7 @@ pub fn export(args: &[&str]) -> Result<String, (bool, String)> {
                     "--sans-fresque" => settings.fresco = false,
                     "--avec-fresque" => settings.fresco = true,
                     "--plan-de-controle" => control_plan = true,
-                    "--dpi" | "--threshold" | "--only" => {
+                    "--dpi" | "--threshold" | "--only" | "--dessin" => {
                         let value = rest.next().ok_or_else(|| usage("Valeur manquante."))?;
                         match option {
                             "--dpi" => {
@@ -146,6 +153,7 @@ pub fn export(args: &[&str]) -> Result<String, (bool, String)> {
                                     .parse()
                                     .map_err(|_| usage("Seuil illisible (1 à 255)."))?
                             }
+                            "--dessin" => chosen.push(value.to_string()),
                             _ => only.push(value.to_string()),
                         }
                     }
@@ -153,23 +161,29 @@ pub fn export(args: &[&str]) -> Result<String, (bool, String)> {
                 }
             }
             let only = (!only.is_empty()).then_some(only);
-            let run = if control_plan {
-                export_control_plans
-            } else {
-                export_slides
+            let chosen = (!chosen.is_empty()).then_some(chosen);
+            if control_plan && chosen.is_some() {
+                return Err(usage("--dessin ne va pas avec --plan-de-controle."));
+            }
+            let progress = |p: insitu_core::export::ExportProgress| {
+                if let Some(current) = &p.current {
+                    eprintln!("{}/{} : {current}…", p.done + 1, p.total);
+                }
             };
-            let report = run(
-                &dir,
-                Path::new(destination),
-                &settings,
-                only.as_deref(),
-                0,
-                &|p| {
-                    if let Some(current) = &p.current {
-                        eprintln!("{}/{} : {current}…", p.done + 1, p.total);
-                    }
-                },
-            )
+            let destination = Path::new(destination);
+            let report = if control_plan {
+                export_control_plans(&dir, destination, &settings, only.as_deref(), 0, &progress)
+            } else {
+                export_slides_with(
+                    &dir,
+                    destination,
+                    &settings,
+                    only.as_deref(),
+                    chosen.as_deref(),
+                    0,
+                    &progress,
+                )
+            }
             .map_err(|e| (false, e.to_string()))?;
             Ok(serde_json::to_string_pretty(&json!(report)).expect("sérialisable"))
         }

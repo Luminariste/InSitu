@@ -68,6 +68,30 @@ gravés.
 Compter une quinzaine de secondes par diapositive à 1 400 dpi, un peu plus
 avec beaucoup de dessins posés.
 
+## Compléter une plaque déjà gravée : exporter seulement certains dessins
+
+Une plaque est déjà gravée et on ajoute un dessin : on ne grave que le
+nouveau, au même endroit (D-3.5-q).
+
+1. Choisir le ou les dessins à ajouter (clic, ⇧-clic), sur la Façade ou
+   dans la Diapositive.
+2. Onglet **Export**, menu **Dessins** : « Le dessin choisi seulement »
+   (ou « Les 3 dessins choisis seulement »). Par défaut, c'est **Tous**,
+   comme avant, et le choix revient à **Tous** à chaque lancement.
+3. **Exporter le dessin choisi…** : un PNG par diapositive qui porte un
+   dessin choisi, nommé `<projet>-<diapositive> - DESSINS CHOISIS.png` ;
+   le PNG complet n'est pas écrasé.
+4. Dans LightBurn, poser ce fichier au même endroit que celui de la
+   gravure d'origine (même taille, même cadrage) et graver.
+
+La fresque importée en une image n'est pas gravée dans ce cas. Si un
+dessin déjà gravé est posé devant le nouveau, il continue de le cacher
+sous sa silhouette : rien n'est gravé par-dessus. L'inverse est
+impossible : un nouveau dessin ne peut pas effacer ce qui est déjà gravé.
+
+Ligne de commande : `insitu export <projet> <dossier> --dessin ID`
+(identifiant du dessin posé, répétable).
+
 ## Plan de contrôle : vérifier le recalage avant de graver
 
 Le **plan de contrôle** est le plan de la façade vu par un projecteur,
